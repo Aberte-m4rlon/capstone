@@ -1,85 +1,147 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
 import { useToast } from '../lib/toast';
-import { QrCode, ScanLine, Camera, CameraOff, Keyboard, PawPrint, AlertCircle } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { QrCode, ScanLine, Camera, CameraOff, Keyboard, PawPrint, AlertCircle, CheckCircle } from 'lucide-react';
+
+const CONTAINER_ID = 'qr-scanner-container';
+
+type ScanState = 'idle' | 'starting' | 'scanning' | 'error';
 
 export function ScannerPage() {
   const navigate = useNavigate();
   const farmData = useFarmData();
   const toast = useToast();
 
-  const [scanning, setScanning] = useState(false);
-  const [manualTag, setManualTag] = useState('');
   const [mode, setMode] = useState<'camera' | 'manual'>('camera');
-  const [error, setError] = useState<string | null>(null);
+  const [scanState, setScanState] = useState<ScanState>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [lastResult, setLastResult] = useState<string | null>(null);
+  const [manualTag, setManualTag] = useState('');
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const containerId = 'qr-reader';
+  const isMounted = useRef(true);
 
-  const startScan = async () => {
-    setError(null);
+  // ── Stop scanner helper ──────────────────────────────────────────────────────
+  const stopScanner = useCallback(async () => {
+    if (!scannerRef.current) return;
     try {
-      const scanner = new Html5Qrcode(containerId);
-      scannerRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          handleScan(decodedText);
-        },
-        () => {},
-      );
-      setScanning(true);
-    } catch {
-      setError('Unable to access camera. Check permissions or use manual entry.');
-      setScanning(false);
-    }
-  };
-
-  const stopScan = async () => {
-    if (scannerRef.current) {
-      try {
+      const state = scannerRef.current.getState();
+      // state 2 = SCANNING, state 3 = PAUSED
+      if (state === 2 || state === 3) {
         await scannerRef.current.stop();
-        await scannerRef.current.clear();
-      } catch {
-        // ignore
       }
-      scannerRef.current = null;
+      scannerRef.current.clear();
+    } catch {
+      // ignore stop errors
     }
-    setScanning(false);
-  };
+    scannerRef.current = null;
+    if (isMounted.current) setScanState('idle');
+  }, []);
 
-  const handleScan = (decoded: string) => {
-    stopScan();
+  // Cleanup on unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      stopScanner();
+    };
+  }, [stopScanner]);
 
-    // The QR contains a URL like https://domain/animals/:id or https://domain/public/:id
-    const match = decoded.match(/\/(?:animals|public)\/([a-f0-9-]+)/i);
-    if (match) {
-      const animalId = match[1];
+  // ── Handle a decoded QR result ───────────────────────────────────────────────
+  const handleDecoded = useCallback((decoded: string) => {
+    stopScanner();
+
+    // Match URL pattern: /animals/:uuid or /public/:uuid
+    const urlMatch = decoded.match(/\/(?:animals|public)\/([a-f0-9\-]{36})/i);
+    const animalId = urlMatch ? urlMatch[1] : null;
+
+    if (animalId) {
       const animal = farmData.animals.find((a) => a.id === animalId);
-      if (animal && !animal.archived) {
+      if (animal) {
+        setLastResult(animal.name);
         toast(`Found: ${animal.name} (${animal.tag_id})`, 'success');
-        navigate(`/animals/${animalId}`);
+        setTimeout(() => navigate(`/animals/${animalId}`), 600);
         return;
       }
     }
 
-    // Try matching by tag_id if the QR contained just a tag
-    const byTag = farmData.animals.find((a) => a.tag_id.toLowerCase() === decoded.toLowerCase().trim());
+    // Try raw tag_id match
+    const byTag = farmData.animals.find(
+      (a) => a.tag_id.toLowerCase() === decoded.trim().toLowerCase(),
+    );
     if (byTag) {
+      setLastResult(byTag.name);
       toast(`Found: ${byTag.name} (${byTag.tag_id})`, 'success');
-      navigate(`/animals/${byTag.id}`);
+      setTimeout(() => navigate(`/animals/${byTag.id}`), 600);
       return;
     }
 
-    toast('No matching animal found for this QR code.', 'error');
+    if (isMounted.current) {
+      setErrorMsg(`QR scanned but no matching animal found.\nDecoded: "${decoded.slice(0, 60)}"`);
+      setScanState('error');
+    }
+  }, [farmData.animals, navigate, stopScanner, toast]);
+
+  // ── Start scanner ────────────────────────────────────────────────────────────
+  const startScanner = useCallback(async () => {
+    setErrorMsg('');
+    setLastResult(null);
+    setScanState('starting');
+
+    // Small delay so the container div is guaranteed in DOM
+    await new Promise((r) => setTimeout(r, 120));
+
+    if (!isMounted.current) return;
+
+    try {
+      const scanner = new Html5Qrcode(CONTAINER_ID, {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        verbose: false,
+      });
+      scannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 240, height: 240 },
+          aspectRatio: 1.0,
+        },
+        (decoded) => handleDecoded(decoded),
+        () => { /* ignore scan errors (not-found frames) */ },
+      );
+
+      if (isMounted.current) setScanState('scanning');
+    } catch (err) {
+      if (!isMounted.current) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('notallowed')) {
+        setErrorMsg('Camera permission denied. Please allow camera access in your browser settings, then try again.');
+      } else if (msg.toLowerCase().includes('notfound') || msg.toLowerCase().includes('device')) {
+        setErrorMsg('No camera found on this device. Use Manual Entry instead.');
+      } else {
+        setErrorMsg(`Could not start camera: ${msg}`);
+      }
+      setScanState('error');
+      scannerRef.current = null;
+    }
+  }, [handleDecoded]);
+
+  // ── Switch modes ─────────────────────────────────────────────────────────────
+  const switchMode = (m: 'camera' | 'manual') => {
+    stopScanner();
+    setScanState('idle');
+    setErrorMsg('');
+    setLastResult(null);
+    setMode(m);
   };
 
+  // ── Manual search ─────────────────────────────────────────────────────────────
   const handleManualSearch = () => {
-    if (!manualTag.trim()) return;
     const tag = manualTag.trim().toLowerCase();
+    if (!tag) return;
     const animal = farmData.animals.find(
       (a) => a.tag_id.toLowerCase() === tag || a.name.toLowerCase() === tag,
     );
@@ -91,17 +153,13 @@ export function ScannerPage() {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(() => {});
-      }
-    };
-  }, []);
+  const activeAnimals = farmData.animals.filter((a) => !a.archived);
 
   return (
     <div>
-      <div className="card section-gap" style={{ maxWidth: 560, margin: '0 auto' }}>
+      <div className="card section-gap" style={{ maxWidth: 540, margin: '0 auto' }}>
+
+        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{
             width: 64, height: 64, borderRadius: 16, background: '#D1FAE5',
@@ -109,78 +167,115 @@ export function ScannerPage() {
           }}>
             <ScanLine size={32} color="#059669" />
           </div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>QR Scanner</h2>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-            Scan an animal's QR code with your camera to instantly open its profile.
+          <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>QR Code Scanner</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Scan an animal's QR tag to instantly open its profile.
           </p>
         </div>
 
         {/* Mode toggle */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, background: 'var(--bg)', borderRadius: 10, padding: 4 }}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: 'var(--bg)', borderRadius: 10, padding: 4 }}>
           <button
             className={`btn btn-sm ${mode === 'camera' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ flex: 1 }}
-            onClick={() => { stopScan(); setMode('camera'); }}
+            onClick={() => switchMode('camera')}
           >
-            <Camera size={16} /> Camera
+            <Camera size={15} /> Camera
           </button>
           <button
             className={`btn btn-sm ${mode === 'manual' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ flex: 1 }}
-            onClick={() => { stopScan(); setMode('manual'); }}
+            onClick={() => switchMode('manual')}
           >
-            <Keyboard size={16} /> Manual Entry
+            <Keyboard size={15} /> Manual Entry
           </button>
         </div>
 
-        {/* Camera mode */}
+        {/* ── CAMERA MODE ── */}
         {mode === 'camera' && (
           <div>
-            {!scanning && !error && (
+            {/* Success flash */}
+            {lastResult && (
               <div style={{
-                border: '2px dashed var(--border)', borderRadius: 14, padding: 40,
-                textAlign: 'center', background: 'var(--bg)',
+                background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: 10,
+                padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10,
               }}>
-                <QrCode size={48} color="var(--text-secondary)" style={{ margin: '0 auto 12px' }} />
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                  Press start and point your camera at the QR code on the animal's tag.
+                <CheckCircle size={20} color="#059669" />
+                <span style={{ fontWeight: 700, color: '#065F46' }}>Found: {lastResult} — navigating…</span>
+              </div>
+            )}
+
+            {/* Error state */}
+            {scanState === 'error' && (
+              <div style={{
+                background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10,
+                padding: '14px 16px', marginBottom: 14,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <AlertCircle size={20} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <p style={{ fontWeight: 700, color: '#991B1B', marginBottom: 4 }}>Scanner Error</p>
+                    <p style={{ fontSize: 12, color: '#7F1D1D', whiteSpace: 'pre-line' }}>{errorMsg}</p>
+                  </div>
+                </div>
+                <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={startScanner}>
+                  <Camera size={14} /> Try Again
+                </button>
+              </div>
+            )}
+
+            {/* Idle state — show start button */}
+            {scanState === 'idle' && !lastResult && (
+              <div style={{
+                border: '2px dashed var(--border)', borderRadius: 14, padding: '36px 20px',
+                textAlign: 'center', background: 'var(--bg)', marginBottom: 12,
+              }}>
+                <QrCode size={52} color="var(--text-secondary)" style={{ margin: '0 auto 12px', display: 'block' }} />
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>
+                  Press Start and point your camera at the animal's QR code tag.
                 </p>
-                <button className="btn btn-primary" onClick={startScan}>
+                <button className="btn btn-primary" onClick={startScanner}>
                   <Camera size={16} /> Start Camera
                 </button>
               </div>
             )}
 
-            {error && (
-              <div style={{
-                border: '1px solid #FCA5A5', borderRadius: 14, padding: 20,
-                textAlign: 'center', background: '#FEF2F2', marginBottom: 12,
-              }}>
-                <AlertCircle size={32} color="#EF4444" style={{ margin: '0 auto 8px' }} />
-                <p style={{ fontSize: 13, color: '#991B1B', marginBottom: 12 }}>{error}</p>
-                <button className="btn btn-primary btn-sm" onClick={startScan}>Try Again</button>
+            {/* Starting state */}
+            {scanState === 'starting' && (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-secondary)', fontSize: 13 }}>
+                <div className="spinner" style={{ margin: '0 auto 12px' }} />
+                Starting camera…
               </div>
             )}
 
-            <div id={containerId} style={{
-              borderRadius: 14, overflow: 'hidden', display: scanning ? 'block' : 'none',
-              border: '2px solid var(--primary)',
-            }} />
+            {/* The scanner container — ALWAYS in DOM when camera mode is active */}
+            {/* Hidden when not scanning so html5-qrcode can always find the element */}
+            <div
+              id={CONTAINER_ID}
+              style={{
+                borderRadius: 14,
+                overflow: 'hidden',
+                border: scanState === 'scanning' ? '3px solid #059669' : 'none',
+                display: scanState === 'scanning' ? 'block' : 'none',
+                background: '#000',
+              }}
+            />
 
-            {scanning && (
-              <div style={{ textAlign: 'center', marginTop: 12 }}>
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                  Point at a QR code... scanning automatically.
+            {/* Scanning controls */}
+            {scanState === 'scanning' && (
+              <div style={{ textAlign: 'center', marginTop: 14 }}>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>
+                  Scanning… point camera at a QR code.
                 </p>
-                <button className="btn btn-secondary btn-sm" onClick={stopScan}>
-                  <CameraOff size={15} /> Stop Camera
+                <button className="btn btn-secondary btn-sm" onClick={stopScanner}>
+                  <CameraOff size={14} /> Stop Camera
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* Manual mode */}
+        {/* ── MANUAL MODE ── */}
         {mode === 'manual' && (
           <div>
             <div className="form-group">
@@ -191,32 +286,40 @@ export function ScannerPage() {
                 value={manualTag}
                 onChange={(e) => setManualTag(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()}
+                autoFocus
               />
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
-                Enter the tag ID printed on the animal's ear tag or QR label.
+                Enter the tag ID printed on the ear tag or QR label. Press Enter or tap Find.
               </p>
             </div>
-            <button className="btn btn-primary" onClick={handleManualSearch} disabled={!manualTag.trim()}>
+            <button
+              className="btn btn-primary"
+              onClick={handleManualSearch}
+              disabled={!manualTag.trim()}
+            >
               <PawPrint size={16} /> Find Animal
             </button>
           </div>
         )}
       </div>
 
-      {/* Quick animal list for reference */}
-      <div className="card section-gap" style={{ maxWidth: 560, margin: '16px auto 0' }}>
-        <div className="card-title" style={{ marginBottom: 12, fontSize: 14 }}>All Animals — Quick Access</div>
-        {farmData.animals.filter((a) => !a.archived).length === 0 ? (
+      {/* Quick access list */}
+      <div className="card section-gap" style={{ maxWidth: 540, margin: '16px auto 0' }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
+          All Animals — Quick Access
+        </div>
+        {activeAnimals.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No animals registered yet.</p>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {farmData.animals.filter((a) => !a.archived).map((a) => (
+            {activeAnimals.map((a) => (
               <button
                 key={a.id}
                 className="btn btn-secondary btn-sm"
                 onClick={() => navigate(`/animals/${a.id}`)}
               >
-                {a.name} ({a.tag_id})
+                <PawPrint size={13} /> {a.name}
+                <span style={{ opacity: 0.6, fontSize: 11, marginLeft: 4 }}>({a.tag_id})</span>
               </button>
             ))}
           </div>
