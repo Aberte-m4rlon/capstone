@@ -990,3 +990,30 @@ table.data-table {
 @media (max-width: 480px) {
   .kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== QR Scanner ===== */
+/* Force html5-qrcode injected elements to be fully visible */
+#qr-scanner-container {
+  overflow: visible !important;
+}
+#qr-scanner-container video {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 400px !important;
+  border-radius: 12px !important;
+  display: block !important;
+  object-fit: cover !important;
+}
+#qr-scanner-container img {
+  display: none !important;
+}
+#qr-scanner-container canvas {
+  display: none !important;
+}
+/* The scan region overlay box */
+#qr-scanner-container #qr-shaded-region {
+  border: none !important;
+}
+#qr-scanner-container #qr-shaded-region div {
+  background: rgba(0,0,0,0.45) !important;
+}

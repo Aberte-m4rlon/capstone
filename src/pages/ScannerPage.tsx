@@ -248,16 +248,17 @@ export function ScannerPage() {
               </div>
             )}
 
-            {/* The scanner container — ALWAYS in DOM when camera mode is active */}
-            {/* Hidden when not scanning so html5-qrcode can always find the element */}
+            {/* Scanner container — always in DOM, html5-qrcode needs it to exist */}
             <div
               id={CONTAINER_ID}
               style={{
                 borderRadius: 14,
-                overflow: 'hidden',
                 border: scanState === 'scanning' ? '3px solid #059669' : 'none',
                 display: scanState === 'scanning' ? 'block' : 'none',
                 background: '#000',
+                width: '100%',
+                minHeight: 300,
+                position: 'relative',
               }}
             />
 
