@@ -43,6 +43,12 @@ export interface HealthRecord {
   record_date: string;
   temperature: number | null;
   heart_rate: number | null;
+  respiratory_rate: number | null;
+  rumen_sounds: 'Normal' | 'Reduced' | 'Absent' | 'Increased';
+  famacha_score: 1 | 2 | 3 | 4 | 5 | null;
+  mucous_membrane: 'Pink' | 'Pale' | 'White' | 'Red' | 'Yellow' | 'Blue';
+  bloat_score: 0 | 1 | 2 | 3;
+  gait: 'Normal' | 'Slight Limp' | 'Severe Limp' | 'Cannot Walk';
   appetite: 'Normal' | 'Reduced' | 'None';
   activity_level: 'Normal' | 'Low' | 'Lethargic';
   cough: boolean;
@@ -54,6 +60,7 @@ export interface HealthRecord {
   risk_level: RiskLevel;
   reasons: string | null;
   recommendation: string | null;
+  detected_conditions: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
