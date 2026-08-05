@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { PawPrint, Calendar, Scale, HeartPulse, Syringe, Heart, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { PawPrint, AlertCircle } from 'lucide-react';
 
 interface PublicAnimal {
   id: string;
@@ -15,8 +15,15 @@ interface PublicAnimal {
   weight_kg: number | null;
   health_status: string;
   health_risk_score: number;
+  current_temperature: number | null;
+  current_heart_rate: number | null;
   breeding_status: string;
+  last_mating_date: string | null;
+  expected_kidding_date: string | null;
   vaccination_status: string;
+  last_vaccine_date: string | null;
+  next_vaccine_date: string | null;
+  notes: string | null;
   registered_on: string;
 }
 
@@ -28,22 +35,34 @@ function ageLabel(dob: string | null): string {
   if (months < 1) return 'Less than a month';
   if (months < 12) return `${months} month${months > 1 ? 's' : ''}`;
   const years = Math.floor(months / 12);
-  const remMonths = months % 12;
-  return remMonths > 0 ? `${years} year${years > 1 ? 's' : ''}, ${remMonths} month${remMonths > 1 ? 's' : ''}` : `${years} year${years > 1 ? 's' : ''}`;
+  const rem = months % 12;
+  return rem > 0 ? `${years}y ${rem}m` : `${years} year${years > 1 ? 's' : ''}`;
 }
 
-function healthColor(status: string): string {
-  if (status === 'Healthy') return '#10B981';
-  if (status === 'Monitor') return '#3B82F6';
-  if (status === 'At Risk') return '#F59E0B';
-  return '#EF4444';
+function formatDate(d: string | null): string {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function vacColor(status: string): string {
+function riskColor(score: number): string {
+  if (score >= 80) return '#EF4444';
+  if (score >= 50) return '#F97316';
+  if (score >= 25) return '#F59E0B';
+  return '#10B981';
+}
+
+function riskLabel(score: number): string {
+  if (score >= 80) return 'Critical Risk';
+  if (score >= 50) return 'High Risk';
+  if (score >= 25) return 'Moderate Risk';
+  return 'Low Risk';
+}
+
+function vacBadgeColor(status: string): string {
   if (status === 'Up to Date') return '#10B981';
   if (status === 'Due Soon') return '#F59E0B';
   if (status === 'Overdue') return '#EF4444';
-  return '#6B7280';
+  return '#9CA3AF';
 }
 
 export function PublicAnimalPage() {
@@ -51,6 +70,7 @@ export function PublicAnimalPage() {
   const [animal, setAnimal] = useState<PublicAnimal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'overview' | 'health' | 'weight' | 'breeding'>('overview');
 
   useEffect(() => {
     if (!id) return;
@@ -64,20 +84,17 @@ export function PublicAnimalPage() {
         }
         return res.json();
       })
-      .then((data) => {
-        setAnimal(data);
-        setError(null);
-      })
+      .then((data) => { setAnimal(data); setError(null); })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F5' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 40, height: 40, border: '3px solid #E5E7EB', borderTopColor: '#3B82F6', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
-          <p style={{ color: '#6B7280', fontSize: 14 }}>Loading animal information...</p>
+          <div style={{ width: 36, height: 36, border: '3px solid #E5E7EB', borderTopColor: '#B91C1C', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ color: '#9CA3AF', fontSize: 13 }}>Loading animal profile…</p>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </div>
@@ -86,139 +103,286 @@ export function PublicAnimalPage() {
 
   if (error || !animal) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB', padding: 20 }}>
-        <div style={{ textAlign: 'center', maxWidth: 400 }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F5F5', padding: 20 }}>
+        <div style={{ textAlign: 'center', maxWidth: 360 }}>
           <AlertCircle size={48} color="#EF4444" style={{ margin: '0 auto 12px' }} />
           <h2 style={{ fontSize: 20, fontWeight: 700, color: '#1F2937', marginBottom: 8 }}>Animal Not Found</h2>
           <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 20 }}>
-            {error || 'This animal may have been removed or the QR code is invalid.'}
+            {error || 'This QR code may be invalid or the animal was removed.'}
           </p>
-          <Link to="/" style={{ color: '#3B82F6', fontSize: 14, textDecoration: 'none' }}>Go to AlpasFarm</Link>
+          <Link to="/" style={{ color: '#B91C1C', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Go to AlpasFarm</Link>
         </div>
       </div>
     );
   }
 
+  const TABS = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'health', label: 'Health' },
+    { key: 'weight', label: 'Weight' },
+    { key: 'breeding', label: 'Breeding' },
+  ] as const;
+
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      {/* Header banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
-        padding: '32px 20px 28px',
-        color: '#fff',
-      }}>
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: 16,
-              background: 'rgba(255,255,255,0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28, fontWeight: 800, flexShrink: 0,
-            }}>
-              {animal.name[0]?.toUpperCase()}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>{animal.name}</h1>
-              <p style={{ fontSize: 14, opacity: 0.9, margin: '4px 0 0' }}>
-                {animal.tag_id} · {animal.species} · {animal.sex}
-              </p>
-              {animal.breed && <p style={{ fontSize: 12, opacity: 0.8, margin: '2px 0 0' }}>{animal.breed}</p>}
-            </div>
+    <div style={{ minHeight: '100vh', background: '#F5F5F5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', maxWidth: 480, margin: '0 auto' }}>
+
+      {/* ── Top header ── */}
+      <div style={{ background: '#fff', padding: '20px 20px 0', borderBottom: '1px solid #E5E7EB' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: 14, background: '#FEE2E2',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, fontWeight: 800, color: '#B91C1C', flexShrink: 0,
+          }}>
+            {animal.name[0]?.toUpperCase()}
           </div>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1F2937', margin: 0, lineHeight: 1.2 }}>{animal.name}</h1>
+            <p style={{ fontSize: 12, color: '#9CA3AF', margin: '3px 0 0' }}>
+              {animal.tag_id} · {animal.species}{animal.breed ? ` · ${animal.breed}` : ''} · {animal.sex}
+            </p>
+            <p style={{ fontSize: 12, color: '#9CA3AF', margin: '1px 0 0' }}>
+              Age: {ageLabel(animal.date_of_birth)}
+            </p>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                padding: '10px 16px', fontSize: 14, fontWeight: tab === t.key ? 700 : 400,
+                color: tab === t.key ? '#B91C1C' : '#9CA3AF',
+                background: 'none', border: 'none', cursor: 'pointer',
+                borderBottom: tab === t.key ? '2px solid #B91C1C' : '2px solid transparent',
+                whiteSpace: 'nowrap', transition: 'color 0.15s',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: 600, margin: '0 auto', padding: '24px 20px 48px' }}>
-        {/* Health status banner */}
-        <div style={{
-          background: '#fff', borderRadius: 14, padding: 16, marginBottom: 16,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 12,
-            background: `${healthColor(animal.health_status)}15`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <HeartPulse size={24} color={healthColor(animal.health_status)} />
+      {/* ── Overview Tab ── */}
+      {tab === 'overview' && (
+        <div style={{ padding: '16px 16px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* Row 1: Health Risk + Weight */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+            {/* Health Risk Card */}
+            <div style={cardStyle}>
+              <p style={cardTitle}>Health Risk</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '10px 0 12px' }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                  background: riskColor(animal.health_risk_score),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 18, fontWeight: 800, color: '#fff',
+                }}>
+                  {animal.health_risk_score}
+                </div>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#1F2937', margin: 0 }}>{riskLabel(animal.health_risk_score)}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0' }}>
+                    {animal.health_risk_score < 50 ? 'Within normal range' : 'Needs attention'}
+                  </p>
+                </div>
+              </div>
+              <div style={divider} />
+              <StatRow label="Temperature" value={animal.current_temperature ? `${animal.current_temperature}°C` : '—'} />
+              <StatRow label="Heart Rate" value={animal.current_heart_rate ? `${animal.current_heart_rate} BPM` : '—'} />
+            </div>
+
+            {/* Weight & Growth Card */}
+            <div style={cardStyle}>
+              <p style={cardTitle}>Weight & Growth</p>
+              <div style={{ marginTop: 8 }}>
+                <StatRow label="Current Weight" value={animal.weight_kg ? `${animal.weight_kg} kg` : '—'} bold />
+                <StatRow label="Previous" value="—" />
+                <StatRow label="Change" value="—" />
+                <StatRow label="Daily Gain" value="—" />
+                <StatRow label="Trend" value="Insufficient" />
+              </div>
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Health Status</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: healthColor(animal.health_status) }}>{animal.health_status}</div>
+
+          {/* Row 2: Breeding + Vaccination */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+            {/* Breeding Card */}
+            <div style={cardStyle}>
+              <p style={cardTitle}>Breeding</p>
+              <div style={{ marginTop: 8 }}>
+                <StatRow label="Status" value={animal.breeding_status} />
+                <StatRow label="Last Mating" value={formatDate(animal.last_mating_date)} />
+                <StatRow label="Expected Kidding" value={formatDate(animal.expected_kidding_date)} />
+              </div>
+            </div>
+
+            {/* Vaccination Card */}
+            <div style={cardStyle}>
+              <p style={cardTitle}>Vaccination</p>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #F3F4F6' }}>
+                  <span style={{ fontSize: 12, color: '#9CA3AF' }}>Status</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                    background: `${vacBadgeColor(animal.vaccination_status)}20`,
+                    color: vacBadgeColor(animal.vaccination_status),
+                  }}>
+                    {animal.vaccination_status}
+                  </span>
+                </div>
+                <StatRow label="Last Vaccine" value={formatDate(animal.last_vaccine_date)} />
+                <StatRow label="Next Due" value={formatDate(animal.next_vaccine_date)} />
+              </div>
+            </div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Risk Score</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: animal.health_risk_score >= 50 ? '#EF4444' : animal.health_risk_score >= 25 ? '#F59E0B' : '#10B981' }}>
-              {animal.health_risk_score}/100
+
+          {/* Notes Card */}
+          <div style={cardStyle}>
+            <p style={cardTitle}>Notes</p>
+            <p style={{ fontSize: 13, color: animal.notes ? '#374151' : '#9CA3AF', margin: '8px 0 0' }}>
+              {animal.notes || 'No notes recorded.'}
+            </p>
+          </div>
+
+          {/* Color markings */}
+          {animal.color_markings && (
+            <div style={cardStyle}>
+              <p style={cardTitle}>Color & Markings</p>
+              <p style={{ fontSize: 13, color: '#374151', margin: '8px 0 0' }}>{animal.color_markings}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Health Tab ── */}
+      {tab === 'health' && (
+        <div style={{ padding: '16px 16px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={cardStyle}>
+            <p style={cardTitle}>Current Health Status</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 12 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%', background: riskColor(animal.health_risk_score),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22, fontWeight: 800, color: '#fff', flexShrink: 0,
+              }}>
+                {animal.health_risk_score}
+              </div>
+              <div>
+                <p style={{ fontSize: 16, fontWeight: 800, color: riskColor(animal.health_risk_score), margin: 0 }}>{riskLabel(animal.health_risk_score)}</p>
+                <p style={{ fontSize: 12, color: '#9CA3AF', margin: '4px 0 0' }}>Health Risk Score out of 100</p>
+              </div>
+            </div>
+            <div style={{ ...divider, marginTop: 14 }} />
+            <StatRow label="Health Status" value={animal.health_status} />
+            <StatRow label="Temperature" value={animal.current_temperature ? `${animal.current_temperature}°C` : 'Not recorded'} />
+            <StatRow label="Heart Rate" value={animal.current_heart_rate ? `${animal.current_heart_rate} BPM` : 'Not recorded'} />
+          </div>
+          <div style={{ ...cardStyle, background: '#FEF3C7', border: '1px solid #FCD34D' }}>
+            <p style={{ fontSize: 12, color: '#92400E', margin: 0 }}>
+              ⚠️ This health data is for reference only. Always consult a licensed veterinarian for medical decisions.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Weight Tab ── */}
+      {tab === 'weight' && (
+        <div style={{ padding: '16px 16px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={cardStyle}>
+            <p style={cardTitle}>Weight Information</p>
+            <div style={{ marginTop: 8 }}>
+              <StatRow label="Current Weight" value={animal.weight_kg ? `${animal.weight_kg} kg` : 'Not recorded'} bold />
+              <StatRow label="Species" value={animal.species} />
+              <StatRow label="Breed" value={animal.breed ?? 'Unknown'} />
+              <StatRow label="Sex" value={animal.sex} />
+              <StatRow label="Age" value={ageLabel(animal.date_of_birth)} />
+            </div>
+          </div>
+          <div style={{ ...cardStyle, background: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+            <p style={{ fontSize: 12, color: '#1E40AF', margin: 0 }}>
+              📈 Detailed weight trend charts and growth forecasts are available in the AlpasFarm management system.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Breeding Tab ── */}
+      {tab === 'breeding' && (
+        <div style={{ padding: '16px 16px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={cardStyle}>
+            <p style={cardTitle}>Breeding Status</p>
+            <div style={{ marginTop: 8 }}>
+              <StatRow label="Current Status" value={animal.breeding_status} bold />
+              <StatRow label="Last Mating Date" value={formatDate(animal.last_mating_date)} />
+              <StatRow label="Expected Kidding" value={formatDate(animal.expected_kidding_date)} />
+            </div>
+          </div>
+          <div style={cardStyle}>
+            <p style={cardTitle}>Vaccination</p>
+            <div style={{ marginTop: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F3F4F6' }}>
+                <span style={{ fontSize: 13, color: '#9CA3AF' }}>Status</span>
+                <span style={{
+                  fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 6,
+                  background: `${vacBadgeColor(animal.vaccination_status)}20`,
+                  color: vacBadgeColor(animal.vaccination_status),
+                }}>
+                  {animal.vaccination_status}
+                </span>
+              </div>
+              <StatRow label="Last Vaccine" value={formatDate(animal.last_vaccine_date)} />
+              <StatRow label="Next Due" value={formatDate(animal.next_vaccine_date)} />
             </div>
           </div>
         </div>
+      )}
 
-        {/* Info grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
-          <InfoCard icon={<Calendar size={18} color="#3B82F6" />} label="Age" value={ageLabel(animal.date_of_birth)} />
-          <InfoCard icon={<Scale size={18} color="#10B981" />} label="Weight" value={animal.weight_kg ? `${animal.weight_kg} kg` : 'Not recorded'} />
-          <InfoCard icon={<Heart size={18} color="#EC4899" />} label="Breeding Status" value={animal.breeding_status} />
-          <InfoCard icon={<Syringe size={18} color={vacColor(animal.vaccination_status)} />} label="Vaccination" value={animal.vaccination_status} />
+      {/* ── Footer ── */}
+      <div style={{ textAlign: 'center', padding: '16px 20px 32px', borderTop: '1px solid #E5E7EB', background: '#fff' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#9CA3AF', fontSize: 12, marginBottom: 6 }}>
+          <PawPrint size={13} />
+          <span>Powered by AlpasFarm — Smart Farm Management</span>
         </div>
-
-        {/* Physical description */}
-        {animal.color_markings && (
-          <div style={{
-            background: '#fff', borderRadius: 14, padding: 16, marginBottom: 16,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-          }}>
-            <div style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 6 }}>
-              Color & Markings
-            </div>
-            <p style={{ fontSize: 14, color: '#374151', margin: 0 }}>{animal.color_markings}</p>
-          </div>
-        )}
-
-        {/* Registration info */}
-        <div style={{
-          background: '#fff', borderRadius: 14, padding: 16, marginBottom: 16,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <PawPrint size={16} color="#059669" />
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#1F2937' }}>AlpasFarm Registration</span>
-          </div>
-          <div style={{ fontSize: 13, color: '#6B7280' }}>
-            <div style={{ marginBottom: 4 }}><strong>Tag ID:</strong> {animal.tag_id}</div>
-            <div><strong>Registered:</strong> {new Date(animal.registered_on).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ textAlign: 'center', marginTop: 32 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#6B7280', fontSize: 12 }}>
-            <PawPrint size={14} />
-            <span>Powered by AlpasFarm — Smart Farm Management</span>
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <Link to="/" style={{ color: '#059669', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>
-              Visit AlpasFarm
-            </Link>
-          </div>
+        <div>
+          <Link to="/" style={{ color: '#B91C1C', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+            Visit AlpasFarm →
+          </Link>
         </div>
       </div>
     </div>
   );
 }
 
-function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+// ── Shared styles ──────────────────────────────────────────────────────────────
+
+const cardStyle: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 16,
+  padding: '14px 16px',
+  boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
+};
+
+const cardTitle: React.CSSProperties = {
+  fontSize: 15, fontWeight: 700, color: '#1F2937', margin: 0,
+};
+
+const divider: React.CSSProperties = {
+  height: 1, background: '#F3F4F6', margin: '10px 0',
+};
+
+function StatRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <div style={{
-      background: '#fff', borderRadius: 14, padding: 14,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        {icon}
-        <span style={{ fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>{label}</span>
-      </div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: '#1F2937' }}>{value}</div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F9FAFB' }}>
+      <span style={{ fontSize: 13, color: '#9CA3AF' }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: bold ? 700 : 500, color: '#1F2937' }}>{value}</span>
     </div>
   );
 }

@@ -39,8 +39,10 @@ Deno.serve(async (req: Request) => {
       .select(`
         id, tag_id, name, species, breed, sex, date_of_birth,
         color_markings, photo_url, weight_kg, health_status,
-        health_risk_score, breeding_status, vaccination_status,
-        archived, created_at
+        health_risk_score, current_temperature, current_heart_rate,
+        breeding_status, last_mating_date, expected_kidding_date,
+        vaccination_status, last_vaccine_date, next_vaccine_date,
+        notes, archived, created_at
       `)
       .eq('id', animalId)
       .maybeSingle();
@@ -74,8 +76,15 @@ Deno.serve(async (req: Request) => {
         weight_kg: animal.weight_kg,
         health_status: animal.health_status,
         health_risk_score: animal.health_risk_score,
+        current_temperature: animal.current_temperature,
+        current_heart_rate: animal.current_heart_rate,
         breeding_status: animal.breeding_status,
+        last_mating_date: animal.last_mating_date,
+        expected_kidding_date: animal.expected_kidding_date,
         vaccination_status: animal.vaccination_status,
+        last_vaccine_date: animal.last_vaccine_date,
+        next_vaccine_date: animal.next_vaccine_date,
+        notes: animal.notes,
         registered_on: animal.created_at,
       }),
       {
