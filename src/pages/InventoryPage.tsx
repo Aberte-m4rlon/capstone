@@ -1,0 +1,262 @@
+import { useState, useMemo } from 'react';
+import { useFarmData } from '../lib/useFarmData';
+import { supabase } from '../lib/supabase';
+import { useToast } from '../lib/toast';
+import { Modal, ConfirmDialog } from '../components/Modal';
+import { Icons } from '../lib/icons';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { inventoryStatus, formatDate } from '../lib/analytics';
+import { createNotification } from '../lib/recommendations';
+import type { InventoryItem, InventoryCategory } from '../types';
+
+const emptyForm = {
+  name: '',
+  category: 'Feed' as InventoryCategory,
+  quantity: '',
+  unit: 'kg',
+  minimum_stock: '',
+  purchase_date: '',
+  expiry_date: '',
+  supplier: '',
+  cost: '',
+  notes: '',
+};
+
+export function InventoryPage() {
+  const farmData = useFarmData();
+  const toast = useToast();
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<InventoryItem | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<InventoryItem | null>(null);
+  const [fCategory, setFCategory] = useState('All');
+  const [fStatus, setFStatus] = useState('All');
+  const [search, setSearch] = useState('');
+
+  const warningDays = farmData.settings?.expiry_warning_days ?? 15;
+
+  const filtered = useMemo(() => {
+    return farmData.inventory
+      .filter((i) => fCategory === 'All' || i.category === fCategory)
+      .filter((i) => {
+        if (fStatus === 'All') return true;
+        const s = inventoryStatus(i, warningDays);
+        return s.status === fStatus;
+      })
+      .filter(
+        (i) =>
+          !search ||
+          i.name.toLowerCase().includes(search.toLowerCase()) ||
+          (i.supplier ?? '').toLowerCase().includes(search.toLowerCase()),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [farmData.inventory, fCategory, fStatus, search, warningDays]);
+
+  const openAdd = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setErrors({});
+    setModalOpen(true);
+  };
+
+  const openEdit = (i: InventoryItem) => {
+    setEditing(i);
+    setForm({
+      name: i.name, category: i.category, quantity: String(i.quantity), unit: i.unit,
+      minimum_stock: String(i.minimum_stock), purchase_date: i.purchase_date ?? '',
+      expiry_date: i.expiry_date ?? '', supplier: i.supplier ?? '', cost: i.cost ? String(i.cost) : '',
+      notes: i.notes ?? '',
+    });
+    setErrors({});
+    setModalOpen(true);
+  };
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.name.trim()) e.name = 'Name is required.';
+    if (form.quantity === '' || isNaN(Number(form.quantity)) || Number(form.quantity) < 0) e.quantity = 'Quantity must be 0 or more.';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validate()) return;
+    setSaving(true);
+    const payload = {
+      name: form.name.trim(), category: form.category, quantity: Number(form.quantity), unit: form.unit,
+      minimum_stock: form.minimum_stock ? Number(form.minimum_stock) : 0,
+      purchase_date: form.purchase_date || null, expiry_date: form.expiry_date || null,
+      supplier: form.supplier.trim() || null, cost: form.cost ? Number(form.cost) : null,
+      notes: form.notes.trim() || null,
+    };
+    try {
+      if (editing) {
+        const { error } = await supabase.from('inventory').update(payload).eq('id', editing.id);
+        if (error) throw error;
+        toast('Inventory item updated.', 'success');
+      } else {
+        const { error } = await supabase.from('inventory').insert(payload);
+        if (error) throw error;
+        toast('Inventory item added.', 'success');
+      }
+
+      // Create notifications for expired/expiring/low stock
+      const status = inventoryStatus(payload, warningDays);
+      if (status.status === 'Expired') {
+        await createNotification(farmData.animals[0]?.user_id ?? '', 'Inventory', `${payload.name} has expired`, `Expired item needs disposal.`, 'Critical', '/inventory');
+      } else if (status.status === 'Expiring Soon') {
+        await createNotification(farmData.animals[0]?.user_id ?? '', 'Inventory', `${payload.name} expires soon`, status.label, 'Warning', '/inventory');
+      } else if (status.status === 'Low Stock') {
+        await createNotification(farmData.animals[0]?.user_id ?? '', 'Inventory', `${payload.name} is below minimum stock`, `Current: ${payload.quantity} ${payload.unit}, minimum: ${payload.minimum_stock}`, 'Warning', '/inventory');
+      }
+
+      setModalOpen(false);
+      farmData.refresh();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Unable to save item.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      const { error } = await supabase.from('inventory').delete().eq('id', confirmDelete.id);
+      if (error) throw error;
+      toast('Inventory item deleted.', 'success');
+      setConfirmDelete(null);
+      farmData.refresh();
+    } catch {
+      toast('Unable to delete item.', 'error');
+    }
+  };
+
+  // Summary
+  const summary = useMemo(() => {
+    const lowStock = farmData.inventory.filter((i) => inventoryStatus(i, warningDays).status === 'Low Stock').length;
+    const outOfStock = farmData.inventory.filter((i) => inventoryStatus(i, warningDays).status === 'Out of Stock').length;
+    const expiring = farmData.inventory.filter((i) => inventoryStatus(i, warningDays).status === 'Expiring Soon').length;
+    const expired = farmData.inventory.filter((i) => inventoryStatus(i, warningDays).status === 'Expired').length;
+    return { lowStock, outOfStock, expiring, expired };
+  }, [farmData.inventory, warningDays]);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Inventory Management</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+            {filtered.length} items · Expiry and stock alerts auto-generated
+          </p>
+        </div>
+        <button className="btn btn-primary" onClick={openAdd}><Plus size={16} /> Add Inventory</button>
+      </div>
+
+      {/* Summary cards */}
+      <div className="kpi-grid section-gap">
+        <div className="kpi-card"><div className="kpi-top"><div className="kpi-icon orange"><Icons.Package size={20} /></div></div><div className="kpi-value">{summary.lowStock}</div><div className="kpi-label">Low Stock</div></div>
+        <div className="kpi-card"><div className="kpi-top"><div className="kpi-icon red"><Icons.PackageX size={20} /></div></div><div className="kpi-value">{summary.outOfStock}</div><div className="kpi-label">Out of Stock</div></div>
+        <div className="kpi-card"><div className="kpi-top"><div className="kpi-icon orange"><Icons.Clock size={20} /></div></div><div className="kpi-value">{summary.expiring}</div><div className="kpi-label">Expiring Soon</div></div>
+        <div className="kpi-card"><div className="kpi-top"><div className="kpi-icon red"><Icons.AlertTriangle size={20} /></div></div><div className="kpi-value">{summary.expired}</div><div className="kpi-label">Expired</div></div>
+      </div>
+
+      <div className="filter-bar">
+        <input className="form-input" style={{ width: 200 }} placeholder="Search name or supplier..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select className="form-select" value={fCategory} onChange={(e) => setFCategory(e.target.value)}>
+          <option value="All">All Categories</option>
+          <option value="Feed">Feed</option>
+          <option value="Medicine">Medicine</option>
+          <option value="Vaccines">Vaccines</option>
+          <option value="Supplies">Supplies</option>
+          <option value="Equipment">Equipment</option>
+          <option value="Other">Other</option>
+        </select>
+        <select className="form-select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+          <option value="All">All Status</option>
+          <option value="OK">In Stock</option>
+          <option value="Low Stock">Low Stock</option>
+          <option value="Out of Stock">Out of Stock</option>
+          <option value="Expiring Soon">Expiring Soon</option>
+          <option value="Expired">Expired</option>
+        </select>
+      </div>
+
+      <div className="card">
+        {filtered.length === 0 ? (
+          <div className="empty-state"><div className="es-icon"><Icons.Package size={24} /></div><h4>No inventory items</h4><p>Add inventory to track stock and expiry.</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead><tr><th>Name</th><th>Category</th><th>Quantity</th><th>Min Stock</th><th>Expiry</th><th>Status</th><th>Supplier</th><th>Cost</th><th>Actions</th></tr></thead>
+              <tbody>
+                {filtered.map((i) => {
+                  const s = inventoryStatus(i, warningDays);
+                  return (
+                    <tr key={i.id}>
+                      <td style={{ fontWeight: 600 }}>{i.name}</td>
+                      <td>{i.category}</td>
+                      <td>{i.quantity} {i.unit}</td>
+                      <td>{i.minimum_stock} {i.unit}</td>
+                      <td>{formatDate(i.expiry_date)}</td>
+                      <td><span className={`badge badge-${s.color === 'green' ? 'green' : s.color === 'orange' ? 'orange' : s.color === 'red' ? 'red' : 'gray'}`}>{s.label}</span></td>
+                      <td>{i.supplier ?? '—'}</td>
+                      <td>{i.cost ? `₱${i.cost}` : '—'}</td>
+                      <td><div className="row-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(i)}><Pencil size={15} /></button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(i)}><Trash2 size={15} /></button>
+                      </div></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Inventory Item' : 'Add Inventory Item'}
+        footer={<><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></>}
+      >
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Name <span className="req">*</span></label>
+            <input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Rice Bran" />
+            {errors.name && <div className="form-error">{errors.name}</div>}</div>
+          <div className="form-group"><label className="form-label">Category</label>
+            <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as InventoryCategory })}>
+              <option>Feed</option><option>Medicine</option><option>Vaccines</option><option>Supplies</option><option>Equipment</option><option>Other</option>
+            </select></div>
+        </div>
+        <div className="form-row-3">
+          <div className="form-group"><label className="form-label">Quantity <span className="req">*</span></label>
+            <input className="form-input" type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+            {errors.quantity && <div className="form-error">{errors.quantity}</div>}</div>
+          <div className="form-group"><label className="form-label">Unit</label>
+            <input className="form-input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg" /></div>
+          <div className="form-group"><label className="form-label">Minimum Stock</label>
+            <input className="form-input" type="number" step="0.01" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: e.target.value })} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Purchase Date</label>
+            <input className="form-input" type="date" value={form.purchase_date} onChange={(e) => setForm({ ...form, purchase_date: e.target.value })} /></div>
+          <div className="form-group"><label className="form-label">Expiry Date</label>
+            <input className="form-input" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Supplier</label>
+            <input className="form-input" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} /></div>
+          <div className="form-group"><label className="form-label">Cost (₱)</label>
+            <input className="form-input" type="number" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></div>
+        </div>
+        <div className="form-group"><label className="form-label">Notes</label>
+          <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+      </Modal>
+
+      <ConfirmDialog open={!!confirmDelete} title="Delete Inventory Item" message={`Are you sure you want to delete ${confirmDelete?.name}?`} confirmLabel="Delete" onConfirm={handleDelete} onCancel={() => setConfirmDelete(null)} />
+    </div>
+  );
+}
