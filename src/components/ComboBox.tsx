@@ -105,9 +105,9 @@ export function ComboBox({ value, onChange, options, placeholder = 'Search or ty
 
       {open && (
         <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
-          background: 'var(--surface)', border: '1px solid var(--border)',
-          borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
+          background: '#ffffff', border: '1px solid #E5E7EB',
+          borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
           maxHeight: 220, overflowY: 'auto', marginTop: 2,
         }}>
           {filtered.length === 0 ? (
@@ -122,13 +122,14 @@ export function ComboBox({ value, onChange, options, placeholder = 'Search or ty
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(option); }}
                 style={{
                   display: 'block', width: '100%', textAlign: 'left',
-                  padding: '9px 14px', background: 'none', border: 'none',
-                  cursor: 'pointer', fontSize: 13, color: 'var(--text-primary)',
-                  borderBottom: '1px solid var(--border)',
+                  padding: '9px 14px', cursor: 'pointer', fontSize: 13,
+                  color: '#1F2937', borderBottom: '1px solid #E5E7EB',
                   fontWeight: option === value ? 700 : 400,
+                  background: option === value ? '#FEF2F2' : '#ffffff',
+                  border: 'none',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#F5F5F5')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = option === value ? '#FEF2F2' : '#ffffff')}
               >
                 {option}
               </button>
