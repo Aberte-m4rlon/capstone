@@ -21,11 +21,8 @@ import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer } from 'luci
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 
-// Always use the production URL for QR codes so they work when scanned on other devices.
-const APP_URL =
-  import.meta.env.PROD
-    ? 'https://capstone-delta-jet.vercel.app'
-    : window.location.origin;
+// Always use the production Vercel URL for QR codes — never localhost.
+const APP_URL = 'https://capstone-delta-jet.vercel.app';
 
 export function AnimalProfilePage() {
   const { id } = useParams<{ id: string }>();

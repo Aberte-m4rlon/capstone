@@ -25,12 +25,8 @@ const emptyForm = {
   notes: '',
 };
 
-// Always use the production URL for QR codes so they work when scanned on other devices.
-// Falls back to window.location.origin only in local dev.
-const APP_URL =
-  import.meta.env.PROD
-    ? 'https://capstone-delta-jet.vercel.app'
-    : window.location.origin;
+// Always use the production Vercel URL for QR codes — never localhost.
+const APP_URL = 'https://capstone-delta-jet.vercel.app';
 
 export function AnimalsPage() {
   const farmData = useFarmData();
