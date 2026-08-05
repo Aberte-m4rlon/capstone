@@ -21,6 +21,12 @@ import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer } from 'luci
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 
+// Always use the production URL for QR codes so they work when scanned on other devices.
+const APP_URL =
+  import.meta.env.PROD
+    ? 'https://capstone-delta-jet.vercel.app'
+    : window.location.origin;
+
 export function AnimalProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -118,7 +124,7 @@ export function AnimalProfilePage() {
   };
 
   const downloadQR = async () => {
-    const url = `${window.location.origin}/public/${animal.id}`;
+    const url = `${APP_URL}/public/${animal.id}`;
     const dataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
     const link = document.createElement('a');
     link.href = dataUrl;
@@ -128,7 +134,7 @@ export function AnimalProfilePage() {
   };
 
   const printQR = () => {
-    const url = `${window.location.origin}/public/${animal.id}`;
+    const url = `${APP_URL}/public/${animal.id}`;
     const win = window.open('', '_blank');
     if (!win) return;
     QRCode.toDataURL(url, { width: 300, margin: 2 }).then((dataUrl) => {
@@ -447,7 +453,7 @@ export function AnimalProfilePage() {
         <button className="btn btn-primary" onClick={printQR}><Printer size={15} /> Print</button></>}
       >
         <div className="qr-display">
-          <QRCanvas value={`${window.location.origin}/public/${animal.id}`} size={240} />
+          <QRCanvas value={`${APP_URL}/public/${animal.id}`} size={240} />
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontWeight: 700, fontSize: 16 }}>{animal.name}</p>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{animal.tag_id}</p>

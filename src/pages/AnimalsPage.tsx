@@ -25,6 +25,13 @@ const emptyForm = {
   notes: '',
 };
 
+// Always use the production URL for QR codes so they work when scanned on other devices.
+// Falls back to window.location.origin only in local dev.
+const APP_URL =
+  import.meta.env.PROD
+    ? 'https://capstone-delta-jet.vercel.app'
+    : window.location.origin;
+
 export function AnimalsPage() {
   const farmData = useFarmData();
   const { user } = useAuth();
@@ -163,7 +170,7 @@ export function AnimalsPage() {
 
   const downloadQR = async () => {
     if (!qrAnimal) return;
-    const url = `${window.location.origin}/public/${qrAnimal.id}`;
+    const url = `${APP_URL}/public/${qrAnimal.id}`;
     try {
       const dataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
       const link = document.createElement('a');
@@ -178,7 +185,7 @@ export function AnimalsPage() {
 
   const printQR = () => {
     if (!qrAnimal) return;
-    const url = `${window.location.origin}/public/${qrAnimal.id}`;
+    const url = `${APP_URL}/public/${qrAnimal.id}`;
     const win = window.open('', '_blank');
     if (!win) return;
     QRCode.toDataURL(url, { width: 300, margin: 2 }).then((dataUrl) => {
@@ -441,7 +448,7 @@ export function AnimalsPage() {
         }
       >
         <div className="qr-display">
-          <QRCodeCanvas value={`${window.location.origin}/public/${qrAnimal?.id}`} size={240} />
+          <QRCodeCanvas value={`${APP_URL}/public/${qrAnimal?.id}`} size={240} />
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontWeight: 700, fontSize: 16 }}>{qrAnimal?.name}</p>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{qrAnimal?.tag_id}</p>
