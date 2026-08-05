@@ -3,10 +3,12 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { ComboBox } from '../components/ComboBox';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { formatDate, daysUntil, vaccinationStatusFromDue } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
+import { GOAT_SHEEP_VACCINES, COMMON_VETS } from '../lib/farmDefaults';
 import type { Vaccination } from '../types';
 
 const emptyForm = {
@@ -214,7 +216,12 @@ export function VaccinationsPage() {
           </select>
           {errors.animal_id && <div className="form-error">{errors.animal_id}</div>}</div>
         <div className="form-group"><label className="form-label">Vaccine Name <span className="req">*</span></label>
-          <input className="form-input" value={form.vaccine_name} onChange={(e) => setForm({ ...form, vaccine_name: e.target.value })} placeholder="PPR Vaccine" />
+          <ComboBox
+            value={form.vaccine_name}
+            onChange={(v) => setForm({ ...form, vaccine_name: v })}
+            options={GOAT_SHEEP_VACCINES}
+            placeholder="Search or type vaccine name..."
+          />
           {errors.vaccine_name && <div className="form-error">{errors.vaccine_name}</div>}</div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Date Given <span className="req">*</span></label>
@@ -224,7 +231,12 @@ export function VaccinationsPage() {
             <input className="form-input" type="date" value={form.next_due_date} onChange={(e) => setForm({ ...form, next_due_date: e.target.value })} /></div>
         </div>
         <div className="form-group"><label className="form-label">Veterinarian</label>
-          <input className="form-input" value={form.veterinarian} onChange={(e) => setForm({ ...form, veterinarian: e.target.value })} placeholder="Dr. Smith" /></div>
+          <ComboBox
+            value={form.veterinarian}
+            onChange={(v) => setForm({ ...form, veterinarian: v })}
+            options={COMMON_VETS}
+            placeholder="Search or type veterinarian name..."
+          /></div>
         <div className="form-group"><label className="form-label">Notes</label>
           <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
       </Modal>

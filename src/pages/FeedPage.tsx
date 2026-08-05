@@ -3,11 +3,13 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { ComboBox } from '../components/ComboBox';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2, Brain, TrendingUp } from 'lucide-react';
 import { formatDate } from '../lib/analytics';
 import { calculateFeedEfficiency, calculateMilkForecast } from '../lib/analytics';
 import { useMilkForecast, useFeedPrediction } from '../lib/mlHooks';
+import { FEED_TYPES } from '../lib/farmDefaults';
 import type { FeedRecord, MilkRecord } from '../types';
 
 const emptyForm = {
@@ -337,7 +339,12 @@ export function FeedPage() {
           </select>
           {errors.animal_id && <div className="form-error">{errors.animal_id}</div>}</div>
         <div className="form-group"><label className="form-label">Feed Type <span className="req">*</span></label>
-          <input className="form-input" value={form.feed_type} onChange={(e) => setForm({ ...form, feed_type: e.target.value })} placeholder="Rice bran, grass, pellets..." />
+          <ComboBox
+            value={form.feed_type}
+            onChange={(v) => setForm({ ...form, feed_type: v })}
+            options={FEED_TYPES}
+            placeholder="Search or type feed type..."
+          />
           {errors.feed_type && <div className="form-error">{errors.feed_type}</div>}</div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Quantity (kg) <span className="req">*</span></label>

@@ -3,10 +3,12 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { ComboBox } from '../components/ComboBox';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { inventoryStatus, formatDate } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
+import { INVENTORY_NAMES, INVENTORY_UNITS } from '../lib/farmDefaults';
 import type { InventoryItem, InventoryCategory } from '../types';
 
 const emptyForm = {
@@ -224,10 +226,15 @@ export function InventoryPage() {
       >
         <div className="form-row">
           <div className="form-group"><label className="form-label">Name <span className="req">*</span></label>
-            <input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Rice Bran" />
+            <ComboBox
+              value={form.name}
+              onChange={(v) => setForm({ ...form, name: v })}
+              options={INVENTORY_NAMES[form.category] ?? INVENTORY_NAMES['Other']}
+              placeholder="Search or type item name..."
+            />
             {errors.name && <div className="form-error">{errors.name}</div>}</div>
           <div className="form-group"><label className="form-label">Category</label>
-            <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as InventoryCategory })}>
+            <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as InventoryCategory, name: '' })}>
               <option>Feed</option><option>Medicine</option><option>Vaccines</option><option>Supplies</option><option>Equipment</option><option>Other</option>
             </select></div>
         </div>
@@ -236,7 +243,12 @@ export function InventoryPage() {
             <input className="form-input" type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
             {errors.quantity && <div className="form-error">{errors.quantity}</div>}</div>
           <div className="form-group"><label className="form-label">Unit</label>
-            <input className="form-input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg" /></div>
+            <ComboBox
+              value={form.unit}
+              onChange={(v) => setForm({ ...form, unit: v })}
+              options={INVENTORY_UNITS}
+              placeholder="kg, L, pcs..."
+            /></div>
           <div className="form-group"><label className="form-label">Minimum Stock</label>
             <input className="form-input" type="number" step="0.01" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: e.target.value })} /></div>
         </div>

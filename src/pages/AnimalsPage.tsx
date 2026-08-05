@@ -5,9 +5,11 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { ComboBox } from '../components/ComboBox';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode } from 'lucide-react';
 import { formatDate, ageLabel } from '../lib/analytics';
+import { getBreedsForSpecies, COLOR_MARKINGS } from '../lib/farmDefaults';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 
@@ -370,11 +372,11 @@ export function AnimalsPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Breed</label>
-            <input
-              className="form-input"
+            <ComboBox
               value={form.breed}
-              onChange={(e) => setForm({ ...form, breed: e.target.value })}
-              placeholder="Boer"
+              onChange={(v) => setForm({ ...form, breed: v })}
+              options={getBreedsForSpecies(form.species)}
+              placeholder="Search or type breed..."
             />
           </div>
         </div>
@@ -403,11 +405,11 @@ export function AnimalsPage() {
         </div>
         <div className="form-group">
           <label className="form-label">Color / Markings</label>
-          <input
-            className="form-input"
+          <ComboBox
             value={form.color_markings}
-            onChange={(e) => setForm({ ...form, color_markings: e.target.value })}
-            placeholder="Brown with white spots"
+            onChange={(v) => setForm({ ...form, color_markings: v })}
+            options={COLOR_MARKINGS}
+            placeholder="Search or type color/markings..."
           />
         </div>
         <div className="form-group">
