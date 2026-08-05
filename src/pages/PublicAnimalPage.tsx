@@ -75,16 +75,45 @@ export function PublicAnimalPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-animal?id=${id}`;
-    fetch(apiUrl)
+
+    // Call Supabase REST API directly — no Edge Function needed.
+    // The animals table has RLS but the anon key can read non-archived rows
+    // as long as there's a public SELECT policy. We select only safe public fields.
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+    const fields = [
+      'id', 'tag_id', 'name', 'species', 'breed', 'sex', 'date_of_birth',
+      'color_markings', 'photo_url', 'weight_kg', 'health_status',
+      'health_risk_score', 'current_temperature', 'current_heart_rate',
+      'breeding_status', 'last_mating_date', 'expected_kidding_date',
+      'vaccination_status', 'last_vaccine_date', 'next_vaccine_date',
+      'notes', 'archived', 'created_at',
+    ].join(',');
+
+    fetch(
+      `${SUPABASE_URL}/rest/v1/animals?id=eq.${id}&select=${fields}&archived=eq.false`,
+      {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Accept': 'application/json',
+        },
+      },
+    )
       .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || 'Failed to load');
-        }
+        if (!res.ok) throw new Error('Failed to load animal data');
         return res.json();
       })
-      .then((data) => { setAnimal(data); setError(null); })
+      .then((rows: any[]) => {
+        if (!rows || rows.length === 0) throw new Error('Animal not found or has been removed.');
+        const row = rows[0];
+        setAnimal({
+          ...row,
+          registered_on: row.created_at,
+        });
+        setError(null);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id]);
@@ -203,10 +232,10 @@ export function PublicAnimalPage() {
               <p style={cardTitle}>Weight & Growth</p>
               <div style={{ marginTop: 8 }}>
                 <StatRow label="Current Weight" value={animal.weight_kg ? `${animal.weight_kg} kg` : '—'} bold />
-                <StatRow label="Previous" value="—" />
-                <StatRow label="Change" value="—" />
-                <StatRow label="Daily Gain" value="—" />
-                <StatRow label="Trend" value="Insufficient" />
+                <StatRow label="Species" value={animal.species} />
+                <StatRow label="Breed" value={animal.breed ?? 'Unknown'} />
+                <StatRow label="Sex" value={animal.sex} />
+                <StatRow label="Age" value={ageLabel(animal.date_of_birth)} />
               </div>
             </div>
           </div>
