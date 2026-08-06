@@ -1,556 +1,493 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Sparkles, Send, X, Lightbulb, Brain, TrendingUp, AlertCircle, Zap, RefreshCw } from 'lucide-react';
 import { useFarmData } from '../lib/useFarmData';
-import {
-  useMLInsights,
-  useAnomalyDetection,
-  useAnimalClusters,
-  useFeedPrediction,
-} from '../lib/mlHooks';
-import { generateRecommendations } from '../lib/recommendations';
-import { monthsSince, daysUntil } from '../lib/analytics';
+import { useMLInsights, useAnomalyDetection } from '../lib/mlHooks';
+import { daysUntil, formatDate } from '../lib/analytics';
 
-type MessageRole = 'assistant' | 'user';
-type MessageType = 'text' | 'insight' | 'alert' | 'briefing';
+interface Msg { id: string; role: 'user' | 'assistant'; content: string; bullets?: string[]; tag?: string; }
+interface Props { open: boolean; onClose: () => void; }
 
-interface AssistantMessage {
-  id: string;
-  role: MessageRole;
-  content: string;
-  type?: MessageType;
-  bullets?: string[];
+// ── helpers ───────────────────────────────────────────────────────────────────
+const fmt = (n: number, d = 1) => n.toFixed(d);
+const pct = (n: number) => `${Math.round(n * 100)}%`;
+const vet = '\n\n⚕️ Always confirm health decisions with a licensed veterinarian.';
+
+// ── Intent detection ──────────────────────────────────────────────────────────
+function detect(q: string) {
+  const t = q.toLowerCase();
+  const animal = (() => {
+    const m = t.match(/(?:how is|about|check|status of|show me|sino si|kumusta si|kamusta)\s+([a-z]+)/i)
+           || t.match(/([a-z]+)(?:'s|s)\s+(?:health|weight|status|breeding|milk|vaccine)/i);
+    return m ? m[1] : null;
+  })();
+
+  if (/system|alpasfarm|what.*do|features|functions|ano.*system|paano|how does|what is|explain|kapag|kung|bakit|why/.test(t)) return { intent: 'system_faq', animal };
+  if (/anomal|unusual|weird|spike|outlier|abnormal|hindi normal/.test(t)) return { intent: 'anomaly', animal };
+  if (/cluster|group|segment|katulad|similar|grupo/.test(t)) return { intent: 'cluster', animal };
+  if (/health.*risk|at risk|critical|sick|illness|sakit|risk score|logistic/.test(t)) return { intent: 'health', animal };
+  if (/vaccin|shot|immuniz|bakuna|booster/.test(t)) return { intent: 'vaccination', animal };
+  if (/breed|pregnant|kidding|mating|buntis|nagsilang|anak/.test(t)) return { intent: 'breeding', animal };
+  if (/weight|grow|gain|market|timbang|laki|tubo/.test(t)) return { intent: 'growth', animal };
+  if (/milk|gatas|yield|litro|dairy/.test(t)) return { intent: 'milk', animal };
+  if (/feed|fodder|kain|pagkain|fcr|efficiency|gastose|gastos/.test(t)) return { intent: 'feed', animal };
+  if (/stock|inventory|supply|gamot|expired|expir|supply|kulang/.test(t)) return { intent: 'inventory', animal };
+  if (/today|attention|urgent|priority|what.*need|briefing|update|balita|anong|nangyayari/.test(t)) return { intent: 'briefing', animal };
+  if (/summary|overview|total|how many|lahat|buod|herd|all animal/.test(t)) return { intent: 'summary', animal };
+  if (animal) return { intent: 'animal_lookup', animal };
+  return { intent: 'unknown', animal };
 }
 
-interface AIAssistantPanelProps {
-  open: boolean;
-  onClose: () => void;
+// ── System FAQ answers ────────────────────────────────────────────────────────
+function answerFaq(q: string): { content: string; bullets?: string[] } | null {
+  const t = q.toLowerCase();
+
+  if (/anomal/.test(t)) return {
+    content: 'Anomaly Detection compares each animal\'s current temperature and heart rate against its own historical records using Z-score + IQR statistics. If the current reading is statistically unusual (Z-score > 2 or outside the IQR bounds) compared to that animal\'s own baseline, it gets flagged.',
+    bullets: ['Needs 3+ health records per animal to establish a baseline', 'Compares EACH animal vs its OWN history — not vs other animals', 'Z-score > 2 = Warning, > 3 = Severe', 'Example: If Rosa\'s normal temp is 38.9°C and today it reads 41.5°C → flagged'],
+  };
+
+  if (/logistic|health risk.*ai|risk.*model|machine learning|ml/.test(t)) return {
+    content: 'The Health Risk AI uses Logistic Regression trained on your health records. It learns which combinations of vitals and symptoms correlate with high risk scores.',
+    bullets: ['14 features: temperature, heart rate, respiratory rate, FAMACHA score, mucous membrane, bloat, gait, appetite, cough, diarrhea, and more', '300 epochs of gradient descent training with L2 regularization', 'Outputs: risk probability 0–100%, feature importance, confidence score', 'More health records = better accuracy'],
+  };
+
+  if (/famacha/.test(t)) return {
+    content: 'FAMACHA is a research-based scoring system for detecting anemia caused by Barber Pole Worm (Haemonchus contortus) — the most common and deadly parasite in goats and sheep.',
+    bullets: ['Score 1–2: Red/Pink — Healthy, no treatment needed', 'Score 3: Pink — Borderline, recheck in 2 weeks', 'Score 4: Pink-White — Anemic, deworm immediately', 'Score 5: White — Severely anemic, emergency treatment required', 'Check the inner eyelid (conjunctiva) color of the animal'],
+  };
+
+  if (/bloat/.test(t)) return {
+    content: 'Bloat Score measures rumen distension (gas buildup in the stomach) on a 0–3 scale.',
+    bullets: ['0 = Normal', '1 = Mild bloat — monitor, restrict legume grazing', '2 = Moderate — administer anti-bloat solution', '3 = Severe EMERGENCY — walk the animal, pass stomach tube, call vet immediately', 'Bloat can be fatal within hours if untreated'],
+  };
+
+  if (/rumen|rumen sound/.test(t)) return {
+    content: 'Rumen sounds indicate digestive health. Normal is 1–3 sounds per minute (Cornell Extension).',
+    bullets: ['Normal: 1–3 per minute — healthy digestion', 'Increased: >3/min — possible early bloat or excitement', 'Reduced: <1/min — digestive disturbance, possible illness', 'Absent: 0 — serious — could indicate bloat, shock, or rumen shutdown'],
+  };
+
+  if (/polynomial|growth.*forecast|weight.*predict|market.*ready/.test(t)) return {
+    content: 'Growth Forecasting uses Polynomial Regression to fit a curve to an animal\'s weight history and project it 90 days forward.',
+    bullets: ['Needs 2+ weight records per animal', 'Calculates projected daily gain and confidence interval', 'Predicts the market-ready date when animal reaches target weight (configurable in Settings)', 'R² value shows how well the model fits — higher is better'],
+  };
+
+  if (/holt|milk.*forecast|exponential smooth/.test(t)) return {
+    content: "Milk Yield Forecasting uses Holt's Exponential Smoothing — a time-series algorithm that weighs recent readings more heavily than older ones.",
+    bullets: ['Needs 3+ milk records per female animal', 'Auto-optimizes α (level) and β (trend) parameters via grid search', 'Forecasts next 7 days average yield in litres/day', 'Reports MAPE (Mean Absolute Percentage Error) and confidence %'],
+  };
+
+  if (/naive bayes|breeding.*predict|success.*breed/.test(t)) return {
+    content: 'Breeding Success Prediction uses Naïve Bayes classifier trained on past breeding outcomes to estimate the probability of successful breeding.',
+    bullets: ['Considers: age, weight, health status, and species', 'Laplace smoothing prevents zero-probability issues', '70%+ = High probability → proceed with breeding', '50–70% = Moderate → ensure optimal conditions first', '<50% = Low → address health or maturity issues first'],
+  };
+
+  if (/k.?means|cluster|group.*animal/.test(t)) return {
+    content: 'Animal Clustering uses K-Means++ algorithm to automatically group your herd into clusters based on similar characteristics.',
+    bullets: ['Groups by: weight, age, health risk score, and species', 'Uses 3 clusters (adjusts if fewer animals)', 'K-means++ initialization for better accuracy', 'Labels like "Heavy Healthy", "Light High-Risk" describe each group', 'Useful for batch treatment, feeding schedules, and management decisions'],
+  };
+
+  if (/ols|feed.*gain|feed.*weight|fcr|feed conversion/.test(t)) return {
+    content: 'Feed-to-Weight-Gain Model uses Ordinary Least Squares (OLS) linear regression to find the relationship between how much feed an animal eats and how much weight it gains.',
+    bullets: ['Slope: kg of weight gain per kg of feed consumed', 'R² (R-squared): how strong the correlation is (0–1, higher = better)', 'R²=0.978 means 97.8% of weight variation is explained by feed', 'Used to calculate Feed Conversion Ratio (FCR) and optimize feeding'],
+  };
+
+  if (/ppr|peste|virus|contagious/.test(t)) return {
+    content: 'PPR (Peste des Petits Ruminants) is a highly contagious and often fatal viral disease in goats and sheep. The system can detect its pattern from symptoms.',
+    bullets: ['Classic signs: high fever (>40°C) + nasal/eye discharge + diarrhea + loss of appetite', 'If 4+ of these are present → system flags "Suspected PPR"', 'NO CURE — prevention only through vaccination (PPR Vaccine)', 'REPORT to DA-BAI (Bureau of Animal Industry) immediately if suspected', 'DO NOT move animals — highly contagious'],
+  };
+
+  if (/early.*illness|illness.*detect|detect.*disease/.test(t)) return {
+    content: 'Early Illness Detection analyzes 7 disease patterns from the health check parameters you record.',
+    bullets: ['1. Pneumonia / Respiratory Disease', '2. Anemia / Barber Pole Worm (via FAMACHA score)', '3. Ruminal Bloat (via bloat score + rumen sounds)', '4. High Fever / Systemic Infection', '5. Enterotoxemia / Gastrointestinal Infection', '6. Lameness / Foot Rot (via gait assessment)', '7. ⚠️ PPR - Peste des Petits Ruminants'],
+  };
+
+  if (/feature|function|what.*can|what.*do|capability|ano.*kaya/.test(t)) return {
+    content: 'AlpasFarm is a complete goat and sheep farm management system with AI-powered insights. Here\'s what it can do:',
+    bullets: ['🐐 Animal Management — add, edit, archive animals with QR codes', '🏥 Health Monitoring — 15 clinical parameters + early illness detection', '⚖️ Weight & Growth — track weight, predict market-ready date', '💕 Breeding — pregnancy tracking, kidding date calculator', '💉 Vaccinations — schedule tracking with overdue alerts', '🌾 Feed Management — consumption tracking + efficiency scoring', '🥛 Milk Production — daily yield with 7-day forecast', '📦 Inventory — stock levels with expiry alerts', '🧠 7 ML Models — all running in-browser on your own data', '📊 Analytics & Reports — charts, trends, and downloadable reports', '📋 Activity Log — full history downloadable as CSV'],
+  };
+
+  return null;
 }
 
-// ─── Intent detection ────────────────────────────────────────────────────────
-
-type Intent =
-  | 'health_risk'
-  | 'anomaly'
-  | 'vaccination'
-  | 'breeding'
-  | 'growth'
-  | 'milk'
-  | 'feed'
-  | 'inventory'
-  | 'cluster'
-  | 'summary'
-  | 'animal_lookup'
-  | 'briefing'
-  | 'unknown';
-
-function detectIntent(input: string): { intent: Intent; animalName: string | null } {
-  const q = input.toLowerCase();
-  let animalName: string | null = null;
-
-  // Animal name lookup pattern: "how is [name]" / "tell me about [name]" / "[name]'s"
-  const nameMatch = q.match(/(?:how is|about|check|status of|show me)\s+([a-z]+)/i)
-    || q.match(/([a-z]+)'s\s+(?:health|weight|status|breeding|milk)/i);
-  if (nameMatch) animalName = nameMatch[1];
-
-  if (q.match(/anomal|unusual|weird|spike|outlier|abnormal/)) return { intent: 'anomaly', animalName };
-  if (q.match(/health risk|at risk|critical|sick|illness|disease|risk score/)) return { intent: 'health_risk', animalName };
-  if (q.match(/vaccin|shot|immuniz|booster|jab/)) return { intent: 'vaccination', animalName };
-  if (q.match(/breed|pregnant|kidding|mating|gestat|offspring/)) return { intent: 'breeding', animalName };
-  if (q.match(/weight|grow|gain|market|size|heav/)) return { intent: 'growth', animalName };
-  if (q.match(/milk|yield|litre|liter|dairy|produc/)) return { intent: 'milk', animalName };
-  if (q.match(/feed|fodder|hay|grain|cost|efficiency|fcr/)) return { intent: 'feed', animalName };
-  if (q.match(/stock|inventory|supply|expir|medicine|low/)) return { intent: 'inventory', animalName };
-  if (q.match(/cluster|group|segment|categor|similar/)) return { intent: 'cluster', animalName };
-  if (q.match(/summary|overview|total|how many|all animal|entire|whole farm|herd/)) return { intent: 'summary', animalName };
-  if (q.match(/today|attention|urgent|priority|what.*need|briefing|morning|update/)) return { intent: 'briefing', animalName };
-  if (animalName) return { intent: 'animal_lookup', animalName };
-
-  return { intent: 'unknown', animalName };
-}
-
-// ─── Reply builder ────────────────────────────────────────────────────────────
-
+// ── Main reply builder ────────────────────────────────────────────────────────
 function buildReply(
   input: string,
   farmData: ReturnType<typeof useFarmData>,
-  mlInsights: ReturnType<typeof useMLInsights>,
-): { content: string; bullets?: string[]; type?: MessageType } {
-  if (farmData.loading) {
-    return { content: 'Still loading your farm data. Give me a moment and ask again.' };
+  ml: ReturnType<typeof useMLInsights>,
+  anomalies: ReturnType<typeof useAnomalyDetection>,
+): { content: string; bullets?: string[]; tag?: string } {
+
+  if (farmData.loading) return { content: 'Loading your farm data… please try again in a moment.' };
+
+  const { intent, animal: animalName } = detect(input);
+  const active = farmData.animals.filter((a) => !a.archived);
+  const animalName2 = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Unknown';
+
+  // ── System FAQ ──────────────────────────────────────────────────────────────
+  if (intent === 'system_faq') {
+    const faq = answerFaq(input);
+    if (faq) return { ...faq, tag: 'info' };
+    return {
+      tag: 'info',
+      content: 'AlpasFarm is a smart goat and sheep farm management system. I can answer questions about how any feature works — just ask about anomaly detection, health risk AI, FAMACHA scoring, breeding predictions, milk forecasting, growth models, inventory, or any other feature.',
+      bullets: ['Try: "How does anomaly detection work?"', 'Try: "What is FAMACHA?"', 'Try: "How does the breeding prediction work?"', 'Try: "What are all the features of this system?"'],
+    };
   }
 
-  const { intent, animalName } = detectIntent(input);
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
-  const safetyNote = '\n\nAlways confirm health decisions with a licensed veterinarian.';
-
-  // ── Animal-specific lookup ──────────────────────────────────────────────────
-  if (animalName) {
-    const animal = activeAnimals.find((a) => a.name.toLowerCase().includes(animalName.toLowerCase()));
-    if (animal) {
-      const growthData = mlInsights.growthPredictions.find((g) => g.animalId === animal.id);
-      const milkData = mlInsights.milkForecasts.find((m) => m.animalId === animal.id);
-      const breedingData = mlInsights.breedingPredictions.find((b) => b.animal.id === animal.id);
-      const anomalyData = mlInsights.anomalies.find((a) => a.animal.id === animal.id);
+  // ── Animal lookup ───────────────────────────────────────────────────────────
+  if (animalName && (intent === 'animal_lookup' || intent === 'health' || intent === 'growth' || intent === 'milk' || intent === 'breeding')) {
+    const found = active.find((a) => a.name.toLowerCase().includes(animalName.toLowerCase()));
+    if (found) {
+      const growth = ml.growthPredictions.find((g) => g.animalId === found.id);
+      const milkF  = ml.milkForecasts.find((m) => m.animalId === found.id);
+      const breedP = ml.breedingPredictions.find((b) => b.animal.id === found.id);
+      const anomaly = anomalies.find((a) => a.animal.id === found.id);
+      const lastHealth = farmData.healthRecords.filter((r) => r.animal_id === found.id).sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[0];
 
       const bullets: string[] = [
-        `Species: ${animal.species} · Sex: ${animal.sex} · Breed: ${animal.breed ?? 'Unknown'}`,
-        `Weight: ${animal.weight_kg ? animal.weight_kg + ' kg' : 'Not recorded'}`,
-        `Health: ${animal.health_status} (risk score: ${animal.health_risk_score})`,
-        `Vaccination: ${animal.vaccination_status}`,
-        `Breeding status: ${animal.breeding_status}`,
+        `Species: ${found.species} · Breed: ${found.breed ?? 'Unknown'} · Sex: ${found.sex}`,
+        `Health Status: ${found.health_status} (Risk Score: ${found.health_risk_score}/100)`,
+        `Current Vitals: Temp ${found.current_temperature ? found.current_temperature + '°C' : '—'} · HR ${found.current_heart_rate ? found.current_heart_rate + ' BPM' : '—'}`,
+        `Weight: ${found.weight_kg ? found.weight_kg + ' kg' : 'Not recorded'}`,
+        `Vaccination: ${found.vaccination_status}`,
+        `Breeding Status: ${found.breeding_status}`,
       ];
-      if (animal.expected_kidding_date) {
-        const days = daysUntil(animal.expected_kidding_date);
-        bullets.push(`Kidding in ${days} day${days === 1 ? '' : 's'} (${animal.expected_kidding_date})`);
+
+      if (found.expected_kidding_date) {
+        const d = daysUntil(found.expected_kidding_date);
+        bullets.push(`Expected Kidding: ${formatDate(found.expected_kidding_date)} (${d >= 0 ? d + ' days away' : 'overdue'})`);
       }
-      if (growthData?.model) {
-        bullets.push(`Growth forecast: ${growthData.model.projectedDailyGain > 0 ? '+' : ''}${growthData.model.projectedDailyGain} kg/day · confidence ${growthData.model.confidence}%`);
-        if (growthData.model.marketReadyDate) bullets.push(`Market-ready by: ${growthData.model.marketReadyDate}`);
+      if (growth?.model) {
+        bullets.push(`Growth Forecast: ${growth.model.projectedDailyGain > 0 ? '+' : ''}${growth.model.projectedDailyGain} kg/day · R²=${growth.model.rSquared.toFixed(2)}${growth.model.marketReadyDate ? ' · Market-ready: ' + growth.model.marketReadyDate : ''}`);
       }
-      if (milkData?.forecast) {
-        const avgYield = (milkData.forecast.forecast.reduce((s, v) => s + v, 0) / milkData.forecast.forecast.length).toFixed(2);
-        bullets.push(`Milk forecast: ~${avgYield} L/day over next 7 days (${milkData.forecast.confidence}% confidence)`);
+      if (milkF?.forecast) {
+        const avg = (milkF.forecast.forecast.reduce((s, v) => s + v, 0) / milkF.forecast.forecast.length).toFixed(2);
+        bullets.push(`Milk Forecast: ~${avg} L/day next 7 days (${milkF.forecast.confidence}% confidence)`);
       }
-      if (breedingData?.prediction) {
-        bullets.push(`Breeding success probability: ${Math.round(breedingData.prediction.probability * 100)}% — ${breedingData.prediction.recommendation}`);
+      if (breedP?.prediction) {
+        bullets.push(`Breeding Success Probability: ${pct(breedP.prediction.probability)} — ${breedP.prediction.recommendation}`);
       }
-      if (anomalyData) {
-        const msg = anomalyData.tempAnomaly?.isAnomaly ? anomalyData.tempAnomaly.message : anomalyData.hrAnomaly?.message;
-        if (msg) bullets.push(`⚠️ Anomaly detected: ${msg}`);
+      if (anomaly) {
+        const msg = anomaly.tempAnomaly?.isAnomaly ? `⚠️ ANOMALY: ${anomaly.tempAnomaly.message}` : anomaly.hrAnomaly?.isAnomaly ? `⚠️ ANOMALY: ${anomaly.hrAnomaly.message}` : null;
+        if (msg) bullets.push(msg);
+      }
+      if (lastHealth) {
+        bullets.push(`Last Health Check: ${formatDate(lastHealth.record_date)} · ${lastHealth.risk_level} risk (${lastHealth.risk_score})`);
+        if ((lastHealth as any).detected_conditions) bullets.push(`Detected Conditions: ${(lastHealth as any).detected_conditions}`);
       }
 
-      return {
-        content: `Here's a full AI profile for **${animal.name}** (${animal.tag_id}):`,
-        bullets,
-        type: 'insight',
-      };
+      return { tag: 'insight', content: `Here is the full AI profile for **${found.name}** (${found.tag_id}):`, bullets };
     }
   }
 
-  // ── Intent-based responses ──────────────────────────────────────────────────
-
-  if (intent === 'briefing' || intent === 'summary') {
-    return buildBriefing(farmData, mlInsights);
-  }
-
+  // ── Anomaly ─────────────────────────────────────────────────────────────────
   if (intent === 'anomaly') {
-    if (mlInsights.anomalies.length === 0) {
-      return { content: 'No anomalies detected right now. All temperature and heart rate readings are within expected statistical ranges for each animal.' };
-    }
-    const bullets = mlInsights.anomalies.map((a) => {
-      const msgs: string[] = [];
-      if (a.tempAnomaly?.isAnomaly) msgs.push(`Temp: ${a.tempAnomaly.message}`);
-      if (a.hrAnomaly?.isAnomaly) msgs.push(`HR: ${a.hrAnomaly.message}`);
-      return `${a.animal.name}: ${msgs.join(' | ')}`;
-    });
-    return {
-      content: `My anomaly detection model (Z-score + IQR) flagged **${mlInsights.anomalies.length}** animal${mlInsights.anomalies.length > 1 ? 's' : ''} with statistically unusual vitals:`,
-      bullets,
-      type: 'alert',
+    if (anomalies.length === 0) return {
+      tag: 'ok',
+      content: 'No anomalies detected right now. All animals\' temperature and heart rate readings are within their individual normal ranges based on Z-score and IQR statistical analysis.',
+      bullets: ['The system compares each animal\'s current vitals vs its own historical baseline', 'An anomaly is flagged when Z-score > 2 or reading is outside the IQR bounds', 'Add more health records to improve detection sensitivity'],
     };
+    const bullets = anomalies.flatMap((a) => {
+      const r: string[] = [];
+      if (a.tempAnomaly?.isAnomaly) r.push(`${a.animal.name}: ${a.tempAnomaly.message} (severity: ${a.tempAnomaly.severity})`);
+      if (a.hrAnomaly?.isAnomaly) r.push(`${a.animal.name}: ${a.hrAnomaly.message} (severity: ${a.hrAnomaly.severity})`);
+      return r;
+    });
+    return { tag: 'alert', content: `⚡ ${anomalies.length} animal${anomalies.length > 1 ? 's' : ''} flagged with statistically unusual vitals (Z-score + IQR analysis):`, bullets };
   }
 
-  if (intent === 'health_risk') {
-    const atRisk = activeAnimals.filter((a) => a.health_status === 'At Risk' || a.health_status === 'Critical');
-    const model = mlInsights.healthModel;
-    let content = '';
+  // ── Health ──────────────────────────────────────────────────────────────────
+  if (intent === 'health') {
+    const atRisk = active.filter((a) => a.health_status === 'At Risk' || a.health_status === 'Critical');
+    const model = ml.healthModel;
     const bullets: string[] = [];
-
-    if (model?.canPredict) {
-      content = `My logistic regression model is trained on ${model.trainingSamples} health records with **${Math.round(model.accuracy * 100)}% accuracy**. `;
-    }
+    let content = '';
+    if (model?.canPredict) content = `Health Risk AI (Logistic Regression) is trained on ${model.trainingSamples} records with ${Math.round(model.accuracy * 100)}% accuracy. `;
     if (atRisk.length === 0) {
-      content += 'No animals are currently At Risk or Critical based on recorded health status.';
+      content += 'All active animals are currently Healthy or on Monitor status. No animals are At Risk or Critical.';
     } else {
       content += `${atRisk.length} animal${atRisk.length > 1 ? 's are' : ' is'} flagged:`;
-      atRisk.forEach((a) => bullets.push(`${a.name} — ${a.health_status} (score: ${a.health_risk_score})`));
+      atRisk.forEach((a) => bullets.push(`${a.name} (${a.tag_id}) — ${a.health_status} · Risk Score: ${a.health_risk_score}/100${a.current_temperature ? ' · Temp: ' + a.current_temperature + '°C' : ''}`));
     }
-    if (mlInsights.anomalies.length > 0) {
-      content += `\n\nAdditionally, ${mlInsights.anomalies.length} animal${mlInsights.anomalies.length > 1 ? 's have' : ' has'} anomalous vitals (temperature or heart rate) detected by statistical outlier analysis.`;
-    }
-    return { content: content + safetyNote, bullets: bullets.length > 0 ? bullets : undefined, type: 'insight' };
+    if (anomalies.length > 0) content += `\n\nAdditionally, ${anomalies.length} animal${anomalies.length > 1 ? 's have' : ' has'} anomalous vitals detected by statistical analysis.`;
+    return { tag: 'insight', content: content + vet, bullets: bullets.length > 0 ? bullets : undefined };
   }
 
+  // ── Vaccination ─────────────────────────────────────────────────────────────
   if (intent === 'vaccination') {
-    const overdue = activeAnimals.filter((a) => a.vaccination_status === 'Overdue');
-    const dueSoon = activeAnimals.filter((a) => a.vaccination_status === 'Due Soon');
+    const overdue = active.filter((a) => a.vaccination_status === 'Overdue');
+    const due = active.filter((a) => a.vaccination_status === 'Due Soon');
     const bullets: string[] = [];
-    overdue.slice(0, 5).forEach((a) => bullets.push(`🔴 Overdue: ${a.name}`));
-    dueSoon.slice(0, 5).forEach((a) => bullets.push(`🟡 Due soon: ${a.name}`));
-    const content = overdue.length + dueSoon.length === 0
-      ? 'All vaccinations are up to date. No animals overdue or due soon.'
-      : `Found **${overdue.length} overdue** and **${dueSoon.length} due soon** across active animals:`;
-    return { content, bullets: bullets.length > 0 ? bullets : undefined, type: 'insight' };
+    overdue.forEach((a) => bullets.push(`🔴 OVERDUE: ${a.name} (${a.tag_id})${a.next_vaccine_date ? ' — was due ' + formatDate(a.next_vaccine_date) : ''}`));
+    due.forEach((a) => bullets.push(`🟡 DUE SOON: ${a.name} (${a.tag_id})${a.next_vaccine_date ? ' — due ' + formatDate(a.next_vaccine_date) + ' (' + daysUntil(a.next_vaccine_date) + ' days)' : ''}`));
+    const content = overdue.length + due.length === 0
+      ? `✅ All ${active.length} active animals are up to date on vaccinations.`
+      : `Vaccination status: ${overdue.length} overdue, ${due.length} due soon out of ${active.length} active animals:`;
+    return { tag: overdue.length > 0 ? 'alert' : 'insight', content, bullets: bullets.length > 0 ? bullets : undefined };
   }
 
+  // ── Breeding ────────────────────────────────────────────────────────────────
   if (intent === 'breeding') {
-    const pregnant = activeAnimals.filter((a) => a.breeding_status === 'Pregnant');
-    const ready = activeAnimals.filter((a) => a.breeding_status === 'Ready');
-    const highProb = mlInsights.breedingPredictions.filter((b) => b.prediction && b.prediction.probability >= 0.7);
+    const pregnant = active.filter((a) => a.breeding_status === 'Pregnant');
+    const highProb = ml.breedingPredictions.filter((b) => b.prediction && b.prediction.probability >= 0.65);
     const bullets: string[] = [];
-    pregnant.slice(0, 4).forEach((a) => {
-      const days = a.expected_kidding_date ? daysUntil(a.expected_kidding_date) : null;
-      bullets.push(`🤰 ${a.name} — pregnant${days !== null ? `, kidding in ${days} days` : ''}`);
+    pregnant.forEach((a) => {
+      const d = a.expected_kidding_date ? daysUntil(a.expected_kidding_date) : null;
+      bullets.push(`🤰 ${a.name} — Pregnant${d !== null ? ', kidding in ' + d + ' days (' + formatDate(a.expected_kidding_date) + ')' : ''}`);
     });
-    ready.slice(0, 3).forEach((a) => bullets.push(`✅ ${a.name} — ready for breeding`));
-    highProb.slice(0, 3).forEach((b) => {
-      if (!pregnant.find((p) => p.id === b.animal.id) && !ready.find((r) => r.id === b.animal.id)) {
-        bullets.push(`🧠 AI predicts ${Math.round(b.prediction!.probability * 100)}% success for ${b.animal.name}`);
-      }
-    });
-    const content = `Breeding overview: **${pregnant.length} pregnant**, **${ready.length} ready**, **${highProb.length} AI-flagged** as high probability.`;
-    return { content, bullets: bullets.length > 0 ? bullets : undefined, type: 'insight' };
-  }
-
-  if (intent === 'growth') {
-    const hasForecasts = mlInsights.growthPredictions.filter((g) => g.model);
-    if (hasForecasts.length === 0) {
-      return { content: 'I need at least 2 weight records per animal to run growth projections. Log more weigh-ins to enable polynomial regression forecasting.' };
-    }
-    const bullets = hasForecasts.slice(0, 6).map((g) => {
-      const gain = g.model!.projectedDailyGain;
-      const ready = g.model!.marketReadyDate;
-      return `${g.animalName}: ${gain > 0 ? '+' : ''}${gain} kg/day · R²=${g.model!.rSquared.toFixed(2)}${ready ? ` · market-ready ${ready}` : ''}`;
+    highProb.filter((b) => !pregnant.find((p) => p.id === b.animal.id)).slice(0, 4).forEach((b) => {
+      bullets.push(`🧠 ${b.animal.name} — Naïve Bayes predicts ${pct(b.prediction!.probability)} breeding success · ${b.prediction!.recommendation}`);
     });
     return {
-      content: `Growth forecasts from polynomial regression (${hasForecasts.length} animals modelled):`,
-      bullets,
-      type: 'insight',
+      tag: 'insight',
+      content: `Breeding overview: ${pregnant.length} pregnant, ${active.filter(a => a.breeding_status === 'Ready').length} ready, ${highProb.length} AI-predicted high success rate:`,
+      bullets: bullets.length > 0 ? bullets : ['No breeding activity recorded yet.'],
     };
   }
 
+  // ── Growth ──────────────────────────────────────────────────────────────────
+  if (intent === 'growth') {
+    const models = ml.growthPredictions.filter((g) => g.model);
+    if (!models.length) return { tag: 'info', content: 'No growth forecasts yet. I need at least 2 weight records per animal to build polynomial regression models. Go to Weight & Growth → Record Weight.' };
+    const bullets = models.slice(0, 8).map((g) => {
+      const gain = g.model!.projectedDailyGain;
+      return `${g.animalName}: ${gain > 0 ? '+' : ''}${fmt(gain, 3)} kg/day · R²=${g.model!.rSquared.toFixed(2)}${g.model!.marketReadyDate ? ' · Market-ready: ' + g.model!.marketReadyDate : ''}`;
+    });
+    return { tag: 'insight', content: `Growth forecasts active for ${models.length} animals (polynomial regression, 90-day projection):`, bullets };
+  }
+
+  // ── Milk ────────────────────────────────────────────────────────────────────
   if (intent === 'milk') {
-    const forecasts = mlInsights.milkForecasts.filter((m) => m.forecast);
-    if (forecasts.length === 0) {
-      return { content: "No milk forecasts available yet. I need at least 3 milk records per female animal to run Holt's exponential smoothing." };
-    }
-    const bullets = forecasts.slice(0, 5).map((m) => {
+    const forecasts = ml.milkForecasts.filter((m) => m.forecast);
+    if (!forecasts.length) return { tag: 'info', content: "No milk forecasts yet. I need at least 3 milk records per female animal to run Holt's exponential smoothing. Go to Feed Management → Milk Production tab." };
+    const bullets = forecasts.map((m) => {
       const avg = (m.forecast!.forecast.reduce((s, v) => s + v, 0) / m.forecast!.forecast.length).toFixed(2);
       const trend = m.forecast!.trend > 0.01 ? '↑ increasing' : m.forecast!.trend < -0.01 ? '↓ decreasing' : '→ stable';
-      return `${m.animalName}: ~${avg} L/day · trend ${trend} · ${m.forecast!.confidence}% confidence`;
+      return `${m.animalName}: ~${avg} L/day · trend ${trend} · ${m.forecast!.confidence}% confidence (MAPE: ${m.forecast!.mape.toFixed(1)}%)`;
     });
+    return { tag: 'insight', content: `Milk yield forecasts (Holt's exponential smoothing, next 7 days) for ${forecasts.length} female${forecasts.length > 1 ? 's' : ''}:`, bullets };
+  }
+
+  // ── Feed ────────────────────────────────────────────────────────────────────
+  if (intent === 'feed') {
+    const feedPred = ml.feedPrediction;
+    const total = farmData.feedRecords.reduce((s, r) => s + Number(r.cost || 0), 0);
+    if (!feedPred) return { tag: 'info', content: `Total recorded feed cost: ₱${total.toFixed(2)}. No feed-to-weight regression yet — I need paired feed and weight records for at least 2 animals. Add feed records and weight records for the same animals.` };
+    const quality = feedPred.rSquared > 0.7 ? 'strong' : feedPred.rSquared > 0.4 ? 'moderate' : 'weak';
     return {
-      content: `Milk yield forecasts (Holt's exponential smoothing, next 7 days) for **${forecasts.length} female${forecasts.length > 1 ? 's' : ''}**:`,
-      bullets,
-      type: 'insight',
+      tag: 'insight',
+      content: `Feed-to-Weight OLS Regression results:`,
+      bullets: [
+        `Slope: ${feedPred.slope} kg weight gain per kg of feed`,
+        `R² = ${feedPred.rSquared.toFixed(3)} — ${quality} correlation (${Math.round(feedPred.rSquared * 100)}% of weight variation explained by feed)`,
+        `Total recorded feed cost: ₱${total.toFixed(2)}`,
+        feedPred.slope > 0 ? `Every 1 kg of feed → ~${feedPred.slope} kg weight gain (FCR = ${(1 / feedPred.slope).toFixed(2)})` : 'No positive feed-to-gain correlation found — review feed quality',
+      ],
     };
   }
 
-  if (intent === 'feed') {
-    const feedPred = mlInsights.feedPrediction;
-    if (!feedPred) {
-      return { content: 'I need paired feed and weight records for at least 2 animals to build a feed-to-weight-gain model. Add more feed and weight records.' };
-    }
-    const totalSpend = farmData.feedRecords.reduce((s, r) => s + Number(r.cost || 0), 0);
-    const content = `Feed-to-weight OLS regression: slope = **${feedPred.slope} kg gain per kg feed** · R² = ${feedPred.rSquared.toFixed(3)} · total recorded feed cost ₱${totalSpend.toFixed(2)}.`;
-    const bullets: string[] = [
-      `R²=${feedPred.rSquared.toFixed(3)} — ${feedPred.rSquared > 0.7 ? 'strong' : feedPred.rSquared > 0.4 ? 'moderate' : 'weak'} feed-weight correlation`,
-      feedPred.slope > 0 ? `Every 1 kg of feed → ~${feedPred.slope} kg weight gain` : 'No positive feed-to-gain correlation found — review feed quality',
-    ];
-    return { content, bullets, type: 'insight' };
-  }
-
+  // ── Inventory ───────────────────────────────────────────────────────────────
   if (intent === 'inventory') {
-    const lowStock = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock));
+    const low = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock));
     const expired = farmData.inventory.filter((i) => i.expiry_date && new Date(i.expiry_date) < new Date());
     const bullets: string[] = [];
-    lowStock.slice(0, 4).forEach((i) => bullets.push(`⚠️ Low: ${i.name} (${i.quantity} ${i.unit} remaining)`));
-    expired.slice(0, 3).forEach((i) => bullets.push(`🔴 Expired: ${i.name} (expired ${i.expiry_date})`));
-    const content = lowStock.length + expired.length === 0
-      ? 'All inventory items are stocked above minimum levels. No expired items.'
-      : `Inventory alert: **${lowStock.length} low-stock** and **${expired.length} expired** items:`;
-    return { content, bullets: bullets.length > 0 ? bullets : undefined, type: 'alert' };
+    expired.forEach((i) => bullets.push(`🔴 EXPIRED: ${i.name} (${i.quantity} ${i.unit})`));
+    low.forEach((i) => bullets.push(`⚠️ LOW STOCK: ${i.name} — ${i.quantity} ${i.unit} remaining (min: ${i.minimum_stock})`));
+    const content = low.length + expired.length === 0
+      ? `✅ All ${farmData.inventory.length} inventory items are stocked above minimum levels. No expired items.`
+      : `Inventory alert: ${expired.length} expired, ${low.length} low-stock items:`;
+    return { tag: low.length > 0 || expired.length > 0 ? 'alert' : 'ok', content, bullets: bullets.length > 0 ? bullets : undefined };
   }
 
+  // ── Cluster ─────────────────────────────────────────────────────────────────
   if (intent === 'cluster') {
-    const clusters = mlInsights.clusters;
-    if (!clusters) {
-      return { content: 'I need at least 3 active animals to run K-means clustering. Add more animals to enable herd segmentation.' };
-    }
-    const clusterMap: Record<number, string[]> = {};
-    clusters.assignments.forEach((a) => {
-      (clusterMap[a.cluster] ??= []).push(a.name);
+    const c = ml.clusters;
+    if (!c) return { tag: 'info', content: 'K-means clustering needs at least 3 active animals. Add more animals to enable herd segmentation.' };
+    const map: Record<number, string[]> = {};
+    c.assignments.forEach((a) => (map[a.cluster] ??= []).push(a.name));
+    const bullets = c.clusterLabels.map((label, i) => {
+      const members = map[i] ?? [];
+      return `${label}: ${members.slice(0, 5).join(', ')}${members.length > 5 ? ` +${members.length - 5} more` : ''} (${members.length} animals)`;
     });
-    const bullets = clusters.clusterLabels.map((label, i) => {
-      const members = clusterMap[i] ?? [];
-      return `${label}: ${members.slice(0, 4).join(', ')}${members.length > 4 ? ` +${members.length - 4} more` : ''}`;
-    });
+    return { tag: 'insight', content: `K-means++ clustering grouped your ${active.length} active animals into ${c.k} segments by weight, age, health score, and species:`, bullets };
+  }
+
+  // ── Summary ─────────────────────────────────────────────────────────────────
+  if (intent === 'summary') {
+    const healthy = active.filter((a) => a.health_status === 'Healthy').length;
+    const atRisk = active.filter((a) => a.health_status === 'At Risk' || a.health_status === 'Critical').length;
+    const pregnant = active.filter((a) => a.breeding_status === 'Pregnant').length;
+    const avgW = active.length > 0 ? active.reduce((s, a) => s + (Number(a.weight_kg) || 0), 0) / active.length : 0;
     return {
-      content: `K-means clustering grouped your **${activeAnimals.length} active animals** into **${clusters.k} segments** by weight, age, health score, and species:`,
-      bullets,
-      type: 'insight',
+      tag: 'insight',
+      content: `Farm summary for ${active.length} active animals:`,
+      bullets: [
+        `Health: ${healthy} Healthy, ${active.filter(a => a.health_status === 'Monitor').length} Monitor, ${atRisk} At Risk/Critical`,
+        `Average weight: ${fmt(avgW)} kg`,
+        `Pregnant: ${pregnant} animals`,
+        `Vaccination: ${active.filter(a => a.vaccination_status === 'Up to Date').length} up to date, ${active.filter(a => a.vaccination_status === 'Overdue').length} overdue`,
+        `Anomalies detected: ${anomalies.length}`,
+        `ML insights active: ${ml.totalInsights}`,
+        `Health records: ${farmData.healthRecords.length} · Weight records: ${farmData.weightRecords.length}`,
+        `Feed records: ${farmData.feedRecords.length} · Milk records: ${farmData.milkRecords.length}`,
+      ],
     };
   }
 
-  // Fallback: return the briefing
-  return buildBriefing(farmData, mlInsights);
-}
-
-// ─── Smart briefing ───────────────────────────────────────────────────────────
-
-function buildBriefing(
-  farmData: ReturnType<typeof useFarmData>,
-  mlInsights: ReturnType<typeof useMLInsights>,
-): { content: string; bullets: string[]; type: MessageType } {
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
-  const atRisk = activeAnimals.filter((a) => a.health_status === 'At Risk' || a.health_status === 'Critical');
-  const overdue = activeAnimals.filter((a) => a.vaccination_status === 'Overdue');
-  const lowStock = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock));
-  const pregnant = activeAnimals.filter((a) => a.breeding_status === 'Pregnant');
-  const kiddingSoon = pregnant.filter((a) => a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 14);
-
+  // ── Briefing / default ──────────────────────────────────────────────────────
+  const atRisk2 = active.filter((a) => a.health_status === 'At Risk' || a.health_status === 'Critical');
+  const overdue2 = active.filter((a) => a.vaccination_status === 'Overdue');
+  const low2 = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock));
+  const pregnant2 = active.filter((a) => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 14);
   const bullets: string[] = [];
+  if (atRisk2.length > 0) bullets.push(`🔴 ${atRisk2.length} animal${atRisk2.length > 1 ? 's' : ''} at risk: ${atRisk2.slice(0, 2).map(a => a.name).join(', ')}`);
+  if (anomalies.length > 0) bullets.push(`⚡ ${anomalies.length} anomalous vital${anomalies.length > 1 ? 's' : ''}: ${anomalies.slice(0, 2).map(a => a.animal.name).join(', ')}`);
+  if (overdue2.length > 0) bullets.push(`💉 ${overdue2.length} overdue vaccination${overdue2.length > 1 ? 's' : ''}`);
+  if (pregnant2.length > 0) bullets.push(`🐣 ${pregnant2.length} animal${pregnant2.length > 1 ? 's' : ''} kidding within 14 days`);
+  if (low2.length > 0) bullets.push(`📦 ${low2.length} inventory item${low2.length > 1 ? 's' : ''} below minimum stock`);
+  if (ml.growthPredictions.filter(g => g.model).length > 0) bullets.push(`📈 ${ml.growthPredictions.filter(g => g.model).length} growth forecasts active`);
+  if (ml.healthModel?.canPredict) bullets.push(`🧠 Health AI: ${Math.round(ml.healthModel.accuracy * 100)}% accuracy · ${ml.healthModel.trainingSamples} training samples`);
 
-  // Critical alerts first
-  if (atRisk.length > 0) bullets.push(`🔴 ${atRisk.length} animal${atRisk.length > 1 ? 's' : ''} at risk: ${atRisk.slice(0, 2).map((a) => a.name).join(', ')}${atRisk.length > 2 ? '…' : ''}`);
-  if (mlInsights.anomalies.length > 0) bullets.push(`⚡ ${mlInsights.anomalies.length} anomalous vital${mlInsights.anomalies.length > 1 ? 's' : ''} detected (${mlInsights.anomalies.slice(0, 2).map((a) => a.animal.name).join(', ')})`);
-  if (overdue.length > 0) bullets.push(`💉 ${overdue.length} overdue vaccination${overdue.length > 1 ? 's' : ''}`);
-  if (kiddingSoon.length > 0) bullets.push(`🐣 ${kiddingSoon.length} animal${kiddingSoon.length > 1 ? 's' : ''} kidding within 14 days`);
-  if (lowStock.length > 0) bullets.push(`📦 ${lowStock.length} inventory item${lowStock.length > 1 ? 's' : ''} below minimum stock`);
-
-  // Positive ML insights
-  const growthCount = mlInsights.growthPredictions.filter((g) => g.model).length;
-  if (growthCount > 0) bullets.push(`📈 ${growthCount} growth forecast${growthCount > 1 ? 's' : ''} active (polynomial regression)`);
-  if (mlInsights.healthModel?.canPredict) bullets.push(`🧠 Health risk model: ${Math.round(mlInsights.healthModel.accuracy * 100)}% accuracy · ${mlInsights.healthModel.trainingSamples} training records`);
-  if (mlInsights.clusters) bullets.push(`🔵 Herd clustered into ${mlInsights.clusters.k} groups by weight, age, and health`);
-
-  const urgencyLevel = atRisk.length > 0 || mlInsights.anomalies.length > 0 ? 'needs attention' : overdue.length > 0 || lowStock.length > 0 ? 'a few things to watch' : 'looking good';
-  const content = `Farm briefing — **${activeAnimals.length} active animals**, ${urgencyLevel}:`;
-
-  return { content, bullets, type: 'briefing' };
+  const status = atRisk2.length > 0 || anomalies.length > 0 ? 'needs attention' : overdue2.length > 0 || low2.length > 0 ? 'a few things to monitor' : 'all clear';
+  return {
+    tag: bullets.length > 0 ? 'briefing' : 'ok',
+    content: `Farm briefing — ${active.length} active animals, ${status}:`,
+    bullets: bullets.length > 0 ? bullets : ['Everything looks good! All animals are healthy, vaccinations are current, and stock levels are adequate.'],
+  };
 }
 
-// ─── Dynamic quick prompts ────────────────────────────────────────────────────
-
-function buildQuickPrompts(
-  farmData: ReturnType<typeof useFarmData>,
-  mlInsights: ReturnType<typeof useMLInsights>,
-): string[] {
-  const prompts: string[] = [];
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
-
-  if (mlInsights.anomalies.length > 0) prompts.push(`Show anomalies (${mlInsights.anomalies.length} detected)`);
-  if (activeAnimals.some((a) => a.health_status === 'At Risk' || a.health_status === 'Critical')) prompts.push('Which animals are at risk?');
-  if (activeAnimals.some((a) => a.vaccination_status === 'Overdue')) prompts.push('Vaccination priorities');
-  if (mlInsights.growthPredictions.some((g) => g.model?.marketReadyDate)) prompts.push('Growth & market-ready dates');
-  if (mlInsights.breedingPredictions.some((b) => b.prediction)) prompts.push('Breeding success predictions');
-  if (mlInsights.milkForecasts.some((m) => m.forecast)) prompts.push('Milk yield forecast');
-  if (mlInsights.clusters) prompts.push('How is my herd clustered?');
-  prompts.push("What needs attention today?");
-  prompts.push('Feed efficiency analysis');
-
-  return prompts.slice(0, 5);
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
-export function AIAssistantPanel({ open, onClose }: AIAssistantPanelProps) {
+// ── Component ─────────────────────────────────────────────────────────────────
+export function AIAssistantPanel({ open, onClose }: Props) {
   const farmData = useFarmData();
-  const mlInsights = useMLInsights();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const ml = useMLInsights();
+  const anomalies = useAnomalyDetection();
+  const endRef = useRef<HTMLDivElement>(null);
 
-  const openingBriefing = useMemo(() => {
-    if (farmData.loading) return null;
-    return buildBriefing(farmData, mlInsights);
-  }, [farmData.loading]);
-
-  const [messages, setMessages] = useState<AssistantMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      type: 'text',
-      content: "Hi! I'm your AI Farm Assistant. I'm connected to your live ML models — ask me about health risks, anomalies, growth forecasts, breeding predictions, milk yield, feed efficiency, or any specific animal.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Msg[]>([{
+    id: 'welcome', role: 'assistant', tag: 'briefing',
+    content: 'Hi! I\'m your AI Farm Assistant. Ask me anything about your animals, ML models, health risks, or how any feature works.',
+  }]);
   const [draft, setDraft] = useState('');
-  const [isThinking, setIsThinking] = useState(false);
+  const [thinking, setThinking] = useState(false);
 
-  // Inject smart briefing once data is ready
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  // Auto-briefing on open
   useEffect(() => {
-    if (!farmData.loading && openingBriefing && messages.length === 1) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'briefing',
-          role: 'assistant',
-          type: openingBriefing.type,
-          content: openingBriefing.content,
-          bullets: openingBriefing.bullets,
-        },
-      ]);
+    if (open && !farmData.loading && messages.length === 1) {
+      const r = buildReply('briefing', farmData, ml, anomalies);
+      setMessages(p => [...p, { id: 'b0', role: 'assistant', ...r }]);
     }
-  }, [farmData.loading]);
+  }, [open, farmData.loading]);
 
-  // Auto-scroll to latest message
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const quickPrompts = useMemo(() => {
+    const p: string[] = [];
+    if (anomalies.length > 0) p.push(`Show anomalies (${anomalies.length} detected)`);
+    if (farmData.animals.some(a => a.health_status === 'At Risk' || a.health_status === 'Critical')) p.push('Which animals are at risk?');
+    if (farmData.animals.some(a => a.vaccination_status === 'Overdue')) p.push('Vaccination priorities');
+    if (ml.growthPredictions.some(g => g.model?.marketReadyDate)) p.push('Growth & market-ready dates');
+    p.push('What needs attention today?');
+    p.push('How does anomaly detection work?');
+    p.push('Explain FAMACHA scoring');
+    return p.slice(0, 5);
+  }, [anomalies.length, farmData.animals, ml.growthPredictions]);
 
-  const quickPrompts = useMemo(
-    () => buildQuickPrompts(farmData, mlInsights),
-    [farmData.animals, mlInsights.anomalies.length, mlInsights.totalInsights],
-  );
+  const send = (text: string) => {
+    const t = text.trim(); if (!t) return;
+    setMessages(p => [...p, { id: `u${Date.now()}`, role: 'user', content: t }]);
+    setDraft(''); setThinking(true);
+    setTimeout(() => {
+      const r = buildReply(t, farmData, ml, anomalies);
+      setMessages(p => [...p, { id: `a${Date.now()}`, role: 'assistant', ...r }]);
+      setThinking(false);
+    }, 350);
+  };
 
   if (!open) return null;
 
-  const sendMessage = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-
-    const userMsg: AssistantMessage = { id: `u-${Date.now()}`, role: 'user', content: trimmed };
-    setMessages((prev) => [...prev, userMsg]);
-    setDraft('');
-    setIsThinking(true);
-
-    // Small delay to feel natural
-    setTimeout(() => {
-      const reply = buildReply(trimmed, farmData, mlInsights);
-      const assistantMsg: AssistantMessage = {
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        type: reply.type ?? 'text',
-        content: reply.content,
-        bullets: reply.bullets,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setIsThinking(false);
-    }, 420);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(draft);
-  };
-
-  const refreshBriefing = () => {
-    const briefing = buildBriefing(farmData, mlInsights);
-    const msg: AssistantMessage = {
-      id: `briefing-${Date.now()}`,
-      role: 'assistant',
-      type: 'briefing',
-      content: briefing.content,
-      bullets: briefing.bullets,
-    };
-    setMessages((prev) => [...prev, msg]);
-  };
-
-  const typeIcon = (type?: MessageType) => {
-    if (type === 'alert') return <AlertCircle size={12} color="#EF4444" />;
-    if (type === 'insight') return <Brain size={12} color="#7C3AED" />;
-    if (type === 'briefing') return <Zap size={12} color="#F59E0B" />;
+  const tagIcon = (tag?: string) => {
+    if (tag === 'alert') return <AlertCircle size={11} color="#EF4444" />;
+    if (tag === 'insight') return <Brain size={11} color="#7C3AED" />;
+    if (tag === 'briefing') return <Zap size={11} color="#F59E0B" />;
+    if (tag === 'info') return <Lightbulb size={11} color="#3B82F6" />;
     return null;
   };
 
   return (
     <div className="ai-assistant-backdrop" onClick={onClose}>
-      <div className="ai-assistant-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="ai-assistant-panel" onClick={e => e.stopPropagation()}>
+
         {/* Header */}
         <div className="ai-assistant-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="ai-assistant-icon">
-              <Sparkles size={18} />
-            </div>
+            <div className="ai-assistant-icon"><Sparkles size={18} /></div>
             <div>
               <div style={{ fontWeight: 800 }}>AI Farm Assistant</div>
               <div className="ai-assistant-subtitle">
-                {mlInsights.totalInsights > 0
-                  ? `${mlInsights.totalInsights} ML insights active · ${farmData.animals.filter((a) => !a.archived).length} animals`
-                  : 'Connected to your farm data'}
+                {ml.totalInsights > 0 ? `${ml.totalInsights} ML insights · ${farmData.animals.filter(a=>!a.archived).length} animals` : 'Connected to your farm data'}
               </div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
-            <button className="ai-close-btn" onClick={refreshBriefing} aria-label="Refresh briefing" title="Refresh briefing">
-              <RefreshCw size={14} />
-            </button>
-            <button className="ai-close-btn" onClick={onClose} aria-label="Close assistant">
-              <X size={16} />
-            </button>
+            <button className="ai-close-btn" onClick={() => { const r = buildReply('briefing', farmData, ml, anomalies); setMessages(p => [...p, { id: `b${Date.now()}`, role: 'assistant', ...r }]); }} title="Refresh briefing"><RefreshCw size={14} /></button>
+            <button className="ai-close-btn" onClick={onClose} aria-label="Close"><X size={16} /></button>
           </div>
         </div>
 
         {/* ML status bar */}
         {!farmData.loading && (
-          <div style={{ display: 'flex', gap: 8, padding: '8px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
-            {mlInsights.healthModel?.canPredict && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
-                <Brain size={11} color="#7C3AED" /> Health AI {Math.round(mlInsights.healthModel.accuracy * 100)}%
-              </span>
-            )}
-            {mlInsights.anomalies.length > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#EF4444' }}>
-                <AlertCircle size={11} /> {mlInsights.anomalies.length} anomal{mlInsights.anomalies.length > 1 ? 'ies' : 'y'}
-              </span>
-            )}
-            {mlInsights.growthPredictions.filter((g) => g.model).length > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
-                <TrendingUp size={11} color="#3B82F6" /> {mlInsights.growthPredictions.filter((g) => g.model).length} growth models
-              </span>
-            )}
-            {mlInsights.clusters && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
-                <Zap size={11} color="#10B981" /> {mlInsights.clusters.k} clusters
-              </span>
-            )}
+          <div style={{ display: 'flex', gap: 8, padding: '6px 14px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+            {ml.healthModel?.canPredict && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Brain size={10} color="#7C3AED"/>Health AI {Math.round(ml.healthModel.accuracy*100)}%</span>}
+            {anomalies.length > 0 && <span style={{ fontSize: 11, color: '#EF4444', display:'flex', alignItems:'center', gap:3 }}><AlertCircle size={10}/>{anomalies.length} anomal{anomalies.length>1?'ies':'y'}</span>}
+            {ml.growthPredictions.filter(g=>g.model).length > 0 && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><TrendingUp size={10} color="#3B82F6"/>{ml.growthPredictions.filter(g=>g.model).length} growth models</span>}
+            {ml.clusters && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Zap size={10} color="#10B981"/>{ml.clusters.k} clusters</span>}
           </div>
         )}
 
         {/* Body */}
         <div className="ai-assistant-body">
-          {/* Quick prompts */}
           <div className="ai-suggestions">
-            {quickPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                className="ai-suggestion-chip"
-                onClick={() => sendMessage(prompt)}
-              >
-                <Lightbulb size={12} /> {prompt}
+            {quickPrompts.map(p => (
+              <button key={p} className="ai-suggestion-chip" onClick={() => send(p)}>
+                <Lightbulb size={12}/> {p}
               </button>
             ))}
           </div>
 
-          {/* Messages */}
           <div className="ai-message-list">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`ai-message ${msg.role}`}>
-                {msg.role === 'assistant' && msg.type && msg.type !== 'text' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4, opacity: 0.7 }}>
-                    {typeIcon(msg.type)}
-                    <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{msg.type}</span>
+            {messages.map(m => (
+              <div key={m.id} className={`ai-message ${m.role}`}>
+                {m.role === 'assistant' && m.tag && m.tag !== 'text' && (
+                  <div style={{ display:'flex', alignItems:'center', gap:4, marginBottom:4, opacity:0.7 }}>
+                    {tagIcon(m.tag)}
+                    <span style={{ fontSize:10, textTransform:'uppercase', letterSpacing:1 }}>{m.tag}</span>
                   </div>
                 )}
-                <span style={{ whiteSpace: 'pre-line' }}>{msg.content.replace(/\*\*/g, '')}</span>
-                {msg.bullets && msg.bullets.length > 0 && (
-                  <ul style={{ margin: '8px 0 0 0', paddingLeft: 16, listStyleType: 'none' }}>
-                    {msg.bullets.map((b, i) => (
-                      <li key={i} style={{ fontSize: 12, marginBottom: 4, lineHeight: 1.5 }}>{b}</li>
+                <span style={{ whiteSpace: 'pre-line' }}>{m.content.replace(/\*\*/g, '')}</span>
+                {m.bullets && m.bullets.length > 0 && (
+                  <ul style={{ margin:'8px 0 0', paddingLeft:0, listStyle:'none' }}>
+                    {m.bullets.map((b, i) => (
+                      <li key={i} style={{ fontSize:12, marginBottom:5, lineHeight:1.5, paddingLeft:4, borderLeft:'2px solid var(--border)' }}>{b}</li>
                     ))}
                   </ul>
                 )}
               </div>
             ))}
-            {isThinking && (
-              <div className="ai-message assistant">
-                <span style={{ opacity: 0.6, fontSize: 13 }}>Analysing your farm data…</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+            {thinking && <div className="ai-message assistant"><span style={{ opacity:0.5, fontSize:13 }}>Analysing your farm data…</span></div>}
+            <div ref={endRef} />
           </div>
         </div>
 
         {/* Composer */}
-        <form className="ai-composer" onSubmit={handleSubmit}>
+        <form className="ai-composer" onSubmit={e => { e.preventDefault(); send(draft); }}>
           <input
             className="ai-input"
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Ask about any animal, ML prediction, or farm metric…"
-            disabled={isThinking}
+            onChange={e => setDraft(e.target.value)}
+            placeholder="Ask about any animal, ML model, or feature…"
+            disabled={thinking}
           />
-          <button className="ai-send-btn" type="submit" aria-label="Send" disabled={isThinking || !draft.trim()}>
-            <Send size={16} />
-          </button>
+          <button className="ai-send-btn" type="submit" disabled={thinking || !draft.trim()}><Send size={16}/></button>
         </form>
       </div>
     </div>
