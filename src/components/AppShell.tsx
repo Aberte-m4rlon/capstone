@@ -27,6 +27,7 @@ const NAV: NavItem[] = [
   { to: '/analytics', label: 'Analytics', icon: 'Activity' },
   { to: '/reports', label: 'Reports', icon: 'FileBarChart' },
   { to: '/recommendations', label: 'Smart Recommendations', icon: 'Lightbulb' },
+  { to: '/activity-log', label: 'Activity Log', icon: 'ClipboardList' },
   { to: '/notifications', label: 'Notifications', icon: 'Bell' },
   { to: '/settings', label: 'Settings', icon: 'Settings' },
 ];
@@ -44,6 +45,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/reports': { title: 'Reports', subtitle: 'Generate and export farm reports' },
   '/recommendations': { title: 'Smart Recommendations', subtitle: 'AI-powered farm assistant' },
   '/notifications': { title: 'Notifications', subtitle: 'Alerts and reminders' },
+  '/activity-log': { title: 'Activity Log', subtitle: 'Complete history of all farm actions' },
   '/settings': { title: 'Settings', subtitle: 'Configure farm thresholds' },
 };
 
