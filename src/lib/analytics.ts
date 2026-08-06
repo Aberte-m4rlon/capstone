@@ -210,6 +210,7 @@ export function detectEarlyIllness(input: {
 }
 
 
+export interface HealthRiskResult {
   score: number;
   level: RiskLevel;
   healthStatus: HealthStatus;
