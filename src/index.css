@@ -22,6 +22,70 @@
   --radius-xl: 20px;
 }
 
+/* ===== Dark Mode ===== */
+[data-theme="dark"] {
+  --primary: #EF4444;
+  --primary-dark: #DC2626;
+  --primary-light: #450a0a;
+  --bg: #0F1117;
+  --card: #1A1D27;
+  --text: #F1F5F9;
+  --text-secondary: #64748B;
+  --healthy: #10B981;
+  --warning: #F59E0B;
+  --critical: #EF4444;
+  --info: #60A5FA;
+  --border: #2D3748;
+  --sidebar-bg: #13151F;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] body { background: var(--bg); color: var(--text); }
+[data-theme="dark"] .sidebar { background: var(--sidebar-bg); border-right: 1px solid var(--border); }
+[data-theme="dark"] .topbar { background: var(--card); border-bottom: 1px solid var(--border); }
+[data-theme="dark"] .card { background: var(--card); }
+[data-theme="dark"] .form-input,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .form-textarea { background: #1E2130; border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .form-input::placeholder,
+[data-theme="dark"] .form-textarea::placeholder { color: var(--text-secondary); }
+[data-theme="dark"] .data-table th { background: #1E2130; color: var(--text-secondary); border-bottom-color: var(--border); }
+[data-theme="dark"] .data-table td { border-bottom-color: var(--border); }
+[data-theme="dark"] .data-table tr:hover td { background: #1E2130; }
+[data-theme="dark"] .modal-overlay { background: rgba(0,0,0,0.7); }
+[data-theme="dark"] .modal { background: var(--card); border: 1px solid var(--border); }
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer { background: var(--card); border-color: var(--border); }
+[data-theme="dark"] .btn-secondary { background: #1E2130; color: var(--text); border-color: var(--border); }
+[data-theme="dark"] .btn-secondary:hover { background: #252836; }
+[data-theme="dark"] .btn-ghost:hover { background: #1E2130; }
+[data-theme="dark"] .profile-dropdown { background: var(--card); border: 1px solid var(--border); }
+[data-theme="dark"] .search-results { background: var(--card); border: 1px solid var(--border); }
+[data-theme="dark"] .search-result-item:hover { background: #1E2130; }
+[data-theme="dark"] .ai-assistant-panel { background: var(--card); border: 1px solid var(--border); }
+[data-theme="dark"] .ai-message.assistant { background: #1E2130; color: var(--text); }
+[data-theme="dark"] .ai-message.user { background: var(--primary); }
+[data-theme="dark"] .ai-input { background: #1E2130; border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .ai-suggestion-chip { background: #1E2130; border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .kpi-card { background: var(--card); }
+[data-theme="dark"] .nav-item:hover,
+[data-theme="dark"] .nav-item.active { background: rgba(239, 68, 68, 0.12); }
+[data-theme="dark"] .tabs { border-bottom-color: var(--border); }
+[data-theme="dark"] .tab { color: var(--text-secondary); }
+[data-theme="dark"] .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+[data-theme="dark"] .filter-bar { background: transparent; }
+[data-theme="dark"] .empty-state { color: var(--text-secondary); }
+[data-theme="dark"] .rec-card { background: #1E2130; }
+[data-theme="dark"] .rec-card:hover { background: #252836; }
+[data-theme="dark"] .priority-item:hover { background: #1E2130; }
+[data-theme="dark"] .stat-row { border-bottom-color: var(--border); }
+[data-theme="dark"] .progress-bar { background: #1E2130; }
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+
 * {
   margin: 0;
   padding: 0;
@@ -989,31 +1053,4 @@ table.data-table {
 
 @media (max-width: 480px) {
   .kpi-grid { grid-template-columns: 1fr; }
-}
-
-/* ===== QR Scanner ===== */
-/* Force html5-qrcode injected elements to be fully visible */
-#qr-scanner-container {
-  overflow: visible !important;
-}
-#qr-scanner-container video {
-  width: 100% !important;
-  height: auto !important;
-  max-height: 400px !important;
-  border-radius: 12px !important;
-  display: block !important;
-  object-fit: cover !important;
-}
-#qr-scanner-container img {
-  display: none !important;
-}
-#qr-scanner-container canvas {
-  display: none !important;
-}
-/* The scan region overlay box */
-#qr-scanner-container #qr-shaded-region {
-  border: none !important;
-}
-#qr-scanner-container #qr-shaded-region div {
-  background: rgba(0,0,0,0.45) !important;
 }

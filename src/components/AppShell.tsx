@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { AIAssistantPanel } from './AIAssistantPanel';
+import { Moon, Sun } from 'lucide-react';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord } from '../types';
 
 interface NavItem {
@@ -68,6 +69,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const searchRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Dark mode — persist in localStorage
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    const theme = darkMode ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [darkMode]);
 
   const pathKey = Object.keys(PAGE_TITLES).find((k) => location.pathname.startsWith(k)) ?? '/dashboard';
   const pageTitle = PAGE_TITLES[pathKey] ?? { title: 'AlpasFarm', subtitle: '' };
@@ -273,6 +285,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
+          {/* Dark / Light mode toggle */}
+          <button
+            className="topbar-icon-btn"
+            onClick={() => setDarkMode((d) => !d)}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={darkMode ? 'Light mode' : 'Dark mode'}
+          >
+            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
           <div ref={notifRef} style={{ position: 'relative' }}>
             <button className="topbar-icon-btn" onClick={() => setNotifOpen(!notifOpen)}>
               <Icons.Bell size={18} />
