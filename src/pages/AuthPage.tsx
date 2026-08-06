@@ -31,8 +31,15 @@ export function AuthPage() {
     setLoading(false);
 
     if (error) {
-      setError(error);
-      toast(error, 'error');
+      const friendlyError = error.includes('Email not confirmed')
+        ? 'Your email is not yet confirmed. Please check your inbox, or ask the admin to disable email confirmation in Supabase settings.'
+        : error.includes('Invalid login credentials')
+        ? 'Incorrect email or password. Please try again.'
+        : error.includes('User already registered')
+        ? 'An account with this email already exists. Try signing in instead.'
+        : error;
+      setError(friendlyError);
+      toast(friendlyError, 'error');
       return;
     }
 
@@ -126,6 +133,11 @@ export function AuthPage() {
               placeholder="At least 6 characters"
             />
           </div>
+          {mode === 'signup' && (
+            <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#166534' }}>
+              ✅ No email verification needed — you can log in immediately after signing up.
+            </div>
+          )}
           {error && (
             <div style={{
               background: '#FEE2E2', color: '#991B1B',
