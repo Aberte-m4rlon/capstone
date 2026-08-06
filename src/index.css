@@ -261,7 +261,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   margin-left: auto;
   position: relative;
   width: 280px;
-  max-width: 40vw;
+  max-width: 30vw;
+  flex-shrink: 1;
 }
 
 .topbar-search input {
