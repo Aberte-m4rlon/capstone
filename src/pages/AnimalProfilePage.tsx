@@ -21,9 +21,6 @@ import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer } from 'luci
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 
-// Always use the production Vercel URL for QR codes — never localhost.
-const APP_URL = 'https://capstone-delta-jet.vercel.app';
-
 export function AnimalProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -121,7 +118,7 @@ export function AnimalProfilePage() {
   };
 
   const downloadQR = async () => {
-    const url = `${APP_URL}/public/${animal.id}`;
+    const url = `${window.location.origin}/public/${animal.id}`;
     const dataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
     const link = document.createElement('a');
     link.href = dataUrl;
@@ -131,7 +128,7 @@ export function AnimalProfilePage() {
   };
 
   const printQR = () => {
-    const url = `${APP_URL}/public/${animal.id}`;
+    const url = `${window.location.origin}/public/${animal.id}`;
     const win = window.open('', '_blank');
     if (!win) return;
     QRCode.toDataURL(url, { width: 300, margin: 2 }).then((dataUrl) => {
@@ -275,23 +272,57 @@ export function AnimalProfilePage() {
             <button className="btn btn-primary btn-sm" onClick={() => navigate('/health')}><Plus size={15} /> Add Record</button>
           </div>
           {animalHealth.length === 0 ? (
-            <div className="empty-state"><div className="es-icon"><Icons.HeartPulse size={24} /></div><h4>No health records</h4><p>Record a health check to start tracking.</p></div>
+            <div className="empty-state"><div className="es-icon"><Icons.HeartPulse size={24} /></div><h4>No health records</h4><p>Record a health check to start early illness detection.</p></div>
           ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Date</th><th>Temp</th><th>HR</th><th>Risk</th><th>Reasons</th></tr></thead>
-                <tbody>
-                  {animalHealth.map((r) => (
-                    <tr key={r.id}>
-                      <td>{formatDate(r.record_date)}</td>
-                      <td>{r.temperature ? `${r.temperature}°C` : '—'}</td>
-                      <td>{r.heart_rate ? `${r.heart_rate}` : '—'}</td>
-                      <td><span className={`badge badge-${r.risk_level === 'Low' ? 'green' : r.risk_level === 'Moderate' ? 'yellow' : r.risk_level === 'High' ? 'orange' : 'red'}`}>{r.risk_level} ({r.risk_score})</span></td>
-                      <td style={{ maxWidth: 300, color: 'var(--text-secondary)', fontSize: 12 }}>{r.reasons ?? '—'}</td>
+            <div>
+              {/* Early illness alerts for latest record */}
+              {(() => {
+                const latest = [...animalHealth].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[0];
+                const conditions = (latest as any).detected_conditions;
+                if (!conditions) return null;
+                return (
+                  <div style={{ margin: '0 0 14px', padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#991B1B' }}>⚠️ Early Illness Detection — Latest Record</span>
+                    </div>
+                    <p style={{ fontSize: 12, color: '#7F1D1D', margin: 0 }}>{conditions}</p>
+                  </div>
+                );
+              })()}
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th><th>Temp</th><th>HR</th><th>RR</th>
+                      <th>FAMACHA</th><th>Bloat</th><th>Gait</th>
+                      <th>Risk</th><th>Detected Conditions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {animalHealth.map((r) => (
+                      <tr key={r.id}>
+                        <td>{formatDate(r.record_date)}</td>
+                        <td>{r.temperature ? `${r.temperature}°C` : '—'}</td>
+                        <td>{r.heart_rate ?? '—'}</td>
+                        <td>{(r as any).respiratory_rate ? `${(r as any).respiratory_rate}` : '—'}</td>
+                        <td>{(r as any).famacha_score ? `${(r as any).famacha_score}/5` : '—'}</td>
+                        <td>{(r as any).bloat_score !== undefined ? `${(r as any).bloat_score}/3` : '—'}</td>
+                        <td style={{ fontSize: 11 }}>{(r as any).gait ?? '—'}</td>
+                        <td>
+                          <span className={`badge badge-${r.risk_level === 'Low' ? 'green' : r.risk_level === 'Moderate' ? 'yellow' : r.risk_level === 'High' ? 'orange' : 'red'}`}>
+                            {r.risk_level} ({r.risk_score})
+                          </span>
+                        </td>
+                        <td style={{ maxWidth: 220, fontSize: 11 }}>
+                          {(r as any).detected_conditions
+                            ? <span style={{ color: '#B91C1C', fontWeight: 600 }}>{(r as any).detected_conditions}</span>
+                            : <span style={{ color: 'var(--text-secondary)' }}>None detected</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -450,7 +481,7 @@ export function AnimalProfilePage() {
         <button className="btn btn-primary" onClick={printQR}><Printer size={15} /> Print</button></>}
       >
         <div className="qr-display">
-          <QRCanvas value={`${APP_URL}/public/${animal.id}`} size={240} />
+          <QRCanvas value={`${window.location.origin}/public/${animal.id}`} size={240} />
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontWeight: 700, fontSize: 16 }}>{animal.name}</p>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{animal.tag_id}</p>
