@@ -291,6 +291,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             onClick={() => setDarkMode((d) => !d)}
             aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             title={darkMode ? 'Light mode' : 'Dark mode'}
+            style={{ color: '#fff', opacity: 0.9 }}
           >
             {darkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>

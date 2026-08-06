@@ -45,7 +45,6 @@
 
 [data-theme="dark"] body { background: var(--bg); color: var(--text); }
 [data-theme="dark"] .sidebar { background: var(--sidebar-bg); border-right: 1px solid var(--border); }
-[data-theme="dark"] .topbar { background: var(--card); border-bottom: 1px solid var(--border); }
 [data-theme="dark"] .card { background: var(--card); }
 [data-theme="dark"] .form-input,
 [data-theme="dark"] .form-select,
