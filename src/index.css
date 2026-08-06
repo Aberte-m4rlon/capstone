@@ -246,11 +246,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   padding: 18px 28px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   color: #fff;
   position: sticky;
   top: 0;
   z-index: 50;
+  overflow: visible;
 }
 
 .topbar-title h2 { font-size: 19px; font-weight: 700; color: #fff; }
