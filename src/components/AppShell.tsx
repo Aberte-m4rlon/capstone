@@ -196,6 +196,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const initials = user?.email ? user.email[0].toUpperCase() : 'F';
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
 
   const groupedResults = searchResults.reduce<Record<string, SearchResult[]>>((acc, r) => {
     (acc[r.type] ??= []).push(r);
@@ -344,7 +345,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="profile-menu" ref={profileRef}>
             <div className="profile-avatar" onClick={() => setProfileOpen(!profileOpen)}>
-              {initials}
+              {avatarUrl
+                ? <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                : initials}
             </div>
             {profileOpen && (
               <div className="profile-dropdown">
