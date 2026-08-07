@@ -24,6 +24,8 @@ interface PublicAnimal {
   last_vaccine_date: string | null;
   next_vaccine_date: string | null;
   notes: string | null;
+  farm_name: string | null;
+  user_id: string;
   registered_on: string;
 }
 
@@ -88,7 +90,7 @@ export function PublicAnimalPage() {
       'health_risk_score', 'current_temperature', 'current_heart_rate',
       'breeding_status', 'last_mating_date', 'expected_kidding_date',
       'vaccination_status', 'last_vaccine_date', 'next_vaccine_date',
-      'notes', 'archived', 'created_at',
+      'notes', 'archived', 'created_at', 'user_id',
     ].join(',');
 
     fetch(
@@ -105,13 +107,24 @@ export function PublicAnimalPage() {
         if (!res.ok) throw new Error('Failed to load animal data');
         return res.json();
       })
-      .then((rows: any[]) => {
+      .then(async (rows: any[]) => {
         if (!rows || rows.length === 0) throw new Error('Animal not found or has been removed.');
         const row = rows[0];
-        setAnimal({
-          ...row,
-          registered_on: row.created_at,
-        });
+
+        // Fetch farm name from settings
+        let farmName = 'AlpasFarm';
+        if (row.user_id) {
+          try {
+            const sr = await fetch(
+              `${SUPABASE_URL}/rest/v1/settings?user_id=eq.${row.user_id}&select=farm_name`,
+              { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+            );
+            const sdata = await sr.json();
+            if (sdata?.[0]?.farm_name) farmName = sdata[0].farm_name;
+          } catch { /* use default */ }
+        }
+
+        setAnimal({ ...row, farm_name: farmName, registered_on: row.created_at });
         setError(null);
       })
       .catch((err) => setError(err.message))
@@ -175,6 +188,15 @@ export function PublicAnimalPage() {
             </p>
           </div>
         </div>
+
+        {/* Farm name badge */}
+        {animal.farm_name && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0 10px' }}>
+            <PawPrint size={12} color="#B91C1C" />
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#B91C1C' }}>{animal.farm_name}</span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>· Registered: {new Date(animal.registered_on).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+          </div>
+        )}
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
@@ -378,7 +400,7 @@ export function PublicAnimalPage() {
       <div style={{ textAlign: 'center', padding: '16px 20px 32px', borderTop: '1px solid #E5E7EB', background: '#fff' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#9CA3AF', fontSize: 12, marginBottom: 6 }}>
           <PawPrint size={13} />
-          <span>Powered by AlpasFarm — Smart Farm Management</span>
+          <span>{animal.farm_name ?? 'AlpasFarm'} — Managed with AlpasFarm</span>
         </div>
         <div>
           <Link to="/" style={{ color: '#B91C1C', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>

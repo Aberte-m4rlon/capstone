@@ -42,7 +42,7 @@ Deno.serve(async (req: Request) => {
         health_risk_score, current_temperature, current_heart_rate,
         breeding_status, last_mating_date, expected_kidding_date,
         vaccination_status, last_vaccine_date, next_vaccine_date,
-        notes, archived, created_at
+        notes, archived, created_at, user_id
       `)
       .eq('id', animalId)
       .maybeSingle();
@@ -59,6 +59,17 @@ Deno.serve(async (req: Request) => {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Get farm name from settings
+    let farmName = 'AlpasFarm';
+    if (animal.user_id) {
+      const { data: settings } = await supabase
+        .from('settings')
+        .select('farm_name')
+        .eq('user_id', animal.user_id)
+        .maybeSingle();
+      if (settings?.farm_name) farmName = settings.farm_name;
     }
 
     // Return only safe, public fields — no user_id, no internal data
@@ -85,6 +96,7 @@ Deno.serve(async (req: Request) => {
         last_vaccine_date: animal.last_vaccine_date,
         next_vaccine_date: animal.next_vaccine_date,
         notes: animal.notes,
+        farm_name: farmName,
         registered_on: animal.created_at,
       }),
       {
