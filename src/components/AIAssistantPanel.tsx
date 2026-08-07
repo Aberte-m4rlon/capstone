@@ -15,25 +15,69 @@ const vet = '\n\n⚕️ Always confirm health decisions with a licensed veterina
 // ── Intent detection ──────────────────────────────────────────────────────────
 function detect(q: string) {
   const t = q.toLowerCase();
+
+  // Extract animal name from various patterns
   const animal = (() => {
-    const m = t.match(/(?:how is|about|check|status of|show me|sino si|kumusta si|kamusta)\s+([a-z]+)/i)
-           || t.match(/([a-z]+)(?:'s|s)\s+(?:health|weight|status|breeding|milk|vaccine)/i);
+    const m = t.match(/(?:how is|about|check|status of|show me|sino si|kumusta si|kamusta si|tingnan|profile|ano nangyari|kamusta ang|pakita|para kay|tungkol kay)\s+([a-zA-Z]+)/i)
+           || t.match(/([a-zA-Z]+)(?:'s|s'|s)\s+(?:health|weight|status|breeding|milk|vaccine|temperature|temp|heart|condition)/i)
+           || t.match(/(?:ano ang kalagayan|kalagayan)\s+(?:ni|ng)\s+([a-zA-Z]+)/i);
     return m ? m[1] : null;
   })();
 
-  if (/system|alpasfarm|what.*do|features|functions|ano.*system|paano|how does|what is|explain|kapag|kung|bakit|why/.test(t)) return { intent: 'system_faq', animal };
-  if (/anomal|unusual|weird|spike|outlier|abnormal|hindi normal/.test(t)) return { intent: 'anomaly', animal };
-  if (/cluster|group|segment|katulad|similar|grupo/.test(t)) return { intent: 'cluster', animal };
-  if (/health.*risk|at risk|critical|sick|illness|sakit|risk score|logistic/.test(t)) return { intent: 'health', animal };
-  if (/vaccin|shot|immuniz|bakuna|booster/.test(t)) return { intent: 'vaccination', animal };
-  if (/breed|pregnant|kidding|mating|buntis|nagsilang|anak/.test(t)) return { intent: 'breeding', animal };
-  if (/weight|grow|gain|market|timbang|laki|tubo/.test(t)) return { intent: 'growth', animal };
-  if (/milk|gatas|yield|litro|dairy/.test(t)) return { intent: 'milk', animal };
-  if (/feed|fodder|kain|pagkain|fcr|efficiency|gastose|gastos/.test(t)) return { intent: 'feed', animal };
-  if (/stock|inventory|supply|gamot|expired|expir|supply|kulang/.test(t)) return { intent: 'inventory', animal };
-  if (/today|attention|urgent|priority|what.*need|briefing|update|balita|anong|nangyayari/.test(t)) return { intent: 'briefing', animal };
-  if (/summary|overview|total|how many|lahat|buod|herd|all animal/.test(t)) return { intent: 'summary', animal };
+  // System / FAQ questions
+  if (/system|alpasfarm|what.*do|features|functions|ano.*system|paano|how does|what is|explain|kapag|kung|bakit|why|para saan|purpose|gamit|ibig sabihin|define|meaning/.test(t)) return { intent: 'system_faq', animal };
+
+  // Numbers / counts / totals
+  if (/how many|ilan|count|total|lahat|all|number of|dami|bilang|magkano|cost|gastos|halaga/.test(t)) return { intent: 'count', animal };
+
+  // Comparison
+  if (/compare|versus|vs|paghahambing|mas mabuti|mas maganda|alin|which.*better|difference/.test(t)) return { intent: 'compare', animal };
+
+  // Disease / illness advice
+  if (/ppr|foot.*rot|pneumonia|bloat|diarrhea|anemia|worm|parasite|lameness|fever|sakit|karamdaman|lunas|gamot|treat|medicine|antibiotic|deworm/.test(t)) return { intent: 'disease', animal };
+
+  // Nutrition / feeding advice
+  if (/what.*feed|what.*eat|best.*feed|nutri|pagkain.*para|feed.*recommend|diet|supplement|mineral|block/.test(t)) return { intent: 'nutrition', animal };
+
+  // What to do / action advice
+  if (/what.*do|what should|gawin ko|ano gagawin|paano ko|how.*treat|how.*help|lunas|solusyon|advice|recommend|suggest/.test(t)) return { intent: 'advice', animal };
+
+  // Anomaly
+  if (/anomal|unusual|weird|spike|outlier|abnormal|hindi normal|kakaiba|mataas.*temp|mababa.*temp/.test(t)) return { intent: 'anomaly', animal };
+
+  // Cluster
+  if (/cluster|group|segment|katulad|similar|grupo|grouped/.test(t)) return { intent: 'cluster', animal };
+
+  // Health risk
+  if (/health.*risk|at risk|critical|sick|illness|sakit|risk score|logistic|may sakit|malaki ang risk/.test(t)) return { intent: 'health', animal };
+
+  // Vaccination
+  if (/vaccin|shot|immuniz|bakuna|booster|overdue|due.*soon/.test(t)) return { intent: 'vaccination', animal };
+
+  // Breeding
+  if (/breed|pregnant|kidding|mating|buntis|nagsilang|anak|birth|gestation|sire|dam/.test(t)) return { intent: 'breeding', animal };
+
+  // Weight / growth
+  if (/weight|grow|gain|market|timbang|laki|tubo|heavy|light|target weight/.test(t)) return { intent: 'growth', animal };
+
+  // Milk
+  if (/milk|gatas|yield|litro|dairy|production/.test(t)) return { intent: 'milk', animal };
+
+  // Feed / cost
+  if (/feed|fodder|kain|pagkain|fcr|efficiency|gastos|cost|spend|spent|bayad/.test(t)) return { intent: 'feed', animal };
+
+  // Inventory
+  if (/stock|inventory|supply|gamot|expired|expir|kulang|out of stock|medicines|vaccine.*stock/.test(t)) return { intent: 'inventory', animal };
+
+  // Today's priorities
+  if (/today|attention|urgent|priority|what.*need|briefing|update|balita|anong|nangyayari|agenda|listahan/.test(t)) return { intent: 'briefing', animal };
+
+  // Summary
+  if (/summary|overview|total|how many|lahat|buod|herd|all animal|farm status/.test(t)) return { intent: 'summary', animal };
+
+  // Specific animal lookup
   if (animal) return { intent: 'animal_lookup', animal };
+
   return { intent: 'unknown', animal };
 }
 
@@ -180,7 +224,125 @@ function buildReply(
     }
   }
 
-  // ── Anomaly ─────────────────────────────────────────────────────────────────
+  // ── Count / Numbers ─────────────────────────────────────────────────────────
+  if (intent === 'count') {
+    const t = input.toLowerCase();
+    const goats = active.filter(a => a.species === 'Goat');
+    const sheep = active.filter(a => a.species === 'Sheep');
+    const females = active.filter(a => a.sex === 'Female');
+    const males = active.filter(a => a.sex === 'Male');
+    const totalFeedCost = farmData.feedRecords.reduce((s, r) => s + Number(r.cost || 0), 0);
+    const totalMilk = farmData.milkRecords.reduce((s, r) => s + Number(r.yield_litres || 0), 0);
+
+    if (/goat/.test(t)) return { tag: 'insight', content: `You have ${goats.length} goat${goats.length !== 1 ? 's' : ''} registered (${goats.filter(a=>a.sex==='Female').length} female, ${goats.filter(a=>a.sex==='Male').length} male).` };
+    if (/sheep/.test(t)) return { tag: 'insight', content: `You have ${sheep.length} sheep registered (${sheep.filter(a=>a.sex==='Female').length} female, ${sheep.filter(a=>a.sex==='Male').length} male).` };
+    if (/female/.test(t)) return { tag: 'insight', content: `You have ${females.length} female animals (${females.filter(a=>a.species==='Goat').length} goats, ${females.filter(a=>a.species==='Sheep').length} sheep).` };
+    if (/male/.test(t)) return { tag: 'insight', content: `You have ${males.length} male animals (${males.filter(a=>a.species==='Goat').length} goats, ${males.filter(a=>a.species==='Sheep').length} sheep).` };
+    if (/milk|gatas/.test(t)) return { tag: 'insight', content: `Total milk recorded: ${totalMilk.toFixed(2)} litres across ${farmData.milkRecords.length} records from ${new Set(farmData.milkRecords.map(r=>r.animal_id)).size} animals.` };
+    if (/feed|gastos|cost/.test(t)) return { tag: 'insight', content: `Total feed cost recorded: ₱${totalFeedCost.toFixed(2)} across ${farmData.feedRecords.length} feed records.` };
+    if (/health/.test(t)) return { tag: 'insight', content: `Total health records: ${farmData.healthRecords.length} across ${new Set(farmData.healthRecords.map(r=>r.animal_id)).size} animals.` };
+    if (/vaccine|vaccin/.test(t)) return { tag: 'insight', content: `Total vaccination records: ${farmData.vaccinations.length}.` };
+    return {
+      tag: 'insight',
+      content: `Farm count summary:`,
+      bullets: [
+        `Total active animals: ${active.length} (${goats.length} goats, ${sheep.length} sheep)`,
+        `Female: ${females.length} · Male: ${males.length}`,
+        `Pregnant: ${active.filter(a=>a.breeding_status==='Pregnant').length}`,
+        `Health records: ${farmData.healthRecords.length} · Weight records: ${farmData.weightRecords.length}`,
+        `Total feed cost: ₱${totalFeedCost.toFixed(2)} · Total milk: ${totalMilk.toFixed(2)} L`,
+        `Inventory items: ${farmData.inventory.length}`,
+      ],
+    };
+  }
+
+  // ── Disease advice ──────────────────────────────────────────────────────────
+  if (intent === 'disease') {
+    const t = input.toLowerCase();
+    if (/ppr|peste/.test(t)) return {
+      tag: 'alert', content: 'PPR (Peste des Petits Ruminants) — highly contagious viral disease:',
+      bullets: ['Signs: high fever >40°C, nasal/eye discharge, diarrhea, mouth sores, loss of appetite', 'NO CURE — prevention only through PPR vaccination', 'ISOLATE affected animals immediately', 'Report to DA-BAI (Bureau of Animal Industry) — it is a notifiable disease', 'Do NOT move animals — highly contagious', 'Vaccinate all healthy animals if outbreak detected'],
+    };
+    if (/pneumonia|respiratory/.test(t)) return {
+      tag: 'alert', content: 'Pneumonia in goats/sheep — respiratory disease treatment:',
+      bullets: ['Signs: fever >40°C, rapid breathing (>20 breaths/min), cough, nasal discharge, lethargy', 'Treatment: antibiotics (Oxytetracycline or Penicillin) — consult vet for correct dosage', 'Isolate affected animals', 'Ensure proper ventilation in housing', 'Supportive care: vitamin B-complex, electrolytes', vet.trim()],
+    };
+    if (/bloat/.test(t)) return {
+      tag: 'alert', content: 'Bloat treatment by severity:',
+      bullets: ['Mild (Score 1): Walk the animal, restrict legume grazing, administer anti-bloat solution (simethicone)', 'Moderate (Score 2): Anti-bloat drench, position animal with head elevated, massage left flank', 'Severe (Score 3) EMERGENCY: Walk immediately, pass stomach tube to release gas, call vet NOW — can be fatal within hours', 'Prevention: avoid lush legume pastures when wet, use ionophore feed additives', vet.trim()],
+    };
+    if (/worm|parasite|haemonchus|barber.*pole/.test(t)) return {
+      tag: 'alert', content: 'Barber Pole Worm (Haemonchus contortus) — most deadly goat/sheep parasite:',
+      bullets: ['Detection: FAMACHA score 4–5 (pale/white inner eyelid)', 'Treatment: dewormer (Albendazole, Ivermectin, or Fenbendazole) — rotate to prevent resistance', 'Targeted Selective Treatment (TST): only treat animals with FAMACHA 4–5 to slow resistance', 'Prevention: avoid overgrazing, rotational grazing, strategic deworming', 'Recheck FAMACHA in 2 weeks after treatment', vet.trim()],
+    };
+    if (/foot.*rot|lameness|hoof/.test(t)) return {
+      tag: 'alert', content: 'Foot Rot / Lameness treatment:',
+      bullets: ['Signs: foul smell from hoof, swelling between toes, severe limping', 'Treatment: trim hooves, foot bath with zinc sulfate 10% solution (3× per week)', 'Severe cases: antibiotics (Penicillin or Oxytetracycline) — consult vet', 'Isolate affected animals to prevent spread', 'Prevention: regular hoof trimming, dry housing conditions', vet.trim()],
+    };
+    if (/diarrhea|loose.*stool|enterotox/.test(t)) return {
+      tag: 'alert', content: 'Diarrhea / Enterotoxemia treatment:',
+      bullets: ['Mild diarrhea: oral electrolyte solution, withhold grain temporarily', 'Enterotoxemia (Overeating Disease): CD&T vaccine is key prevention', 'Signs of enterotoxemia: sudden death or seizures after grain overfeeding', 'Treatment: antitoxin (if available), supportive care, reduce grain drastically', 'Prevention: CD&T vaccination, gradual feed changes', vet.trim()],
+    };
+    return {
+      tag: 'info', content: 'Common goat/sheep diseases I can help with:',
+      bullets: ['PPR (Peste des Petits Ruminants)', 'Pneumonia / Respiratory Disease', 'Bloat (Ruminal Tympany)', 'Barber Pole Worm / Anemia (FAMACHA)', 'Foot Rot / Lameness', 'Enterotoxemia / Diarrhea', 'Ask me about any of these specifically!'],
+    };
+  }
+
+  // ── Nutrition advice ────────────────────────────────────────────────────────
+  if (intent === 'nutrition') {
+    return {
+      tag: 'info', content: 'Feeding recommendations for goats and sheep (Philippine conditions):',
+      bullets: [
+        'Base feed: Napier grass or Guinea grass — 3–5 kg/day for adults',
+        'Protein supplement: Ipil-ipil (Leucaena) leaves — max 30% of diet (remove stems)',
+        'Energy supplement: Rice bran, corn grits — 0.3–0.5 kg/day',
+        'Pregnant/lactating does: increase by 20–30%, add Corn grits + Copra meal',
+        'Growing kids: Commercial goat starter pellets + fresh grass',
+        'Always provide: clean fresh water and mineral salt block',
+        'Feed Conversion Ratio (FCR) target: 5–8 kg feed per kg weight gain',
+        'Avoid: sudden feed changes, moldy feed, excessive legumes (bloat risk)',
+      ],
+    };
+  }
+
+  // ── Action advice ───────────────────────────────────────────────────────────
+  if (intent === 'advice') {
+    const atRisk = active.filter(a => a.health_status === 'At Risk' || a.health_status === 'Critical');
+    const overdue = active.filter(a => a.vaccination_status === 'Overdue');
+    const kiddingSoon = active.filter(a => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 7);
+    const declining = farmData.weightRecords;
+
+    const bullets: string[] = [];
+    if (atRisk.length > 0) bullets.push(`🔴 URGENT: ${atRisk.map(a=>a.name).join(', ')} need immediate health assessment`);
+    if (anomalies.length > 0) bullets.push(`⚡ Check: ${anomalies.map(a=>a.animal.name).join(', ')} have anomalous vitals — record a health check`);
+    if (overdue.length > 0) bullets.push(`💉 Schedule vaccinations for: ${overdue.map(a=>a.name).slice(0,3).join(', ')}`);
+    if (kiddingSoon.length > 0) bullets.push(`🐣 Prepare kidding pen for: ${kiddingSoon.map(a=>a.name).join(', ')} (due within 7 days)`);
+    if (farmData.inventory.filter(i=>Number(i.quantity)<=Number(i.minimum_stock)).length > 0) bullets.push(`📦 Restock low inventory items before they run out`);
+    if (ml.healthModel?.canPredict && ml.healthModel.accuracy < 0.7) bullets.push(`🧠 Add more health records to improve AI accuracy (currently ${Math.round(ml.healthModel.accuracy*100)}%)`);
+    if (bullets.length === 0) bullets.push('✅ Everything looks good! No urgent actions needed right now.');
+
+    return { tag: 'briefing', content: `Recommended actions based on your current farm data:`, bullets };
+  }
+
+  // ── Compare animals ─────────────────────────────────────────────────────────
+  if (intent === 'compare') {
+    const words = input.toLowerCase().split(/\s+/);
+    const found = active.filter(a => words.some(w => w.length > 2 && a.name.toLowerCase().includes(w)));
+    if (found.length >= 2) {
+      const bullets = found.slice(0, 4).map(a => {
+        const growth = ml.growthPredictions.find(g => g.animalId === a.id);
+        return `${a.name}: ${a.weight_kg ? a.weight_kg+'kg' : 'no weight'} · ${a.health_status} (${a.health_risk_score}) · ${a.vaccination_status}${growth?.model ? ' · gain '+growth.model.projectedDailyGain+' kg/day' : ''}`;
+      });
+      return { tag: 'insight', content: `Comparison of ${found.length} animals:`, bullets };
+    }
+    // Compare by category
+    const heaviest = [...active].sort((a,b) => Number(b.weight_kg||0) - Number(a.weight_kg||0)).slice(0,3);
+    return {
+      tag: 'insight', content: 'Top 3 heaviest animals:',
+      bullets: heaviest.map(a => `${a.name}: ${a.weight_kg ? a.weight_kg+' kg' : 'not recorded'} (${a.species}, ${a.sex})`),
+    };
+  }
   if (intent === 'anomaly') {
     if (anomalies.length === 0) return {
       tag: 'ok',
@@ -386,10 +548,12 @@ export function AIAssistantPanel({ open, onClose }: Props) {
     if (farmData.animals.some(a => a.health_status === 'At Risk' || a.health_status === 'Critical')) p.push('Which animals are at risk?');
     if (farmData.animals.some(a => a.vaccination_status === 'Overdue')) p.push('Vaccination priorities');
     if (ml.growthPredictions.some(g => g.model?.marketReadyDate)) p.push('Growth & market-ready dates');
-    p.push('What needs attention today?');
+    p.push('What should I do today?');
     p.push('How does anomaly detection work?');
-    p.push('Explain FAMACHA scoring');
-    return p.slice(0, 5);
+    p.push('What to feed my goats?');
+    p.push('How many animals do I have?');
+    p.push('Signs of PPR disease');
+    return p.slice(0, 6);
   }, [anomalies.length, farmData.animals, ml.growthPredictions]);
 
   const send = (text: string) => {
