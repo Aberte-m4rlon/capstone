@@ -20,6 +20,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ScannerPage } from './pages/ScannerPage';
 import { PublicAnimalPage } from './pages/PublicAnimalPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
+import { AdminPage } from './pages/AdminPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -73,6 +74,7 @@ function AppRoutes() {
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/scanner" element={<ScannerPage />} />
         <Route path="/activity-log" element={<ActivityLogPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/public/:id" element={<PublicAnimalPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

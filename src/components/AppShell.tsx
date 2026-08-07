@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { to: '/activity-log', label: 'Activity Log', icon: 'ClipboardList' },
   { to: '/notifications', label: 'Notifications', icon: 'Bell' },
   { to: '/settings', label: 'Settings', icon: 'Settings' },
+  { to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' },
 ];
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -46,6 +47,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/recommendations': { title: 'Smart Recommendations', subtitle: 'AI-powered farm assistant' },
   '/notifications': { title: 'Notifications', subtitle: 'Alerts and reminders' },
   '/activity-log': { title: 'Activity Log', subtitle: 'Complete history of all farm actions' },
+  '/admin': { title: 'Admin Panel', subtitle: 'Manage users and system data' },
   '/settings': { title: 'Settings', subtitle: 'Configure farm thresholds' },
 };
 
