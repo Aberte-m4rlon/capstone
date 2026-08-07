@@ -6,4 +6,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@electric-sql/pglite'],
   },
+  build: {
+    chunkSizeWarningLimit: 1600,
+  },
 });
