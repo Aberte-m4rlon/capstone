@@ -55,34 +55,28 @@ export function SettingsPage() {
 
     setUploadingAvatar(true);
     try {
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage (requires "avatars" bucket to be created)
       const ext = file.name.split('.').pop();
       const path = `avatars/${user.id}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      // Get public URL
+      // Get permanent public URL
       const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-      const url = data.publicUrl + `?t=${Date.now()}`; // cache-bust
+      const url = data.publicUrl + `?t=${Date.now()}`;
 
-      // Update user metadata
+      // Save to user metadata so it persists across sessions
       const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: url } });
       if (updateError) throw updateError;
 
       setAvatarUrl(url);
-      toast('Profile photo updated.', 'success');
+      toast('Profile photo updated successfully.', 'success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed.';
-      // Fallback: use object URL locally if storage bucket not set up
-      if (msg.includes('Bucket') || msg.includes('bucket') || msg.includes('not found')) {
-        const localUrl = URL.createObjectURL(file);
-        setAvatarUrl(localUrl);
-        toast('Profile photo updated locally. (Set up a "avatars" storage bucket in Supabase for permanent storage.)', 'success');
-      } else {
-        toast(msg, 'error');
-      }
+      toast(`Upload failed: ${msg}. Make sure the "avatars" storage bucket is created in Supabase.`, 'error');
     } finally {
       setUploadingAvatar(false);
+      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
