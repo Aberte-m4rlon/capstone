@@ -22,6 +22,8 @@ import { PublicAnimalPage } from './pages/PublicAnimalPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
 import { AdminPage } from './pages/AdminPage';
 
+import { ADMIN_EMAILS } from './pages/AdminPage';
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) {
@@ -77,7 +79,7 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/public/:id" element={<PublicAnimalPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to={user && ADMIN_EMAILS.includes(user.email ?? '') ? '/admin' : '/dashboard'} replace />} />
       </Routes>
     </AppShell>
   );

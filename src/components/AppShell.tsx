@@ -6,6 +6,7 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { AIAssistantPanel } from './AIAssistantPanel';
 import { Moon, Sun } from 'lucide-react';
+import { ADMIN_EMAILS } from '../pages/AdminPage';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord } from '../types';
 
 interface NavItem {
@@ -84,6 +85,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [darkMode]);
+
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
+
+  // Admin sees only Admin Panel; regular users see everything except Admin Panel
+  const visibleNav = isAdmin
+    ? [{ to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' as IconName }]
+    : NAV.filter(item => item.to !== '/admin');
 
   const pathKey = Object.keys(PAGE_TITLES).find((k) => location.pathname.startsWith(k)) ?? '/dashboard';
   const pageTitle = PAGE_TITLES[pathKey] ?? { title: 'AlpasFarm', subtitle: '' };
@@ -219,7 +227,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <nav className="nav-section">
             <div className="nav-label">Main Menu</div>
-            {NAV.map((item) => {
+            {visibleNav.map((item) => {
               const Icon = Icons[item.icon];
               let badge = 0;
               if (item.to === '/notifications') badge = unreadNotifs;
@@ -369,10 +377,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="content">{children}</main>
       </div>
-      <button className="ai-fab" onClick={() => setAssistantOpen(true)} aria-label="Open AI assistant">
-        <Icons.Lightbulb size={20} />
-      </button>
-      <AIAssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />
+      {/* AI Assistant FAB — hide for admins */}
+      {!isAdmin && (
+        <button className="ai-fab" onClick={() => setAssistantOpen(true)} aria-label="Open AI assistant">
+          <Icons.Lightbulb size={20} />
+        </button>
+      )}
+      {!isAdmin && <AIAssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />}
     </div>
   );
 }
