@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { Icons } from '../lib/icons';
-import { TrendingUp, BarChart3, AlertCircle, Zap, Smartphone, Lightbulb } from 'lucide-react';
+import { TrendingUp, BarChart3, AlertCircle, Zap, Smartphone, Lightbulb, Sun, Moon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export function LandingPage() {
@@ -25,15 +25,29 @@ export function LandingPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
       {/* Navigation */}
-      <nav style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--card)', boxShadow: 'var(--shadow-sm)', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--primary)' }}>🐐 AlpasFarm</div>
+      <nav style={{ 
+        padding: '20px 40px', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        background: 'rgba(255, 255, 255, 0.7)',
+        backdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(229, 231, 235, 0.3)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+      }}>
+        <div style={{ fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--primary)' }}>
+          <Icons.PawPrint size={24} />
+          AlpasFarm
+        </div>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <button 
             className="btn btn-ghost"
             onClick={() => setDarkMode(!darkMode)}
-            style={{ fontSize: 18 }}
+            style={{ fontSize: 18, width: 40, height: 40, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            {darkMode ? '☀️' : '🌙'}
+            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
           <button 
             className="btn btn-primary"
@@ -45,7 +59,13 @@ export function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section style={{ padding: '80px 40px', textAlign: 'center', background: 'var(--card)', borderBottom: '1px solid var(--border)' }}>
+      <section style={{ 
+        padding: '80px 40px', 
+        textAlign: 'center',
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+        backdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(229, 231, 235, 0.2)',
+      }}>
         <h1 style={{ fontSize: 48, fontWeight: 900, marginBottom: 20, color: 'var(--text)' }}>
           Smart Farm Management<br />for Goats & Sheep
         </h1>
@@ -78,7 +98,14 @@ export function LandingPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, maxWidth: 1200, margin: '0 auto' }}>
           {/* Feature 1: Animal Tracking */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.PawPrint size={32} color="var(--primary)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Animal Profiles</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -87,7 +114,14 @@ export function LandingPage() {
           </div>
 
           {/* Feature 2: Health Monitoring */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.HeartPulse size={32} color="var(--critical)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Health Monitoring</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -96,7 +130,14 @@ export function LandingPage() {
           </div>
 
           {/* Feature 3: Vaccination Tracking */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.Syringe size={32} color="var(--warning)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Vaccination Schedules</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -105,7 +146,14 @@ export function LandingPage() {
           </div>
 
           {/* Feature 4: Breeding Management */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.Heart size={32} color="var(--info)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Breeding & Kidding</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -114,7 +162,14 @@ export function LandingPage() {
           </div>
 
           {/* Feature 5: Weight & Growth */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.Scale size={32} color="var(--healthy)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Growth Tracking</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -123,7 +178,14 @@ export function LandingPage() {
           </div>
 
           {/* Feature 6: QR Code Scanner */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.ScanLine size={32} color="var(--primary)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>QR Scanner</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -132,7 +194,14 @@ export function LandingPage() {
           </div>
 
           {/* Feature 7: Inventory Management */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.Package size={32} color="var(--warning)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Inventory & Supplies</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -141,7 +210,14 @@ export function LandingPage() {
           </div>
 
           {/* Feature 8: AI Assistant */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.Lightbulb size={32} color="var(--warning)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>AI Farm Assistant</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -150,7 +226,14 @@ export function LandingPage() {
           </div>
 
           {/* Feature 9: Daily Alerts */}
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Icons.Calendar size={32} color="var(--critical)" style={{ marginBottom: 16 }} />
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Daily Alerts</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -161,7 +244,13 @@ export function LandingPage() {
       </section>
 
       {/* System Flow Section */}
-      <section style={{ padding: '80px 40px', background: 'var(--card)', borderTop: '1px solid var(--border)' }}>
+      <section style={{ 
+        padding: '80px 40px', 
+        background: 'rgba(255, 255, 255, 0.5)',
+        backdropFilter: 'blur(10px)',
+        borderTop: '1px solid rgba(229, 231, 235, 0.3)',
+        borderBottom: '1px solid rgba(229, 231, 235, 0.3)',
+      }}>
         <h2 style={{ fontSize: 36, fontWeight: 800, textAlign: 'center', marginBottom: 60, color: 'var(--text)' }}>
           How It Works
         </h2>
@@ -303,37 +392,85 @@ export function LandingPage() {
         </h2>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24, maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            textAlign: 'center', 
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <TrendingUp size={40} color="var(--primary)" style={{ margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Data-Driven Decisions</h3>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Machine learning models predict health risks, breeding success, and growth trends.</p>
           </div>
 
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            textAlign: 'center', 
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <BarChart3 size={40} color="var(--primary)" style={{ margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Detailed Analytics</h3>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Charts, reports, and performance metrics to track farm health and productivity.</p>
           </div>
 
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            textAlign: 'center', 
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <AlertCircle size={40} color="var(--critical)" style={{ margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Proactive Alerts</h3>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Never miss vaccinations, kidding dates, or health emergencies with smart notifications.</p>
           </div>
 
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            textAlign: 'center', 
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Smartphone size={40} color="var(--info)" style={{ margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Mobile-Ready</h3>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Access from any device. Built for farmers in the field with responsive design.</p>
           </div>
 
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            textAlign: 'center', 
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Lightbulb size={40} color="var(--warning)" style={{ margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>AI Chatbot (Tagalog)</h3>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Get farming advice, disease information, and recommendations in your language.</p>
           </div>
 
-          <div style={{ padding: 24, borderRadius: 'var(--radius)', background: 'var(--card)', border: '1px solid var(--border)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ 
+            padding: 24, 
+            borderRadius: 'var(--radius)', 
+            background: 'rgba(255, 255, 255, 0.7)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(229, 231, 235, 0.5)',
+            textAlign: 'center', 
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+          }}>
             <Zap size={40} color="var(--healthy)" style={{ margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Fast & Reliable</h3>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Cloud-based with real-time sync. Your data is always secure and accessible.</p>
@@ -342,7 +479,13 @@ export function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section style={{ padding: '80px 40px', background: 'var(--card)', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+      <section style={{ 
+        padding: '80px 40px', 
+        background: 'rgba(255, 255, 255, 0.5)',
+        backdropFilter: 'blur(10px)',
+        borderTop: '1px solid rgba(229, 231, 235, 0.3)',
+        textAlign: 'center' 
+      }}>
         <h2 style={{ fontSize: 36, fontWeight: 800, marginBottom: 20, color: 'var(--text)' }}>
           Ready to Transform Your Farm?
         </h2>
@@ -359,8 +502,24 @@ export function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer style={{ padding: '40px', background: 'var(--card)', borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: 13, color: 'var(--text-secondary)' }}>
-        <p>🐐 AlpasFarm — Smart Farm Management for Goats & Sheep</p>
+      <footer style={{ 
+        padding: '40px', 
+        background: 'rgba(255, 255, 255, 0.7)',
+        backdropFilter: 'blur(10px)',
+        borderTop: '1px solid rgba(229, 231, 235, 0.3)',
+        textAlign: 'center', 
+        fontSize: 13, 
+        color: 'var(--text-secondary)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: 8,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--primary)', fontWeight: 800 }}>
+          <Icons.PawPrint size={20} />
+          AlpasFarm — Smart Farm Management for Goats & Sheep
+        </div>
         <p style={{ marginTop: 8 }}>© 2026. All rights reserved.</p>
       </footer>
     </div>
