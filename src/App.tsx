@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { ToastProvider } from './lib/toast';
 import { AppShell } from './components/AppShell';
+import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
 import { Dashboard } from './pages/Dashboard';
 import { AnimalsPage } from './pages/AnimalsPage';
@@ -52,9 +53,10 @@ function AppRoutes() {
   if (!user) {
     return (
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/public/:id" element={<PublicAnimalPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
   }
@@ -81,6 +83,7 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/public/:id" element={<PublicAnimalPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to={user && ADMIN_EMAILS.includes(user.email ?? '') ? '/admin' : '/dashboard'} replace />} />
       </Routes>
     </AppShell>
