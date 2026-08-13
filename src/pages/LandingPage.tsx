@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { Icons } from '../lib/icons';
-import { TrendingUp, BarChart3, AlertCircle, Zap, Smartphone, Lightbulb, Sun, Moon } from 'lucide-react';
+import { TrendingUp, BarChart3, AlertCircle, Zap, Smartphone, Lightbulb, Sun, Moon, Heart, Syringe, Package, ScanLine, Calendar, Scale, HeartPulse } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export function LandingPage() {
@@ -23,35 +23,49 @@ export function LandingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', overflow: 'hidden' }}>
       {/* Navigation */}
       <nav style={{ 
-        padding: '20px 40px', 
+        padding: '16px 40px', 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        background: 'rgba(255, 255, 255, 0.7)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(229, 231, 235, 0.3)',
+        background: 'var(--surface)',
+        backdropFilter: 'var(--glass-blur)',
+        WebkitBackdropFilter: 'var(--glass-blur)',
+        borderBottom: '1px solid var(--border-light)',
         position: 'sticky',
         top: 0,
         zIndex: 100,
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
       }}>
-        <div style={{ fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--primary)' }}>
-          <Icons.PawPrint size={24} />
+        <div style={{ fontSize: 20, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 10, color: 'var(--accent)', letterSpacing: '-0.5px' }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 8px 24px rgba(255, 75, 43, 0.3)'
+          }}>
+            <Icons.PawPrint size={22} color="#fff" />
+          </div>
           AlpasFarm
         </div>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <button 
-            className="btn btn-ghost"
+            className="topbar-icon-btn"
             onClick={() => setDarkMode(!darkMode)}
-            style={{ fontSize: 18, width: 40, height: 40, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 44, height: 44 }}
           >
             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
           <button 
             className="btn btn-primary"
             onClick={() => navigate('/login')}
+            style={{ padding: '10px 24px' }}
           >
             Sign In
           </button>
@@ -60,467 +74,500 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <section style={{ 
-        padding: '80px 40px', 
+        padding: '100px 40px', 
         textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(229, 231, 235, 0.2)',
+        background: `linear-gradient(135deg, 
+          rgba(255, 75, 43, 0.08) 0%, 
+          rgba(99, 102, 241, 0.05) 50%, 
+          rgba(139, 92, 246, 0.08) 100%)`,
+        position: 'relative',
       }}>
-        <h1 style={{ fontSize: 48, fontWeight: 900, marginBottom: 20, color: 'var(--text)' }}>
-          Smart Farm Management<br />for Goats & Sheep
-        </h1>
-        <p style={{ fontSize: 18, marginBottom: 40, color: 'var(--text-secondary)', maxWidth: 600, margin: '0 auto 40px' }}>
-          Track health, breeding, nutrition, and more. Make data-driven decisions with AI-powered recommendations.
-        </p>
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button 
-            className="btn btn-primary"
-            onClick={() => navigate('/login')}
-            style={{ padding: '12px 32px', fontSize: 16, fontWeight: 700 }}
-          >
-            Get Started
-          </button>
-          <button 
-            className="btn btn-secondary"
-            onClick={() => document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })}
-            style={{ padding: '12px 32px', fontSize: 16, fontWeight: 700 }}
-          >
-            Learn More
-          </button>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <div style={{
+            display: 'inline-block',
+            padding: '8px 16px',
+            borderRadius: 999,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            marginBottom: 24,
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'var(--accent)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+          }}>
+            🚀 Premium Farm Management Platform
+          </div>
+
+          <h1 style={{
+            fontSize: '56px',
+            fontWeight: 900,
+            marginBottom: 24,
+            color: 'var(--text)',
+            letterSpacing: '-1px',
+            lineHeight: 1.1,
+          }}>
+            Smart Farm Management<br />
+            <span style={{
+              background: 'linear-gradient(135deg, var(--text) 0%, var(--accent) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
+              for Goats & Sheep
+            </span>
+          </h1>
+
+          <p style={{
+            fontSize: '18px',
+            marginBottom: 40,
+            color: 'var(--text-secondary)',
+            maxWidth: 700,
+            margin: '0 auto 40px',
+            lineHeight: 1.8,
+            fontWeight: 500,
+          }}>
+            Track health, breeding, nutrition, and more with AI-powered insights. Transform your farm into a data-driven operation.
+          </p>
+
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button 
+              className="btn btn-primary"
+              onClick={() => navigate('/login')}
+              style={{ padding: '13px 32px', fontSize: 15, fontWeight: 700 }}
+            >
+              Get Started Free
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={() => document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })}
+              style={{ padding: '13px 32px', fontSize: 15, fontWeight: 700 }}
+            >
+              Learn More
+            </button>
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" style={{ padding: '80px 40px', background: 'var(--bg)' }}>
-        <h2 style={{ fontSize: 36, fontWeight: 800, textAlign: 'center', marginBottom: 60, color: 'var(--text)' }}>
-          Comprehensive Features
-        </h2>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, maxWidth: 1200, margin: '0 auto' }}>
-          {/* Feature 1: Animal Tracking */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+      <section id="features" style={{ padding: '100px 40px', background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <h2 style={{
+            fontSize: '44px',
+            fontWeight: 900,
+            textAlign: 'center',
+            marginBottom: 16,
+            color: 'var(--text)',
+            letterSpacing: '-0.5px',
           }}>
-            <Icons.PawPrint size={32} color="var(--primary)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Animal Profiles</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Add animals with breed, age, weight, and health status. Track each individual and build a complete inventory.
-            </p>
-          </div>
-
-          {/* Feature 2: Health Monitoring */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+            Powerful Features
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            marginBottom: 60,
+            maxWidth: 600,
+            margin: '0 auto 60px',
           }}>
-            <Icons.HeartPulse size={32} color="var(--critical)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Health Monitoring</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Record vitals, symptoms, and conditions. AI analyzes health risks and flags animals needing attention.
-            </p>
-          </div>
+            Everything you need to manage a thriving goat and sheep farm
+          </p>
 
-          {/* Feature 3: Vaccination Tracking */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Icons.Syringe size={32} color="var(--warning)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Vaccination Schedules</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Auto-track vaccination dates, send reminders, and never miss critical immunizations.
-            </p>
-          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+            {/* Feature 1: Animal Profiles */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.2), rgba(255, 122, 24, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
+              }}>
+                <Icons.PawPrint size={28} color="var(--accent)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                Animal Profiles
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Track individual animals with breed, age, weight, and health status. Build a complete inventory.
+              </p>
+            </div>
 
-          {/* Feature 4: Breeding Management */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Icons.Heart size={32} color="var(--info)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Breeding & Kidding</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Track mating, pregnancy, and kidding dates. Get alerts when animals are due.
-            </p>
-          </div>
+            {/* Feature 2: Health Monitoring */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(239, 68, 68, 0.15)',
+              }}>
+                <HeartPulse size={28} color="var(--critical)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                Health Monitoring
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Record vitals, symptoms, and conditions. AI detects health risks and flags animals needing attention.
+              </p>
+            </div>
 
-          {/* Feature 5: Weight & Growth */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Icons.Scale size={32} color="var(--healthy)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Growth Tracking</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Monitor weight trends, predict market-ready dates, and optimize feed efficiency.
-            </p>
-          </div>
+            {/* Feature 3: Vaccination Tracking */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(245, 158, 11, 0.15)',
+              }}>
+                <Syringe size={28} color="var(--warning)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                Vaccination Schedules
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Auto-track vaccinations and send reminders. Never miss critical immunizations.
+              </p>
+            </div>
 
-          {/* Feature 6: QR Code Scanner */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Icons.ScanLine size={32} color="var(--primary)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>QR Scanner</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Scan QR codes on animal tags to instantly pull up profiles and record data.
-            </p>
-          </div>
+            {/* Feature 4: Breeding Management */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(59, 130, 246, 0.15)',
+              }}>
+                <Heart size={28} color="var(--info)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                Breeding & Kidding
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Track mating, pregnancy, and kidding dates. Get alerts when animals are due.
+              </p>
+            </div>
 
-          {/* Feature 7: Inventory Management */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Icons.Package size={32} color="var(--warning)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Inventory & Supplies</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Track feed, medicines, vaccines, and supplies. Get alerts for low stock and expiry dates.
-            </p>
-          </div>
+            {/* Feature 5: Weight Tracking */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(16, 185, 129, 0.15)',
+              }}>
+                <Scale size={28} color="var(--healthy)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                Growth Tracking
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Monitor weight trends, predict market-ready dates, optimize feed efficiency.
+              </p>
+            </div>
 
-          {/* Feature 8: AI Assistant */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Icons.Lightbulb size={32} color="var(--warning)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>AI Farm Assistant</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Ask the AI chatbot (in Tagalog) for health advice, breeding tips, and farm management guidance.
-            </p>
-          </div>
+            {/* Feature 6: QR Scanner */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.2), rgba(255, 122, 24, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
+              }}>
+                <ScanLine size={28} color="var(--accent)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                QR Code Scanner
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Scan QR codes on animal tags to instantly access profiles and record data in seconds.
+              </p>
+            </div>
 
-          {/* Feature 9: Daily Alerts */}
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Icons.Calendar size={32} color="var(--critical)" style={{ marginBottom: 16 }} />
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Daily Alerts</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Prioritized task reminders, push notifications, and SMS/email summaries to stay on top of farm work.
-            </p>
+            {/* Feature 7: Inventory Management */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(245, 158, 11, 0.15)',
+              }}>
+                <Package size={28} color="var(--warning)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                Inventory & Supplies
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Track feed, medicines, vaccines. Get alerts for low stock and expiry dates.
+              </p>
+            </div>
+
+            {/* Feature 8: AI Assistant */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.2), rgba(255, 122, 24, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
+              }}>
+                <Lightbulb size={28} color="var(--accent)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                AI Farm Assistant
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Get farming advice, disease info, and recommendations in Tagalog via AI chatbot.
+              </p>
+            </div>
+
+            {/* Feature 9: Daily Alerts */}
+            <div className="glass-card">
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+                boxShadow: '0 8px 20px rgba(239, 68, 68, 0.15)',
+              }}>
+                <Calendar size={28} color="var(--critical)" />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                Daily Alerts & Reminders
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Prioritized task reminders, push notifications, and SMS/email summaries for farm work.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* System Flow Section */}
-      <section style={{ 
-        padding: '80px 40px', 
-        background: 'rgba(255, 255, 255, 0.5)',
-        backdropFilter: 'blur(10px)',
-        borderTop: '1px solid rgba(229, 231, 235, 0.3)',
-        borderBottom: '1px solid rgba(229, 231, 235, 0.3)',
+      {/* How It Works */}
+      <section style={{
+        padding: '100px 40px',
+        background: `linear-gradient(135deg,
+          rgba(255, 75, 43, 0.05) 0%,
+          rgba(99, 102, 241, 0.03) 50%,
+          rgba(139, 92, 246, 0.05) 100%)`,
       }}>
-        <h2 style={{ fontSize: 36, fontWeight: 800, textAlign: 'center', marginBottom: 60, color: 'var(--text)' }}>
-          How It Works
-        </h2>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <h2 style={{
+            fontSize: '44px',
+            fontWeight: 900,
+            textAlign: 'center',
+            marginBottom: 60,
+            color: 'var(--text)',
+            letterSpacing: '-0.5px',
+          }}>
+            How It Works
+          </h2>
 
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gap: 40 }}>
-            {/* Step 1 */}
-            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-              <div style={{
-                width: 60,
-                height: 60,
-                borderRadius: '50%',
-                background: 'var(--primary)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                fontWeight: 800,
-                flexShrink: 0,
-              }}>
-                1
-              </div>
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Add Your Animals</h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                  Register each goat or sheep with species, breed, age, weight, and photos. Assign unique tag IDs for QR code scanning.
-                </p>
-              </div>
-            </div>
+          <div style={{ display: 'grid', gap: 32 }}>
+            {[1, 2, 3, 4, 5].map((step) => {
+              const titles = [
+                'Add Your Animals',
+                'Record Daily Activities',
+                'Get AI Insights',
+                'Act on Recommendations',
+                'Measure & Report'
+              ];
+              const descriptions = [
+                'Register each goat or sheep with species, breed, age, weight, and photos. Assign unique tag IDs for QR scanning.',
+                'Log health checks, weights, vaccinations, breeding events, feed records, and milk yields.',
+                'System analyzes your data using machine learning to detect health risks and suggest optimizations.',
+                'Review daily alerts, smart recommendations, and health warnings to make informed decisions.',
+                'View analytics, generate reports, and track progress over time. Share public profiles.'
+              ];
 
-            {/* Step 2 */}
-            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-              <div style={{
-                width: 60,
-                height: 60,
-                borderRadius: '50%',
-                background: 'var(--primary)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                fontWeight: 800,
-                flexShrink: 0,
-              }}>
-                2
-              </div>
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Record Daily Activities</h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                  Log health checks, weights, vaccinations, breeding events, feed records, and milk yields. Use the QR scanner for quick access.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-              <div style={{
-                width: 60,
-                height: 60,
-                borderRadius: '50%',
-                background: 'var(--primary)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                fontWeight: 800,
-                flexShrink: 0,
-              }}>
-                3
-              </div>
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Get AI Insights</h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                  The system analyzes your data using machine learning to detect health risks, predict breeding success, and suggest optimizations.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 4 */}
-            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-              <div style={{
-                width: 60,
-                height: 60,
-                borderRadius: '50%',
-                background: 'var(--primary)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                fontWeight: 800,
-                flexShrink: 0,
-              }}>
-                4
-              </div>
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Act on Recommendations</h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                  Review daily alerts, smart recommendations, and health warnings. Take action (vaccinate, isolate, breed, restock) with confidence.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 5 */}
-            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-              <div style={{
-                width: 60,
-                height: 60,
-                borderRadius: '50%',
-                background: 'var(--primary)',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 24,
-                fontWeight: 800,
-                flexShrink: 0,
-              }}>
-                5
-              </div>
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Measure & Report</h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                  View analytics, generate reports, and track progress over time. Share public animal profiles and export summaries.
-                </p>
-              </div>
-            </div>
+              return (
+                <div key={step} style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+                  <div style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 24,
+                    fontWeight: 900,
+                    flexShrink: 0,
+                    boxShadow: '0 12px 32px rgba(255, 75, 43, 0.25)',
+                    letterSpacing: '-1px',
+                  }}>
+                    {step}
+                  </div>
+                  <div>
+                    <h3 style={{
+                      fontSize: 18,
+                      fontWeight: 800,
+                      marginBottom: 8,
+                      color: 'var(--text)',
+                      letterSpacing: '-0.3px',
+                    }}>
+                      {titles[step - 1]}
+                    </h3>
+                    <p style={{
+                      fontSize: 14,
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.8,
+                    }}>
+                      {descriptions[step - 1]}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Tech Highlights */}
-      <section style={{ padding: '80px 40px', background: 'var(--bg)' }}>
-        <h2 style={{ fontSize: 36, fontWeight: 800, textAlign: 'center', marginBottom: 60, color: 'var(--text)' }}>
-          Why Choose AlpasFarm?
-        </h2>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24, maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            textAlign: 'center', 
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+      {/* Why Choose */}
+      <section style={{ padding: '100px 40px', background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <h2 style={{
+            fontSize: '44px',
+            fontWeight: 900,
+            textAlign: 'center',
+            marginBottom: 60,
+            color: 'var(--text)',
+            letterSpacing: '-0.5px',
           }}>
-            <TrendingUp size={40} color="var(--primary)" style={{ margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Data-Driven Decisions</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Machine learning models predict health risks, breeding success, and growth trends.</p>
-          </div>
+            Why Choose AlpasFarm?
+          </h2>
 
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            textAlign: 'center', 
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <BarChart3 size={40} color="var(--primary)" style={{ margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Detailed Analytics</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Charts, reports, and performance metrics to track farm health and productivity.</p>
-          </div>
-
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            textAlign: 'center', 
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <AlertCircle size={40} color="var(--critical)" style={{ margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Proactive Alerts</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Never miss vaccinations, kidding dates, or health emergencies with smart notifications.</p>
-          </div>
-
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            textAlign: 'center', 
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Smartphone size={40} color="var(--info)" style={{ margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Mobile-Ready</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Access from any device. Built for farmers in the field with responsive design.</p>
-          </div>
-
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            textAlign: 'center', 
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Lightbulb size={40} color="var(--warning)" style={{ margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>AI Chatbot (Tagalog)</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Get farming advice, disease information, and recommendations in your language.</p>
-          </div>
-
-          <div style={{ 
-            padding: 24, 
-            borderRadius: 'var(--radius)', 
-            background: 'rgba(255, 255, 255, 0.7)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(229, 231, 235, 0.5)',
-            textAlign: 'center', 
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-          }}>
-            <Zap size={40} color="var(--healthy)" style={{ margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)' }}>Fast & Reliable</h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Cloud-based with real-time sync. Your data is always secure and accessible.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
+            {[
+              { icon: TrendingUp, title: 'Data-Driven Decisions', desc: 'ML models predict health risks, breeding success, and growth trends.' },
+              { icon: BarChart3, title: 'Detailed Analytics', desc: 'Charts, reports, and performance metrics to track farm health.' },
+              { icon: AlertCircle, title: 'Proactive Alerts', desc: 'Never miss vaccinations, kidding dates, or health emergencies.' },
+              { icon: Smartphone, title: 'Mobile-Ready', desc: 'Access from any device. Built for farmers in the field.' },
+              { icon: Lightbulb, title: 'AI Chatbot', desc: 'Get farming advice and recommendations in Tagalog.' },
+              { icon: Zap, title: 'Fast & Reliable', desc: 'Cloud-based with real-time sync. Your data is always secure.' },
+            ].map((item, i) => (
+              <div key={i} className="glass-card">
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.2), rgba(255, 122, 24, 0.1))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 16,
+                  boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
+                }}>
+                  <item.icon size={24} color="var(--accent)" />
+                </div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 6, color: 'var(--text)' }}>
+                  {item.title}
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  {item.desc}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section style={{ 
-        padding: '80px 40px', 
-        background: 'rgba(255, 255, 255, 0.5)',
-        backdropFilter: 'blur(10px)',
-        borderTop: '1px solid rgba(229, 231, 235, 0.3)',
-        textAlign: 'center' 
+      {/* CTA */}
+      <section style={{
+        padding: '80px 40px',
+        textAlign: 'center',
+        background: `linear-gradient(135deg,
+          rgba(255, 75, 43, 0.08) 0%,
+          rgba(99, 102, 241, 0.05) 50%,
+          rgba(139, 92, 246, 0.08) 100%)`,
       }}>
-        <h2 style={{ fontSize: 36, fontWeight: 800, marginBottom: 20, color: 'var(--text)' }}>
+        <h2 style={{
+          fontSize: '40px',
+          fontWeight: 900,
+          marginBottom: 16,
+          color: 'var(--text)',
+          letterSpacing: '-0.5px',
+        }}>
           Ready to Transform Your Farm?
         </h2>
-        <p style={{ fontSize: 16, marginBottom: 40, color: 'var(--text-secondary)' }}>
+        <p style={{
+          fontSize: 16,
+          marginBottom: 32,
+          color: 'var(--text-secondary)',
+          maxWidth: 600,
+          margin: '0 auto 32px',
+        }}>
           Start managing your farm smarter today. Sign up and get your free account.
         </p>
-        <button 
+        <button
           className="btn btn-primary"
           onClick={() => navigate('/login')}
-          style={{ padding: '14px 40px', fontSize: 16, fontWeight: 700 }}
+          style={{ padding: '13px 40px', fontSize: 15, fontWeight: 700 }}
         >
-          Get Started Now
+          Get Started Now →
         </button>
       </section>
 
       {/* Footer */}
-      <footer style={{ 
-        padding: '40px', 
-        background: 'rgba(255, 255, 255, 0.7)',
-        backdropFilter: 'blur(10px)',
-        borderTop: '1px solid rgba(229, 231, 235, 0.3)',
-        textAlign: 'center', 
-        fontSize: 13, 
+      <footer style={{
+        padding: '40px',
+        background: 'var(--surface)',
+        backdropFilter: 'var(--glass-blur)',
+        WebkitBackdropFilter: 'var(--glass-blur)',
+        borderTop: '1px solid var(--border-light)',
+        textAlign: 'center',
+        fontSize: 13,
         color: 'var(--text-secondary)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: 8,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--primary)', fontWeight: 800 }}>
-          <Icons.PawPrint size={20} />
-          AlpasFarm — Smart Farm Management for Goats & Sheep
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontWeight: 800 }}>
+            <Icons.PawPrint size={18} />
+            AlpasFarm
+          </div>
+          <p>© 2026 AlpasFarm. Premium Smart Farm Management for Goats & Sheep.</p>
         </div>
-        <p style={{ marginTop: 8 }}>© 2026. All rights reserved.</p>
       </footer>
     </div>
   );
