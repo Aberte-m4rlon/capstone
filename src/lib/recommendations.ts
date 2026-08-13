@@ -63,6 +63,116 @@ export interface SmartRecommendation {
   link: string;
 }
 
+export interface DailyAlert {
+  id: string;
+  type: 'Health' | 'Vaccination' | 'Breeding' | 'Weight' | 'Inventory';
+  title: string;
+  description: string;
+  priority: Priority;
+  dueLabel: string;
+  link: string;
+}
+
+export function generateDailyAlerts(
+  animals: Animal[],
+  healthRecords: HealthRecord[],
+  weightRecords: WeightRecord[],
+  vaccinations: Vaccination[],
+  inventory: InventoryItem[],
+  breedingRecords: BreedingRecord[],
+  settings: Settings = DEFAULT_SETTINGS,
+): DailyAlert[] {
+  const alerts: DailyAlert[] = [];
+  const activeAnimals = animals.filter((a) => !a.archived);
+
+  activeAnimals.forEach((animal) => {
+    if (animal.vaccination_status === 'Overdue') {
+      alerts.push({
+        id: `vacc-overdue-${animal.id}`,
+        type: 'Vaccination',
+        title: `${animal.name} vaccination is overdue`,
+        description: 'Schedule the next vaccination before the risk of illness rises.',
+        priority: 'Critical',
+        dueLabel: 'Urgent',
+        link: '/vaccinations',
+      });
+    } else if (animal.vaccination_status === 'Due Soon') {
+      alerts.push({
+        id: `vacc-soon-${animal.id}`,
+        type: 'Vaccination',
+        title: `${animal.name} vaccination is due soon`,
+        description: 'Plan the visit and prepare the required vaccine stock.',
+        priority: 'Warning',
+        dueLabel: 'This week',
+        link: '/vaccinations',
+      });
+    }
+
+    const animalHealth = healthRecords.filter((h) => h.animal_id === animal.id);
+    const latestHealth = animalHealth.sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[0];
+    if (!latestHealth || daysUntil(latestHealth.record_date) < -30) {
+      alerts.push({
+        id: `health-${animal.id}`,
+        type: 'Health',
+        title: `${animal.name} needs a health check`,
+        description: 'A routine health review will keep early warning signs from being missed.',
+        priority: 'Normal',
+        dueLabel: 'Within 3 days',
+        link: `/animals/${animal.id}`,
+      });
+    }
+
+    const animalWeights = weightRecords.filter((w) => w.animal_id === animal.id);
+    const latestWeight = animalWeights.sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[0];
+    if (!latestWeight || daysUntil(latestWeight.record_date) < -30) {
+      alerts.push({
+        id: `weight-${animal.id}`,
+        type: 'Weight',
+        title: `${animal.name} is due for a weigh-in`,
+        description: 'Update the body weight to keep growth and feed efficiency accurate.',
+        priority: 'Normal',
+        dueLabel: 'This week',
+        link: '/weights',
+      });
+    }
+
+    if (animal.breeding_status === 'Pregnant' && animal.expected_kidding_date) {
+      const remaining = daysUntil(animal.expected_kidding_date);
+      if (remaining >= 0 && remaining <= 30) {
+        alerts.push({
+          id: `kidding-${animal.id}`,
+          type: 'Breeding',
+          title: `${animal.name} is due to kid soon`,
+          description: `Expected kidding date is ${animal.expected_kidding_date}. Prepare supplies and monitor closely.`,
+          priority: remaining <= 7 ? 'Critical' : 'Warning',
+          dueLabel: remaining <= 7 ? 'Critical window' : `${remaining} days`,
+          link: `/animals/${animal.id}`,
+        });
+      }
+    }
+  });
+
+  inventory.forEach((item) => {
+    const status = inventoryStatus(item, settings.expiry_warning_days);
+    if (status.status === 'Expired' || status.status === 'Expiring Soon' || status.status === 'Low Stock' || status.status === 'Out of Stock') {
+      alerts.push({
+        id: `inventory-${item.id}`,
+        type: 'Inventory',
+        title: `${item.name} needs attention`,
+        description: `${status.label} — ${item.quantity} ${item.unit} remaining.`,
+        priority: status.status === 'Expired' || status.status === 'Out of Stock' ? 'Critical' : 'Warning',
+        dueLabel: status.status === 'Expired' ? 'Immediate' : 'Soon',
+        link: '/inventory',
+      });
+    }
+  });
+
+  const priorityOrder: Record<Priority, number> = { Critical: 0, Warning: 1, Normal: 2, Success: 3 };
+  alerts.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+
+  return alerts;
+}
+
 export function generateRecommendations(
   animals: Animal[],
   healthRecords: HealthRecord[],

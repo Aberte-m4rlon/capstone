@@ -115,7 +115,15 @@ export function ScannerPage() {
     setLastResult(null);
     setScanState('starting');
 
-    // Small delay so the container div is guaranteed in DOM
+    const container = document.getElementById(CONTAINER_ID);
+    if (container) {
+      container.style.display = 'block';
+      container.style.width = '100%';
+      container.style.minHeight = '320px';
+      container.style.height = '320px';
+      container.style.maxWidth = '100%';
+    }
+
     await new Promise((r) => setTimeout(r, 120));
 
     if (!isMounted.current) return;
@@ -127,25 +135,45 @@ export function ScannerPage() {
       });
       scannerRef.current = scanner;
 
-      await scanner.start(
+      const cameraConfigs = [
         { facingMode: 'environment' },
-        {
-          fps: 15,
-          qrbox: { width: 280, height: 280 },
-          aspectRatio: 1.0,
-          disableFlip: false,
-        },
-        (decoded) => handleDecoded(decoded),
-        () => { /* ignore scan errors (not-found frames) */ },
-      );
+        { facingMode: { ideal: 'environment' } },
+        { facingMode: 'user' },
+        { facingMode: { ideal: 'user' } },
+      ] as const;
 
-      if (isMounted.current) setScanState('scanning');
+      let lastError: unknown;
+      for (const cameraConfig of cameraConfigs) {
+        try {
+          await scanner.start(
+            cameraConfig,
+            {
+              fps: 15,
+              qrbox: { width: 260, height: 260 },
+              aspectRatio: 1.0,
+              disableFlip: false,
+            },
+            (decoded) => handleDecoded(decoded),
+            () => { /* ignore scan errors (not-found frames) */ },
+          );
+          if (isMounted.current) setScanState('scanning');
+          return;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      throw lastError ?? new Error('Unable to start camera on this device.');
     } catch (err) {
       if (!isMounted.current) return;
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('notallowed')) {
+      const lower = msg.toLowerCase();
+
+      if (lower.includes('permission') || lower.includes('notallowed')) {
         setErrorMsg('Camera permission denied. Please allow camera access in your browser settings, then try again.');
-      } else if (msg.toLowerCase().includes('notfound') || msg.toLowerCase().includes('device')) {
+      } else if (lower.includes('notreadable') || lower.includes('already in use') || lower.includes('device in use') || lower.includes('could not start video source')) {
+        setErrorMsg('Camera is already in use by another app or browser tab. Close any other app using the webcam, then try again.');
+      } else if (lower.includes('notfound') || lower.includes('device')) {
         setErrorMsg('No camera found on this device. Use Manual Entry instead.');
       } else {
         setErrorMsg(`Could not start camera: ${msg}`);
@@ -280,7 +308,7 @@ export function ScannerPage() {
               style={{
                 borderRadius: 14,
                 border: scanState === 'scanning' ? '3px solid #059669' : 'none',
-                display: scanState === 'scanning' ? 'block' : 'none',
+                display: scanState === 'starting' || scanState === 'scanning' ? 'block' : 'none',
                 background: '#000',
                 width: '100%',
                 minHeight: 300,

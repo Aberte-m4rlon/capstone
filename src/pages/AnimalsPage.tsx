@@ -25,8 +25,8 @@ const emptyForm = {
   notes: '',
 };
 
-// Always use the production Vercel URL for QR codes — never localhost.
-const APP_URL = 'https://capstone-delta-jet.vercel.app';
+// Use the current app origin in dev/local environment so QR scans open the local app.
+const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://capstone-delta-jet.vercel.app';
 
 export function AnimalsPage() {
   const farmData = useFarmData();

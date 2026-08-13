@@ -3,12 +3,10 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
-import { ComboBox } from '../components/ComboBox';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { inventoryStatus, formatDate } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
-import { INVENTORY_NAMES, INVENTORY_UNITS } from '../lib/farmDefaults';
 import type { InventoryItem, InventoryCategory } from '../types';
 
 const emptyForm = {
@@ -37,6 +35,11 @@ export function InventoryPage() {
   const [fCategory, setFCategory] = useState('All');
   const [fStatus, setFStatus] = useState('All');
   const [search, setSearch] = useState('');
+  const [consumeOpen, setConsumeOpen] = useState(false);
+  const [consumeItem, setConsumeItem] = useState<InventoryItem | null>(null);
+  const [consumeQty, setConsumeQty] = useState('');
+  const [consumeReason, setConsumeReason] = useState('');
+  const [consumeDate, setConsumeDate] = useState(new Date().toISOString().split('T')[0]);
 
   const warningDays = farmData.settings?.expiry_warning_days ?? 15;
 
@@ -62,6 +65,64 @@ export function InventoryPage() {
     setForm(emptyForm);
     setErrors({});
     setModalOpen(true);
+  };
+
+  const openConsume = (item: InventoryItem) => {
+    setConsumeItem(item);
+    setConsumeQty('');
+    setConsumeReason('');
+    setConsumeDate(new Date().toISOString().split('T')[0]);
+    setConsumeOpen(true);
+  };
+
+  const handleConsumeStock = async () => {
+    if (!consumeItem) return;
+    const used = Number(consumeQty);
+    if (!consumeQty || Number.isNaN(used) || used <= 0) {
+      toast('Please enter a valid quantity to consume.', 'error');
+      return;
+    }
+    if (used > Number(consumeItem.quantity)) {
+      toast('Consumption quantity cannot be greater than current stock.', 'error');
+      return;
+    }
+
+    const nextQty = Number(consumeItem.quantity) - used;
+    const notes = consumeItem.notes ? `${consumeItem.notes}\n` : '';
+    const usageNote = `Used ${used} ${consumeItem.unit} on ${consumeDate}${consumeReason ? ` — ${consumeReason}` : ''}`;
+
+    try {
+      const { error } = await supabase
+        .from('inventory')
+        .update({
+          quantity: nextQty,
+          notes: `${notes}${usageNote}`.trim(),
+        })
+        .eq('id', consumeItem.id);
+
+      if (error) throw error;
+
+      const nextStatus = inventoryStatus({ ...consumeItem, quantity: nextQty }, warningDays);
+      if (nextStatus.status === 'Low Stock' || nextStatus.status === 'Out of Stock' || nextStatus.status === 'Expiring Soon' || nextStatus.status === 'Expired') {
+        await createNotification(
+          farmData.animals[0]?.user_id ?? '',
+          'Inventory',
+          `${consumeItem.name} stock reduced`,
+          `Used ${used} ${consumeItem.unit}. Remaining: ${nextQty} ${consumeItem.unit}. ${nextStatus.label}`,
+          nextStatus.status === 'Expired' ? 'Critical' : 'Warning',
+          '/inventory',
+        );
+      }
+
+      toast(`Stock updated. Remaining quantity: ${nextQty} ${consumeItem.unit}.`, 'success');
+      setConsumeOpen(false);
+      setConsumeItem(null);
+      setConsumeQty('');
+      setConsumeReason('');
+      farmData.refresh();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Unable to update stock.', 'error');
+    }
   };
 
   const openEdit = (i: InventoryItem) => {
@@ -208,6 +269,7 @@ export function InventoryPage() {
                       <td>{i.supplier ?? '—'}</td>
                       <td>{i.cost ? `₱${i.cost}` : '—'}</td>
                       <td><div className="row-actions">
+                        <button className="btn btn-ghost btn-sm" onClick={() => openConsume(i)} title="Use stock">Use</button>
                         <button className="btn btn-ghost btn-sm" onClick={() => openEdit(i)}><Pencil size={15} /></button>
                         <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(i)}><Trash2 size={15} /></button>
                       </div></td>
@@ -226,15 +288,10 @@ export function InventoryPage() {
       >
         <div className="form-row">
           <div className="form-group"><label className="form-label">Name <span className="req">*</span></label>
-            <ComboBox
-              value={form.name}
-              onChange={(v) => setForm({ ...form, name: v })}
-              options={INVENTORY_NAMES[form.category] ?? INVENTORY_NAMES['Other']}
-              placeholder="Search or type item name..."
-            />
+            <input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Rice Bran" />
             {errors.name && <div className="form-error">{errors.name}</div>}</div>
           <div className="form-group"><label className="form-label">Category</label>
-            <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as InventoryCategory, name: '' })}>
+            <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as InventoryCategory })}>
               <option>Feed</option><option>Medicine</option><option>Vaccines</option><option>Supplies</option><option>Equipment</option><option>Other</option>
             </select></div>
         </div>
@@ -243,12 +300,7 @@ export function InventoryPage() {
             <input className="form-input" type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
             {errors.quantity && <div className="form-error">{errors.quantity}</div>}</div>
           <div className="form-group"><label className="form-label">Unit</label>
-            <ComboBox
-              value={form.unit}
-              onChange={(v) => setForm({ ...form, unit: v })}
-              options={INVENTORY_UNITS}
-              placeholder="kg, L, pcs..."
-            /></div>
+            <input className="form-input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg" /></div>
           <div className="form-group"><label className="form-label">Minimum Stock</label>
             <input className="form-input" type="number" step="0.01" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: e.target.value })} /></div>
         </div>
@@ -266,6 +318,34 @@ export function InventoryPage() {
         </div>
         <div className="form-group"><label className="form-label">Notes</label>
           <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+      </Modal>
+
+      <Modal open={consumeOpen} onClose={() => setConsumeOpen(false)} title="Use Inventory Stock"
+        footer={<><button className="btn btn-secondary" onClick={() => setConsumeOpen(false)}>Cancel</button>
+        <button className="btn btn-primary" onClick={handleConsumeStock}>Confirm Usage</button></>}
+      >
+        {consumeItem && (
+          <div>
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label className="form-label">Item</label>
+              <input className="form-input" value={`${consumeItem.name} (${consumeItem.quantity} ${consumeItem.unit} available)`} readOnly />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Quantity used</label>
+                <input className="form-input" type="number" step="0.01" min="0.01" value={consumeQty} onChange={(e) => setConsumeQty(e.target.value)} placeholder="e.g. 5" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Date used</label>
+                <input className="form-input" type="date" value={consumeDate} onChange={(e) => setConsumeDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Reason / Usage</label>
+              <textarea className="form-textarea" value={consumeReason} onChange={(e) => setConsumeReason(e.target.value)} placeholder="Example: Feeding for 3 goats, medicine administration, cleaning supply use" />
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog open={!!confirmDelete} title="Delete Inventory Item" message={`Are you sure you want to delete ${confirmDelete?.name}?`} confirmLabel="Delete" onConfirm={handleDelete} onCancel={() => setConfirmDelete(null)} />

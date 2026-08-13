@@ -15,6 +15,7 @@ import { InventoryPage } from './pages/InventoryPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
+import { DailyAlertsPage } from './pages/DailyAlertsPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ScannerPage } from './pages/ScannerPage';
@@ -73,6 +74,7 @@ function AppRoutes() {
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/recommendations" element={<RecommendationsPage />} />
+        <Route path="/daily-alerts" element={<DailyAlertsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/scanner" element={<ScannerPage />} />
         <Route path="/activity-log" element={<ActivityLogPage />} />
