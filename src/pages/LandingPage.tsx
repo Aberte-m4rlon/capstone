@@ -141,7 +141,10 @@ export function LandingPage() {
             </button>
             <button 
               className="btn btn-secondary"
-              onClick={() => document.querySelector('#system-video-demo')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => {
+                const el = document.querySelector('#system-video-demo');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
               style={{
                 padding: '13px 28px',
                 fontSize: 15,
@@ -149,10 +152,10 @@ export function LandingPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
-                background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.15), rgba(255, 122, 24, 0.08))',
-                border: '1px solid rgba(255, 75, 43, 0.4)',
-                color: 'var(--text)',
-                boxShadow: '0 4px 20px rgba(255, 75, 43, 0.15)',
+                background: 'linear-gradient(135deg, rgba(255, 59, 48, 0.20), rgba(255, 122, 24, 0.12))',
+                border: '1px solid rgba(255, 122, 24, 0.40)',
+                color: '#fff',
+                boxShadow: '0 4px 20px rgba(255, 122, 24, 0.20)',
               }}
             >
               <div
@@ -160,7 +163,7 @@ export function LandingPage() {
                   width: 24,
                   height: 24,
                   borderRadius: '50%',
-                  background: 'var(--accent)',
+                  background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -168,7 +171,7 @@ export function LandingPage() {
               >
                 <Play size={12} color="#fff" style={{ marginLeft: 2 }} />
               </div>
-              Watch Demo Video
+              ▶ Watch Demo
             </button>
             <button 
               className="btn btn-secondary"

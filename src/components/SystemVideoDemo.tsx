@@ -1,275 +1,450 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Play,
   Pause,
-  RotateCcw,
-  Maximize2,
-  Minimize2,
   Volume2,
   VolumeX,
-  FastForward,
-  Settings,
-  Upload,
+  Maximize,
+  Minimize,
+  RotateCcw,
+  SkipForward,
+  SkipBack,
+  FileCheck,
   Check,
-  Sparkles,
+  Package,
+  ScanLine,
+  LayoutDashboard,
   PawPrint,
   HeartPulse,
   Syringe,
-  Heart,
-  ScanLine,
-  Package,
-  FileCheck,
-  Cpu,
-  LucideIcon,
+  Baby,
+  Scale,
+  Brain,
+  Sparkles,
+  ShieldCheck,
+  AlertTriangle,
+  Flame,
+  ArrowRight,
+  TrendingUp,
+  Layers,
+  Activity,
+  Plus,
 } from 'lucide-react';
 
-interface Chapter {
+export interface DemoChapter {
   id: string;
   title: string;
   subtitle: string;
   duration: number; // in seconds
-  icon: LucideIcon;
+  icon: React.ElementType;
   color: string;
   tag: string;
-  caption: string;
   badge: string;
-  screenType: 'animals' | 'health' | 'vaccine' | 'breeding' | 'inventory' | 'scanner';
+  narration: string;
+  screenType:
+    | 'intro'
+    | 'dashboard'
+    | 'add_animal'
+    | 'animal_profile'
+    | 'health'
+    | 'illness_risk'
+    | 'breeding'
+    | 'weight'
+    | 'inventory'
+    | 'ai_assistant'
+    | 'ending';
 }
 
-const CHAPTERS: Chapter[] = [
+export const DEMO_CHAPTERS: DemoChapter[] = [
   {
-    id: 'animals',
-    title: '1. Livestock Registration & QR Tagging',
-    subtitle: 'Register goats & sheep with unique IDs, weights, and printable QR tags',
-    duration: 18,
+    id: 'intro',
+    title: '1. Introduction to AlpasFarm',
+    subtitle: 'A smarter way to manage your goats and sheep',
+    duration: 15,
+    icon: Flame,
+    color: '#FF7A18',
+    tag: 'Welcome',
+    badge: '0:00 - Intro',
+    narration:
+      'Welcome to AlpasFarm, a smart farm management system designed to help goat and sheep farmers manage their animals, health records, breeding activities, weight tracking, and farm inventory in one convenient platform.',
+    screenType: 'intro',
+  },
+  {
+    id: 'dashboard',
+    title: '2. Live Farm Dashboard',
+    subtitle: 'Overview of herd metrics, health scores & real-time priorities',
+    duration: 20,
+    icon: LayoutDashboard,
+    color: '#FF3B30',
+    tag: 'Dashboard',
+    badge: '0:15 - Overview',
+    narration:
+      'After signing in, farmers are welcomed by a clear dashboard that provides an overview of the farm at a glance. Important information such as total animals, healthy animals, health alerts, breeding activities, and inventory can be accessed quickly.',
+    screenType: 'dashboard',
+  },
+  {
+    id: 'add_animal',
+    title: '3. Adding a New Animal',
+    subtitle: 'Tag ID registration, pedigree details, breed & weight entry',
+    duration: 20,
+    icon: Plus,
+    color: '#FF9F0A',
+    tag: 'Registration',
+    badge: '0:35 - Add Animal',
+    narration:
+      "Adding a new animal is simple. Farmers can record important information such as the animal's identification number, breed, gender, birth date, weight, and other relevant details.",
+    screenType: 'add_animal',
+  },
+  {
+    id: 'animal_profile',
+    title: '4. Digital Animal Profile',
+    subtitle: 'Comprehensive lifetime records, pedigree genealogy & QR tag',
+    duration: 20,
     icon: PawPrint,
-    color: '#FF4B2B',
-    tag: 'Animal Management',
-    badge: 'Step 1: Onboarding',
-    caption: 'Easily register every animal with RFID/Tag IDs, breeds, weight history, and photos. Automatically generate QR tags for rapid identification in the paddock.',
-    screenType: 'animals'
+    color: '#FF7A18',
+    tag: 'Profile & QR',
+    badge: '0:55 - Profile',
+    narration:
+      'Each animal has its own digital profile, making it easy to review its information and monitor its history. Farmers can quickly access health, weight, vaccination, and breeding records from one place.',
+    screenType: 'animal_profile',
   },
   {
     id: 'health',
-    title: '2. Daily Health Vitals & AI Diagnostics',
-    subtitle: 'Log symptoms, temperature, vitals, and get instant AI risk assessments',
+    title: '5. Health Monitoring & Vitals',
+    subtitle: 'Record temperature, heart rate, FAMACHA score & rumen motility',
     duration: 20,
     icon: HeartPulse,
-    color: '#EF4444',
-    tag: 'AI Health Guard',
-    badge: 'Step 2: AI Health',
-    caption: 'Record temperature, eye membrane condition (FAMACHA score), and respiratory symptoms. Built-in AI instantly flags critical pneumonia, bloat, and mastitis risks.',
-    screenType: 'health'
+    color: '#FF3B30',
+    tag: 'Health Check',
+    badge: '1:15 - Health',
+    narration:
+      'AlpasFarm also helps farmers monitor animal health. Health information can be recorded and reviewed over time, helping identify animals that may require closer attention.',
+    screenType: 'health',
   },
   {
-    id: 'vaccine',
-    title: '3. Vaccination Schedules & Smart Alerts',
-    subtitle: 'Automated deworming & vaccine tracking with push/SMS reminders',
-    duration: 16,
-    icon: Syringe,
-    color: '#F59E0B',
-    tag: 'Preventive Care',
-    badge: 'Step 3: Immunity',
-    caption: 'Schedule CDT, Dewormers, and Vitamins. AlpasFarm automatically alerts you before due dates so no animal misses critical immunizations.',
-    screenType: 'vaccine'
+    id: 'illness_risk',
+    title: '6. Illness Risk Indicator',
+    subtitle: 'Automated statistical anomaly alerts & early symptom warning',
+    duration: 15,
+    icon: AlertTriangle,
+    color: '#D92D20',
+    tag: 'Risk Indicator',
+    badge: '1:35 - Risk Alert',
+    narration:
+      'The system can analyze recorded health information and provide risk indicators when an animal shows unusual values. This helps farmers respond earlier and make more informed decisions.',
+    screenType: 'illness_risk',
   },
   {
     id: 'breeding',
-    title: '4. Breeding, Inbreeding Check & Kidding',
-    subtitle: 'Track mating, gestation countdowns, inbreeding coefficient & kid records',
-    duration: 18,
-    icon: Heart,
-    color: '#EC4899',
-    tag: 'Genetics & Fertility',
-    badge: 'Step 4: Reproduction',
-    caption: 'Record sire & dam pairing with automatic inbreeding coefficient checks. Track estimated kidding dates with automated gestation milestone reminders.',
-    screenType: 'breeding'
+    title: '7. Breeding & Gestation Management',
+    subtitle: 'Inbreeding coefficient safety check & kidding countdown',
+    duration: 20,
+    icon: Baby,
+    color: '#FF7A18',
+    tag: 'Genetics',
+    badge: '1:50 - Breeding',
+    narration:
+      'Breeding records can also be organized in AlpasFarm. Farmers can record mating information and monitor expected kidding dates, making important breeding schedules easier to track.',
+    screenType: 'breeding',
+  },
+  {
+    id: 'weight',
+    title: '8. Weight Tracking & Growth Trends',
+    subtitle: 'Monitor average daily gain and polynomial weight forecasting',
+    duration: 15,
+    icon: Scale,
+    color: '#FF9F0A',
+    tag: 'Growth Curves',
+    badge: '2:10 - Weight',
+    narration:
+      'Weight tracking allows farmers to monitor growth over time and better understand how their animals are developing.',
+    screenType: 'weight',
   },
   {
     id: 'inventory',
-    title: '5. Feed, Milk Yields & Inventory Supplies',
-    subtitle: 'Track stock depletion, daily milk production, and feed conversion',
-    duration: 18,
+    title: '9. Feed, Medicine & Supplies Inventory',
+    subtitle: 'Track feed conversion, milk yields & automated expiry alerts',
+    duration: 15,
     icon: Package,
-    color: '#FF7A18',
+    color: '#D92D20',
     tag: 'Supplies & Yield',
-    badge: 'Step 5: Operations',
-    caption: 'Monitor feed stocks, medication batches, and daily milk yield per doe. Receive instant alerts when supplies reach minimum reorder thresholds.',
-    screenType: 'inventory'
+    badge: '2:25 - Inventory',
+    narration:
+      'Farm inventory can also be managed from the same platform. Feed, medicine, vaccines, and other supplies can be monitored, including important expiry reminders.',
+    screenType: 'inventory',
   },
   {
-    id: 'scanner',
-    title: '6. Field QR Scanner & Real-Time Reports',
-    subtitle: 'Scan ear tags in seconds with your phone camera & export farm reports',
+    id: 'ai_assistant',
+    title: '10. AI Farm Assistant & Insights',
+    subtitle: 'Proactive veterinary suggestions & bilingual farm queries',
     duration: 15,
-    icon: ScanLine,
-    color: '#FF9F0A',
-    tag: 'QR Tag & Audit',
-    badge: 'Step 6: Traceability',
-    caption: 'Scan animal ear tags directly with any phone or tablet. Instant offline-capable lookup with full health and pedigree audit trails.',
-    screenType: 'scanner'
-  }
+    icon: Brain,
+    color: '#FF7A18',
+    tag: 'AI Assistant',
+    badge: '2:40 - AI Assist',
+    narration:
+      'With AI-powered recommendations, AlpasFarm can help highlight important tasks and potential concerns, such as overdue vaccinations, unusual weight changes, or inventory items that need attention.',
+    screenType: 'ai_assistant',
+  },
+  {
+    id: 'ending',
+    title: '11. Get Started with AlpasFarm',
+    subtitle: 'Modern intelligent agriculture for Philippine livestock raisers',
+    duration: 15,
+    icon: Sparkles,
+    color: '#FF3B30',
+    tag: 'Get Started',
+    badge: '2:55 - Summary',
+    narration:
+      'AlpasFarm brings essential farm management tools together in one intelligent platform, helping farmers organize information, monitor their animals, and make better data-driven decisions. Welcome to smarter farm management with AlpasFarm.',
+    screenType: 'ending',
+  },
 ];
 
-const TOTAL_DURATION = CHAPTERS.reduce((acc, c) => acc + c.duration, 0); // 105 seconds
+export const TOTAL_DEMO_DURATION = DEMO_CHAPTERS.reduce((acc, c) => acc + c.duration, 0); // 190s (~3:10)
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+}
 
 export function SystemVideoDemo() {
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [hasStarted, setHasStarted] = useState<boolean>(false);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [volume, setVolume] = useState<number>(0.9);
+  const [showCaptions, setShowCaptions] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [videoMode, setVideoMode] = useState<'interactive' | 'custom'>(() => {
-    return localStorage.getItem('alpasfarm_video_source') ? 'custom' : 'interactive';
-  });
-  const [customVideoUrl, setCustomVideoUrl] = useState<string>(() => {
-    return localStorage.getItem('alpasfarm_video_source') || '';
-  });
-  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string>('');
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const nativeVideoRef = useRef<HTMLVideoElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastNarratedChapterIdx = useRef<number>(-1);
 
-  // Determine current chapter based on currentTime
-  const getCurrentChapterInfo = () => {
+  // Helper to determine current chapter based on elapsed seconds
+  const getCurrentChapterInfo = useCallback(() => {
     let accumulated = 0;
-    for (let i = 0; i < CHAPTERS.length; i++) {
-      const ch = CHAPTERS[i];
+    for (let i = 0; i < DEMO_CHAPTERS.length; i++) {
+      const ch = DEMO_CHAPTERS[i];
       if (currentTime >= accumulated && currentTime < accumulated + ch.duration) {
-        const chapterProgress = (currentTime - accumulated) / ch.duration;
+        const chapterElapsed = currentTime - accumulated;
+        const chapterProgress = chapterElapsed / ch.duration;
         return {
           chapter: ch,
           index: i,
-          chapterTime: currentTime - accumulated,
+          chapterElapsed,
           chapterProgress: Math.min(Math.max(chapterProgress, 0), 1),
         };
       }
       accumulated += ch.duration;
     }
-    const lastChapter = CHAPTERS[CHAPTERS.length - 1];
+    const lastChapter = DEMO_CHAPTERS[DEMO_CHAPTERS.length - 1];
     return {
       chapter: lastChapter,
-      index: CHAPTERS.length - 1,
-      chapterTime: lastChapter.duration,
+      index: DEMO_CHAPTERS.length - 1,
+      chapterElapsed: lastChapter.duration,
       chapterProgress: 1,
     };
+  }, [currentTime]);
+
+  const currentInfo = getCurrentChapterInfo();
+  const currentChapter = currentInfo.chapter;
+  const currentChapterIdx = currentInfo.index;
+
+  // -------------------------------------------------------------
+  // Natural Voice Narration Engine (Web Speech API)
+  // -------------------------------------------------------------
+  const speakNarration = useCallback(
+    (text: string) => {
+      if (isMuted || volume === 0) return;
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+      try {
+        window.speechSynthesis.cancel(); // Stop any pending utterance
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.98 * playbackSpeed;
+        utterance.pitch = 1.0;
+        utterance.volume = volume;
+        utterance.lang = 'en-US';
+
+        const voices = window.speechSynthesis.getVoices();
+        // Pick high-quality natural English voice if present
+        const preferredVoice =
+          voices.find(
+            (v) =>
+              (v.name.includes('Natural') ||
+                v.name.includes('Google') ||
+                v.name.includes('Samantha') ||
+                v.name.includes('Karen') ||
+                v.name.includes('Daniel') ||
+                v.name.includes('Ava') ||
+                v.name.includes('Zira') ||
+                v.name.includes('Premium')) &&
+              v.lang.startsWith('en'),
+          ) || voices.find((v) => v.lang.startsWith('en'));
+
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        // Speech synthesis gracefully suppressed if unsupported
+      }
+    },
+    [isMuted, volume, playbackSpeed],
+  );
+
+  const stopNarration = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
+    }
   };
 
-  const { chapter: currentChapter, index: currentChapterIndex, chapterProgress } = getCurrentChapterInfo();
-
-  // Timer loop for interactive simulation
+  // Trigger narration when entering a new chapter
   useEffect(() => {
-    if (videoMode !== 'interactive' || !isPlaying) return;
+    if (!isPlaying || !hasStarted) {
+      stopNarration();
+      return;
+    }
+
+    if (lastNarratedChapterIdx.current !== currentChapterIdx) {
+      lastNarratedChapterIdx.current = currentChapterIdx;
+      speakNarration(currentChapter.narration);
+    }
+  }, [currentChapterIdx, isPlaying, hasStarted, currentChapter.narration, speakNarration]);
+
+  // Stop narration if user mutes
+  useEffect(() => {
+    if (isMuted) {
+      stopNarration();
+    } else if (isPlaying && hasStarted) {
+      speakNarration(currentChapter.narration);
+    }
+  }, [isMuted, isPlaying, hasStarted, currentChapter.narration, speakNarration]);
+
+  // Main video playback ticker
+  useEffect(() => {
+    if (!isPlaying || !hasStarted) return;
 
     const intervalMs = 100;
+    const stepSeconds = (intervalMs / 1000) * playbackSpeed;
+
     const timer = setInterval(() => {
       setCurrentTime((prev) => {
-        const next = prev + (intervalMs / 1000) * playbackSpeed;
-        if (next >= TOTAL_DURATION) {
-          return 0; // loop back to beginning
+        if (prev + stepSeconds >= TOTAL_DEMO_DURATION) {
+          setIsPlaying(false);
+          stopNarration();
+          return TOTAL_DEMO_DURATION;
         }
-        return next;
+        return prev + stepSeconds;
       });
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [isPlaying, playbackSpeed, videoMode]);
+  }, [isPlaying, hasStarted, playbackSpeed]);
 
-  // Jump to specific chapter
-  const jumpToChapter = (index: number) => {
-    let time = 0;
-    for (let i = 0; i < index; i++) {
-      time += CHAPTERS[i].duration;
-    }
-    setCurrentTime(time);
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // -------------------------------------------------------------
+  // Control Handlers
+  // -------------------------------------------------------------
+  const handleStartDemo = () => {
+    setHasStarted(true);
     setIsPlaying(true);
+    setCurrentTime(0);
+    lastNarratedChapterIdx.current = -1;
   };
 
-  // Format seconds to mm:ss
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  const handleTogglePlay = () => {
+    if (!hasStarted) {
+      handleStartDemo();
+      return;
+    }
+    if (isPlaying) {
+      setIsPlaying(false);
+      stopNarration();
+    } else {
+      setIsPlaying(true);
+      speakNarration(currentChapter.narration);
+    }
   };
 
-  // Fullscreen handler
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = pct * TOTAL_DEMO_DURATION;
+
+    setCurrentTime(newTime);
+    lastNarratedChapterIdx.current = -1;
+
+    if (isPlaying) {
+      stopNarration();
+      const targetChapIdx = DEMO_CHAPTERS.findIndex((c, i) => {
+        const start = DEMO_CHAPTERS.slice(0, i).reduce((s, x) => s + x.duration, 0);
+        return newTime >= start && newTime < start + c.duration;
+      });
+      if (targetChapIdx !== -1) {
+        speakNarration(DEMO_CHAPTERS[targetChapIdx].narration);
+        lastNarratedChapterIdx.current = targetChapIdx;
+      }
+    }
+  };
+
+  const handleJumpToChapter = (index: number) => {
+    const startTime = DEMO_CHAPTERS.slice(0, index).reduce((acc, c) => acc + c.duration, 0);
+    setCurrentTime(startTime);
+    lastNarratedChapterIdx.current = index;
+
+    if (!hasStarted) {
+      setHasStarted(true);
+    }
+    setIsPlaying(true);
+    speakNarration(DEMO_CHAPTERS[index].narration);
+  };
+
+  const handleNextChapter = () => {
+    const nextIdx = Math.min(DEMO_CHAPTERS.length - 1, currentChapterIdx + 1);
+    handleJumpToChapter(nextIdx);
+  };
+
+  const handlePrevChapter = () => {
+    const prevIdx = Math.max(0, currentChapterIdx - 1);
+    handleJumpToChapter(prevIdx);
+  };
+
+  const handleReplay = () => {
+    setCurrentTime(0);
+    lastNarratedChapterIdx.current = -1;
+    setIsPlaying(true);
+    setHasStarted(true);
+  };
+
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
       containerRef.current.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
     }
-  };
-
-  useEffect(() => {
-    const handleFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFsChange);
-    return () => document.removeEventListener('fullscreenchange', handleFsChange);
-  }, []);
-
-  // Handle custom video upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setCustomVideoUrl(url);
-      setUploadedFileName(file.name);
-      setVideoMode('custom');
-      localStorage.setItem('alpasfarm_video_source', url);
-      setShowSettingsModal(false);
-    }
-  };
-
-  const handleSetCustomUrl = (url: string) => {
-    setCustomVideoUrl(url);
-    if (url.trim()) {
-      setVideoMode('custom');
-      localStorage.setItem('alpasfarm_video_source', url);
-    } else {
-      setVideoMode('interactive');
-      localStorage.removeItem('alpasfarm_video_source');
-    }
-    setShowSettingsModal(false);
-  };
-
-  // Parse YouTube or direct video URL
-  const isYouTubeUrl = (url: string) => {
-    return url.includes('youtube.com') || url.includes('youtu.be');
-  };
-
-  const getYouTubeEmbedUrl = (url: string) => {
-    try {
-      if (url.includes('youtu.be/')) {
-        const id = url.split('youtu.be/')[1].split('?')[0];
-        return `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`;
-      }
-      const match = url.match(/[?&]v=([^&]+)/);
-      if (match && match[1]) {
-        return `https://www.youtube.com/embed/${match[1]}?autoplay=1&rel=0`;
-      }
-    } catch {
-      // fallback
-    }
-    return url;
   };
 
   return (
-    <div
-      id="system-video-demo"
-      style={{
-        width: '100%',
-        maxWidth: 1200,
-        margin: '0 auto',
-        padding: '0 20px',
-      }}
-    >
+    <div id="system-video-demo" style={{ maxWidth: 1160, margin: '0 auto', width: '100%' }}>
       {/* Section Header */}
       <div style={{ textAlign: 'center', marginBottom: 36 }}>
         <div
@@ -277,1321 +452,870 @@ export function SystemVideoDemo() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            padding: '6px 16px',
+            padding: '6px 18px',
             borderRadius: 999,
-            background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.15), rgba(255, 122, 24, 0.1))',
-            border: '1px solid rgba(255, 75, 43, 0.3)',
+            background: 'linear-gradient(135deg, rgba(255, 122, 24, 0.18), rgba(255, 59, 48, 0.08))',
+            border: '1px solid rgba(255, 122, 24, 0.35)',
             marginBottom: 16,
             fontSize: 12,
             fontWeight: 800,
-            color: 'var(--accent)',
+            color: '#FF9F0A',
             textTransform: 'uppercase',
-            letterSpacing: '0.6px',
+            letterSpacing: '0.8px',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 18px rgba(255, 122, 24, 0.20)',
           }}
         >
-          <Sparkles size={14} /> See AlpasFarm in Action
+          <Sparkles size={14} color="#FF9F0A" /> Interactive System Walkthrough
         </div>
+
         <h2
           style={{
             fontSize: '40px',
             fontWeight: 900,
             color: 'var(--text)',
-            letterSpacing: '-0.5px',
+            letterSpacing: '-0.8px',
+            lineHeight: 1.15,
             marginBottom: 12,
           }}
         >
-          How the System Works
+          See AlpasFarm in Action
         </h2>
+
         <p
           style={{
-            fontSize: 16,
+            fontSize: '17px',
             color: 'var(--text-secondary)',
-            maxWidth: 680,
+            maxWidth: 640,
             margin: '0 auto',
             lineHeight: 1.6,
+            fontWeight: 500,
           }}
         >
-          Watch the end-to-end workflow of AlpasFarm — from onboarding your flock with QR tags to AI health risk diagnostics, breeding tracking, and real-time mobile scanning.
+          A smarter way to manage your goats and sheep. Watch the full walkthrough with synchronized voice narration.
         </p>
       </div>
 
-      {/* Main Showcase Layout */}
+      {/* Main Liquid Glass Video Player Container */}
       <div
+        ref={containerRef}
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr',
-          gap: 24,
+          position: 'relative',
+          borderRadius: 28,
+          background: 'linear-gradient(135deg, rgba(16, 38, 60, 0.95), rgba(6, 21, 37, 0.96))',
+          backdropFilter: 'blur(35px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(35px) saturate(180%)',
+          border: '1px solid rgba(255, 255, 255, 0.18)',
+          boxShadow:
+            'inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(255, 122, 24, 0.18)',
+          overflow: 'hidden',
+          color: '#fff',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        {/* Video Player Container */}
+        {/* Top Floating Glass Header Bar */}
         <div
-          ref={containerRef}
           style={{
-            position: 'relative',
-            borderRadius: isFullscreen ? 0 : 20,
-            overflow: 'hidden',
-            background: '#040d18',
-            border: isFullscreen ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: isFullscreen
-              ? 'none'
-              : '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 75, 43, 0.15)',
             display: 'flex',
-            flexDirection: 'column',
-            width: '100%',
-            aspectRatio: isFullscreen ? 'auto' : '16/9',
-            minHeight: isFullscreen ? '100vh' : 440,
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 24px',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01))',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.10)',
+            flexWrap: 'wrap',
+            gap: 10,
           }}
         >
-          {/* Top Bar inside Video */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              padding: '14px 20px',
-              background: 'linear-gradient(180deg, rgba(4, 13, 24, 0.85) 0%, rgba(4, 13, 24, 0) 100%)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              zIndex: 15,
-              pointerEvents: 'auto',
-            }}
-          >
-            {/* Live Indicator & Current Step Title */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(255, 59, 48, 0.40)',
+              }}
+            >
+              <currentChapter.icon size={18} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.3px', color: '#fff' }}>
+                {currentChapter.title}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{currentChapter.subtitle}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span
+              style={{
+                fontSize: 11,
+                padding: '4px 12px',
+                borderRadius: 999,
+                background: 'rgba(255, 122, 24, 0.18)',
+                border: '1px solid rgba(255, 122, 24, 0.35)',
+                color: '#FF9F0A',
+                fontWeight: 800,
+              }}
+            >
+              {currentChapter.badge}
+            </span>
+          </div>
+        </div>
+
+        {/* Video Viewport Stage Area */}
+        <div
+          style={{
+            position: 'relative',
+            padding: '24px 28px',
+            minHeight: 460,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            background:
+              'radial-gradient(circle at 50% 20%, rgba(255, 122, 24, 0.12) 0%, transparent 65%), radial-gradient(circle at 80% 80%, rgba(255, 59, 48, 0.08) 0%, transparent 55%)',
+          }}
+        >
+          {/* Pre-Play Poster / Click to Start Overlay */}
+          {!hasStarted && (
+            <div
+              onClick={handleStartDemo}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 20,
+                background: 'linear-gradient(135deg, rgba(6, 21, 37, 0.92), rgba(11, 28, 45, 0.95))',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 30,
+                textAlign: 'center',
+              }}
+            >
+              {/* Glowing Ambient Halo */}
               <div
                 style={{
+                  position: 'absolute',
+                  width: 300,
+                  height: 300,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, rgba(255, 122, 24, 0.35) 0%, transparent 70%)',
+                  pointerEvents: 'none',
+                }}
+              />
+
+              {/* Central Glowing Play Button */}
+              <div
+                style={{
+                  width: 92,
+                  height: 92,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, rgba(255, 59, 48, 0.92), rgba(255, 122, 24, 0.85))',
+                  border: '2px solid rgba(255, 255, 255, 0.40)',
+                  boxShadow:
+                    'inset 0 2px 2px rgba(255, 255, 255, 0.5), 0 20px 50px rgba(255, 75, 43, 0.50), 0 0 35px rgba(255, 122, 24, 0.40)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  borderRadius: 6,
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: '#EF4444',
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase',
+                  justifyContent: 'center',
+                  marginBottom: 20,
+                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transform: 'scale(1)',
                 }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.transform = 'scale(1.10)')}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.transform = 'scale(1.00)')}
               >
-                <span
-                  style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: '#EF4444',
-                    boxShadow: '0 0 8px #EF4444',
-                  }}
-                />
-                {videoMode === 'interactive' ? 'Interactive Demo' : 'Video Player'}
+                <Play size={40} fill="#fff" color="#fff" style={{ marginLeft: 6 }} />
               </div>
 
-              <div
+              <span
                 style={{
-                  fontSize: 14,
-                  fontWeight: 700,
+                  fontSize: 12,
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px',
+                  color: '#FF9F0A',
+                  marginBottom: 8,
+                }}
+              >
+                SYSTEM DEMO
+              </span>
+
+              <h3
+                style={{
+                  fontSize: '26px',
+                  fontWeight: 900,
                   color: '#fff',
-                  display: 'flex',
+                  letterSpacing: '-0.5px',
+                  marginBottom: 8,
+                }}
+              >
+                Watch AlpasFarm Walkthrough
+              </h3>
+
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', maxWidth: 460, lineHeight: 1.5 }}>
+                Click to start the interactive walkthrough with voice narration explaining every capability from animal registration to AI health analytics.
+              </p>
+
+              <button
+                className="btn btn-primary"
+                style={{
+                  marginTop: 22,
+                  padding: '12px 32px',
+                  fontSize: 14,
+                  display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
                 }}
               >
-                <span>{currentChapter.badge}</span>
-                <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
-                <span style={{ color: 'rgba(255, 255, 255, 0.9)' }}>{currentChapter.title}</span>
-              </div>
-            </div>
-
-            {/* Video Source Switcher & Settings */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                onClick={() => setShowSettingsModal(true)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  color: '#fff',
-                  borderRadius: 8,
-                  padding: '6px 12px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'all 0.2s ease',
-                }}
-                title="Change Video Source / Upload Video"
-              >
-                <Settings size={14} />
-                <span>Source</span>
+                <Play size={16} fill="#fff" /> Watch Demo (with Voice)
               </button>
             </div>
+          )}
+
+          {/* Dynamic Mockup Screen for Current Chapter */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0 16px' }}>
+            <SimulatedChapterView chapter={currentChapter} progress={currentInfo.chapterProgress} />
           </div>
 
-          {/* Video Content Layer */}
-          <div
-            style={{
-              flex: 1,
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              background: '#061322',
-            }}
-          >
-            {videoMode === 'custom' && customVideoUrl ? (
-              isYouTubeUrl(customVideoUrl) ? (
-                <iframe
-                  src={getYouTubeEmbedUrl(customVideoUrl)}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title="AlpasFarm System Walkthrough Video"
-                />
-              ) : (
-                <video
-                  ref={nativeVideoRef}
-                  src={customVideoUrl}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  controls={false}
-                  autoPlay={isPlaying}
-                  muted={isMuted}
-                  loop
-                  onTimeUpdate={() => {
-                    if (nativeVideoRef.current) {
-                      setCurrentTime(nativeVideoRef.current.currentTime);
-                    }
-                  }}
-                />
-              )
-            ) : (
-              /* Interactive Animated Mockup Screen */
-              <InteractiveScreenSimulation
-                chapter={currentChapter}
-                progress={chapterProgress}
-                isPlaying={isPlaying}
-                onJumpToChapter={jumpToChapter}
-              />
-            )}
-
-            {/* Big Center Play/Pause Overlay Button */}
-            {!isPlaying && (
-              <div
-                onClick={() => setIsPlaying(true)}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'rgba(0, 0, 0, 0.45)',
-                  backdropFilter: 'blur(3px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  zIndex: 20,
-                }}
-              >
-                <div
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 0 40px rgba(255, 75, 43, 0.6), 0 8px 24px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  <Play size={36} color="#fff" style={{ marginLeft: 4 }} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Video Explanatory Caption Banner */}
-          <div
-            style={{
-              padding: '12px 24px',
-              background: 'rgba(8, 24, 42, 0.95)',
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 16,
-              zIndex: 10,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+          {/* Synchronized Voiceover Captions Glass Capsule */}
+          {showCaptions && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, rgba(6, 21, 37, 0.90), rgba(11, 28, 45, 0.85))',
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                border: '1px solid rgba(255, 255, 255, 0.16)',
+                borderLeft: '4px solid #FF7A18',
+                boxShadow:
+                  'inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 15px 40px rgba(0, 0, 0, 0.40)',
+                borderRadius: 18,
+                padding: '14px 22px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                zIndex: 10,
+              }}
+            >
               <div
                 style={{
-                  width: 36,
-                  height: 36,
+                  width: 32,
+                  height: 32,
                   borderRadius: 10,
-                  background: `${currentChapter.color}22`,
-                  border: `1px solid ${currentChapter.color}55`,
+                  background: 'rgba(255, 122, 24, 0.20)',
+                  border: '1px solid rgba(255, 122, 24, 0.40)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
                 }}
               >
-                <currentChapter.icon size={18} color={currentChapter.color} />
+                <Volume2 size={16} color="#FF9F0A" />
               </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: currentChapter.color, textTransform: 'uppercase' }}>
-                  {currentChapter.tag}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#FF9F0A', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>
+                  Voice Narration
                 </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: '#E2E8F0',
-                    lineHeight: 1.4,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {currentChapter.caption}
+                <div style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600, lineHeight: 1.5 }}>
+                  "{currentChapter.narration}"
                 </div>
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Sound toggle & Narrator indicator */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <button
-                onClick={() => setIsMuted(!isMuted)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: isMuted ? 'var(--text-tertiary)' : 'var(--text)',
-                  borderRadius: 8,
-                  padding: '6px 10px',
-                  fontSize: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-                <span style={{ fontSize: 11, fontWeight: 600 }}>{isMuted ? 'Muted' : 'Audio On'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Bottom Player Controls Bar */}
+        {/* Scrubber Progress Bar */}
+        <div style={{ padding: '0 24px', position: 'relative' }}>
           <div
+            onClick={handleSeek}
             style={{
-              padding: '12px 20px',
-              background: 'rgba(4, 13, 24, 0.98)',
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              zIndex: 15,
+              height: 8,
+              borderRadius: 999,
+              background: 'rgba(255, 255, 255, 0.12)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden',
             }}
+            title="Click to seek"
           >
-            {/* Seek Bar with Chapter Markers */}
             <div
               style={{
-                position: 'relative',
-                width: '100%',
-                height: 8,
-                borderRadius: 4,
-                background: 'rgba(255, 255, 255, 0.15)',
-                cursor: 'pointer',
-                overflow: 'hidden',
+                height: '100%',
+                width: `${(currentTime / TOTAL_DEMO_DURATION) * 100}%`,
+                background: 'linear-gradient(90deg, #FF3B30, #FF7A18, #FF9F0A)',
+                boxShadow: '0 0 14px rgba(255, 122, 24, 0.8)',
+                transition: isPlaying ? 'width 0.1s linear' : 'none',
               }}
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const pos = (e.clientX - rect.left) / rect.width;
-                const targetTime = pos * TOTAL_DURATION;
-                setCurrentTime(targetTime);
-                if (nativeVideoRef.current) {
-                  nativeVideoRef.current.currentTime = targetTime;
-                }
-              }}
-            >
-              {/* Progress Fill */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  bottom: 0,
-                  width: `${(currentTime / TOTAL_DURATION) * 100}%`,
-                  background: 'linear-gradient(90deg, #FF4B2B, #FF7A18)',
-                  borderRadius: 4,
-                  boxShadow: '0 0 10px rgba(255, 75, 43, 0.8)',
-                  transition: 'width 0.1s linear',
-                }}
-              />
-
-              {/* Chapter division ticks */}
-              {CHAPTERS.map((ch, idx) => {
-                let prevTime = 0;
-                for (let k = 0; k < idx; k++) prevTime += CHAPTERS[k].duration;
-                const leftPercent = (prevTime / TOTAL_DURATION) * 100;
-                if (idx === 0) return null;
-                return (
-                  <div
-                    key={ch.id}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      bottom: 0,
-                      left: `${leftPercent}%`,
-                      width: 2,
-                      background: 'rgba(0, 0, 0, 0.6)',
-                      zIndex: 2,
-                    }}
-                  />
-                );
-              })}
-            </div>
-
-            {/* Action Buttons & Time Stamps */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              {/* Left: Play/Pause, Rewind, Time */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 4,
-                  }}
-                  title={isPlaying ? 'Pause' : 'Play'}
-                >
-                  {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                </button>
-
-                <button
-                  onClick={() => {
-                    setCurrentTime(0);
-                    if (nativeVideoRef.current) nativeVideoRef.current.currentTime = 0;
-                    setIsPlaying(true);
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 4,
-                  }}
-                  title="Restart Walkthrough"
-                >
-                  <RotateCcw size={16} />
-                </button>
-
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'monospace' }}>
-                  {formatTime(currentTime)} / {formatTime(TOTAL_DURATION)}
-                </span>
-              </div>
-
-              {/* Right: Playback Speed, Fullscreen */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                {/* Speed selector */}
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {[1, 1.5, 2].map((speed) => (
-                    <button
-                      key={speed}
-                      onClick={() => setPlaybackSpeed(speed)}
-                      style={{
-                        background: playbackSpeed === speed ? 'var(--accent)' : 'rgba(255, 255, 255, 0.08)',
-                        border: 'none',
-                        color: '#fff',
-                        borderRadius: 4,
-                        padding: '2px 8px',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        transition: 'background 0.15s ease',
-                      }}
-                    >
-                      {speed}x
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ width: 1, height: 16, background: 'rgba(255, 255, 255, 0.15)' }} />
-
-                {/* Fullscreen Button */}
-                <button
-                  onClick={toggleFullscreen}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 4,
-                  }}
-                  title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-                >
-                  {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                </button>
-              </div>
-            </div>
+            />
           </div>
         </div>
 
-        {/* Chapter Navigation Selector Cards */}
-        <div>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 800,
-              color: 'var(--text-secondary)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.8px',
-              marginBottom: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <FastForward size={14} color="var(--accent)" /> Click Any Chapter to Jump Straight In
+        {/* Bottom Control Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 24px',
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.35))',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          {/* Left Controls: Play/Pause, Prev, Next, Time */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={handleTogglePlay}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                boxShadow: '0 4px 16px rgba(255, 59, 48, 0.40)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'transform 0.2s',
+              }}
+              title={isPlaying ? 'Pause Demo' : 'Play Demo'}
+            >
+              {isPlaying ? <Pause size={18} /> : <Play size={18} fill="#fff" style={{ marginLeft: 2 }} />}
+            </button>
+
+            <button
+              onClick={handlePrevChapter}
+              className="btn-ghost"
+              style={{ padding: 8, color: '#CBD5E0', borderRadius: '50%' }}
+              title="Previous Chapter"
+            >
+              <SkipBack size={17} />
+            </button>
+
+            <button
+              onClick={handleNextChapter}
+              className="btn-ghost"
+              style={{ padding: 8, color: '#CBD5E0', borderRadius: '50%' }}
+              title="Next Chapter"
+            >
+              <SkipForward size={17} />
+            </button>
+
+            <button
+              onClick={handleReplay}
+              className="btn-ghost"
+              style={{ padding: 8, color: '#CBD5E0', borderRadius: '50%' }}
+              title="Replay from Beginning"
+            >
+              <RotateCcw size={16} />
+            </button>
+
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginLeft: 6 }}>
+              {formatTime(currentTime)} / {formatTime(TOTAL_DEMO_DURATION)}
+            </span>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {CHAPTERS.map((ch, idx) => {
-              const isCurrent = currentChapterIndex === idx;
-              return (
-                <div
-                  key={ch.id}
-                  onClick={() => jumpToChapter(idx)}
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: 14,
-                    background: isCurrent
-                      ? 'linear-gradient(135deg, rgba(255, 75, 43, 0.15), rgba(255, 122, 24, 0.08))'
-                      : 'var(--surface)',
-                    border: isCurrent
-                      ? '1px solid rgba(255, 75, 43, 0.45)'
-                      : '1px solid var(--border-light)',
-                    backdropFilter: 'var(--glass-blur)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: isCurrent ? '0 8px 24px rgba(255, 75, 43, 0.15)' : 'none',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 10,
-                      background: isCurrent
-                        ? 'linear-gradient(135deg, var(--accent), var(--accent-secondary))'
-                        : `${ch.color}20`,
-                      color: isCurrent ? '#fff' : ch.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <ch.icon size={18} />
-                  </div>
+          {/* Chapter Quick Jump Pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {DEMO_CHAPTERS.map((chap, idx) => (
+              <button
+                key={chap.id}
+                onClick={() => handleJumpToChapter(idx)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 20,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background:
+                    currentChapterIdx === idx
+                      ? 'linear-gradient(135deg, #FF3B30, #FF7A18)'
+                      : 'rgba(255, 255, 255, 0.06)',
+                  color: currentChapterIdx === idx ? '#fff' : '#A7B8CC',
+                  border:
+                    currentChapterIdx === idx
+                      ? '1px solid rgba(255, 255, 255, 0.35)'
+                      : '1px solid rgba(255, 255, 255, 0.08)',
+                  boxShadow: currentChapterIdx === idx ? '0 4px 14px rgba(255, 75, 43, 0.35)' : 'none',
+                }}
+              >
+                {idx + 1}. {chap.tag}
+              </button>
+            ))}
+          </div>
 
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 4,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 800,
-                          color: isCurrent ? 'var(--accent)' : 'var(--text)',
-                        }}
-                      >
-                        {ch.title}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: 'var(--text-tertiary)',
-                          fontFamily: 'monospace',
-                        }}
-                      >
-                        {ch.duration}s
-                      </span>
-                    </div>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: 'var(--text-secondary)',
-                        lineHeight: 1.4,
-                        margin: 0,
-                      }}
-                    >
-                      {ch.subtitle}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+          {/* Right Controls: Speed, Captions, Mute/Voice, Fullscreen */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Speed Toggle */}
+            <button
+              onClick={() => {
+                const speeds = [1, 1.25, 1.5];
+                const next = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length];
+                setPlaybackSpeed(next);
+              }}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 8,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                fontSize: 11,
+                fontWeight: 800,
+                color: '#CBD5E0',
+                cursor: 'pointer',
+              }}
+              title="Playback Speed"
+            >
+              {playbackSpeed}x SPEED
+            </button>
+
+            {/* Captions Toggle */}
+            <button
+              onClick={() => setShowCaptions(!showCaptions)}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 8,
+                background: showCaptions ? 'rgba(255, 122, 24, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                border: showCaptions ? '1px solid #FF7A18' : '1px solid rgba(255, 255, 255, 0.12)',
+                fontSize: 11,
+                fontWeight: 800,
+                color: showCaptions ? '#FF9F0A' : '#CBD5E0',
+                cursor: 'pointer',
+              }}
+              title="Toggle Captions"
+            >
+              CC
+            </button>
+
+            {/* Mute Voiceover Button */}
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              className="btn-ghost"
+              style={{ padding: 8, color: isMuted ? '#FF3B30' : '#CBD5E0' }}
+              title={isMuted ? 'Unmute Voice Narration' : 'Mute Voice Narration'}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+
+            {/* Fullscreen Button */}
+            <button
+              onClick={toggleFullscreen}
+              className="btn-ghost"
+              style={{ padding: 8, color: '#CBD5E0' }}
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            >
+              {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+            </button>
           </div>
         </div>
       </div>
-
-      {/* Settings / Custom Video Modal */}
-      {showSettingsModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(10px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: 20,
-          }}
-          onClick={() => setShowSettingsModal(false)}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 520,
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 20,
-              padding: 28,
-              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8, color: 'var(--text)' }}>
-              Video Source Settings
-            </h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.6 }}>
-              You can play the built-in animated interactive walkthrough simulation, or embed an external MP4/YouTube video recording.
-            </p>
-
-            {/* Option 1: Built-in Interactive Simulation */}
-            <div
-              onClick={() => handleSetCustomUrl('')}
-              style={{
-                padding: 16,
-                borderRadius: 12,
-                border: videoMode === 'interactive' ? '2px solid var(--accent)' : '1px solid var(--border-light)',
-                background: videoMode === 'interactive' ? 'rgba(255, 75, 43, 0.08)' : 'var(--surface)',
-                cursor: 'pointer',
-                marginBottom: 14,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Sparkles size={20} color="var(--accent)" />
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)' }}>
-                    Built-in Interactive Walkthrough Demo
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    Auto-animated feature tour with chapter timeline
-                  </div>
-                </div>
-              </div>
-              {videoMode === 'interactive' && <Check size={18} color="var(--accent)" />}
-            </div>
-
-            {/* Option 2: Custom URL / YouTube Embed */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', display: 'block', marginBottom: 6 }}>
-                Or Enter Video URL (YouTube or direct .mp4 link):
-              </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  placeholder="https://www.youtube.com/watch?v=... or /video.mp4"
-                  defaultValue={customVideoUrl}
-                  id="custom-video-input"
-                  style={{
-                    flex: 1,
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text)',
-                    fontSize: 13,
-                    outline: 'none',
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    const input = document.getElementById('custom-video-input') as HTMLInputElement;
-                    if (input) handleSetCustomUrl(input.value);
-                  }}
-                  className="btn btn-primary"
-                  style={{ padding: '10px 18px', fontSize: 13 }}
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-
-            {/* Option 3: Local File Upload */}
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', display: 'block', marginBottom: 6 }}>
-                Or Upload Screen Recording (.mp4 / .webm):
-              </label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="video/mp4,video/webm"
-                style={{ display: 'none' }}
-                onChange={handleFileUpload}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: 10,
-                  border: '1px dashed var(--border)',
-                  background: 'var(--surface)',
-                  color: 'var(--text)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                }}
-              >
-                <Upload size={16} />
-                {uploadedFileName ? `Selected: ${uploadedFileName}` : 'Choose Video File from Computer'}
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                className="btn btn-secondary"
-                style={{ padding: '8px 20px', fontSize: 13 }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 // -------------------------------------------------------------
-// Interactive Screen Simulation (Rendered inside the video screen)
+// Individual Chapter Screen Mockups (Real UI Walkthrough)
 // -------------------------------------------------------------
-interface ScreenProps {
-  chapter: Chapter;
-  progress: number;
-  isPlaying: boolean;
-  onJumpToChapter: (idx: number) => void;
-}
 
-function InteractiveScreenSimulation({ chapter, progress }: ScreenProps) {
+function SimulatedChapterView({ chapter, progress }: { chapter: DemoChapter; progress: number }) {
   return (
     <div
       style={{
         width: '100%',
-        height: '100%',
-        padding: '30px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: `radial-gradient(circle at 50% 30%, ${chapter.color}15 0%, #051322 75%)`,
-        position: 'relative',
-        userSelect: 'none',
+        maxWidth: 880,
+        borderRadius: 20,
+        background: 'linear-gradient(135deg, rgba(8, 24, 42, 0.95), rgba(4, 15, 28, 0.95))',
+        border: '1px solid rgba(255, 255, 255, 0.16)',
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.20)',
+        overflow: 'hidden',
       }}
     >
-      {/* Background Grid Pattern */}
+      {/* Mock Browser Topbar */}
       <div
         style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Screen Frame Container */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 960,
-          background: 'rgba(10, 26, 44, 0.88)',
-          backdropFilter: 'blur(20px)',
-          borderRadius: 16,
-          border: `1px solid ${chapter.color}44`,
-          boxShadow: `0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px ${chapter.color}20`,
-          overflow: 'hidden',
+          padding: '10px 18px',
+          background: 'rgba(5, 17, 30, 0.95)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           display: 'flex',
-          flexDirection: 'column',
-          zIndex: 5,
-        }}
-      >
-        {/* App Mockup Browser Header */}
-        <div
-          style={{
-            padding: '10px 16px',
-            background: 'rgba(5, 17, 30, 0.9)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF3B30' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF9F0A' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF7A18' }} />
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginLeft: 8, fontFamily: 'monospace' }}>
-              app.alpasfarm.ph/{chapter.screenType}
-            </span>
-          </div>
-
-          <div
-            style={{
-              padding: '3px 10px',
-              borderRadius: 6,
-              background: `${chapter.color}22`,
-              border: `1px solid ${chapter.color}55`,
-              fontSize: 11,
-              fontWeight: 800,
-              color: chapter.color,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <chapter.icon size={13} /> {chapter.tag}
-          </div>
-        </div>
-
-        {/* Dynamic Screen Content based on current chapter */}
-        <div style={{ padding: '20px 24px', minHeight: 280, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          {chapter.screenType === 'animals' && <AnimalsScreenMockup progress={progress} />}
-          {chapter.screenType === 'health' && <HealthScreenMockup progress={progress} />}
-          {chapter.screenType === 'vaccine' && <VaccineScreenMockup progress={progress} />}
-          {chapter.screenType === 'breeding' && <BreedingScreenMockup progress={progress} />}
-          {chapter.screenType === 'inventory' && <InventoryScreenMockup progress={progress} />}
-          {chapter.screenType === 'scanner' && <ScannerScreenMockup progress={progress} />}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// -------------------------------------------------------------
-// Individual Mockup Screens for Each Chapter
-// -------------------------------------------------------------
-
-function AnimalsScreenMockup({ progress }: { progress: number }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-      {/* Animal Card 1 */}
-      <div
-        style={{
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderRadius: 14,
-          padding: 16,
-          border: '1px solid rgba(255, 122, 24, 0.3)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          transform: `translateY(${Math.sin(progress * Math.PI) * -4}px)`,
-          transition: 'transform 0.2s ease',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: 14,
-              }}
-            >
-              🐐
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>Tag #BOER-042</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Boer Buck • 2.5 yrs</div>
-            </div>
-          </div>
-          <span
-            style={{
-              padding: '3px 8px',
-              borderRadius: 6,
-              background: 'rgba(255, 159, 10, 0.2)',
-              color: '#FFB340',
-              fontSize: 11,
-              fontWeight: 800,
-            }}
-          >
-            Healthy
-          </span>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
-          <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: 8 }}>
-            <span style={{ color: 'var(--text-tertiary)' }}>Weight: </span>
-            <strong style={{ color: '#fff' }}>68.4 kg</strong>
-          </div>
-          <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: 8 }}>
-            <span style={{ color: 'var(--text-tertiary)' }}>Pen: </span>
-            <strong style={{ color: '#fff' }}>Pen A-1</strong>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingTop: 6,
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            fontSize: 11,
-          }}
-        >
-          <span style={{ color: 'var(--accent)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <ScanLine size={13} /> QR Tag Active
-          </span>
-          <span style={{ color: 'var(--text-tertiary)' }}>Last weighed 2d ago</span>
-        </div>
-      </div>
-
-      {/* Animal Card 2 */}
-      <div
-        style={{
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderRadius: 14,
-          padding: 16,
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #FF9F0A, #FF7A18)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 900,
-                fontSize: 14,
-              }}
-            >
-              🐑
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>Tag #DORP-019</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Dorper Ewe • 1.8 yrs</div>
-            </div>
-          </div>
-          <span
-            style={{
-              padding: '3px 8px',
-              borderRadius: 6,
-              background: 'rgba(255, 122, 24, 0.2)',
-              color: '#FF9F0A',
-              fontSize: 11,
-              fontWeight: 800,
-            }}
-          >
-            Pregnant
-          </span>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
-          <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: 8 }}>
-            <span style={{ color: 'var(--text-tertiary)' }}>Weight: </span>
-            <strong style={{ color: '#fff' }}>52.1 kg</strong>
-          </div>
-          <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: 8 }}>
-            <span style={{ color: 'var(--text-tertiary)' }}>Due: </span>
-            <strong style={{ color: '#FF7A18' }}>In 18 Days</strong>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingTop: 6,
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            fontSize: 11,
-          }}
-        >
-          <span style={{ color: '#FFB340', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <FileCheck size={13} /> Complete Pedigree
-          </span>
-          <span style={{ color: 'var(--text-tertiary)' }}>Sire: Boer Champion</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HealthScreenMockup({ progress }: { progress: number }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: 16 }}>
-      {/* Vitals Form Simulation */}
-      <div
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          borderRadius: 14,
-          padding: 16,
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-secondary)', marginBottom: 10 }}>
-          🩺 LIVE VITALS LOGGING (#BOER-042)
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Body Temperature</span>
-            <span style={{ fontWeight: 800, color: '#FF3B30', fontSize: 13 }}>39.8 °C (Elevated)</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>FAMACHA Score</span>
-            <span style={{ fontWeight: 800, color: '#FF9F0A', fontSize: 13 }}>Score 3 (Pale Pink)</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Appetite / Rumen</span>
-            <span style={{ fontWeight: 800, color: '#FF3B30', fontSize: 13 }}>Lethargic / Coughing</span>
-          </div>
-        </div>
-      </div>
-
-      {/* AI Risk Assessment Card */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(255, 59, 48, 0.18), rgba(10, 26, 44, 0.9))',
-          borderRadius: 14,
-          padding: 16,
-          border: '1px solid rgba(255, 59, 48, 0.4)',
-          display: 'flex',
-          flexDirection: 'column',
           justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <Cpu size={16} color="#FF3B30" />
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#FF3B30', textTransform: 'uppercase' }}>
-              AI Disease Risk Assessment
-            </span>
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 900, color: '#fff', marginBottom: 6 }}>
-            Possible Early Pneumonia (88% Confidence)
-          </div>
-          <p style={{ fontSize: 12, color: '#E2E8F0', lineHeight: 1.4 }}>
-            Elevated fever + coughing detected. Isolate immediately in pen B-2 and administer recommended antibiotic protocol.
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF3B30' }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF9F0A' }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF7A18' }} />
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginLeft: 8, fontFamily: 'monospace' }}>
+            app.alpasfarm.ph/{chapter.screenType.replace('_', '-')}
+          </span>
         </div>
 
         <div
           style={{
-            padding: '8px 12px',
-            borderRadius: 8,
-            background: 'rgba(255, 59, 48, 0.25)',
+            padding: '3px 10px',
+            borderRadius: 6,
+            background: `${chapter.color}22`,
+            border: `1px solid ${chapter.color}55`,
             fontSize: 11,
             fontWeight: 800,
-            color: '#fff',
+            color: chapter.color,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            gap: 6,
           }}
         >
-          <span>🚨 High Priority Action Required</span>
-          <span>Alert Sent to Vet</span>
+          <chapter.icon size={13} /> {chapter.tag}
         </div>
+      </div>
+
+      {/* Dynamic Chapter Screen Content */}
+      <div style={{ padding: '22px 24px', minHeight: 300, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {chapter.screenType === 'intro' && <IntroScreen progress={progress} />}
+        {chapter.screenType === 'dashboard' && <DashboardScreen progress={progress} />}
+        {chapter.screenType === 'add_animal' && <AddAnimalScreen progress={progress} />}
+        {chapter.screenType === 'animal_profile' && <AnimalProfileScreen progress={progress} />}
+        {chapter.screenType === 'health' && <HealthScreen progress={progress} />}
+        {chapter.screenType === 'illness_risk' && <IllnessRiskScreen progress={progress} />}
+        {chapter.screenType === 'breeding' && <BreedingScreen progress={progress} />}
+        {chapter.screenType === 'weight' && <WeightScreen progress={progress} />}
+        {chapter.screenType === 'inventory' && <InventoryScreen progress={progress} />}
+        {chapter.screenType === 'ai_assistant' && <AIAssistantScreen progress={progress} />}
+        {chapter.screenType === 'ending' && <EndingScreen progress={progress} />}
       </div>
     </div>
   );
 }
 
-function VaccineScreenMockup({ progress }: { progress: number }) {
+// 1. Intro Screen
+function IntroScreen({ progress }: { progress: number }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Upcoming Herd Immunizations</span>
-        <span style={{ fontSize: 11, color: '#FF9F0A', fontWeight: 700 }}>3 Pending This Week</span>
-      </div>
-
-      {[
-        { name: 'CDT Clostridial Booster', dose: '2ml SubQ', due: 'Tomorrow (Aug 15)', count: '14 Goats', status: 'Due Soon', color: '#FF3B30' },
-        { name: 'Albendazole Dewormer', dose: '5ml Oral', due: 'In 3 Days (Aug 17)', count: '28 Sheep', status: 'Scheduled', color: '#FF9F0A' },
-        { name: 'ADE Vitamin Complex', dose: '3ml IM', due: 'Aug 22, 2026', count: '10 Kids', status: 'Upcoming', color: '#FFB340' },
-      ].map((v, i) => (
-        <div
-          key={i}
-          style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: 10,
-            padding: '10px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Syringe size={16} color={v.color} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{v.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{v.dose} • {v.count}</div>
-            </div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: v.color }}>{v.due}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Auto-reminders enabled</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function BreedingScreenMockup({ progress }: { progress: number }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-      {/* Gestation Progress */}
+    <div style={{ textAlign: 'center', padding: '20px 10px' }}>
       <div
         style={{
-          background: 'rgba(255, 122, 24, 0.1)',
-          borderRadius: 14,
-          padding: 16,
-          border: '1px solid rgba(255, 122, 24, 0.3)',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18' }}>🐐 GESTATION COUNTDOWN</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>Day 115 / 150</span>
-        </div>
-        <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', marginBottom: 4 }}>
-          Dam: #TAG-BELLA (Nubian Doe)
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
-          Sire: #TAG-THOR • Expected Kidding: Sept 18
-        </div>
-
-        {/* Progress bar */}
-        <div style={{ height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.4)', overflow: 'hidden', marginBottom: 10 }}>
-          <div style={{ height: '100%', width: '76%', background: 'linear-gradient(90deg, #FF3B30, #FF7A18)' }} />
-        </div>
-
-        <div style={{ fontSize: 11, color: '#FF9F0A', fontWeight: 600 }}>
-          ✨ Milestone: Move to Kidding Pen in 20 days
-        </div>
-      </div>
-
-      {/* Genetics & Inbreeding Safety */}
-      <div
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          borderRadius: 14,
-          padding: 16,
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#FFB340', marginBottom: 6 }}>
-            🧬 INBREEDING CHECK: SAFE (0.0%)
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 4 }}>
-            Optimal Genetic Diversity Match
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-            System verified 3-generation pedigree. No common ancestors found. Recommended for high-yield offspring.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-          <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)', padding: 6, borderRadius: 6, textAlign: 'center' }}>
-            <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Est. Litter</span>
-            <div style={{ fontWeight: 800, color: '#fff', fontSize: 13 }}>Twins (85%)</div>
-          </div>
-          <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)', padding: 6, borderRadius: 6, textAlign: 'center' }}>
-            <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Kid Vigor</span>
-            <div style={{ fontWeight: 800, color: '#FFB340', fontSize: 13 }}>High (A+)</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InventoryScreenMockup({ progress }: { progress: number }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-      <div
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          borderRadius: 14,
-          padding: 16,
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18', marginBottom: 8 }}>
-          📦 REAL-TIME FEED & SUPPLIES
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: '#fff' }}>Alfalfa Hay Bales</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#FFB340' }}>42 bags (Good)</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: '#fff' }}>Goat Starter Pellet</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#FF9F0A' }}>4 bags (Low Stock)</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: '#fff' }}>Mineral Salt Block</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#FFB340' }}>12 units (Good)</span>
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          borderRadius: 14,
-          padding: 16,
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18', marginBottom: 8 }}>
-          🥛 DAILY MILK PRODUCTION
-        </div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>48.5 Liters</span>
-          <span style={{ fontSize: 12, color: '#FFB340', fontWeight: 800 }}>+12% vs last week</span>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          Avg 2.7L per milking doe. Peak yield recorded for #SAANEN-018. All records synced to cloud reports.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ScannerScreenMockup({ progress }: { progress: number }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0' }}>
-      <div
-        style={{
-          position: 'relative',
-          width: 220,
-          height: 140,
-          borderRadius: 12,
-          border: '2px solid rgba(255, 122, 24, 0.5)',
-          background: 'rgba(255, 122, 24, 0.05)',
-          display: 'flex',
-          flexDirection: 'column',
+          width: 68,
+          height: 68,
+          borderRadius: 20,
+          background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+          display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          overflow: 'hidden',
-          marginBottom: 12,
+          boxShadow: '0 8px 30px rgba(255, 75, 43, 0.45)',
+          marginBottom: 16,
+          transform: `scale(${1 + Math.sin(progress * Math.PI) * 0.05})`,
+          transition: 'transform 0.2s',
         }}
       >
-        {/* Animated Laser Scanning Line */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            height: 2,
-            background: 'linear-gradient(90deg, transparent, #FF9F0A, #FF7A18, #FF9F0A, transparent)',
-            boxShadow: '0 0 12px #FF9F0A',
-            top: `${(progress * 100) % 100}%`,
-            transition: 'top 0.1s linear',
-          }}
-        />
+        <Flame size={36} color="#fff" />
+      </div>
+      <h3 style={{ fontSize: '24px', fontWeight: 900, color: '#fff', marginBottom: 8, letterSpacing: '-0.5px' }}>
+        ALPASFARM
+      </h3>
+      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto 16px', lineHeight: 1.5 }}>
+        Smart Farm Management System for Goats & Sheep. Complete recordkeeping, automated illness risk indicators, breeding genealogy & AI assistance.
+      </p>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+        <span className="badge badge-orange">Livestock Records</span>
+        <span className="badge badge-healthy">ML Disease AI</span>
+        <span className="badge badge-orange">QR Ear Tags</span>
+      </div>
+    </div>
+  );
+}
 
-        <ScanLine size={48} color="#FF7A18" style={{ opacity: 0.8 }} />
-        <div style={{ fontSize: 11, fontWeight: 800, color: '#FF9F0A', marginTop: 6 }}>
-          Scanning Ear Tag QR Code...
+// 2. Dashboard Screen
+function DashboardScreen({ progress }: { progress: number }) {
+  return (
+    <div>
+      {/* 3 Stat Cards on top */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,59,48,0.3)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Total Animals</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginTop: 2 }}>42 Head</div>
+          <div style={{ fontSize: 9, color: '#FFB340', marginTop: 2 }}>+4 this month</div>
+        </div>
+        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,159,10,0.3)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Healthy Herd</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#FFB340', marginTop: 2 }}>95.2%</div>
+          <div style={{ fontSize: 9, color: '#FFB340', marginTop: 2 }}>Optimal vitals</div>
+        </div>
+        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,59,48,0.3)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Health Alerts</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#FF3B30', marginTop: 2 }}>1 Alert</div>
+          <div style={{ fontSize: 9, color: '#FF3B30', marginTop: 2 }}>Requires check</div>
         </div>
       </div>
 
-      <div
+      {/* Quick Actions row */}
+      <div style={{ display: 'flex', gap: 8, overflowX: 'hidden', paddingBottom: 6 }}>
+        <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Plus size={12} color="#FF7A18" /> Add Animal
+        </div>
+        <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <HeartPulse size={12} color="#FF7A18" /> Health Check
+        </div>
+        <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Scale size={12} color="#FF7A18" /> Record Weight
+        </div>
+        <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Baby size={12} color="#FF7A18" /> Breeding
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 3. Add Animal Screen
+function AddAnimalScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 18, border: '1px solid rgba(255,122,24,0.3)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>New Animal Registration Form</div>
+        <span style={{ fontSize: 10, background: 'rgba(255,122,24,0.2)', color: '#FF9F0A', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>
+          Auto-generating QR...
+        </span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Tag ID</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#FF9F0A' }}>TAG-BOER-045</div>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Species & Breed</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Goat • Purebred Boer</div>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Sex & Birth Date</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Buck (Male) • Jan 12, 2024</div>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Initial Weight</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#FFB340' }}>46.8 kg</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button className="btn btn-primary btn-sm" style={{ padding: '6px 18px' }}>
+          <Check size={14} /> Save Animal to Database
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 4. Animal Profile Screen
+function AnimalProfileScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 14 }}>
+      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #FF3B30, #FF7A18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+            🐐
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>Boer Champion #042</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>TAG #BOER-042 • 2.5 yrs</div>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+          Status: <strong style={{ color: '#FFB340' }}>Healthy</strong> • Pen A-1 • Weight: 68.4 kg
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
+          <span className="badge badge-healthy">Vaccinated</span>
+          <span className="badge badge-orange">Breeding Sire</span>
+        </div>
+      </div>
+
+      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#FF9F0A', marginBottom: 4 }}>
+            📱 QR FIELD TAG EMBEDDED
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+            Direct URL: <span style={{ fontFamily: 'monospace', color: '#fff' }}>alpasfarm.ph/public/boer-042</span>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>
+          3-Generation Pedigree verified · No inbreeding risk detected
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 5. Health Screen
+function HealthScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <HeartPulse size={16} color="#FF3B30" /> Daily Vitals & Clinical Observation Log
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 10 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Temperature</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#FFB340', marginTop: 2 }}>39.1 °C</div>
+          <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Normal range</div>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 10 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>FAMACHA Score</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#FF9F0A', marginTop: 2 }}>Score 2</div>
+          <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Optimal red</div>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 10 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Rumen / Appetite</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#FFB340', marginTop: 2 }}>Active</div>
+          <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Normal grazing</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 6. Illness Risk Screen
+function IllnessRiskScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ background: 'linear-gradient(135deg, rgba(255,59,48,0.18), rgba(10,26,44,0.92))', borderRadius: 16, padding: 18, border: '1px solid rgba(255,59,48,0.45)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <AlertTriangle size={18} color="#FF3B30" />
+        <span style={{ fontSize: 12, fontWeight: 800, color: '#FF3B30', textTransform: 'uppercase' }}>
+          Statistical Anomaly & Risk Indicator
+        </span>
+      </div>
+      <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', marginBottom: 6 }}>
+        Elevated Fever Detected in Animal #TAG-018 (39.9°C)
+      </div>
+      <p style={{ fontSize: 12, color: '#E2E8F0', lineHeight: 1.45, marginBottom: 12 }}>
+        Automated anomaly score highlighted unusual temperature reading. Early intervention advised: isolate doe and verify with farm veterinarian. (Risk indicator based on historical baseline).
+      </p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <span className="badge badge-red">High Priority Alert</span>
+        <span className="badge badge-orange">Isolate in Pen B</span>
+      </div>
+    </div>
+  );
+}
+
+// 7. Breeding Screen
+function BreedingScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ background: 'rgba(255,122,24,0.08)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,122,24,0.3)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18' }}>🐐 GESTATION COUNTDOWN (Doe #BELLA)</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>Day 115 / 150 (76%)</span>
+      </div>
+      <div style={{ height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.4)', overflow: 'hidden', marginBottom: 10 }}>
+        <div style={{ height: '100%', width: '76%', background: 'linear-gradient(90deg, #FF3B30, #FF7A18)' }} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 11 }}>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
+          <span style={{ color: 'var(--text-tertiary)' }}>Sire: </span>
+          <strong style={{ color: '#fff' }}>#BOER-CHAMPION (Inbreeding: 0.0% Safe)</strong>
+        </div>
+        <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
+          <span style={{ color: 'var(--text-tertiary)' }}>Expected Kidding: </span>
+          <strong style={{ color: '#FF9F0A' }}>Sept 18 (20 days to pen)</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 8. Weight Screen
+function WeightScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Weight Growth & Daily Gain Trajectory</span>
+        <span style={{ fontSize: 11, color: '#FFB340', fontWeight: 700 }}>+0.28 kg/day ADG</span>
+      </div>
+      <div style={{ height: 90, display: 'flex', alignItems: 'flex-end', gap: 8, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        {[38, 41, 45, 50, 54, 59, 64, 68.4].map((w, i) => (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ width: '100%', height: `${(w / 75) * 70}px`, background: 'linear-gradient(180deg, #FF9F0A, #FF7A18)', borderRadius: 4 }} />
+            <span style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>Wk {i + 1}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 8 }}>
+        Polynomial growth model fit: R² = 0.96 · Target market weight (70kg) reached in 12 days.
+      </div>
+    </div>
+  );
+}
+
+// 9. Inventory Screen
+function InventoryScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: '#FF7A18', marginBottom: 6 }}>FEED & MEDICINE STOCK</div>
+        <div style={{ fontSize: 12, color: '#fff', marginBottom: 4 }}>• Alfalfa Pellets: <strong style={{ color: '#FFB340' }}>42 bags</strong></div>
+        <div style={{ fontSize: 12, color: '#fff', marginBottom: 4 }}>• CDT Vaccine: <strong style={{ color: '#FF9F0A' }}>8 vials (Exp: Nov 2026)</strong></div>
+        <div style={{ fontSize: 12, color: '#fff' }}>• Dewormer: <strong style={{ color: '#FFB340' }}>14 doses</strong></div>
+      </div>
+      <div style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: '#FF9F0A', marginBottom: 6 }}>DAILY MILK YIELD</div>
+        <div style={{ fontSize: 20, fontWeight: 900, color: '#fff' }}>48.5 L / day</div>
+        <div style={{ fontSize: 11, color: '#FFB340', marginTop: 2 }}>+12% yield improvement</div>
+      </div>
+    </div>
+  );
+}
+
+// 10. AI Assistant Screen
+function AIAssistantScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ background: 'linear-gradient(135deg, rgba(255,122,24,0.12), rgba(6,21,37,0.95))', borderRadius: 16, padding: 16, border: '1px solid rgba(255,122,24,0.35)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <Brain size={18} color="#FF9F0A" />
+        <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>AlpasFarm AI Smart Farm Assistant</span>
+      </div>
+      <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10, fontSize: 12, color: '#E2E8F0', marginBottom: 8 }}>
+        💬 <em>"Farmer Marlon, 3 does in Pen A are due for CDT boosters this Friday, and Feed conversion is up 14%."</em>
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <span className="badge badge-orange">Tagalog/English Ready</span>
+        <span className="badge badge-healthy">Real-Time Sync</span>
+      </div>
+    </div>
+  );
+}
+
+// 11. Ending Screen
+function EndingScreen({ progress }: { progress: number }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '16px 10px' }}>
+      <h3 style={{ fontSize: '22px', fontWeight: 900, color: '#fff', marginBottom: 6 }}>
+        Transform Your Farm with AlpasFarm
+      </h3>
+      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: 440, margin: '0 auto 16px' }}>
+        Join modern livestock raisers adopting data-driven herd health, breeding tracking & AI optimization.
+      </p>
+      <a
+        href="/login"
+        className="btn btn-primary"
         style={{
-          padding: '6px 14px',
-          borderRadius: 8,
-          background: 'rgba(255, 159, 10, 0.2)',
-          border: '1px solid rgba(255, 159, 10, 0.4)',
-          fontSize: 12,
+          padding: '12px 32px',
+          fontSize: 14,
           fontWeight: 800,
-          color: '#FFB340',
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: 6,
+          gap: 8,
         }}
       >
-        <Check size={14} /> Tag Verified: #BOER-042 (Records Loaded in 0.2s)
-      </div>
+        Get Started Now <ArrowRight size={16} />
+      </a>
     </div>
   );
 }
