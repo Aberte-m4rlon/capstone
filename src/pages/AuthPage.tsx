@@ -2,107 +2,122 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
-import { Lock, Mail, Phone, LogIn, UserPlus } from 'lucide-react';
+import { Mail, Phone } from 'lucide-react';
 
-function generateVerificationCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+function formatPhoneNumber(phone: string): string {
+  return phone.replace(/\D/g, '');
 }
 
 export function AuthPage() {
-  const { signIn, signUp } = useAuth();
+  const { sendOtpToEmail, sendOtpToPhone, verifyEmailOtp, verifyPhoneOtp } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [generatedCode, setGeneratedCode] = useState('');
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendVerificationCode = () => {
-    const code = generateVerificationCode();
-    setGeneratedCode(code);
-    setIsCodeSent(true);
-    setVerificationCode('');
-    toast(`Verification code sent. Demo code: ${code}`, 'success');
+  const sendVerificationCode = async () => {
+    setError(null);
+
+    if (authMethod === 'email') {
+      if (!email.trim()) {
+        setError('Email is required.');
+        return;
+      }
+
+      setLoading(true);
+      const { error } = await sendOtpToEmail(email.trim());
+      setLoading(false);
+
+      if (error) {
+        setError(error);
+        toast(error, 'error');
+        return;
+      }
+
+      setIsCodeSent(true);
+      setVerificationCode('');
+      toast('Verification code sent to your email.', 'success');
+    } else {
+      if (!phone.trim()) {
+        setError('Phone number is required.');
+        return;
+      }
+
+      const formattedPhone = formatPhoneNumber(phone);
+      if (formattedPhone.length < 10) {
+        setError('Please enter a valid phone number.');
+        return;
+      }
+
+      setLoading(true);
+      const { error } = await sendOtpToPhone(formattedPhone);
+      setLoading(false);
+
+      if (error) {
+        setError(error);
+        toast(error, 'error');
+        return;
+      }
+
+      setIsCodeSent(true);
+      setVerificationCode('');
+      toast('Verification code sent via SMS.', 'success');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
-
-    if (!email.trim()) {
-      setError('Email is required.');
-      setLoading(false);
-      return;
-    }
-
-    if (!phone.trim()) {
-      setError('Phone number is required.');
-      setLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      setLoading(false);
-      return;
-    }
 
     if (!isCodeSent) {
-      sendVerificationCode();
-      setLoading(false);
+      await sendVerificationCode();
       return;
     }
 
     if (!verificationCode.trim()) {
-      setError('Please enter the verification code sent to your phone or email.');
-      setLoading(false);
+      setError('Please enter the verification code.');
       return;
     }
 
-    if (verificationCode.trim() !== generatedCode) {
-      setError('Invalid verification code. Please try again.');
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
-    const { error } = mode === 'login'
-      ? await signIn(email, password, phone)
-      : await signUp(email, password, phone);
+    let verifyError: string | null = null;
+
+    if (authMethod === 'email') {
+      const result = await verifyEmailOtp(email.trim(), verificationCode.trim());
+      verifyError = result.error;
+    } else {
+      const result = await verifyPhoneOtp(formatPhoneNumber(phone), verificationCode.trim());
+      verifyError = result.error;
+    }
 
     setLoading(false);
 
-    if (error) {
-      const friendlyError = error.includes('Email not confirmed')
-        ? 'Your email is not yet confirmed. Please check your inbox and verify your email first.'
-        : error.includes('Invalid login credentials')
-        ? 'Incorrect email or password. Please try again.'
-        : error.includes('User already registered')
-        ? 'An account with this email already exists. Try signing in instead.'
-        : error;
+    if (verifyError) {
+      const friendlyError = verifyError.includes('Invalid OTP') || verifyError.includes('expired')
+        ? 'The verification code is invalid or expired. Please request a new one.'
+        : verifyError;
       setError(friendlyError);
       toast(friendlyError, 'error');
       return;
     }
 
-    if (mode === 'signup') {
-      toast('Account created! Please check your email for verification, then sign in.', 'success');
-    } else {
-      toast('Welcome back to AlpasFarm!', 'success');
-    }
+    toast('Authentication successful! Welcome to AlpasFarm.', 'success');
     navigate('/dashboard');
   };
 
   const resetAuthState = () => {
-    setGeneratedCode('');
     setVerificationCode('');
     setIsCodeSent(false);
     setError(null);
+    setEmail('');
+    setPhone('');
+    setAuthMethod('email');
   };
 
   return (
@@ -180,7 +195,7 @@ export function AuthPage() {
           }}>Smart Goat & Sheep Farm Management</p>
         </div>
 
-        {/* Mode Toggle */}
+        {/* Auth Method Toggle */}
         <div style={{
           display: 'flex',
           gap: 6,
@@ -192,7 +207,7 @@ export function AuthPage() {
         }}>
           <button
             onClick={() => {
-              setMode('login');
+              setAuthMethod('email');
               resetAuthState();
             }}
             style={{
@@ -202,10 +217,10 @@ export function AuthPage() {
               fontWeight: 700,
               fontSize: 13,
               letterSpacing: '0.5px',
-              background: mode === 'login' ? 'var(--surface-hover)' : 'transparent',
-              color: mode === 'login' ? 'var(--accent)' : 'var(--text-secondary)',
-              border: mode === 'login' ? '1px solid var(--border)' : 'none',
-              boxShadow: mode === 'login' ? '0 4px 12px rgba(255, 75, 43, 0.15)' : 'none',
+              background: authMethod === 'email' ? 'var(--surface-hover)' : 'transparent',
+              color: authMethod === 'email' ? 'var(--accent)' : 'var(--text-secondary)',
+              border: authMethod === 'email' ? '1px solid var(--border)' : 'none',
+              boxShadow: authMethod === 'email' ? '0 4px 12px rgba(255, 75, 43, 0.15)' : 'none',
               transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               cursor: 'pointer',
               display: 'flex',
@@ -214,11 +229,11 @@ export function AuthPage() {
               gap: 6,
             }}
           >
-            <LogIn size={16} /> Sign In
+            <Mail size={16} /> Email
           </button>
           <button
             onClick={() => {
-              setMode('signup');
+              setAuthMethod('phone');
               resetAuthState();
             }}
             style={{
@@ -228,10 +243,10 @@ export function AuthPage() {
               fontWeight: 700,
               fontSize: 13,
               letterSpacing: '0.5px',
-              background: mode === 'signup' ? 'var(--surface-hover)' : 'transparent',
-              color: mode === 'signup' ? 'var(--accent)' : 'var(--text-secondary)',
-              border: mode === 'signup' ? '1px solid var(--border)' : 'none',
-              boxShadow: mode === 'signup' ? '0 4px 12px rgba(255, 75, 43, 0.15)' : 'none',
+              background: authMethod === 'phone' ? 'var(--surface-hover)' : 'transparent',
+              color: authMethod === 'phone' ? 'var(--accent)' : 'var(--text-secondary)',
+              border: authMethod === 'phone' ? '1px solid var(--border)' : 'none',
+              boxShadow: authMethod === 'phone' ? '0 4px 12px rgba(255, 75, 43, 0.15)' : 'none',
               transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
               cursor: 'pointer',
               display: 'flex',
@@ -240,168 +255,131 @@ export function AuthPage() {
               gap: 6,
             }}
           >
-            <UserPlus size={16} /> Sign Up
+            <Phone size={16} /> SMS
           </button>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSubmit}>
-          {/* Email */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{
-              display: 'block',
-              fontSize: 13,
-              fontWeight: 700,
-              color: 'var(--text)',
-              marginBottom: 8,
-              letterSpacing: '0.3px',
-            }}>
-              Email Address <span style={{ color: 'var(--accent)' }}>*</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={16} style={{
-                position: 'absolute',
-                left: 14,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-secondary)',
-                pointerEvents: 'none',
-              }} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="farmer@alpasfarm.com"
-                style={{
-                  width: '100%',
-                  padding: '12px 14px 12px 40px',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: 12,
-                  color: 'var(--text)',
-                  fontSize: 14,
-                  transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                  backdropFilter: 'var(--glass-blur)',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                }}
-                onFocus={(e) => {
-                  (e.target as HTMLInputElement).style.border = '1px solid var(--accent)';
-                  (e.target as HTMLInputElement).style.boxShadow = '0 0 20px rgba(255, 75, 43, 0.2)';
-                }}
-                onBlur={(e) => {
-                  (e.target as HTMLInputElement).style.border = '1px solid var(--border-light)';
-                  (e.target as HTMLInputElement).style.boxShadow = 'none';
-                }}
-              />
+          {/* Email Input */}
+          {authMethod === 'email' && (
+            <div style={{ marginBottom: 18 }}>
+              <label style={{
+                display: 'block',
+                fontSize: 13,
+                fontWeight: 700,
+                color: 'var(--text)',
+                marginBottom: 8,
+                letterSpacing: '0.3px',
+              }}>
+                Email Address <span style={{ color: 'var(--accent)' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={16} style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-secondary)',
+                  pointerEvents: 'none',
+                }} />
+                <input
+                  type="email"
+                  required={authMethod === 'email'}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="farmer@alpasfarm.com"
+                  disabled={isCodeSent}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px 12px 40px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: 12,
+                    color: 'var(--text)',
+                    fontSize: 14,
+                    transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                    backdropFilter: 'var(--glass-blur)',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    opacity: isCodeSent ? 0.6 : 1,
+                    cursor: isCodeSent ? 'not-allowed' : 'auto',
+                  }}
+                  onFocus={(e) => {
+                    if (!isCodeSent) {
+                      (e.target as HTMLInputElement).style.border = '1px solid var(--accent)';
+                      (e.target as HTMLInputElement).style.boxShadow = '0 0 20px rgba(255, 75, 43, 0.2)';
+                    }
+                  }}
+                  onBlur={(e) => {
+                    (e.target as HTMLInputElement).style.border = '1px solid var(--border-light)';
+                    (e.target as HTMLInputElement).style.boxShadow = 'none';
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Phone */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{
-              display: 'block',
-              fontSize: 13,
-              fontWeight: 700,
-              color: 'var(--text)',
-              marginBottom: 8,
-              letterSpacing: '0.3px',
-            }}>
-              Phone Number <span style={{ color: 'var(--accent)' }}>*</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Phone size={16} style={{
-                position: 'absolute',
-                left: 14,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-secondary)',
-                pointerEvents: 'none',
-              }} />
-              <input
-                type="tel"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="09123456789"
-                style={{
-                  width: '100%',
-                  padding: '12px 14px 12px 40px',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: 12,
-                  color: 'var(--text)',
-                  fontSize: 14,
-                  transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                  backdropFilter: 'var(--glass-blur)',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                }}
-                onFocus={(e) => {
-                  (e.target as HTMLInputElement).style.border = '1px solid var(--accent)';
-                  (e.target as HTMLInputElement).style.boxShadow = '0 0 20px rgba(255, 75, 43, 0.2)';
-                }}
-                onBlur={(e) => {
-                  (e.target as HTMLInputElement).style.border = '1px solid var(--border-light)';
-                  (e.target as HTMLInputElement).style.boxShadow = 'none';
-                }}
-              />
+          {/* Phone Input */}
+          {authMethod === 'phone' && (
+            <div style={{ marginBottom: 18 }}>
+              <label style={{
+                display: 'block',
+                fontSize: 13,
+                fontWeight: 700,
+                color: 'var(--text)',
+                marginBottom: 8,
+                letterSpacing: '0.3px',
+              }}>
+                Phone Number <span style={{ color: 'var(--accent)' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Phone size={16} style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-secondary)',
+                  pointerEvents: 'none',
+                }} />
+                <input
+                  type="tel"
+                  required={authMethod === 'phone'}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+63 9123456789"
+                  disabled={isCodeSent}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px 12px 40px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: 12,
+                    color: 'var(--text)',
+                    fontSize: 14,
+                    transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                    backdropFilter: 'var(--glass-blur)',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                    opacity: isCodeSent ? 0.6 : 1,
+                    cursor: isCodeSent ? 'not-allowed' : 'auto',
+                  }}
+                  onFocus={(e) => {
+                    if (!isCodeSent) {
+                      (e.target as HTMLInputElement).style.border = '1px solid var(--accent)';
+                      (e.target as HTMLInputElement).style.boxShadow = '0 0 20px rgba(255, 75, 43, 0.2)';
+                    }
+                  }}
+                  onBlur={(e) => {
+                    (e.target as HTMLInputElement).style.border = '1px solid var(--border-light)';
+                    (e.target as HTMLInputElement).style.boxShadow = 'none';
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Password */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{
-              display: 'block',
-              fontSize: 13,
-              fontWeight: 700,
-              color: 'var(--text)',
-              marginBottom: 8,
-              letterSpacing: '0.3px',
-            }}>
-              Password <span style={{ color: 'var(--accent)' }}>*</span>
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Lock size={16} style={{
-                position: 'absolute',
-                left: 14,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-secondary)',
-                pointerEvents: 'none',
-              }} />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                style={{
-                  width: '100%',
-                  padding: '12px 14px 12px 40px',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: 12,
-                  color: 'var(--text)',
-                  fontSize: 14,
-                  transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                  backdropFilter: 'var(--glass-blur)',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                }}
-                onFocus={(e) => {
-                  (e.target as HTMLInputElement).style.border = '1px solid var(--accent)';
-                  (e.target as HTMLInputElement).style.boxShadow = '0 0 20px rgba(255, 75, 43, 0.2)';
-                }}
-                onBlur={(e) => {
-                  (e.target as HTMLInputElement).style.border = '1px solid var(--border-light)';
-                  (e.target as HTMLInputElement).style.boxShadow = 'none';
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Verification Code */}
+          {/* Verification Code Input */}
           {isCodeSent && (
             <div style={{ marginBottom: 18 }}>
               <label style={{
@@ -449,21 +427,19 @@ export function AuthPage() {
           )}
 
           {/* Info Banner */}
-          {mode === 'signup' && (
-            <div style={{
-              background: 'rgba(59, 130, 246, 0.1)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-              borderRadius: 12,
-              padding: '12px 14px',
-              marginBottom: 18,
-              fontSize: 12,
-              color: '#3B82F6',
-              fontWeight: 600,
-              letterSpacing: '0.3px',
-            }}>
-              ✓ Account creation includes phone verification
-            </div>
-          )}
+          <div style={{
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            borderRadius: 12,
+            padding: '12px 14px',
+            marginBottom: 18,
+            fontSize: 12,
+            color: '#3B82F6',
+            fontWeight: 600,
+            letterSpacing: '0.3px',
+          }}>
+            ✓ Real {authMethod === 'email' ? 'email' : 'SMS'} verification powered by Supabase
+          </div>
 
           {/* Error Banner */}
           {error && (
@@ -515,47 +491,41 @@ export function AuthPage() {
               }
             }}
           >
-            {loading ? 'Processing...' : isCodeSent ? 'Verify & Continue' : mode === 'login' ? 'Send Code & Sign In' : 'Send Code & Sign Up'}
+            {loading ? 'Processing...' : isCodeSent ? 'Verify Code' : `Send Code via ${authMethod === 'email' ? 'Email' : 'SMS'}`}
           </button>
-        </form>
 
-        {/* Toggle Mode Link */}
-        <p style={{
-          textAlign: 'center',
-          fontSize: 13,
-          color: 'var(--text-secondary)',
-          marginTop: 20,
-          letterSpacing: '0.3px',
-        }}>
-          {mode === 'login'
-            ? "Don't have an account? "
-            : 'Already have an account? '}
-          <button
-            onClick={() => {
-              setMode(mode === 'login' ? 'signup' : 'login');
-              resetAuthState();
-            }}
-            style={{
-              color: 'var(--accent)',
-              fontWeight: 700,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              padding: 0,
-              fontSize: 13,
-              letterSpacing: '0.3px',
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.opacity = '0.8';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.opacity = '1';
-            }}
-          >
-            {mode === 'login' ? 'Create account' : 'Sign in'}
-          </button>
-        </p>
+          {/* Change Method Link */}
+          {isCodeSent && (
+            <button
+              type="button"
+              onClick={resetAuthState}
+              style={{
+                width: '100%',
+                marginTop: 12,
+                padding: '10px 14px',
+                background: 'transparent',
+                border: '1px solid var(--border-light)',
+                borderRadius: 12,
+                color: 'var(--text-secondary)',
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: '0.3px',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-light)';
+              }}
+            >
+              Use different method
+            </button>
+          )}
+        </form>
       </div>
     </div>
   );

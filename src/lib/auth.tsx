@@ -6,8 +6,10 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string, phone?: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, phone?: string) => Promise<{ error: string | null }>;
+  sendOtpToEmail: (email: string) => Promise<{ error: string | null }>;
+  sendOtpToPhone: (phone: string) => Promise<{ error: string | null }>;
+  verifyEmailOtp: (email: string, token: string) => Promise<{ error: string | null }>;
+  verifyPhoneOtp: (phone: string, token: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -30,18 +32,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string, _phone?: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const sendOtpToEmail = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
     return { error: error?.message ?? null };
   };
 
-  const signUp = async (email: string, password: string, _phone?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
+  const sendOtpToPhone = async (phone: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
       options: {
-        emailRedirectTo: `${window.location.origin}/login`,
+        shouldCreateUser: true,
       },
+    });
+    return { error: error?.message ?? null };
+  };
+
+  const verifyEmailOtp = async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'email',
+    });
+    return { error: error?.message ?? null };
+  };
+
+  const verifyPhoneOtp = async (phone: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({
+      phone,
+      token,
+      type: 'sms',
     });
     return { error: error?.message ?? null };
   };
@@ -52,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, loading, signIn, signUp, signOut }}
+      value={{ session, user: session?.user ?? null, loading, sendOtpToEmail, sendOtpToPhone, verifyEmailOtp, verifyPhoneOtp, signOut }}
     >
       {children}
     </AuthContext.Provider>

@@ -187,6 +187,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Close sidebar on ESC key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [sidebarOpen]);
+
   // Close sidebar on route change (mobile)
   useEffect(() => {
     setSidebarOpen(false);
@@ -226,6 +237,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <h1>AlpasFarm</h1>
               <span>Farm Management</span>
             </div>
+            <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
+              <Icons.X size={20} />
+            </button>
           </div>
           <nav className="nav-section">
             <div className="nav-label">Main Menu</div>
@@ -239,6 +253,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
                     `nav-item ${isActive ? (item.to === '/dashboard' ? 'active' : isActive ? 'active' : '') : ''}`
                   }
@@ -255,13 +270,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="main-area">
         <header className="topbar">
-          <button className="mobile-toggle" onClick={() => setSidebarOpen(true)}>
-            <Icons.Menu size={20} />
-          </button>
-          <div className="topbar-title">
-            <h2>{pageTitle.title}</h2>
-            <p>{pageTitle.subtitle}</p>
+          <div className="topbar-left">
+            <button className="mobile-toggle" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
+              <Icons.Menu size={20} />
+            </button>
+            <div className="topbar-title">
+              <h2>{pageTitle.title}</h2>
+              <p>{pageTitle.subtitle}</p>
+            </div>
           </div>
+
           <div className="topbar-search" ref={searchRef}>
             <Icons.Search className="search-icon" size={16} />
             <input
@@ -300,81 +318,84 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
-          {/* Dark / Light mode toggle */}
-          <button
-            className="topbar-icon-btn"
-            onClick={() => setDarkMode((d) => !d)}
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={darkMode ? 'Light mode' : 'Dark mode'}
-            style={{ color: '#fff', opacity: 0.9, flexShrink: 0 }}
-          >
-            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
 
-          <div ref={notifRef} style={{ position: 'relative' }}>
-            <button className="topbar-icon-btn" onClick={() => setNotifOpen(!notifOpen)}>
-              <Icons.Bell size={18} />
-              {unreadNotifs > 0 && <span className="notif-dot" />}
+          <div className="topbar-actions">
+            {/* Dark / Light mode toggle */}
+            <button
+              className="topbar-icon-btn"
+              onClick={() => setDarkMode((d) => !d)}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={darkMode ? 'Light mode' : 'Dark mode'}
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            {notifOpen && (
-              <div className="profile-dropdown" style={{ right: 0, minWidth: 320 }}>
-                <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p style={{ fontWeight: 700 }}>Notifications</p>
-                  {unreadNotifs > 0 && (
-                    <button className="btn-ghost btn-sm" onClick={markAllRead}>Mark all read</button>
-                  )}
-                </div>
-                <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-                  {farmData.notifications.length === 0 && (
-                    <div className="search-empty">No notifications</div>
-                  )}
-                  {farmData.notifications.slice(0, 10).map((n) => (
-                    <div
-                      key={n.id}
-                      className="pd-item"
-                      style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
-                      onClick={() => {
-                        if (n.link) navigate(n.link);
-                        setNotifOpen(false);
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
-                        <span className={`badge badge-${n.priority === 'Critical' ? 'red' : n.priority === 'Warning' ? 'orange' : n.priority === 'Success' ? 'green' : 'blue'}`}>
-                          {n.type}
-                        </span>
-                        {!n.read && <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)' }} />}
+
+            <div ref={notifRef} style={{ position: 'relative' }}>
+              <button className="topbar-icon-btn" onClick={() => setNotifOpen(!notifOpen)} aria-label="Notifications">
+                <Icons.Bell size={18} />
+                {unreadNotifs > 0 && <span className="notif-dot" />}
+              </button>
+              {notifOpen && (
+                <div className="profile-dropdown notif-dropdown">
+                  <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p style={{ fontWeight: 700 }}>Notifications</p>
+                    {unreadNotifs > 0 && (
+                      <button className="btn-ghost btn-sm" onClick={markAllRead}>Mark all read</button>
+                    )}
+                  </div>
+                  <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                    {farmData.notifications.length === 0 && (
+                      <div className="search-empty">No notifications</div>
+                    )}
+                    {farmData.notifications.slice(0, 10).map((n) => (
+                      <div
+                        key={n.id}
+                        className="pd-item"
+                        style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
+                        onClick={() => {
+                          if (n.link) navigate(n.link);
+                          setNotifOpen(false);
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                          <span className={`badge badge-${n.priority === 'Critical' ? 'red' : n.priority === 'Warning' ? 'orange' : n.priority === 'Success' ? 'green' : 'blue'}`}>
+                            {n.type}
+                          </span>
+                          {!n.read && <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)' }} />}
+                        </div>
+                        <span style={{ fontWeight: 600, fontSize: 12 }}>{n.title}</span>
+                        {n.description && <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{n.description}</span>}
                       </div>
-                      <span style={{ fontWeight: 600, fontSize: 12 }}>{n.title}</span>
-                      {n.description && <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{n.description}</span>}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <div className="pd-item" onClick={() => { navigate('/notifications'); setNotifOpen(false); }}>
+                    View all notifications
+                  </div>
                 </div>
-                <div className="pd-item" onClick={() => { navigate('/notifications'); setNotifOpen(false); }}>
-                  View all notifications
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="profile-menu" ref={profileRef}>
-            <div className="profile-avatar" onClick={() => setProfileOpen(!profileOpen)}>
-              {avatarUrl
-                ? <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                : initials}
+              )}
             </div>
-            {profileOpen && (
-              <div className="profile-dropdown">
-                <div className="pd-header">
-                  <p>{user?.email}</p>
-                  <span>Farmer</span>
-                </div>
-                <button className="pd-item" onClick={() => { navigate('/settings'); setProfileOpen(false); }}>
-                  <Icons.Settings size={16} /> Settings
-                </button>
-                <button className="pd-item" onClick={handleSignOut}>
-                  <Icons.LogOut size={16} /> Sign out
-                </button>
+
+            <div className="profile-menu" ref={profileRef}>
+              <div className="profile-avatar" onClick={() => setProfileOpen(!profileOpen)} role="button" aria-label="User profile">
+                {avatarUrl
+                  ? <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  : initials}
               </div>
-            )}
+              {profileOpen && (
+                <div className="profile-dropdown">
+                  <div className="pd-header">
+                    <p>{user?.email}</p>
+                    <span>Farmer</span>
+                  </div>
+                  <button className="pd-item" onClick={() => { navigate('/settings'); setProfileOpen(false); }}>
+                    <Icons.Settings size={16} /> Settings
+                  </button>
+                  <button className="pd-item" onClick={handleSignOut}>
+                    <Icons.LogOut size={16} /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
         <main className="content">{children}</main>

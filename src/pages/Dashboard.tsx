@@ -147,29 +147,19 @@ export function Dashboard() {
   ];
 
   return (
-    <div>
+    <div style={{ paddingBottom: 20 }}>
       {/* Greeting Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{
-          fontSize: 28,
-          fontWeight: 900,
-          color: 'var(--text)',
-          letterSpacing: '-0.5px',
-          marginBottom: 8,
-        }}>
+      <div className="dashboard-greeting">
+        <h1 className="dashboard-title">
           {greeting}, Farmer
         </h1>
-        <p style={{
-          color: 'var(--text-secondary)',
-          fontSize: 14,
-          letterSpacing: '0.3px',
-        }}>
+        <p className="dashboard-subtitle">
           Here's what's happening on your farm today.
         </p>
       </div>
 
       {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 28 }}>
+      <div className="quick-actions-grid">
         {[
           { label: 'Add Animal', to: '/animals', icon: 'PawPrint' as const },
           { label: 'Health Check', to: '/health', icon: 'HeartPulse' as const },
@@ -184,120 +174,37 @@ export function Dashboard() {
             <button
               key={a.label}
               onClick={() => navigate(a.to)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 16px',
-                background: 'var(--surface)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 12,
-                color: 'var(--text)',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                backdropFilter: 'var(--glass-blur)',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
-                (e.currentTarget as HTMLButtonElement).style.border = '1px solid var(--border)';
-                (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)';
-                (e.currentTarget as HTMLButtonElement).style.border = '1px solid var(--border-light)';
-                (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-              }}
+              className="quick-action-btn"
             >
-              <Plus size={16} color="var(--accent)" />
-              {a.label}
+              <Plus size={16} className="qa-plus-icon" />
+              <Icon size={16} className="qa-icon" />
+              <span>{a.label}</span>
             </button>
           );
         })}
       </div>
 
       {/* KPI Cards Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: 14,
-        marginBottom: 28,
-      }}>
+      <div className="kpi-grid">
         {kpiCards.map((kpi) => {
           const Icon = Icons[kpi.icon];
-          const colorMap = {
-            red: '#EF4444',
-            green: '#10B981',
-            orange: '#F97316',
-            purple: '#8B5CF6',
-            blue: '#3B82F6',
-            gray: '#6B7280',
-          };
           return (
             <div
               key={kpi.label}
-              style={{
-                background: 'var(--surface)',
-                backdropFilter: 'var(--glass-blur)',
-                border: '1px solid var(--border)',
-                borderRadius: 16,
-                padding: 18,
-                boxShadow: 'var(--shadow-inner)',
-                transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-8px)';
-                (e.currentTarget as HTMLDivElement).style.border = '1px solid var(--border)';
-                (e.currentTarget as HTMLDivElement).style.boxShadow = `0 20px 60px rgba(0, 0, 0, 0.25), 0 8px 24px ${colorMap[kpi.color]}20`;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-                (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-inner)';
-              }}
+              className="kpi-card"
             >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 12,
-              }}>
-                <div style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  background: `${colorMap[kpi.color]}15`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: `inset 0 1px 2px rgba(${colorMap[kpi.color]}, 0.1)`,
-                }}>
-                  <Icon size={20} color={colorMap[kpi.color]} />
+              <div className="kpi-top">
+                <div className={`kpi-icon ${kpi.color}`}>
+                  <Icon size={20} />
                 </div>
               </div>
-              <div style={{
-                fontSize: 22,
-                fontWeight: 900,
-                color: 'var(--text)',
-                marginBottom: 4,
-                letterSpacing: '-0.5px',
-              }}>
+              <div className="kpi-value">
                 {kpi.value}
               </div>
-              <div style={{
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                marginBottom: 8,
-                letterSpacing: '0.3px',
-              }}>
+              <div className="kpi-label">
                 {kpi.label}
               </div>
-              <div style={{
-                fontSize: 11,
-                color: kpi.deltaUp ? '#10B981' : '#F97316',
-                fontWeight: 600,
-              }}>
+              <div className={`kpi-delta ${kpi.deltaUp ? 'up' : 'down'}`}>
                 {kpi.delta}
               </div>
             </div>
@@ -306,41 +213,14 @@ export function Dashboard() {
       </div>
 
       {/* Charts Row */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-        gap: 14,
-        marginBottom: 28,
-      }}>
-        <div style={{
-          background: 'var(--surface)',
-          backdropFilter: 'var(--glass-blur)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          padding: 20,
-          boxShadow: 'var(--shadow-inner)',
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: 20,
-          }}>
+      <div className="dashboard-grid-2">
+        <div className="glass-card">
+          <div className="card-header">
             <div>
-              <div style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: 'var(--text)',
-                marginBottom: 4,
-                letterSpacing: '-0.3px',
-              }}>
+              <div className="card-title">
                 Health Check Activity
               </div>
-              <div style={{
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                letterSpacing: '0.3px',
-              }}>
+              <div className="card-subtitle">
                 Records logged in the last 30 days
               </div>
             </div>
@@ -376,6 +256,7 @@ export function Dashboard() {
               }}
               options={{
                 responsive: true,
+                maintainAspectRatio: true,
                 plugins: { legend: { display: false } },
                 scales: {
                   y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
@@ -386,35 +267,13 @@ export function Dashboard() {
           )}
         </div>
 
-        <div style={{
-          background: 'var(--surface)',
-          backdropFilter: 'var(--glass-blur)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          padding: 20,
-          boxShadow: 'var(--shadow-inner)',
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: 20,
-          }}>
+        <div className="glass-card">
+          <div className="card-header">
             <div>
-              <div style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: 'var(--text)',
-                marginBottom: 4,
-                letterSpacing: '-0.3px',
-              }}>
+              <div className="card-title">
                 Health Status Distribution
               </div>
-              <div style={{
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                letterSpacing: '0.3px',
-              }}>
+              <div className="card-subtitle">
                 Current health of active animals
               </div>
             </div>
@@ -444,6 +303,7 @@ export function Dashboard() {
                 }}
                 options={{
                   responsive: true,
+                  maintainAspectRatio: true,
                   plugins: {
                     legend: {
                       position: 'bottom',
@@ -462,36 +322,13 @@ export function Dashboard() {
       </div>
 
       {/* Weight Trend */}
-      <div style={{
-        background: 'var(--surface)',
-        backdropFilter: 'var(--glass-blur)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        padding: 20,
-        boxShadow: 'var(--shadow-inner)',
-        marginBottom: 28,
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 20,
-        }}>
+      <div className="glass-card section-gap">
+        <div className="card-header">
           <div>
-            <div style={{
-              fontSize: 16,
-              fontWeight: 800,
-              color: 'var(--text)',
-              marginBottom: 4,
-              letterSpacing: '-0.3px',
-            }}>
+            <div className="card-title">
               Weight Growth Trend
             </div>
-            <div style={{
-              fontSize: 12,
-              color: 'var(--text-secondary)',
-              letterSpacing: '0.3px',
-            }}>
+            <div className="card-subtitle">
               Average weight across all animals (last 12 weeks)
             </div>
           </div>
@@ -527,6 +364,7 @@ export function Dashboard() {
             }}
             options={{
               responsive: true,
+              maintainAspectRatio: true,
               plugins: { legend: { display: false } },
               scales: {
                 y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
@@ -538,40 +376,14 @@ export function Dashboard() {
       </div>
 
       {/* ML Insights Panel */}
-      <div style={{
-        background: 'var(--surface)',
-        backdropFilter: 'var(--glass-blur)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        padding: 20,
-        boxShadow: 'var(--shadow-inner)',
-        marginBottom: 28,
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 20,
-        }}>
+      <div className="glass-card section-gap">
+        <div className="card-header">
           <div>
-            <div style={{
-              fontSize: 16,
-              fontWeight: 800,
-              color: 'var(--text)',
-              marginBottom: 4,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              letterSpacing: '-0.3px',
-            }}>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Brain size={18} color="var(--accent)" />
               ML-Powered Insights
             </div>
-            <div style={{
-              fontSize: 12,
-              color: 'var(--text-secondary)',
-              letterSpacing: '0.3px',
-            }}>
+            <div className="card-subtitle">
               Real machine learning models trained on your farm data — {mlInsights.totalInsights} active insights
             </div>
           </div>
@@ -588,11 +400,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 12,
-        }}>
+        <div className="ml-insights-grid">
           {/* Health Risk Model */}
           <div style={{
             padding: 16,
@@ -607,7 +415,7 @@ export function Dashboard() {
             {mlInsights.healthModel?.canPredict ? (
               <>
                 <div style={{
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: 900,
                   color: mlInsights.healthModel.accuracy >= 0.7 ? '#10B981' : mlInsights.healthModel.accuracy >= 0.5 ? '#F97316' : '#EF4444',
                   marginBottom: 4,
@@ -638,7 +446,7 @@ export function Dashboard() {
               <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>Anomaly Detection</span>
             </div>
             <div style={{
-              fontSize: 28,
+              fontSize: 26,
               fontWeight: 900,
               color: mlInsights.anomalies.length > 0 ? '#EF4444' : '#10B981',
               marginBottom: 4,
@@ -669,7 +477,7 @@ export function Dashboard() {
               <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>Growth Forecasts</span>
             </div>
             <div style={{
-              fontSize: 28,
+              fontSize: 26,
               fontWeight: 900,
               color: '#3B82F6',
               marginBottom: 4,
@@ -695,7 +503,7 @@ export function Dashboard() {
             {mlInsights.clusters ? (
               <>
                 <div style={{
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: 900,
                   color: '#10B981',
                   marginBottom: 4,
@@ -714,41 +522,14 @@ export function Dashboard() {
       </div>
 
       {/* Recommendations + Priorities */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-        gap: 14,
-        marginBottom: 28,
-      }}>
-        <div style={{
-          background: 'var(--surface)',
-          backdropFilter: 'var(--glass-blur)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          padding: 20,
-          boxShadow: 'var(--shadow-inner)',
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: 16,
-          }}>
+      <div className="dashboard-grid-2 section-gap">
+        <div className="glass-card">
+          <div className="card-header">
             <div>
-              <div style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: 'var(--text)',
-                marginBottom: 4,
-                letterSpacing: '-0.3px',
-              }}>
+              <div className="card-title">
                 Smart Farm Assistant
               </div>
-              <div style={{
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                letterSpacing: '0.3px',
-              }}>
+              <div className="card-subtitle">
                 Auto-generated from your farm data
               </div>
             </div>
@@ -825,35 +606,13 @@ export function Dashboard() {
           )}
         </div>
 
-        <div style={{
-          background: 'var(--surface)',
-          backdropFilter: 'var(--glass-blur)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          padding: 20,
-          boxShadow: 'var(--shadow-inner)',
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: 16,
-          }}>
+        <div className="glass-card">
+          <div className="card-header">
             <div>
-              <div style={{
-                fontSize: 16,
-                fontWeight: 800,
-                color: 'var(--text)',
-                marginBottom: 4,
-                letterSpacing: '-0.3px',
-              }}>
+              <div className="card-title">
                 Today's Priorities
               </div>
-              <div style={{
-                fontSize: 12,
-                color: 'var(--text-secondary)',
-                letterSpacing: '0.3px',
-              }}>
+              <div className="card-subtitle">
                 Ranked by urgency
               </div>
             </div>
@@ -937,57 +696,19 @@ export function Dashboard() {
       </div>
 
       {/* Recent Animals Table */}
-      <div style={{
-        background: 'var(--surface)',
-        backdropFilter: 'var(--glass-blur)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        padding: 20,
-        boxShadow: 'var(--shadow-inner)',
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16,
-        }}>
+      <div className="glass-card">
+        <div className="card-header">
           <div>
-            <div style={{
-              fontSize: 16,
-              fontWeight: 800,
-              color: 'var(--text)',
-              marginBottom: 4,
-              letterSpacing: '-0.3px',
-            }}>
+            <div className="card-title">
               Recent Animals
             </div>
-            <div style={{
-              fontSize: 12,
-              color: 'var(--text-secondary)',
-              letterSpacing: '0.3px',
-            }}>
+            <div className="card-subtitle">
               Latest additions to your farm
             </div>
           </div>
           <button
             onClick={() => navigate('/animals')}
-            style={{
-              padding: '8px 14px',
-              background: 'var(--surface-hover)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              color: 'var(--text)',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-active)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
-            }}
+            className="btn-secondary btn-sm"
           >
             View all
           </button>
@@ -1003,76 +724,17 @@ export function Dashboard() {
             <div style={{ fontSize: 12, marginTop: 4 }}>Add your first animal to get started</div>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-            }}>
+          <div className="table-wrap">
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <th style={{
-                    padding: '12px 12px',
-                    textAlign: 'left',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}>Name</th>
-                  <th style={{
-                    padding: '12px 12px',
-                    textAlign: 'left',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}>Tag ID</th>
-                  <th style={{
-                    padding: '12px 12px',
-                    textAlign: 'left',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}>Species</th>
-                  <th style={{
-                    padding: '12px 12px',
-                    textAlign: 'left',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}>Sex</th>
-                  <th style={{
-                    padding: '12px 12px',
-                    textAlign: 'left',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}>Weight</th>
-                  <th style={{
-                    padding: '12px 12px',
-                    textAlign: 'left',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}>Health</th>
-                  <th style={{
-                    padding: '12px 12px',
-                    textAlign: 'left',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}>Added</th>
+                <tr>
+                  <th>Name</th>
+                  <th>Tag ID</th>
+                  <th>Species</th>
+                  <th>Sex</th>
+                  <th>Weight</th>
+                  <th>Health</th>
+                  <th>Added</th>
                 </tr>
               </thead>
               <tbody>
@@ -1080,59 +742,37 @@ export function Dashboard() {
                   <tr
                     key={a.id}
                     onClick={() => navigate(`/animals/${a.id}`)}
-                    style={{
-                      borderBottom: '1px solid var(--border-light)',
-                      cursor: 'pointer',
-                      transition: 'background 0.3s',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLTableRowElement).style.background = 'var(--surface-hover)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLTableRowElement).style.background = 'transparent';
-                    }}
+                    style={{ cursor: 'pointer' }}
                   >
-                    <td style={{ padding: '14px 12px', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                    <td style={{ fontWeight: 600, color: 'var(--text)' }}>
                       {a.name}
                     </td>
-                    <td style={{ padding: '14px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {a.tag_id}
                     </td>
-                    <td style={{ padding: '14px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {a.species}
                     </td>
-                    <td style={{ padding: '14px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {a.sex}
                     </td>
-                    <td style={{ padding: '14px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {a.weight_kg ? `${a.weight_kg} kg` : '—'}
                     </td>
-                    <td style={{ padding: '14px 12px' }}>
-                      <div style={{
-                        display: 'inline-block',
-                        padding: '4px 10px',
-                        borderRadius: 6,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        background: a.health_status === 'Healthy'
-                          ? 'rgba(16, 185, 129, 0.2)'
+                    <td>
+                      <span className={`badge badge-${
+                        a.health_status === 'Healthy'
+                          ? 'green'
                           : a.health_status === 'Monitor'
-                          ? 'rgba(59, 130, 246, 0.2)'
+                          ? 'blue'
                           : a.health_status === 'At Risk'
-                          ? 'rgba(249, 115, 22, 0.2)'
-                          : 'rgba(239, 68, 68, 0.2)',
-                        color: a.health_status === 'Healthy'
-                          ? '#10B981'
-                          : a.health_status === 'Monitor'
-                          ? '#3B82F6'
-                          : a.health_status === 'At Risk'
-                          ? '#F97316'
-                          : '#EF4444',
-                      }}>
+                          ? 'orange'
+                          : 'red'
+                      }`}>
                         {a.health_status}
-                      </div>
+                      </span>
                     </td>
-                    <td style={{ padding: '14px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    <td style={{ color: 'var(--text-secondary)' }}>
                       {formatDate(a.created_at)}
                     </td>
                   </tr>
