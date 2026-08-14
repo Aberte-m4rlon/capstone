@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { Icons } from '../lib/icons';
-import { TrendingUp, BarChart3, AlertCircle, Zap, Smartphone, Lightbulb, Sun, Moon, Heart, Syringe, Package, ScanLine, Calendar, Scale, HeartPulse } from 'lucide-react';
+import { TrendingUp, BarChart3, AlertCircle, Zap, Smartphone, Lightbulb, Sun, Moon, Heart, Syringe, Package, ScanLine, Calendar, Scale, HeartPulse, Play } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { SystemVideoDemo } from '../components/SystemVideoDemo';
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -140,13 +141,49 @@ export function LandingPage() {
             </button>
             <button 
               className="btn btn-secondary"
+              onClick={() => document.querySelector('#system-video-demo')?.scrollIntoView({ behavior: 'smooth' })}
+              style={{
+                padding: '13px 28px',
+                fontSize: 15,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.15), rgba(255, 122, 24, 0.08))',
+                border: '1px solid rgba(255, 75, 43, 0.4)',
+                color: 'var(--text)',
+                boxShadow: '0 4px 20px rgba(255, 75, 43, 0.15)',
+              }}
+            >
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Play size={12} color="#fff" style={{ marginLeft: 2 }} />
+              </div>
+              Watch Demo Video
+            </button>
+            <button 
+              className="btn btn-secondary"
               onClick={() => document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })}
-              style={{ padding: '13px 32px', fontSize: 15, fontWeight: 700 }}
+              style={{ padding: '13px 28px', fontSize: 15, fontWeight: 700 }}
             >
               Learn More
             </button>
           </div>
         </div>
+      </section>
+
+      {/* Video System Walkthrough Section */}
+      <section style={{ padding: '80px 20px 60px', background: 'var(--bg)', position: 'relative' }}>
+        <SystemVideoDemo />
       </section>
 
       {/* Features Section */}
