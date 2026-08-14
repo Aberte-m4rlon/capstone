@@ -1,35 +1,42 @@
-/* ===== ALPASFARM iOS LIQUID GLASS DESIGN SYSTEM (RED + ORANGE + DARK NAVY) ===== */
+/* ===== ALPASFARM AUTHENTIC LIQUID GLASS DESIGN SYSTEM (MATCHING UI REFERENCE) ===== */
 
 :root {
-  /* Base Atmospheric Dark Navy */
-  --bg: #061525;
-  --bg-secondary: rgba(11, 28, 45, 0.72);
-  --bg-tertiary: rgba(16, 38, 60, 0.65);
-  --bg-glass-base: rgba(6, 21, 37, 0.75);
+  /* Dark Mode Environment (Smoked Crystal Glass over Deep Navy) */
+  --bg: #061220;
+  --bg-secondary: rgba(14, 30, 48, 0.65);
+  --bg-tertiary: rgba(22, 45, 70, 0.55);
+  --bg-glass-base: rgba(6, 18, 32, 0.70);
 
-  /* Liquid Glass Surfaces */
+  /* Authentic Multi-Layer Liquid Glass Surfaces */
+  --glass-surface: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 100%);
+  --glass-surface-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 100%);
+  --glass-border: rgba(255, 255, 255, 0.24);
+  --glass-border-specular: rgba(255, 255, 255, 0.55);
+  --glass-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.40) 0%, rgba(255, 255, 255, 0.10) 40%, transparent 80%);
+
+  /* Surface & Borders */
   --surface: rgba(255, 255, 255, 0.08);
-  --surface-hover: rgba(255, 255, 255, 0.14);
-  --surface-active: rgba(255, 255, 255, 0.18);
+  --surface-hover: rgba(255, 255, 255, 0.15);
+  --surface-active: rgba(255, 255, 255, 0.22);
   --border: rgba(255, 255, 255, 0.18);
   --border-light: rgba(255, 255, 255, 0.10);
-  --border-specular: rgba(255, 255, 255, 0.32);
-  --border-brand: rgba(255, 122, 24, 0.35);
+  --border-specular: rgba(255, 255, 255, 0.45);
+  --border-brand: rgba(255, 106, 42, 0.40);
 
-  /* Crisp Typography */
+  /* Typography */
   --text: #FFFFFF;
-  --text-secondary: #BACAD9;
-  --text-tertiary: #788D9E;
+  --text-secondary: #CBD8E6;
+  --text-tertiary: #8AA0B8;
   
-  /* Brand Palette (Red + Orange + Amber) */
+  /* Brand Palette (AlpasFarm Red + Vibrant Orange + Warm Amber) */
   --primary: #FF3B30;
   --primary-orange: #FF6A2A;
   --primary-bright: #FF9F0A;
   --primary-deep: #D92D20;
   --accent: #FF6A2A;
   --accent-secondary: #FF3B30;
-  --accent-glow: rgba(255, 106, 42, 0.32);
-  --accent-glass: linear-gradient(135deg, rgba(255, 59, 48, 0.92), rgba(255, 106, 42, 0.84));
+  --accent-glow: rgba(255, 106, 42, 0.35);
+  --accent-glass: linear-gradient(135deg, rgba(255, 59, 48, 0.95), rgba(255, 106, 42, 0.90));
 
   /* Status Colors */
   --healthy: #FFB340;
@@ -38,56 +45,62 @@
   --info: #FF6A2A;
 
   /* Glass Physics */
-  --glass-blur-sm: blur(16px) saturate(180%);
-  --glass-blur: blur(32px) saturate(180%);
-  --glass-blur-lg: blur(40px) saturate(190%);
+  --glass-blur-sm: blur(18px) saturate(190%);
+  --glass-blur: blur(35px) saturate(200%);
+  --glass-blur-lg: blur(45px) saturate(210%);
 
-  /* Liquid Glass Shadows & Specular Edge Lighting */
-  --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  --shadow: 0 20px 50px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  --shadow-hover: 0 28px 70px rgba(0, 0, 0, 0.36), 0 0 35px rgba(255, 106, 42, 0.22);
-  --shadow-inner: inset 0 1px 1px rgba(255, 255, 255, 0.30), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  /* Physical Glass Shadows & Specular Bevels */
+  --shadow-sm: 0 10px 30px rgba(0, 0, 0, 0.22), inset 0 1.5px 1px rgba(255, 255, 255, 0.40);
+  --shadow: 0 25px 65px rgba(0, 0, 0, 0.35), inset 0 1.5px 1px rgba(255, 255, 255, 0.45), inset 0 -1px 1px rgba(255, 255, 255, 0.08);
+  --shadow-hover: 0 32px 80px rgba(0, 0, 0, 0.42), 0 0 35px rgba(255, 106, 42, 0.25), inset 0 2px 2px rgba(255, 255, 255, 0.60);
+  --shadow-inner: inset 0 1.5px 1px rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 
   /* Fluid Radii */
-  --radius-sm: 12px;
-  --radius: 20px;
-  --radius-lg: 26px;
-  --radius-xl: 32px;
+  --radius-sm: 14px;
+  --radius: 22px;
+  --radius-lg: 28px;
+  --radius-xl: 36px;
   --radius-pill: 999px;
 
-  /* Sidebar */
-  --sidebar-bg: linear-gradient(135deg, rgba(11, 28, 45, 0.82), rgba(6, 21, 37, 0.72));
+  /* Sidebar Glass Pane */
+  --sidebar-bg: linear-gradient(135deg, rgba(14, 30, 48, 0.78) 0%, rgba(6, 18, 32, 0.68) 100%);
 }
 
-/* Light mode (Frosted Crystal Glass) */
+/* Light mode (Frosted Acrylic Crystal Glass matching the Reference Sheet) */
 [data-theme="light"] {
-  --bg: #F4F6F8;
+  --bg: #EAEFF5;
   --bg-secondary: rgba(255, 255, 255, 0.85);
-  --bg-tertiary: rgba(255, 242, 235, 0.80);
-  --bg-glass-base: rgba(255, 255, 255, 0.80);
+  --bg-tertiary: rgba(255, 245, 240, 0.80);
+  --bg-glass-base: rgba(255, 255, 255, 0.75);
 
-  --surface: rgba(255, 255, 255, 0.72);
-  --surface-hover: rgba(255, 255, 255, 0.88);
-  --surface-active: rgba(255, 255, 255, 0.96);
-  --border: rgba(255, 255, 255, 0.80);
-  --border-light: rgba(0, 0, 0, 0.06);
-  --border-specular: rgba(255, 255, 255, 0.95);
-  --border-brand: rgba(255, 106, 42, 0.30);
+  --glass-surface: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.55) 100%);
+  --glass-surface-elevated: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.70) 100%);
+  --glass-border: rgba(255, 255, 255, 0.90);
+  --glass-border-specular: rgba(255, 255, 255, 1);
+  --glass-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.40) 40%, transparent 80%);
 
-  --text: #0B192C;
-  --text-secondary: #4A5B6E;
-  --text-tertiary: #8496A8;
+  --surface: rgba(255, 255, 255, 0.75);
+  --surface-hover: rgba(255, 255, 255, 0.92);
+  --surface-active: rgba(255, 255, 255, 0.98);
+  --border: rgba(255, 255, 255, 0.85);
+  --border-light: rgba(0, 0, 0, 0.05);
+  --border-specular: rgba(255, 255, 255, 1);
+  --border-brand: rgba(255, 106, 42, 0.35);
+
+  --text: #081628;
+  --text-secondary: #425466;
+  --text-tertiary: #7D8FA3;
 
   --accent: #FF6A2A;
   --accent-secondary: #FF3B30;
-  --accent-glow: rgba(255, 106, 42, 0.25);
-  --accent-glass: linear-gradient(135deg, rgba(255, 59, 48, 0.92), rgba(255, 106, 42, 0.84));
+  --accent-glow: rgba(255, 106, 42, 0.30);
+  --accent-glass: linear-gradient(135deg, rgba(255, 59, 48, 0.95), rgba(255, 106, 42, 0.88));
 
-  --shadow-sm: 0 8px 24px rgba(40, 50, 70, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.90);
-  --shadow: 0 20px 50px rgba(40, 50, 70, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  --shadow-hover: 0 28px 65px rgba(40, 50, 70, 0.18), 0 0 30px rgba(255, 106, 42, 0.20);
-  --shadow-inner: inset 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
-  --sidebar-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.75));
+  --shadow-sm: 0 10px 30px rgba(50, 65, 85, 0.08), inset 0 1.5px 1px rgba(255, 255, 255, 0.95);
+  --shadow: 0 25px 65px rgba(50, 65, 85, 0.12), inset 0 2px 1px rgba(255, 255, 255, 1);
+  --shadow-hover: 0 32px 80px rgba(50, 65, 85, 0.18), 0 0 30px rgba(255, 106, 42, 0.20);
+  --shadow-inner: inset 0 1.5px 1px rgba(255, 255, 255, 1), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+  --sidebar-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.90), rgba(255, 255, 255, 0.78));
 }
 
 * {
@@ -111,10 +124,11 @@ html {
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', 'Plus Jakarta Sans', sans-serif;
   background: 
-    radial-gradient(circle at 15% 15%, rgba(255, 59, 48, 0.18), transparent 32%),
-    radial-gradient(circle at 85% 30%, rgba(255, 122, 24, 0.16), transparent 32%),
-    radial-gradient(circle at 60% 90%, rgba(255, 159, 10, 0.10), transparent 35%),
-    var(--bg);
+    radial-gradient(circle at 10% 12%, rgba(255, 59, 48, 0.22) 0%, transparent 35%),
+    radial-gradient(circle at 90% 25%, rgba(255, 106, 42, 0.20) 0%, transparent 35%),
+    radial-gradient(circle at 50% 95%, rgba(255, 159, 10, 0.14) 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(217, 45, 32, 0.12) 0%, transparent 35%),
+    #061220;
   background-attachment: fixed;
   color: var(--text);
   font-size: 14px;
@@ -128,10 +142,20 @@ body {
 
 [data-theme="light"] body {
   background: 
-    radial-gradient(circle at 15% 20%, rgba(255, 122, 24, 0.12), transparent 32%),
-    radial-gradient(circle at 85% 70%, rgba(255, 59, 48, 0.08), transparent 32%),
-    var(--bg);
+    radial-gradient(circle at 12% 15%, rgba(255, 106, 42, 0.14) 0%, transparent 35%),
+    radial-gradient(circle at 88% 65%, rgba(255, 59, 48, 0.10) 0%, transparent 35%),
+    radial-gradient(circle at 50% 95%, rgba(255, 159, 10, 0.08) 0%, transparent 40%),
+    #EAEFF5;
   background-attachment: fixed;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
 html::-webkit-scrollbar,
