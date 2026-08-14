@@ -28,14 +28,14 @@ interface ActivityEntry {
 }
 
 const CATEGORY_COLORS: Record<ActivityCategory, string> = {
-  Animal:      '#7C3AED',
-  Health:      '#EF4444',
-  Weight:      '#3B82F6',
-  Breeding:    '#EC4899',
-  Vaccination: '#10B981',
-  Feed:        '#F59E0B',
-  Milk:        '#06B6D4',
-  Inventory:   '#6B7280',
+  Animal:      '#FF7A18',
+  Health:      '#FF3B30',
+  Weight:      '#FF9F0A',
+  Breeding:    '#FF7A18',
+  Vaccination: '#FFB340',
+  Feed:        '#FF9F0A',
+  Milk:        '#FFB340',
+  Inventory:   '#D92D20',
 };
 
 const CATEGORY_ICONS: Record<ActivityCategory, string> = {
@@ -88,7 +88,7 @@ export function ActivityLogPage() {
         description: `${animalName(r.animal_id)} — Risk: ${r.risk_level} (${r.risk_score})${r.reasons ? ` · ${r.reasons.split(';')[0].trim()}` : ''}`,
         animal: animalName(r.animal_id),
         icon: 'HeartPulse',
-        color: r.risk_level === 'Critical' ? '#EF4444' : r.risk_level === 'High' ? '#F97316' : r.risk_level === 'Moderate' ? '#F59E0B' : '#10B981',
+        color: r.risk_level === 'Critical' ? '#FF3B30' : r.risk_level === 'High' ? '#FF7A18' : r.risk_level === 'Moderate' ? '#FF9F0A' : '#FFB340',
       });
     });
 

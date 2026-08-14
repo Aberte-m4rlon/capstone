@@ -204,12 +204,12 @@ export function WeightsPage() {
 
       {/* ML Growth Prediction */}
       {mlGrowth && (
-        <div className="card section-gap" style={{ borderLeft: '3px solid #3B82F6' }}>
+        <div className="card section-gap" style={{ borderLeft: '3px solid #FF7A18' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <Brain size={18} color="#3B82F6" />
+            <Brain size={18} color="#FF7A18" />
             <span style={{ fontWeight: 700, fontSize: 14 }}>ML Growth Prediction — Polynomial Regression</span>
-            <span className="badge" style={{ background: '#DBEAFE', color: '#1E40AF' }}>R² = {mlGrowth.rSquared.toFixed(3)}</span>
-            <span className="badge" style={{ background: '#D1FAE5', color: '#065F46' }}>{mlGrowth.confidence}% confidence</span>
+            <span className="badge" style={{ background: 'rgba(255, 122, 24, 0.15)', color: '#FF9F0A', border: '1px solid rgba(255, 122, 24, 0.25)' }}>R² = {mlGrowth.rSquared.toFixed(3)}</span>
+            <span className="badge" style={{ background: 'rgba(255, 159, 10, 0.15)', color: '#FFB340', border: '1px solid rgba(255, 159, 10, 0.25)' }}>{mlGrowth.confidence}% confidence</span>
           </div>
           <div className="grid-4">
             <div>

@@ -21,11 +21,11 @@ export function RecommendationsPage() {
 
   const severityIcon = (color: string) => {
     switch (color) {
-      case 'red': return <Icons.AlertTriangle size={16} color="#EF4444" />;
-      case 'orange': return <Icons.AlertTriangle size={16} color="#F59E0B" />;
-      case 'yellow': return <Icons.Clock size={16} color="#FBBF24" />;
-      case 'green': return <Icons.CheckCircle size={16} color="#10B981" />;
-      default: return <Icons.Lightbulb size={16} color="#3B82F6" />;
+      case 'red': return <Icons.AlertTriangle size={16} color="#FF3B30" />;
+      case 'orange': return <Icons.AlertTriangle size={16} color="#FF7A18" />;
+      case 'yellow': return <Icons.Clock size={16} color="#FF9F0A" />;
+      case 'green': return <Icons.CheckCircle size={16} color="#FFB340" />;
+      default: return <Icons.Lightbulb size={16} color="#FF7A18" />;
     }
   };
 
@@ -42,7 +42,7 @@ export function RecommendationsPage() {
       <div className="card section-gap">
         <div className="card-header">
           <div className="card-title">Today's Priorities</div>
-          <Icons.Activity size={20} color="#B91C1C" />
+          <Icons.Activity size={20} color="#FF7A18" />
         </div>
         {priorities.length === 0 ? (
           <div className="empty-state">

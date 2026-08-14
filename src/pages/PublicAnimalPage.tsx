@@ -47,10 +47,10 @@ function formatDate(d: string | null): string {
 }
 
 function riskColor(score: number): string {
-  if (score >= 80) return '#EF4444';
-  if (score >= 50) return '#F97316';
-  if (score >= 25) return '#F59E0B';
-  return '#10B981';
+  if (score >= 80) return '#FF3B30';
+  if (score >= 50) return '#FF7A18';
+  if (score >= 25) return '#FF9F0A';
+  return '#FFB340';
 }
 
 function riskLabel(score: number): string {
@@ -61,10 +61,10 @@ function riskLabel(score: number): string {
 }
 
 function vacBadgeColor(status: string): string {
-  if (status === 'Up to Date') return '#10B981';
-  if (status === 'Due Soon') return '#F59E0B';
-  if (status === 'Overdue') return '#EF4444';
-  return '#9CA3AF';
+  if (status === 'Up to Date') return '#FFB340';
+  if (status === 'Due Soon') return '#FF9F0A';
+  if (status === 'Overdue') return '#FF3B30';
+  return '#71849A';
 }
 
 export function PublicAnimalPage() {

@@ -711,10 +711,10 @@ export function AIAssistantPanel({ open, onClose }: Props) {
         {/* ML status bar */}
         {!farmData.loading && (
           <div style={{ display: 'flex', gap: 8, padding: '6px 14px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
-            {ml.healthModel?.canPredict && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Brain size={10} color="#7C3AED"/>AI sa Kalusugan {Math.round(ml.healthModel.accuracy*100)}%</span>}
-            {anomalies.length > 0 && <span style={{ fontSize: 11, color: '#EF4444', display:'flex', alignItems:'center', gap:3 }}><AlertCircle size={10}/>{anomalies.length} anomalya</span>}
-            {ml.growthPredictions.filter(g=>g.model).length > 0 && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><TrendingUp size={10} color="#3B82F6"/>{ml.growthPredictions.filter(g=>g.model).length} mga growth model</span>}
-            {ml.clusters && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Zap size={10} color="#10B981"/>{ml.clusters.k} mga cluster</span>}
+            {ml.healthModel?.canPredict && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Brain size={10} color="#FF7A18"/>AI sa Kalusugan {Math.round(ml.healthModel.accuracy*100)}%</span>}
+            {anomalies.length > 0 && <span style={{ fontSize: 11, color: '#FF3B30', display:'flex', alignItems:'center', gap:3 }}><AlertCircle size={10}/>{anomalies.length} anomalya</span>}
+            {ml.growthPredictions.filter(g=>g.model).length > 0 && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><TrendingUp size={10} color="#FF9F0A"/>{ml.growthPredictions.filter(g=>g.model).length} mga growth model</span>}
+            {ml.clusters && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Zap size={10} color="#FFB340"/>{ml.clusters.k} mga cluster</span>}
           </div>
         )}
 

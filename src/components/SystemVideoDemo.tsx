@@ -91,7 +91,7 @@ const CHAPTERS: Chapter[] = [
     subtitle: 'Track stock depletion, daily milk production, and feed conversion',
     duration: 18,
     icon: Package,
-    color: '#10B981',
+    color: '#FF7A18',
     tag: 'Supplies & Yield',
     badge: 'Step 5: Operations',
     caption: 'Monitor feed stocks, medication batches, and daily milk yield per doe. Receive instant alerts when supplies reach minimum reorder thresholds.',
@@ -103,12 +103,12 @@ const CHAPTERS: Chapter[] = [
     subtitle: 'Scan ear tags in seconds with your phone camera & export farm reports',
     duration: 15,
     icon: ScanLine,
-    color: '#3B82F6',
-    tag: 'Mobile & Analytics',
-    badge: 'Step 6: Field Actions',
-    caption: 'Point any smartphone camera at an ear tag QR code to instantly pull up the complete animal medical history and record daily logs on the spot.',
+    color: '#FF9F0A',
+    tag: 'QR Tag & Audit',
+    badge: 'Step 6: Traceability',
+    caption: 'Scan animal ear tags directly with any phone or tablet. Instant offline-capable lookup with full health and pedigree audit trails.',
     screenType: 'scanner'
-  },
+  }
 ];
 
 const TOTAL_DURATION = CHAPTERS.reduce((acc, c) => acc + c.duration, 0); // 105 seconds
@@ -1085,9 +1085,9 @@ function InteractiveScreenSimulation({ chapter, progress }: ScreenProps) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#EF4444' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#F59E0B' }} />
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10B981' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF3B30' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF9F0A' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF7A18' }} />
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginLeft: 8, fontFamily: 'monospace' }}>
               app.alpasfarm.ph/{chapter.screenType}
             </span>
@@ -1138,7 +1138,7 @@ function AnimalsScreenMockup({ progress }: { progress: number }) {
           background: 'rgba(255, 255, 255, 0.04)',
           borderRadius: 14,
           padding: 16,
-          border: '1px solid rgba(255, 75, 43, 0.3)',
+          border: '1px solid rgba(255, 122, 24, 0.3)',
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
@@ -1153,7 +1153,7 @@ function AnimalsScreenMockup({ progress }: { progress: number }) {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: 'linear-gradient(135deg, #FF4B2B, #FF7A18)',
+                background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
@@ -1173,8 +1173,8 @@ function AnimalsScreenMockup({ progress }: { progress: number }) {
             style={{
               padding: '3px 8px',
               borderRadius: 6,
-              background: 'rgba(16, 185, 129, 0.2)',
-              color: '#10B981',
+              background: 'rgba(255, 159, 10, 0.2)',
+              color: '#FFB340',
               fontSize: 11,
               fontWeight: 800,
             }}
@@ -1217,7 +1217,7 @@ function AnimalsScreenMockup({ progress }: { progress: number }) {
           background: 'rgba(255, 255, 255, 0.04)',
           borderRadius: 14,
           padding: 16,
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
@@ -1230,7 +1230,7 @@ function AnimalsScreenMockup({ progress }: { progress: number }) {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: 'rgba(255,255,255,0.1)',
+                background: 'linear-gradient(135deg, #FF9F0A, #FF7A18)',
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
@@ -1242,7 +1242,7 @@ function AnimalsScreenMockup({ progress }: { progress: number }) {
               🐑
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>Tag #DORP-109</div>
+              <div style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>Tag #DORP-019</div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Dorper Ewe • 1.8 yrs</div>
             </div>
           </div>
@@ -1250,24 +1250,24 @@ function AnimalsScreenMockup({ progress }: { progress: number }) {
             style={{
               padding: '3px 8px',
               borderRadius: 6,
-              background: 'rgba(59, 130, 246, 0.2)',
-              color: '#3B82F6',
+              background: 'rgba(255, 122, 24, 0.2)',
+              color: '#FF9F0A',
               fontSize: 11,
               fontWeight: 800,
             }}
           >
-            Pregnant (Day 110)
+            Pregnant
           </span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
           <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-tertiary)' }}>Weight: </span>
-            <strong style={{ color: '#fff' }}>54.2 kg</strong>
+            <strong style={{ color: '#fff' }}>52.1 kg</strong>
           </div>
           <div style={{ background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: 8 }}>
             <span style={{ color: 'var(--text-tertiary)' }}>Due: </span>
-            <strong style={{ color: '#EC4899' }}>In 35 Days</strong>
+            <strong style={{ color: '#FF7A18' }}>In 18 Days</strong>
           </div>
         </div>
 
@@ -1281,7 +1281,7 @@ function AnimalsScreenMockup({ progress }: { progress: number }) {
             fontSize: 11,
           }}
         >
-          <span style={{ color: '#10B981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ color: '#FFB340', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
             <FileCheck size={13} /> Complete Pedigree
           </span>
           <span style={{ color: 'var(--text-tertiary)' }}>Sire: Boer Champion</span>
@@ -1309,15 +1309,15 @@ function HealthScreenMockup({ progress }: { progress: number }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
             <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Body Temperature</span>
-            <span style={{ fontWeight: 800, color: '#EF4444', fontSize: 13 }}>39.8 °C (Elevated)</span>
+            <span style={{ fontWeight: 800, color: '#FF3B30', fontSize: 13 }}>39.8 °C (Elevated)</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
             <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>FAMACHA Score</span>
-            <span style={{ fontWeight: 800, color: '#F59E0B', fontSize: 13 }}>Score 3 (Pale Pink)</span>
+            <span style={{ fontWeight: 800, color: '#FF9F0A', fontSize: 13 }}>Score 3 (Pale Pink)</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
             <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Appetite / Rumen</span>
-            <span style={{ fontWeight: 800, color: '#EF4444', fontSize: 13 }}>Lethargic / Coughing</span>
+            <span style={{ fontWeight: 800, color: '#FF3B30', fontSize: 13 }}>Lethargic / Coughing</span>
           </div>
         </div>
       </div>
@@ -1325,10 +1325,10 @@ function HealthScreenMockup({ progress }: { progress: number }) {
       {/* AI Risk Assessment Card */}
       <div
         style={{
-          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(10, 26, 44, 0.9))',
+          background: 'linear-gradient(135deg, rgba(255, 59, 48, 0.18), rgba(10, 26, 44, 0.9))',
           borderRadius: 14,
           padding: 16,
-          border: '1px solid rgba(239, 68, 68, 0.4)',
+          border: '1px solid rgba(255, 59, 48, 0.4)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -1336,8 +1336,8 @@ function HealthScreenMockup({ progress }: { progress: number }) {
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <Cpu size={16} color="#EF4444" />
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#EF4444', textTransform: 'uppercase' }}>
+            <Cpu size={16} color="#FF3B30" />
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#FF3B30', textTransform: 'uppercase' }}>
               AI Disease Risk Assessment
             </span>
           </div>
@@ -1353,7 +1353,7 @@ function HealthScreenMockup({ progress }: { progress: number }) {
           style={{
             padding: '8px 12px',
             borderRadius: 8,
-            background: 'rgba(239, 68, 68, 0.25)',
+            background: 'rgba(255, 59, 48, 0.25)',
             fontSize: 11,
             fontWeight: 800,
             color: '#fff',
@@ -1375,13 +1375,13 @@ function VaccineScreenMockup({ progress }: { progress: number }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Upcoming Herd Immunizations</span>
-        <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 700 }}>3 Pending This Week</span>
+        <span style={{ fontSize: 11, color: '#FF9F0A', fontWeight: 700 }}>3 Pending This Week</span>
       </div>
 
       {[
-        { name: 'CDT Clostridial Booster', dose: '2ml SubQ', due: 'Tomorrow (Aug 15)', count: '14 Goats', status: 'Due Soon', color: '#EF4444' },
-        { name: 'Albendazole Dewormer', dose: '5ml Oral', due: 'In 3 Days (Aug 17)', count: '28 Sheep', status: 'Scheduled', color: '#F59E0B' },
-        { name: 'ADE Vitamin Complex', dose: '3ml IM', due: 'Aug 22, 2026', count: '10 Kids', status: 'Upcoming', color: '#10B981' },
+        { name: 'CDT Clostridial Booster', dose: '2ml SubQ', due: 'Tomorrow (Aug 15)', count: '14 Goats', status: 'Due Soon', color: '#FF3B30' },
+        { name: 'Albendazole Dewormer', dose: '5ml Oral', due: 'In 3 Days (Aug 17)', count: '28 Sheep', status: 'Scheduled', color: '#FF9F0A' },
+        { name: 'ADE Vitamin Complex', dose: '3ml IM', due: 'Aug 22, 2026', count: '10 Kids', status: 'Upcoming', color: '#FFB340' },
       ].map((v, i) => (
         <div
           key={i}
@@ -1418,14 +1418,14 @@ function BreedingScreenMockup({ progress }: { progress: number }) {
       {/* Gestation Progress */}
       <div
         style={{
-          background: 'rgba(236, 72, 153, 0.1)',
+          background: 'rgba(255, 122, 24, 0.1)',
           borderRadius: 14,
           padding: 16,
-          border: '1px solid rgba(236, 72, 153, 0.3)',
+          border: '1px solid rgba(255, 122, 24, 0.3)',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 800, color: '#EC4899' }}>🐐 GESTATION COUNTDOWN</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18' }}>🐐 GESTATION COUNTDOWN</span>
           <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>Day 115 / 150</span>
         </div>
         <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', marginBottom: 4 }}>
@@ -1437,10 +1437,10 @@ function BreedingScreenMockup({ progress }: { progress: number }) {
 
         {/* Progress bar */}
         <div style={{ height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.4)', overflow: 'hidden', marginBottom: 10 }}>
-          <div style={{ height: '100%', width: '76%', background: 'linear-gradient(90deg, #EC4899, #F472B6)' }} />
+          <div style={{ height: '100%', width: '76%', background: 'linear-gradient(90deg, #FF3B30, #FF7A18)' }} />
         </div>
 
-        <div style={{ fontSize: 11, color: '#F472B6', fontWeight: 600 }}>
+        <div style={{ fontSize: 11, color: '#FF9F0A', fontWeight: 600 }}>
           ✨ Milestone: Move to Kidding Pen in 20 days
         </div>
       </div>
@@ -1458,7 +1458,7 @@ function BreedingScreenMockup({ progress }: { progress: number }) {
         }}
       >
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#10B981', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#FFB340', marginBottom: 6 }}>
             🧬 INBREEDING CHECK: SAFE (0.0%)
           </div>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 4 }}>
@@ -1476,7 +1476,7 @@ function BreedingScreenMockup({ progress }: { progress: number }) {
           </div>
           <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)', padding: 6, borderRadius: 6, textAlign: 'center' }}>
             <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Kid Vigor</span>
-            <div style={{ fontWeight: 800, color: '#10B981', fontSize: 13 }}>High (A+)</div>
+            <div style={{ fontWeight: 800, color: '#FFB340', fontSize: 13 }}>High (A+)</div>
           </div>
         </div>
       </div>
@@ -1495,21 +1495,21 @@ function InventoryScreenMockup({ progress }: { progress: number }) {
           border: '1px solid rgba(255, 255, 255, 0.08)',
         }}
       >
-        <div style={{ fontSize: 12, fontWeight: 800, color: '#10B981', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18', marginBottom: 8 }}>
           📦 REAL-TIME FEED & SUPPLIES
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: '#fff' }}>Alfalfa Hay Bales</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#10B981' }}>42 bags (Good)</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#FFB340' }}>42 bags (Good)</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: '#fff' }}>Goat Starter Pellet</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#F59E0B' }}>4 bags (Low Stock)</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#FF9F0A' }}>4 bags (Low Stock)</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: '#fff' }}>Mineral Salt Block</span>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#10B981' }}>12 units (Good)</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#FFB340' }}>12 units (Good)</span>
           </div>
         </div>
       </div>
@@ -1522,12 +1522,12 @@ function InventoryScreenMockup({ progress }: { progress: number }) {
           border: '1px solid rgba(255, 255, 255, 0.08)',
         }}
       >
-        <div style={{ fontSize: 12, fontWeight: 800, color: '#3B82F6', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18', marginBottom: 8 }}>
           🥛 DAILY MILK PRODUCTION
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>48.5 Liters</span>
-          <span style={{ fontSize: 12, color: '#10B981', fontWeight: 800 }}>+12% vs last week</span>
+          <span style={{ fontSize: 12, color: '#FFB340', fontWeight: 800 }}>+12% vs last week</span>
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
           Avg 2.7L per milking doe. Peak yield recorded for #SAANEN-018. All records synced to cloud reports.
@@ -1546,8 +1546,8 @@ function ScannerScreenMockup({ progress }: { progress: number }) {
           width: 220,
           height: 140,
           borderRadius: 12,
-          border: '2px solid rgba(59, 130, 246, 0.5)',
-          background: 'rgba(59, 130, 246, 0.05)',
+          border: '2px solid rgba(255, 122, 24, 0.5)',
+          background: 'rgba(255, 122, 24, 0.05)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -1563,15 +1563,15 @@ function ScannerScreenMockup({ progress }: { progress: number }) {
             left: 0,
             right: 0,
             height: 2,
-            background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)',
-            boxShadow: '0 0 12px #3B82F6',
+            background: 'linear-gradient(90deg, transparent, #FF9F0A, #FF7A18, #FF9F0A, transparent)',
+            boxShadow: '0 0 12px #FF9F0A',
             top: `${(progress * 100) % 100}%`,
             transition: 'top 0.1s linear',
           }}
         />
 
-        <ScanLine size={48} color="#3B82F6" style={{ opacity: 0.8 }} />
-        <div style={{ fontSize: 11, fontWeight: 800, color: '#3B82F6', marginTop: 6 }}>
+        <ScanLine size={48} color="#FF7A18" style={{ opacity: 0.8 }} />
+        <div style={{ fontSize: 11, fontWeight: 800, color: '#FF9F0A', marginTop: 6 }}>
           Scanning Ear Tag QR Code...
         </div>
       </div>
@@ -1580,11 +1580,11 @@ function ScannerScreenMockup({ progress }: { progress: number }) {
         style={{
           padding: '6px 14px',
           borderRadius: 8,
-          background: 'rgba(16, 185, 129, 0.2)',
-          border: '1px solid rgba(16, 185, 129, 0.4)',
+          background: 'rgba(255, 159, 10, 0.2)',
+          border: '1px solid rgba(255, 159, 10, 0.4)',
           fontSize: 12,
           fontWeight: 800,
-          color: '#10B981',
+          color: '#FFB340',
           display: 'flex',
           alignItems: 'center',
           gap: 6,

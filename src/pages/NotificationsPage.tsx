@@ -39,16 +39,16 @@ export function NotificationsPage() {
   };
 
   const priorityColor = (p: string) =>
-    p === 'Critical' ? 'red' : p === 'Warning' ? 'orange' : p === 'Success' ? 'green' : 'blue';
+    p === 'Critical' ? 'red' : p === 'Warning' ? 'orange' : p === 'Success' ? 'orange' : 'orange';
 
   const typeIcon = (t: string) => {
     switch (t) {
-      case 'Health': return <Icons.HeartPulse size={18} color="#EF4444" />;
-      case 'Vaccination': return <Icons.Syringe size={18} color="#F59E0B" />;
-      case 'Breeding': return <Icons.Heart size={18} color="#3B82F6" />;
-      case 'Weight': return <Icons.Scale size={18} color="#10B981" />;
-      case 'Inventory': return <Icons.Package size={18} color="#F59E0B" />;
-      default: return <Icons.Bell size={18} color="#9CA3AF" />;
+      case 'Health': return <Icons.HeartPulse size={18} color="#FF3B30" />;
+      case 'Vaccination': return <Icons.Syringe size={18} color="#FF7A18" />;
+      case 'Breeding': return <Icons.Heart size={18} color="#FF7A18" />;
+      case 'Weight': return <Icons.Scale size={18} color="#FF9F0A" />;
+      case 'Inventory': return <Icons.Package size={18} color="#D92D20" />;
+      default: return <Icons.Bell size={18} color="#FFB340" />;
     }
   };
 

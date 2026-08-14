@@ -189,13 +189,13 @@ export function AnalyticsPage() {
               {healthTrend.counts.every((c) => c === 0) ? (
                 <div className="empty-state"><p>No health records in this period.</p></div>
               ) : (
-                <Line data={{ labels: healthTrend.labels, datasets: [{ label: 'Records', data: healthTrend.counts, borderColor: '#B91C1C', backgroundColor: 'rgba(185,28,28,0.08)', fill: true, tension: 0.3 }] }} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+                <Line data={{ labels: healthTrend.labels, datasets: [{ label: 'Records', data: healthTrend.counts, borderColor: '#FF7A18', backgroundColor: 'rgba(255,122,24,0.12)', fill: true, tension: 0.3 }] }} options={{ responsive: true, plugins: { legend: { display: false } } }} />
               )}
             </div>
             <div className="card">
               <div className="card-title" style={{ marginBottom: 14 }}>Health Status Distribution</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
-                <Doughnut data={{ labels: ['Healthy', 'Monitor', 'At Risk', 'Critical'], datasets: [{ data: healthDist, backgroundColor: ['#10B981', '#F59E0B', '#F97316', '#EF4444'], borderWidth: 0 }] }} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
+                <Doughnut data={{ labels: ['Healthy', 'Monitor', 'At Risk', 'Critical'], datasets: [{ data: healthDist, backgroundColor: ['#FFB340', '#FF9F0A', '#FF7A18', '#FF3B30'], borderWidth: 0 }] }} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
               </div>
             </div>
           </div>
@@ -206,13 +206,13 @@ export function AnalyticsPage() {
               {weightTrend.avgWeights.every((w) => w === 0) ? (
                 <div className="empty-state"><p>No weight records in this period.</p></div>
               ) : (
-                <Line data={{ labels: weightTrend.labels, datasets: [{ label: 'Avg Weight (kg)', data: weightTrend.avgWeights, borderColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.3 }] }} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+                <Line data={{ labels: weightTrend.labels, datasets: [{ label: 'Avg Weight (kg)', data: weightTrend.avgWeights, borderColor: '#FF7A18', backgroundColor: 'rgba(255,122,24,0.12)', fill: true, tension: 0.3 }] }} options={{ responsive: true, plugins: { legend: { display: false } } }} />
               )}
             </div>
             <div className="card">
               <div className="card-title" style={{ marginBottom: 14 }}>Species Distribution</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
-                <Doughnut data={{ labels: ['Goats', 'Sheep'], datasets: [{ data: speciesDist, backgroundColor: ['#B91C1C', '#F59E0B'], borderWidth: 0 }] }} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
+                <Doughnut data={{ labels: ['Goats', 'Sheep'], datasets: [{ data: speciesDist, backgroundColor: ['#FF3B30', '#FF9F0A'], borderWidth: 0 }] }} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
               </div>
             </div>
           </div>
@@ -221,13 +221,13 @@ export function AnalyticsPage() {
             <div className="card">
               <div className="card-title" style={{ marginBottom: 14 }}>Breeding Overview</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
-                <Doughnut data={{ labels: ['Pregnant', 'Open', 'Ready', 'Other'], datasets: [{ data: breedingOverview, backgroundColor: ['#3B82F6', '#9CA3AF', '#10B981', '#E5E7EB'], borderWidth: 0 }] }} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
+                <Doughnut data={{ labels: ['Pregnant', 'Open', 'Ready', 'Other'], datasets: [{ data: breedingOverview, backgroundColor: ['#FF7A18', '#A7B8CC', '#FFB340', '#475569'], borderWidth: 0 }] }} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
               </div>
             </div>
             <div className="card">
               <div className="card-title" style={{ marginBottom: 14 }}>Vaccination Compliance</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
-                <Doughnut data={{ labels: ['Up to Date', 'Due Soon', 'Overdue', 'None'], datasets: [{ data: vaccCompliance, backgroundColor: ['#10B981', '#F59E0B', '#EF4444', '#E5E7EB'], borderWidth: 0 }] }} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
+                <Doughnut data={{ labels: ['Up to Date', 'Due Soon', 'Overdue', 'None'], datasets: [{ data: vaccCompliance, backgroundColor: ['#FFB340', '#FF9F0A', '#FF3B30', '#475569'], borderWidth: 0 }] }} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
               </div>
             </div>
           </div>
@@ -237,28 +237,28 @@ export function AnalyticsPage() {
             {invByCategory.every((c) => c === 0) ? (
               <div className="empty-state"><p>No inventory items.</p></div>
             ) : (
-              <Bar data={{ labels: ['Feed', 'Medicine', 'Vaccines', 'Supplies', 'Equipment', 'Other'], datasets: [{ label: 'Items', data: invByCategory, backgroundColor: '#B91C1C', borderRadius: 6 }] }} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+              <Bar data={{ labels: ['Feed', 'Medicine', 'Vaccines', 'Supplies', 'Equipment', 'Other'], datasets: [{ label: 'Items', data: invByCategory, backgroundColor: '#FF7A18', borderRadius: 6 }] }} options={{ responsive: true, plugins: { legend: { display: false } } }} />
             )}
           </div>
 
           {feedEfficiencyData.length > 0 && (
             <div className="card">
               <div className="card-title" style={{ marginBottom: 14 }}>Feed Consumption by Animal</div>
-              <Bar data={{ labels: feedEfficiencyData.map((d) => d.name), datasets: [{ label: 'Feed (kg)', data: feedEfficiencyData.map((d) => d.feed), backgroundColor: '#10B981', borderRadius: 6 }] }} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+              <Bar data={{ labels: feedEfficiencyData.map((d) => d.name), datasets: [{ label: 'Feed (kg)', data: feedEfficiencyData.map((d) => d.feed), backgroundColor: '#FF9F0A', borderRadius: 6 }] }} options={{ responsive: true, plugins: { legend: { display: false } } }} />
             </div>
           )}
 
           {/* ML Anomaly Detection */}
-          <div className="card section-gap" style={{ marginTop: 24, borderLeft: '3px solid #EF4444' }}>
+          <div className="card section-gap" style={{ marginTop: 24, borderLeft: '3px solid #FF3B30' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <AlertCircle size={18} color="#EF4444" />
+              <AlertCircle size={18} color="#FF3B30" />
               <span style={{ fontWeight: 700, fontSize: 14 }}>ML Anomaly Detection — Z-Score + IQR</span>
-              <span className="badge" style={{ background: anomalies.length > 0 ? '#FEE2E2' : '#D1FAE5', color: anomalies.length > 0 ? '#991B1B' : '#065F46' }}>
+              <span className="badge" style={{ background: anomalies.length > 0 ? 'rgba(255,59,48,0.2)' : 'rgba(255,159,10,0.2)', color: anomalies.length > 0 ? '#FF3B30' : '#FFB340', border: '1px solid rgba(255,255,255,0.15)' }}>
                 {anomalies.length} {anomalies.length === 1 ? 'anomaly' : 'anomalies'} detected
               </span>
             </div>
             {anomalies.length === 0 ? (
-              <div className="empty-state"><div className="es-icon"><Icons.CheckCircle size={24} /></div><h4>No anomalies detected</h4><p>All vitals are within expected ranges based on historical data.</p></div>
+              <div className="empty-state"><div className="es-icon"><Icons.CheckCircle size={24} color="#FFB340" /></div><h4>No anomalies detected</h4><p>All vitals are within expected ranges based on historical data.</p></div>
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
@@ -295,11 +295,11 @@ export function AnalyticsPage() {
 
           {/* ML K-Means Clustering */}
           {clusters && (
-            <div className="card section-gap" style={{ borderLeft: '3px solid #10B981' }}>
+            <div className="card section-gap" style={{ borderLeft: '3px solid #FF7A18' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <Layers size={18} color="#10B981" />
+                <Layers size={18} color="#FF7A18" />
                 <span style={{ fontWeight: 700, fontSize: 14 }}>ML Animal Clustering — K-Means</span>
-                <span className="badge" style={{ background: '#D1FAE5', color: '#065F46' }}>{clusters.k} clusters · {clusters.converged ? 'converged' : 'max iterations'}</span>
+                <span className="badge" style={{ background: 'rgba(255,159,10,0.2)', color: '#FFB340', border: '1px solid rgba(255,159,10,0.3)' }}>{clusters.k} clusters · {clusters.converged ? 'converged' : 'max iterations'}</span>
               </div>
               <div className="grid-auto">
                 {clusters.clusterLabels.map((label, c) => {
@@ -307,7 +307,7 @@ export function AnalyticsPage() {
                   return (
                     <div key={c} style={{ padding: 14, borderRadius: 12, background: 'var(--bg)' }}>
                       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'][c % 4] }} />
+                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: ['#FFB340', '#FF7A18', '#FF9F0A', '#FF3B30'][c % 4] }} />
                         {label}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{animalsInCluster.length} {animalsInCluster.length === 1 ? 'animal' : 'animals'}</div>

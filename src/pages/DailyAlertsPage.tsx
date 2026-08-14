@@ -117,11 +117,11 @@ export function DailyAlertsPage() {
               }}
             >
               <div style={{ marginTop: 2 }}>
-                {alert.type === 'Health' && <Icons.HeartPulse size={18} color="#EF4444" />}
-                {alert.type === 'Vaccination' && <Icons.Syringe size={18} color="#F59E0B" />}
-                {alert.type === 'Breeding' && <Icons.Heart size={18} color="#3B82F6" />}
-                {alert.type === 'Weight' && <Icons.Scale size={18} color="#10B981" />}
-                {alert.type === 'Inventory' && <Icons.Package size={18} color="#F59E0B" />}
+                {alert.type === 'Health' && <Icons.HeartPulse size={18} color="#FF3B30" />}
+                {alert.type === 'Vaccination' && <Icons.Syringe size={18} color="#FF7A18" />}
+                {alert.type === 'Breeding' && <Icons.Heart size={18} color="#FF7A18" />}
+                {alert.type === 'Weight' && <Icons.Scale size={18} color="#FF9F0A" />}
+                {alert.type === 'Inventory' && <Icons.Package size={18} color="#D92D20" />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>

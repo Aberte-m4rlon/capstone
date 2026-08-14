@@ -207,7 +207,7 @@ export function FeedPage() {
           {/* Feed efficiency summary */}
           <div className="card section-gap">
             <div className="card-title" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Brain size={16} color="#10B981" /> Feed Efficiency & ML Feed-to-Gain Regression
+              <Brain size={16} color="#FF7A18" /> Feed Efficiency & ML Feed-to-Gain Regression
             </div>
             {feedEfficiency.length === 0 ? (
               <div className="empty-state"><div className="es-icon"><Icons.Wheat size={24} /></div><h4>No feed data yet</h4><p>Record feed to see efficiency scores.</p></div>
@@ -230,7 +230,7 @@ export function FeedPage() {
             {feedPred && (
               <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: 'var(--bg)' }}>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <TrendingUp size={14} color="#10B981" /> ML Feed-to-Weight-Gain Model
+                  <TrendingUp size={14} color="#FF7A18" /> ML Feed-to-Weight-Gain Model
                 </div>
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                   <div><span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>R²</span> <span style={{ fontWeight: 700 }}>{feedPred.model.rSquared.toFixed(3)}</span></div>
