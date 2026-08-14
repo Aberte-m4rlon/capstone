@@ -404,9 +404,12 @@ export function Dashboard() {
           {/* Health Risk Model */}
           <div style={{
             padding: 16,
-            borderRadius: 12,
-            background: 'var(--bg)',
-            border: '1px solid var(--border-light)',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.10)',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <Brain size={16} color="var(--accent)" />
@@ -437,9 +440,12 @@ export function Dashboard() {
           {/* Anomaly Detection */}
           <div style={{
             padding: 16,
-            borderRadius: 12,
-            background: 'var(--bg)',
-            border: '1px solid var(--border-light)',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.10)',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <AlertCircle size={16} color="#EF4444" />
@@ -468,9 +474,12 @@ export function Dashboard() {
           {/* Growth Predictions */}
           <div style={{
             padding: 16,
-            borderRadius: 12,
-            background: 'var(--bg)',
-            border: '1px solid var(--border-light)',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.10)',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <TrendingUp size={16} color="#3B82F6" />
@@ -492,9 +501,12 @@ export function Dashboard() {
           {/* Animal Clustering */}
           <div style={{
             padding: 16,
-            borderRadius: 12,
-            background: 'var(--bg)',
-            border: '1px solid var(--border-light)',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.10)',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <Layers size={16} color="#10B981" />
@@ -554,23 +566,28 @@ export function Dashboard() {
                     key={i}
                     onClick={() => rec.link && navigate(rec.link)}
                     style={{
-                      padding: 12,
-                      borderRadius: 10,
-                      background: 'var(--bg)',
-                      border: '1px solid var(--border-light)',
+                      padding: 14,
+                      borderRadius: 14,
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      border: '1px solid rgba(255, 255, 255, 0.10)',
+                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 15px rgba(0, 0, 0, 0.10)',
                       cursor: 'pointer',
                       display: 'flex',
-                      gap: 10,
+                      gap: 12,
                       alignItems: 'flex-start',
-                      transition: 'all 0.3s',
+                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
-                      (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-hover)';
+                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255, 75, 43, 0.4)';
+                      (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04))';
+                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
                     }}
                     onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border-light)';
-                      (e.currentTarget as HTMLDivElement).style.background = 'var(--bg)';
+                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255, 255, 255, 0.10)';
+                      (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))';
+                      (e.currentTarget as HTMLDivElement).style.transform = 'none';
                     }}
                   >
                     <div style={{
@@ -578,12 +595,13 @@ export function Dashboard() {
                       height: 8,
                       borderRadius: '50%',
                       background: colorMap[rec.severity_color as keyof typeof colorMap] || '#3B82F6',
-                      marginTop: 4,
+                      boxShadow: `0 0 8px ${colorMap[rec.severity_color as keyof typeof colorMap] || '#3B82F6'}`,
+                      marginTop: 5,
                       flexShrink: 0,
                     }} />
                     <div style={{ flex: 1 }}>
                       <div style={{
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: 700,
                         color: 'var(--text)',
                         marginBottom: 2,
@@ -594,6 +612,7 @@ export function Dashboard() {
                         <div style={{
                           fontSize: 11,
                           color: 'var(--text-secondary)',
+                          lineHeight: 1.4,
                         }}>
                           {rec.description}
                         </div>
@@ -637,43 +656,50 @@ export function Dashboard() {
                     key={p.id}
                     onClick={() => navigate(p.link)}
                     style={{
-                      padding: 12,
-                      borderRadius: 10,
-                      background: 'var(--bg)',
-                      border: '1px solid var(--border-light)',
+                      padding: 14,
+                      borderRadius: 14,
+                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      border: '1px solid rgba(255, 255, 255, 0.10)',
+                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 15px rgba(0, 0, 0, 0.10)',
                       cursor: 'pointer',
                       display: 'flex',
-                      gap: 10,
+                      gap: 12,
                       alignItems: 'flex-start',
-                      transition: 'all 0.3s',
+                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
-                      (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-hover)';
+                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255, 75, 43, 0.4)';
+                      (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04))';
+                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
                     }}
                     onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border-light)';
-                      (e.currentTarget as HTMLDivElement).style.background = 'var(--bg)';
+                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255, 255, 255, 0.10)';
+                      (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))';
+                      (e.currentTarget as HTMLDivElement).style.transform = 'none';
                     }}
                   >
                     <div style={{
                       width: 28,
                       height: 28,
-                      borderRadius: 6,
-                      background: severityColor + '20',
+                      borderRadius: 8,
+                      background: severityColor + '25',
+                      border: `1px solid ${severityColor}40`,
+                      boxShadow: `inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px ${severityColor}30`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: severityColor,
                       fontSize: 12,
-                      fontWeight: 700,
+                      fontWeight: 800,
                       flexShrink: 0,
                     }}>
                       {i + 1}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: 700,
                         color: 'var(--text)',
                         marginBottom: 2,
@@ -683,6 +709,7 @@ export function Dashboard() {
                       <div style={{
                         fontSize: 11,
                         color: 'var(--text-secondary)',
+                        lineHeight: 1.4,
                       }}>
                         {p.description}
                       </div>
