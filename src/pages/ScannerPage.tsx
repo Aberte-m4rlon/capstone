@@ -216,10 +216,13 @@ export function ScannerPage() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{
-            width: 64, height: 64, borderRadius: 16, background: '#D1FAE5',
+            width: 64, height: 64, borderRadius: 20,
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.06))',
+            border: '1px solid rgba(52, 211, 153, 0.35)',
+            boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 8px 24px rgba(16, 185, 129, 0.25)',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
           }}>
-            <ScanLine size={32} color="#059669" />
+            <ScanLine size={32} color="#34D399" />
           </div>
           <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>QR Code Scanner</h2>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
@@ -228,7 +231,12 @@ export function ScannerPage() {
         </div>
 
         {/* Mode toggle */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: 'var(--bg)', borderRadius: 10, padding: 4 }}>
+        <div style={{
+          display: 'flex', gap: 6, marginBottom: 20,
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
+          border: '1px solid rgba(255, 255, 255, 0.10)',
+          borderRadius: 999, padding: 4,
+        }}>
           <button
             className={`btn btn-sm ${mode === 'camera' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ flex: 1 }}
@@ -251,25 +259,25 @@ export function ScannerPage() {
             {/* Success flash */}
             {lastResult && (
               <div style={{
-                background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: 10,
+                background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(52, 211, 153, 0.4)', borderRadius: 14,
                 padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10,
               }}>
-                <CheckCircle size={20} color="#059669" />
-                <span style={{ fontWeight: 700, color: '#065F46' }}>Found: {lastResult} — navigating…</span>
+                <CheckCircle size={20} color="#34D399" />
+                <span style={{ fontWeight: 700, color: '#34D399' }}>Found: {lastResult} — navigating…</span>
               </div>
             )}
 
             {/* Error state */}
             {scanState === 'error' && (
               <div style={{
-                background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10,
+                background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(248, 113, 113, 0.35)', borderRadius: 14,
                 padding: '14px 16px', marginBottom: 14,
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <AlertCircle size={20} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <AlertCircle size={20} color="#F87171" style={{ flexShrink: 0, marginTop: 1 }} />
                   <div>
-                    <p style={{ fontWeight: 700, color: '#991B1B', marginBottom: 4 }}>Scanner Error</p>
-                    <p style={{ fontSize: 12, color: '#7F1D1D', whiteSpace: 'pre-line' }}>{errorMsg}</p>
+                    <p style={{ fontWeight: 700, color: '#F87171', marginBottom: 4 }}>Scanner Error</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'pre-line' }}>{errorMsg}</p>
                   </div>
                 </div>
                 <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={startScanner}>
@@ -281,10 +289,12 @@ export function ScannerPage() {
             {/* Idle state — show start button */}
             {scanState === 'idle' && !lastResult && (
               <div style={{
-                border: '2px dashed var(--border)', borderRadius: 14, padding: '36px 20px',
-                textAlign: 'center', background: 'var(--bg)', marginBottom: 12,
+                border: '1px solid rgba(52, 211, 153, 0.25)', borderRadius: 20, padding: '36px 20px',
+                textAlign: 'center', background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))',
+                backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 30px rgba(0, 0, 0, 0.18)', marginBottom: 12,
               }}>
-                <QrCode size={52} color="var(--text-secondary)" style={{ margin: '0 auto 12px', display: 'block' }} />
+                <QrCode size={52} color="#34D399" style={{ margin: '0 auto 12px', display: 'block' }} />
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>
                   Press Start and point your camera at the animal's QR code tag.
                 </p>

@@ -137,135 +137,139 @@ export function Dashboard() {
     );
   }
 
-  const kpiCards = [
-    { label: 'Total Animals', value: stats.total, delta: `+${stats.newThisMonth} this month`, icon: 'PawPrint' as const, color: 'red' as const, deltaUp: true },
-    { label: 'Healthy Animals', value: stats.healthy, delta: stats.total > 0 ? `${((stats.healthy / stats.total) * 100).toFixed(1)}%` : '—', icon: 'HeartPulse' as const, color: 'green' as const, deltaUp: true },
-    { label: 'Health Alerts', value: stats.atRisk, delta: stats.atRisk > 0 ? 'Requires attention' : 'All clear', icon: 'AlertTriangle' as const, color: 'orange' as const, deltaUp: stats.atRisk === 0 },
-    { label: 'Breeding', value: stats.pregnant, delta: activeAnimals.filter((a) => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 30).length + ' due soon', icon: 'Baby' as const, color: 'purple' as const, deltaUp: true },
-    { label: 'Inventory Items', value: stats.invCount, delta: stats.expiringSoon > 0 ? `${stats.expiringSoon} expiring soon` : 'All stocked', icon: 'Package' as const, color: 'gray' as const, deltaUp: stats.expiringSoon === 0 },
-    { label: 'Average Weight', value: `${stats.avgWeight} kg`, delta: 'Across active animals', icon: 'Scale' as const, color: 'blue' as const, deltaUp: true },
-  ];
+    const farmHealthScore = stats.total > 0
+      ? Math.round((stats.healthy / stats.total) * 70 + (stats.total - stats.atRisk) / stats.total * 20 + (stats.total - Math.min(stats.total, stats.vaccDue)) / stats.total * 10)
+      : 100;
 
-  return (
-    <div style={{ paddingBottom: 20 }}>
-      {/* Greeting Header */}
-      <div className="dashboard-greeting">
-        <h1 className="dashboard-title">
-          {greeting}, Farmer
-        </h1>
-        <p className="dashboard-subtitle">
-          Here's what's happening on your farm today.
-        </p>
-      </div>
+    const kpiCards = [
+      { label: 'Total Animals', value: stats.total, delta: `+${stats.newThisMonth} this month`, icon: 'PawPrint' as const, color: 'green' as const, deltaUp: true },
+      { label: 'Healthy Animals', value: stats.healthy, delta: stats.total > 0 ? `${((stats.healthy / stats.total) * 100).toFixed(0)}% optimal` : '100%', icon: 'HeartPulse' as const, color: 'green' as const, deltaUp: true },
+      { label: 'Animals at Risk', value: stats.atRisk, delta: stats.atRisk > 0 ? 'Requires attention' : 'Zero at risk', icon: 'AlertTriangle' as const, color: stats.atRisk > 0 ? ('red' as const) : ('green' as const), deltaUp: stats.atRisk === 0 },
+      { label: 'Pregnant Animals', value: stats.pregnant, delta: `${activeAnimals.filter((a) => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 30).length} due in 30d`, icon: 'Baby' as const, color: 'purple' as const, deltaUp: true },
+      { label: 'Upcoming Vaccinations', value: stats.vaccDue, delta: stats.vaccDue > 0 ? `${stats.vaccDue} due soon/overdue` : 'Up to date', icon: 'Syringe' as const, color: stats.vaccDue > 0 ? ('orange' as const) : ('blue' as const), deltaUp: stats.vaccDue === 0 },
+      { label: 'Farm Health Score', value: `${farmHealthScore}%`, delta: farmHealthScore >= 85 ? 'Optimal rating' : farmHealthScore >= 70 ? 'Good condition' : 'Needs review', icon: 'CheckCircle' as const, color: 'green' as const, deltaUp: farmHealthScore >= 75 },
+    ];
 
-      {/* Quick Actions */}
-      <div className="quick-actions quick-actions-grid">
-        {[
-          { label: 'Add Animal', to: '/animals', icon: 'PawPrint' as const },
-          { label: 'Health Check', to: '/health', icon: 'HeartPulse' as const },
-          { label: 'Record Weight', to: '/weights', icon: 'Scale' as const },
-          { label: 'Breeding Record', to: '/breeding', icon: 'Heart' as const },
-          { label: 'Add Vaccination', to: '/vaccinations', icon: 'Syringe' as const },
-          { label: 'Add Inventory', to: '/inventory', icon: 'Package' as const },
-          { label: 'Record Feed', to: '/feed', icon: 'Wheat' as const },
-        ].map((a) => {
-          const Icon = Icons[a.icon];
-          return (
-            <button
-              key={a.label}
-              onClick={() => navigate(a.to)}
-              className="quick-action quick-action-btn"
-            >
-              <Plus size={16} className="qa-plus-icon" />
-              <Icon size={16} className="qa-icon" />
-              <span>{a.label}</span>
-            </button>
-          );
-        })}
-      </div>
+    return (
+      <div style={{ paddingBottom: 20 }}>
+        {/* Greeting Header */}
+        <div className="dashboard-greeting">
+          <h1 className="dashboard-title">
+            {greeting}, Farmer
+          </h1>
+          <p className="dashboard-subtitle">
+            AI-powered farm analytics & intelligent livestock monitoring
+          </p>
+        </div>
 
-      {/* KPI Cards Grid */}
-      <div className="kpi-grid stats-grid">
-        {kpiCards.map((kpi) => {
-          const Icon = Icons[kpi.icon];
-          return (
-            <div
-              key={kpi.label}
-              className="kpi-card stat-card"
-            >
-              <div className="kpi-top">
-                <div className={`kpi-icon stat-card-icon ${kpi.color}`}>
-                  <Icon size={20} />
+        {/* Quick Actions */}
+        <div className="quick-actions quick-actions-grid">
+          {[
+            { label: 'Add Animal', to: '/animals', icon: 'PawPrint' as const },
+            { label: 'Health Check', to: '/health', icon: 'HeartPulse' as const },
+            { label: 'Record Weight', to: '/weights', icon: 'Scale' as const },
+            { label: 'Breeding Record', to: '/breeding', icon: 'Heart' as const },
+            { label: 'Add Vaccination', to: '/vaccinations', icon: 'Syringe' as const },
+            { label: 'Add Inventory', to: '/inventory', icon: 'Package' as const },
+            { label: 'Record Feed', to: '/feed', icon: 'Wheat' as const },
+          ].map((a) => {
+            const Icon = Icons[a.icon];
+            return (
+              <button
+                key={a.label}
+                onClick={() => navigate(a.to)}
+                className="quick-action quick-action-btn"
+              >
+                <Plus size={16} className="qa-plus-icon" />
+                <Icon size={16} className="qa-icon" />
+                <span>{a.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* KPI Cards Grid */}
+        <div className="kpi-grid stats-grid">
+          {kpiCards.map((kpi) => {
+            const Icon = Icons[kpi.icon];
+            return (
+              <div
+                key={kpi.label}
+                className="kpi-card stat-card"
+              >
+                <div className="kpi-top">
+                  <div className={`kpi-icon stat-card-icon ${kpi.color}`}>
+                    <Icon size={20} />
+                  </div>
+                </div>
+                <div className="kpi-value stat-card-value">
+                  {kpi.value}
+                </div>
+                <div className="kpi-label stat-card-label">
+                  {kpi.label}
+                </div>
+                <div className={`kpi-delta ${kpi.deltaUp ? 'up' : 'down'}`}>
+                  {kpi.delta}
                 </div>
               </div>
-              <div className="kpi-value stat-card-value">
-                {kpi.value}
-              </div>
-              <div className="kpi-label stat-card-label">
-                {kpi.label}
-              </div>
-              <div className={`kpi-delta ${kpi.deltaUp ? 'up' : 'down'}`}>
-                {kpi.delta}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Charts Row */}
-      <div className="dashboard-grid-2">
-        <div className="glass-card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">
-                Health Check Activity
-              </div>
-              <div className="card-subtitle">
-                Records logged in the last 30 days
-              </div>
-            </div>
-          </div>
-          {healthTrendData.counts.every((c) => c === 0) ? (
-            <div style={{
-              textAlign: 'center',
-              padding: 40,
-              color: 'var(--text-secondary)',
-            }}>
-              <Icons.HeartPulse size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-              <div style={{ fontSize: 14, fontWeight: 600 }}>No health records yet</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Start recording health checks to see trends</div>
-            </div>
-          ) : (
-            <Line
-              data={{
-                labels: healthTrendData.labels,
-                datasets: [
-                  {
-                    label: 'Health Records',
-                    data: healthTrendData.counts,
-                    borderColor: 'var(--accent)',
-                    backgroundColor: 'rgba(255, 75, 43, 0.08)',
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 3,
-                    pointBackgroundColor: 'var(--accent)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                  y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
-                  x: { grid: { display: false } },
-                },
-              }}
-            />
-          )}
+            );
+          })}
         </div>
+
+        {/* Charts Row */}
+        <div className="dashboard-grid-2">
+          <div className="glass-card">
+            <div className="card-header">
+              <div>
+                <div className="card-title">
+                  Health Check Activity
+                </div>
+                <div className="card-subtitle">
+                  Records logged in the last 30 days
+                </div>
+              </div>
+            </div>
+            {healthTrendData.counts.every((c) => c === 0) ? (
+              <div style={{
+                textAlign: 'center',
+                padding: 40,
+                color: 'var(--text-secondary)',
+              }}>
+                <Icons.HeartPulse size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
+                <div style={{ fontSize: 14, fontWeight: 600 }}>No health records yet</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>Start recording health checks to see trends</div>
+              </div>
+            ) : (
+              <Line
+                data={{
+                  labels: healthTrendData.labels,
+                  datasets: [
+                    {
+                      label: 'Health Records',
+                      data: healthTrendData.counts,
+                      borderColor: '#10B981',
+                      backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                      fill: true,
+                      tension: 0.3,
+                      pointRadius: 3,
+                      pointBackgroundColor: '#10B981',
+                      pointBorderColor: '#fff',
+                      pointBorderWidth: 2,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: true,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                    x: { grid: { display: false } },
+                  },
+                }}
+              />
+            )}
+          </div>
 
         <div className="glass-card">
           <div className="card-header">
