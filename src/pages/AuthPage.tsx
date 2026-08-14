@@ -4,8 +4,23 @@ import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
 import { Mail, Phone } from 'lucide-react';
 
-function formatPhoneNumber(phone: string): string {
-  return phone.replace(/\D/g, '');
+export function formatPhoneNumberToE164(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('+')) {
+    return '+' + trimmed.slice(1).replace(/\D/g, '');
+  }
+  const digitsOnly = trimmed.replace(/\D/g, '');
+  if (digitsOnly.startsWith('0') && digitsOnly.length >= 10) {
+    return '+63' + digitsOnly.slice(1);
+  }
+  if (digitsOnly.startsWith('63') && digitsOnly.length >= 12) {
+    return '+' + digitsOnly;
+  }
+  if (digitsOnly.length === 10 && digitsOnly.startsWith('9')) {
+    return '+63' + digitsOnly;
+  }
+  return '+' + digitsOnly;
 }
 
 export function AuthPage() {
@@ -15,6 +30,7 @@ export function AuthPage() {
   const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [formattedTarget, setFormattedTarget] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,43 +46,54 @@ export function AuthPage() {
       }
 
       setLoading(true);
-      const { error } = await sendOtpToEmail(email.trim());
+      const targetEmail = email.trim();
+      const { error } = await sendOtpToEmail(targetEmail);
       setLoading(false);
 
       if (error) {
-        setError(error);
-        toast(error, 'error');
+        let msg = error;
+        if (error.toLowerCase().includes('rate limit')) {
+          msg = 'Rate limit exceeded. Please wait a moment or configure custom Gmail SMTP in Supabase.';
+        }
+        setError(msg);
+        toast(msg, 'error');
         return;
       }
 
+      setFormattedTarget(targetEmail);
       setIsCodeSent(true);
       setVerificationCode('');
-      toast('Verification code sent to your email.', 'success');
+      toast(`Verification code sent to ${targetEmail}`, 'success');
     } else {
       if (!phone.trim()) {
         setError('Phone number is required.');
         return;
       }
 
-      const formattedPhone = formatPhoneNumber(phone);
-      if (formattedPhone.length < 10) {
-        setError('Please enter a valid phone number.');
+      const e164Phone = formatPhoneNumberToE164(phone);
+      if (e164Phone.length < 11) {
+        setError('Please enter a valid phone number (e.g. 09171234567 or +639171234567).');
         return;
       }
 
       setLoading(true);
-      const { error } = await sendOtpToPhone(formattedPhone);
+      const { error } = await sendOtpToPhone(e164Phone);
       setLoading(false);
 
       if (error) {
-        setError(error);
-        toast(error, 'error');
+        let msg = error;
+        if (error.toLowerCase().includes('sms provider') || error.toLowerCase().includes('unsupported phone provider') || error.toLowerCase().includes('not enabled')) {
+          msg = 'Twilio SMS is not enabled in Supabase yet. Please add your Twilio Account SID, Auth Token & Phone Number in Supabase Dashboard → Authentication → Phone.';
+        }
+        setError(msg);
+        toast(msg, 'error');
         return;
       }
 
+      setFormattedTarget(e164Phone);
       setIsCodeSent(true);
       setVerificationCode('');
-      toast('Verification code sent via SMS.', 'success');
+      toast(`Verification code sent via Twilio SMS to ${e164Phone}`, 'success');
     }
   };
 
@@ -80,7 +107,7 @@ export function AuthPage() {
     }
 
     if (!verificationCode.trim()) {
-      setError('Please enter the verification code.');
+      setError('Please enter the 6-digit verification code.');
       return;
     }
 
@@ -92,15 +119,16 @@ export function AuthPage() {
       const result = await verifyEmailOtp(email.trim(), verificationCode.trim());
       verifyError = result.error;
     } else {
-      const result = await verifyPhoneOtp(formatPhoneNumber(phone), verificationCode.trim());
+      const e164Phone = formattedTarget || formatPhoneNumberToE164(phone);
+      const result = await verifyPhoneOtp(e164Phone, verificationCode.trim());
       verifyError = result.error;
     }
 
     setLoading(false);
 
     if (verifyError) {
-      const friendlyError = verifyError.includes('Invalid OTP') || verifyError.includes('expired')
-        ? 'The verification code is invalid or expired. Please request a new one.'
+      const friendlyError = verifyError.includes('Invalid OTP') || verifyError.includes('expired') || verifyError.includes('Token has expired')
+        ? 'The verification code is invalid or has expired. Please check the code or request a new one.'
         : verifyError;
       setError(friendlyError);
       toast(friendlyError, 'error');
@@ -438,7 +466,7 @@ export function AuthPage() {
             fontWeight: 600,
             letterSpacing: '0.3px',
           }}>
-            ✓ Real {authMethod === 'email' ? 'email' : 'SMS'} verification powered by Supabase
+            ✓ Real {authMethod === 'email' ? 'Gmail' : 'Twilio SMS'} verification code powered by Supabase & Twilio
           </div>
 
           {/* Error Banner */}
