@@ -140,10 +140,10 @@ export function Dashboard() {
   const kpiCards = [
     { label: 'Total Animals', value: stats.total, delta: `+${stats.newThisMonth} this month`, icon: 'PawPrint' as const, color: 'red' as const, deltaUp: true },
     { label: 'Healthy Animals', value: stats.healthy, delta: stats.total > 0 ? `${((stats.healthy / stats.total) * 100).toFixed(1)}%` : '—', icon: 'HeartPulse' as const, color: 'green' as const, deltaUp: true },
-    { label: 'At Risk', value: stats.atRisk, delta: stats.atRisk > 0 ? 'Requires attention' : 'All clear', icon: 'AlertTriangle' as const, color: 'orange' as const, deltaUp: stats.atRisk === 0 },
-    { label: 'Pregnant / Breeding', value: stats.pregnant, delta: activeAnimals.filter((a) => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 30).length + ' due soon', icon: 'Baby' as const, color: 'purple' as const, deltaUp: true },
-    { label: 'Average Weight', value: `${stats.avgWeight} kg`, delta: 'Across active animals', icon: 'Scale' as const, color: 'blue' as const, deltaUp: true },
+    { label: 'Health Alerts', value: stats.atRisk, delta: stats.atRisk > 0 ? 'Requires attention' : 'All clear', icon: 'AlertTriangle' as const, color: 'orange' as const, deltaUp: stats.atRisk === 0 },
+    { label: 'Breeding', value: stats.pregnant, delta: activeAnimals.filter((a) => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 30).length + ' due soon', icon: 'Baby' as const, color: 'purple' as const, deltaUp: true },
     { label: 'Inventory Items', value: stats.invCount, delta: stats.expiringSoon > 0 ? `${stats.expiringSoon} expiring soon` : 'All stocked', icon: 'Package' as const, color: 'gray' as const, deltaUp: stats.expiringSoon === 0 },
+    { label: 'Average Weight', value: `${stats.avgWeight} kg`, delta: 'Across active animals', icon: 'Scale' as const, color: 'blue' as const, deltaUp: true },
   ];
 
   return (
@@ -159,7 +159,7 @@ export function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="quick-actions-grid">
+      <div className="quick-actions quick-actions-grid">
         {[
           { label: 'Add Animal', to: '/animals', icon: 'PawPrint' as const },
           { label: 'Health Check', to: '/health', icon: 'HeartPulse' as const },
@@ -174,7 +174,7 @@ export function Dashboard() {
             <button
               key={a.label}
               onClick={() => navigate(a.to)}
-              className="quick-action-btn"
+              className="quick-action quick-action-btn"
             >
               <Plus size={16} className="qa-plus-icon" />
               <Icon size={16} className="qa-icon" />
@@ -185,23 +185,23 @@ export function Dashboard() {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="kpi-grid">
+      <div className="kpi-grid stats-grid">
         {kpiCards.map((kpi) => {
           const Icon = Icons[kpi.icon];
           return (
             <div
               key={kpi.label}
-              className="kpi-card"
+              className="kpi-card stat-card"
             >
               <div className="kpi-top">
-                <div className={`kpi-icon ${kpi.color}`}>
+                <div className={`kpi-icon stat-card-icon ${kpi.color}`}>
                   <Icon size={20} />
                 </div>
               </div>
-              <div className="kpi-value">
+              <div className="kpi-value stat-card-value">
                 {kpi.value}
               </div>
-              <div className="kpi-label">
+              <div className="kpi-label stat-card-label">
                 {kpi.label}
               </div>
               <div className={`kpi-delta ${kpi.deltaUp ? 'up' : 'down'}`}>
