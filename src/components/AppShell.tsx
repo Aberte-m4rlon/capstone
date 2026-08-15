@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
   { to: '/activity-log', label: 'Activity Log', icon: 'ClipboardList' },
   { to: '/notifications', label: 'Notifications', icon: 'Bell' },
   { to: '/settings', label: 'Settings', icon: 'Settings' },
+  { to: '/myai', label: 'MyAI', icon: 'Bot' },
   { to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' },
 ];
 
@@ -49,6 +50,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/daily-alerts': { title: 'Daily Alerts', subtitle: 'Planned reminders and urgent tasks' },
   '/notifications': { title: 'Notifications', subtitle: 'Alerts and reminders' },
   '/activity-log': { title: 'Activity Log', subtitle: 'Complete history of all farm actions' },
+  '/myai': { title: 'MyAI', subtitle: 'Local AI assistant powered by Ollama' },
   '/admin': { title: 'Admin Panel', subtitle: 'Manage users and system data' },
   '/settings': { title: 'Settings', subtitle: 'Configure farm thresholds' },
 };

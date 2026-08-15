@@ -23,6 +23,7 @@ import { ScannerPage } from './pages/ScannerPage';
 import { PublicAnimalPage } from './pages/PublicAnimalPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
 import { AdminPage } from './pages/AdminPage';
+import { MyAIPage } from './pages/MyAIPage';
 import { ShieldAlert } from 'lucide-react';
 
 // ─── Route guards ──────────────────────────────────────────────────────────────
@@ -263,6 +264,14 @@ function AppRoutes() {
           element={
             <RequireRole allowed={['farm_manager']}>
               <SettingsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/myai"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <MyAIPage />
             </RequireRole>
           }
         />
