@@ -1,6 +1,7 @@
-$svc = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaGFnZnlkeGhldHNwbXVkeXJsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTkyNDY3NywiZXhwIjoyMTAxNTAwNjc3fQ.TJBbDQsA0bbptxVt4-ewAd9M0nxIrv_O1XRh01Ehk00"
+$svc = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzb3RseGJ2YW5wd2VuZmd0ZmxpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njc1NjQwNSwiZXhwIjoyMTAyMzMyNDA1fQ.0goX9ebXlpmGpcHz9aNU0EHlnOGd9M7oAMnJS5BGnyU"
 $uid = "d586af66-5435-4d29-b727-d93d3a9ab479"
-$url = "https://hhhagfydxhetspmudyrl.supabase.co/rest/v1"
+$url = "https://bsotlxbvanpwengftfli.supabase.co/rest/v1"
+
 
 function Post($table, $json) {
     $r = curl.exe -s -o nul -w "%{http_code}" -X POST "$url/$table" `
