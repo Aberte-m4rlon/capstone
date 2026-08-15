@@ -26,7 +26,7 @@ const OLLAMA_MODEL = import.meta.env.VITE_OLLAMA_MODEL ?? 'qwen2.5:1.5b';
 const PRODUCTION_ENDPOINT = '/api/ai/chat';
 
 // Displayed model label
-export const MYAI_MODEL = AI_MODE === 'local' ? OLLAMA_MODEL : 'Groq · Llama 3.1';
+export const MYAI_MODEL = AI_MODE === 'local' ? OLLAMA_MODEL : 'MyAI Cloud';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface MyAIMessage {
