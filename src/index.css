@@ -28,6 +28,13 @@
   --text-secondary: #CBD8E6;
   --text-tertiary: #8AA0B8;
   
+  /* Semantic Theme Tokens (Dark Mode) */
+  --text-primary: #F8FAFC;
+  --text-muted: #8D9AAE;
+  --border-glass: rgba(255, 255, 255, 0.18);
+  --accent-orange: #FF7A18;
+  --accent-red: #FF453A;
+  
   /* Brand Palette (AlpasFarm Red + Vibrant Orange + Warm Amber) */
   --primary: #FF3B30;
   --primary-orange: #FF6A2A;
@@ -90,6 +97,13 @@
   --text: #081628;
   --text-secondary: #425466;
   --text-tertiary: #7D8FA3;
+
+  /* Semantic Theme Tokens (Light Mode) */
+  --text-primary: #152033;
+  --text-muted: #7A8799;
+  --border-glass: rgba(0, 0, 0, 0.08);
+  --accent-orange: #FF6A2A;
+  --accent-red: #FF3B30;
 
   --accent: #FF6A2A;
   --accent-secondary: #FF3B30;
@@ -1110,8 +1124,187 @@ select:-webkit-autofill:focus {
   font-size: 18px;
   font-weight: 900;
   margin-bottom: 18px;
-  color: var(--text);
+  color: var(--text-primary);
   letter-spacing: -0.5px;
+}
+
+/* ===== ANALYTICS PAGE & RESPONSIVE FILTER CONTAINER ===== */
+.analytics-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.analytics-header-info {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.analytics-title {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.analytics-subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 4px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.analytics-filter-wrapper {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.analytics-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  min-width: 0;
+  padding: 5px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+.analytics-filter::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.analytics-filter-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  letter-spacing: -0.2px;
+  text-decoration: none;
+}
+
+[data-theme="light"] .analytics-filter-btn {
+  background: rgba(255, 255, 255, 0.55);
+  color: #536176;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.analytics-filter-btn:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+  border-color: rgba(255, 122, 24, 0.40);
+  transform: translateY(-1px);
+}
+
+.analytics-filter-btn.active {
+  background: linear-gradient(135deg, #FF3B30 0%, #FF7A18 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 8px 25px rgba(255, 80, 30, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.40) !important;
+  transform: translateY(-1px);
+}
+
+.analytics-card-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+  margin-bottom: 14px;
+}
+
+.analytics-card-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.analytics-card-muted {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.analytics-icon {
+  color: var(--text-primary);
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.empty-state .es-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 106, 42, 0.22), rgba(255, 59, 48, 0.10));
+  border: 1px solid rgba(255, 106, 42, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 20px rgba(255, 106, 42, 0.18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #FF7A18;
+  margin-bottom: 12px;
+}
+
+.empty-state h4 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  letter-spacing: -0.3px;
+}
+
+.empty-state p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 380px;
+  margin: 0 auto;
+  line-height: 1.5;
 }
 
 /* ===== BADGES (WARM ORANGE & RED GLASS STATUS) ===== */
@@ -2184,6 +2377,47 @@ table.data-table {
   .grid-4 {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+
+  /* Analytics Page Responsive Stacking on Mobile */
+  .analytics-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .analytics-header-info {
+    width: 100% !important;
+  }
+
+  .analytics-filter-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .analytics-filter {
+    display: flex !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 4px 6px !important;
+    border-radius: var(--radius-pill) !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .analytics-filter-btn {
+    flex: 0 0 auto !important;
+    padding: 7px 14px !important;
+    font-size: 11px !important;
   }
 
   .content {
