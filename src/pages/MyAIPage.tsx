@@ -6,10 +6,10 @@ import {
 } from 'lucide-react';
 import { useFarmData } from '../lib/useFarmData';
 import {
-  type MyAIConversation, type MyAIMessage, type OllamaStatus,
-  checkOllamaStatus, buildFarmContext, streamChat,
+  type MyAIConversation, type MyAIMessage, type AIStatus,
+  checkAIStatus, buildFarmContext, streamChat,
   loadConversations, saveConversations, newConversation,
-  MYAI_MODEL, OLLAMA_URL,
+  MYAI_MODEL, AI_MODE,
 } from '../lib/myai';
 
 // ── Quick prompts ─────────────────────────────────────────────────────────────
@@ -90,12 +90,14 @@ function formatInline(text: string): JSX.Element {
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: OllamaStatus }) {
-  const configs = {
-    checking: { icon: <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} />, label: 'Connecting…', color: 'var(--text-secondary)', bg: 'var(--bg)' },
-    online:   { icon: <Wifi size={11} />, label: `MyAI Online · ${MYAI_MODEL}`, color: '#16A34A', bg: 'rgba(22,163,74,0.10)' },
-    offline:  { icon: <WifiOff size={11} />, label: 'Ollama offline', color: '#EF4444', bg: 'rgba(239,68,68,0.10)' },
-    no_model: { icon: <AlertCircle size={11} />, label: 'Model not found', color: '#F59E0B', bg: 'rgba(245,158,11,0.10)' },
+function StatusBadge({ status }: { status: AIStatus }) {
+  const configs: Record<AIStatus, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
+    checking:    { icon: <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} />, label: 'Connecting…',              color: 'var(--text-secondary)', bg: 'var(--bg)' },
+    online:      { icon: <Wifi size={11} />,                                                        label: `MyAI Online · ${MYAI_MODEL}`, color: '#16A34A',               bg: 'rgba(22,163,74,0.10)' },
+    production:  { icon: <Wifi size={11} />,                                                        label: `MyAI · ${MYAI_MODEL}`,       color: '#16A34A',               bg: 'rgba(22,163,74,0.10)' },
+    offline:     { icon: <WifiOff size={11} />,                                                     label: 'Ollama offline',             color: '#EF4444',               bg: 'rgba(239,68,68,0.10)' },
+    no_model:    { icon: <AlertCircle size={11} />,                                                 label: 'Model not found',            color: '#F59E0B',               bg: 'rgba(245,158,11,0.10)' },
+    unavailable: { icon: <WifiOff size={11} />,                                                     label: 'AI unavailable',             color: '#EF4444',               bg: 'rgba(239,68,68,0.10)' },
   };
   const c = configs[status];
   return (
@@ -151,7 +153,7 @@ export function MyAIPage() {
   const abortRef = useRef<AbortController | null>(null);
 
   // Status
-  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>('checking');
+  const [ollamaStatus, setOllamaStatus] = useState<AIStatus>('checking');
   const statusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const endRef = useRef<HTMLDivElement>(null);
@@ -166,9 +168,9 @@ export function MyAIPage() {
   // Auto-scroll
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [activeConv?.messages.length, streamingText]);
 
-  // Check Ollama status
+  // Check AI status
   const checkStatus = useCallback(async () => {
-    const s = await checkOllamaStatus();
+    const s = await checkAIStatus();
     setOllamaStatus(s);
   }, []);
 
@@ -201,7 +203,7 @@ export function MyAIPage() {
   const handleSend = async (text?: string) => {
     const message = (text ?? input).trim();
     if (!message || streaming) return;
-    if (ollamaStatus === 'offline' || ollamaStatus === 'no_model') return;
+    if (isOffline) return;
 
     setInput('');
 
@@ -294,7 +296,11 @@ export function MyAIPage() {
     }
   };
 
-  const isOffline = ollamaStatus === 'offline' || ollamaStatus === 'no_model';
+  // In production mode sending is always allowed (endpoint handles its own errors)
+  // In local mode, block if Ollama is not running
+  const isOffline = AI_MODE === 'local'
+    ? (ollamaStatus === 'offline' || ollamaStatus === 'no_model')
+    : ollamaStatus === 'unavailable';
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -408,7 +414,7 @@ export function MyAIPage() {
             </div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)', lineHeight: 1.2 }}>MyAI</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>AlpasFarm Local AI Assistant</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>AlpasFarm AI Assistant</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -419,7 +425,7 @@ export function MyAIPage() {
           </div>
         </div>
 
-        {/* Offline warning */}
+        {/* Offline / unavailable warning */}
         {isOffline && (
           <div style={{
             margin: '12px 16px 0', padding: '12px 16px', borderRadius: 12,
@@ -429,13 +435,18 @@ export function MyAIPage() {
             <AlertCircle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
             <div>
               <div style={{ fontWeight: 700, fontSize: 13, color: '#EF4444' }}>
-                {ollamaStatus === 'offline' ? 'Ollama is not running' : 'Model not found'}
+                {AI_MODE === 'local'
+                  ? (ollamaStatus === 'offline' ? 'Ollama is not running' : 'Model not found')
+                  : 'AI Assistant is temporarily unavailable'}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>
-                {ollamaStatus === 'offline'
-                  ? <>Run <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>ollama serve</code> in a terminal to start Ollama, then refresh.</>
-                  : <>Run <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>ollama pull qwen2.5:1.5b</code> in a terminal to download the model.</>
-                }
+                {AI_MODE === 'local' ? (
+                  ollamaStatus === 'offline'
+                    ? <>Run <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>ollama serve</code> in a terminal, then refresh.</>
+                    : <>Run <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>ollama pull qwen2.5:1.5b</code> to download the model.</>
+                ) : (
+                  'The AI service is not configured or is temporarily unavailable. Please try again later.'
+                )}
               </div>
             </div>
           </div>
@@ -492,7 +503,11 @@ export function MyAIPage() {
               }}>
                 <Info size={14} color="#FF7A18" style={{ flexShrink: 0, marginTop: 1 }} />
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  MyAI runs <strong>100% locally</strong> using Ollama + {MYAI_MODEL}. Your farm data and conversations never leave your computer. First response may take 10–20 seconds while the model loads.
+                  {AI_MODE === 'local' ? (
+                    <>MyAI runs <strong>100% locally</strong> using Ollama + {MYAI_MODEL}. Your farm data and conversations never leave your computer.</>
+                  ) : (
+                    <>MyAI is powered by <strong>{MYAI_MODEL}</strong> running server-side. Your API key is never exposed to the browser. Farm data is only used within your session.</>
+                  )}
                 </div>
               </div>
             </div>
@@ -667,7 +682,7 @@ export function MyAIPage() {
             )}
           </div>
           <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 5, textAlign: 'center' }}>
-            MyAI runs locally · Powered by Ollama + {MYAI_MODEL} · Farm data stays on your computer
+            MyAI · Powered by {MYAI_MODEL} · Farm data stays within your session
           </div>
         </div>
       </div>

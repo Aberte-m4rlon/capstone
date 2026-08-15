@@ -1,2 +1,17 @@
 .vercel
 node_modules
+
+# Environment secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Keep the example template
+!.env.example
+
+# Python virtualenv (myai_service)
+myai_service/.venv
+myai_service/__pycache__
+
+# Build output
+dist
