@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { AIAssistantPanel } from './AIAssistantPanel';
+import { FloatingAICloud } from './FloatingAICloud';
 import { Moon, Sun } from 'lucide-react';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord } from '../types';
 
@@ -425,13 +426,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="content">{children}</main>
       </div>
-      {/* AI Assistant FAB — hide for admins */}
-      {!isAdmin && (
-        <button className="ai-fab" onClick={() => setAssistantOpen(true)} aria-label="Open AI assistant">
-          <Icons.Lightbulb size={20} />
-        </button>
-      )}
-      {!isAdmin && <AIAssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />}
+      {/* AI Cloud Floating Assistant — global, visible on every authenticated page */}
+      {!isAdmin && <FloatingAICloud />}
     </div>
   );
 }
