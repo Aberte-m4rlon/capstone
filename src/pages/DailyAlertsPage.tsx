@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
 import { generateDailyAlerts } from '../lib/recommendations';
+import { FilterToolbar, FilterPill } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import { sendPushNotifications, generateAlertSummary, copyAlertSummaryToClipboard } from '../lib/alertNotifications';
 import { useToast } from '../lib/toast';
@@ -13,6 +14,7 @@ export function DailyAlertsPage() {
   const toast = useToast();
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState('All');
 
   const alerts = useMemo(
     () => generateDailyAlerts(
@@ -26,6 +28,11 @@ export function DailyAlertsPage() {
     ),
     [farmData],
   );
+
+  const filteredAlerts = useMemo(() => {
+    if (priorityFilter === 'All') return alerts;
+    return alerts.filter((a) => a.priority === priorityFilter);
+  }, [alerts, priorityFilter]);
 
   const alertSummary = useMemo(() => generateAlertSummary(alerts, farmData.settings?.farm_name ?? 'AlpasFarm'), [alerts, farmData.settings?.farm_name]);
 
@@ -95,15 +102,28 @@ export function DailyAlertsPage() {
         </div>
       )}
 
+      {/* One-Row Filter Toolbar */}
+      <FilterToolbar>
+        {['All', 'Critical', 'Warning', 'Info'].map((p) => (
+          <FilterPill
+            key={p}
+            active={priorityFilter === p}
+            onClick={() => setPriorityFilter(p)}
+            label={p}
+            count={p === 'All' ? alerts.length : alerts.filter((a) => a.priority === p).length}
+          />
+        ))}
+      </FilterToolbar>
+
       <div className="card">
-        {alerts.length === 0 ? (
+        {filteredAlerts.length === 0 ? (
           <div className="empty-state">
             <div className="es-icon"><Icons.CheckCircle size={24} /></div>
-            <h4>No alerts for today</h4>
+            <h4>No alerts for this filter</h4>
             <p>Your farm is running smoothly right now.</p>
           </div>
         ) : (
-          alerts.map((alert) => (
+          filteredAlerts.map((alert) => (
             <div
               key={alert.id}
               onClick={() => alert.link && navigate(alert.link)}

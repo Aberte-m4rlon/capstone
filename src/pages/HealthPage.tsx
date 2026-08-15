@@ -3,6 +3,7 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { FilterToolbar, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2, Brain, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { calculateHealthRisk, formatDate, levelFromScore, type EarlyIllnessResult } from '../lib/analytics';
@@ -258,19 +259,30 @@ export function HealthPage() {
         </div>
       )}
 
-      <div className="filter-bar">
-        <select className="form-select" value={fAnimal} onChange={(e) => setFAnimal(e.target.value)}>
-          <option value="All">All Animals</option>
-          {activeAnimals.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.tag_id})</option>)}
-        </select>
-        <select className="form-select" value={fRisk} onChange={(e) => setFRisk(e.target.value)}>
-          <option value="All">All Risk Levels</option>
-          <option value="Low">Low</option>
-          <option value="Moderate">Moderate</option>
-          <option value="High">High</option>
-          <option value="Critical">Critical</option>
-        </select>
-      </div>
+      <FilterToolbar>
+        <FilterSelect
+          value={fAnimal}
+          onChange={setFAnimal}
+          options={[
+            { value: 'All', label: 'All Animals' },
+            ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
+          ]}
+          ariaLabel="Filter Animal"
+          minWidth={160}
+        />
+        <FilterSelect
+          value={fRisk}
+          onChange={setFRisk}
+          options={[
+            { value: 'All', label: 'All Risk Levels' },
+            { value: 'Low', label: 'Low' },
+            { value: 'Moderate', label: 'Moderate' },
+            { value: 'High', label: 'High' },
+            { value: 'Critical', label: 'Critical' },
+          ]}
+          ariaLabel="Filter Risk Level"
+        />
+      </FilterToolbar>
 
       <div className="card">
         {filtered.length === 0 ? (

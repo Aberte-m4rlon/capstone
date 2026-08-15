@@ -3,6 +3,7 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { FilterToolbar, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { calculateKiddingDate, formatDate, daysUntil, assessBreedingReadiness } from '../lib/analytics';
@@ -187,16 +188,22 @@ export function BreedingPage() {
         )}
       </div>
 
-      <div className="filter-bar">
-        <select className="form-select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
-          <option value="All">All Status</option>
-          <option value="Planned">Planned</option>
-          <option value="Pregnant">Pregnant</option>
-          <option value="Kidded">Kidded</option>
-          <option value="Failed">Failed</option>
-          <option value="Monitor">Monitor</option>
-        </select>
-      </div>
+      <FilterToolbar>
+        <FilterSelect
+          value={fStatus}
+          onChange={setFStatus}
+          options={[
+            { value: 'All', label: 'All Status' },
+            { value: 'Planned', label: 'Planned' },
+            { value: 'Pregnant', label: 'Pregnant' },
+            { value: 'Kidded', label: 'Kidded' },
+            { value: 'Failed', label: 'Failed' },
+            { value: 'Monitor', label: 'Monitor' },
+          ]}
+          ariaLabel="Filter Status"
+          minWidth={150}
+        />
+      </FilterToolbar>
 
       <div className="card">
         {filtered.length === 0 ? (

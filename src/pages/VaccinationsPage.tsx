@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { ComboBox } from '../components/ComboBox';
+import { FilterToolbar, FilterSearch, FilterPill } from '../components/FilterToolbar';
 import {
   Plus,
   Pencil,
@@ -489,105 +490,24 @@ export function VaccinationsPage() {
         </div>
       </div>
 
-      {/* ── Floating Liquid Glass Filter & Search Capsule Panel ────── */}
-      <div
-        style={{
-          ...liquidGlassCard,
-          borderRadius: 20,
-          padding: '12px 18px',
-          marginBottom: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 14,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={specularHighlight} />
-        
-        {/* Quick Filter Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', position: 'relative', zIndex: 2 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-            Filter:
-          </span>
-          {filterTabs.map((tab) => {
-            const isActive = fStatus === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setFStatus(tab.id)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 999,
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 200ms ease',
-                  background: isActive
-                    ? 'linear-gradient(135deg, #FF3B30, #FF6A2A)'
-                    : 'rgba(255, 255, 255, 0.08)',
-                  color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
-                  border: isActive
-                    ? '1px solid rgba(255, 255, 255, 0.35)'
-                    : '1px solid rgba(255, 255, 255, 0.12)',
-                  boxShadow: isActive ? '0 4px 16px rgba(255, 80, 30, 0.30)' : 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <span>{tab.label}</span>
-                {tab.count !== null && (
-                  <span
-                    style={{
-                      fontSize: 10,
-                      padding: '1px 6px',
-                      borderRadius: 999,
-                      background: isActive ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.12)',
-                      fontWeight: 800,
-                    }}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Real-time Glass Search Input */}
-        <div style={{ position: 'relative', minWidth: 260, flex: '1 1 260px', maxWidth: 360, zIndex: 2 }}>
-          <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
-          <input
-            type="text"
-            placeholder="Search animal, tag, or vaccine..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '9px 14px 9px 38px',
-              borderRadius: 999,
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03))',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.16)',
-              color: 'var(--text)',
-              fontSize: '12px',
-              fontWeight: 500,
-              outline: 'none',
-              transition: 'all 200ms ease',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = '#FF6A2A';
-              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(255, 106, 42, 0.25)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.16)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+      {/* ── Floating Liquid Glass Filter & Search Toolbar (One Row) ────── */}
+      <FilterToolbar>
+        <FilterSearch
+          placeholder="Search animal, tag, or vaccine..."
+          value={searchQuery}
+          onChange={setSearchQuery}
+          minWidth={240}
+        />
+        {filterTabs.map((tab) => (
+          <FilterPill
+            key={tab.id}
+            active={fStatus === tab.id}
+            onClick={() => setFStatus(tab.id)}
+            label={tab.label}
+            count={tab.count ?? undefined}
           />
-        </div>
-      </div>
+        ))}
+      </FilterToolbar>
 
       {/* ── Main Liquid Glass Table Card ──────────────────────────── */}
       <div style={{ ...liquidGlassCard, padding: 0 }}>

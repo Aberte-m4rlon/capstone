@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import { ComboBox } from '../components/ComboBox';
+import { FilterToolbar, FilterSearch, FilterSelect, FilterToggle } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode } from 'lucide-react';
 import { formatDate, ageLabel } from '../lib/analytics';
@@ -212,39 +213,52 @@ export function AnimalsPage() {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="filter-bar">
-        <input
-          className="form-input"
-          style={{ width: 200 }}
-          placeholder="Search name or ID..."
+      {/* Reusable One-Row Liquid Glass Filter Toolbar */}
+      <FilterToolbar>
+        <FilterSearch
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
+          placeholder="Search name or ID..."
         />
-        <select className="form-select" value={fSpecies} onChange={(e) => setFSpecies(e.target.value)}>
-          <option value="All">All Species</option>
-          <option value="Goat">Goat</option>
-          <option value="Sheep">Sheep</option>
-        </select>
-        <select className="form-select" value={fSex} onChange={(e) => setFSex(e.target.value)}>
-          <option value="All">All Sex</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-        </select>
-        <select className="form-select" value={fHealth} onChange={(e) => setFHealth(e.target.value)}>
-          <option value="All">All Health</option>
-          <option value="Healthy">Healthy</option>
-          <option value="Monitor">Monitor</option>
-          <option value="At Risk">At Risk</option>
-          <option value="Critical">Critical</option>
-        </select>
-        <button
-          className={`btn btn-sm ${fArchived ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setFArchived(!fArchived)}
-        >
-          {fArchived ? 'Showing Archived' : 'Show Archived'}
-        </button>
-      </div>
+        <FilterSelect
+          value={fSpecies}
+          onChange={setFSpecies}
+          options={[
+            { value: 'All', label: 'All Species' },
+            { value: 'Goat', label: 'Goat' },
+            { value: 'Sheep', label: 'Sheep' },
+          ]}
+          ariaLabel="Filter Species"
+        />
+        <FilterSelect
+          value={fSex}
+          onChange={setFSex}
+          options={[
+            { value: 'All', label: 'All Sex' },
+            { value: 'Male', label: 'Male' },
+            { value: 'Female', label: 'Female' },
+          ]}
+          ariaLabel="Filter Sex"
+        />
+        <FilterSelect
+          value={fHealth}
+          onChange={setFHealth}
+          options={[
+            { value: 'All', label: 'All Health' },
+            { value: 'Healthy', label: 'Healthy' },
+            { value: 'Monitor', label: 'Monitor' },
+            { value: 'At Risk', label: 'At Risk' },
+            { value: 'Critical', label: 'Critical' },
+          ]}
+          ariaLabel="Filter Health"
+        />
+        <FilterToggle
+          active={fArchived}
+          onToggle={setFArchived}
+          label="Show Archived"
+          activeLabel="Showing Archived"
+        />
+      </FilterToolbar>
 
       {/* Table */}
       <div className="card">

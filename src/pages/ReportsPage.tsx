@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { Icons } from '../lib/icons';
+import { FilterToolbar, FilterSelect, FilterSearch, FilterDateRange } from '../components/FilterToolbar';
 import { inventoryStatus, formatDate, calculateGrowth, vaccinationStatusFromDue } from '../lib/analytics';
 import { Printer, FileBarChart } from 'lucide-react';
 
@@ -131,14 +132,26 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <div className="filter-bar">
-        <select className="form-select" value={reportType} onChange={(e) => setReportType(e.target.value as ReportType)}>
-          {Object.entries(REPORT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <input className="form-input" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="From date" />
-        <input className="form-input" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To date" />
-        <input className="form-input" style={{ width: 200 }} placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} />
-      </div>
+      <FilterToolbar>
+        <FilterSelect
+          value={reportType}
+          onChange={(val) => setReportType(val as ReportType)}
+          options={Object.entries(REPORT_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+          ariaLabel="Select Report Type"
+          minWidth={200}
+        />
+        <FilterDateRange
+          fromValue={dateFrom}
+          toValue={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+        />
+        <FilterSearch
+          placeholder="Search records..."
+          value={search}
+          onChange={setSearch}
+        />
+      </FilterToolbar>
 
       <div className="card">
         <div className="card-header">

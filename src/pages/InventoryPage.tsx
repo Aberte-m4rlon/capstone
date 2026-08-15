@@ -3,6 +3,7 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { FilterToolbar, FilterSearch, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { inventoryStatus, formatDate } from '../lib/analytics';
@@ -227,26 +228,40 @@ export function InventoryPage() {
         <div className="kpi-card"><div className="kpi-top"><div className="kpi-icon red"><Icons.AlertTriangle size={20} /></div></div><div className="kpi-value">{summary.expired}</div><div className="kpi-label">Expired</div></div>
       </div>
 
-      <div className="filter-bar">
-        <input className="form-input" style={{ width: 200 }} placeholder="Search name or supplier..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="form-select" value={fCategory} onChange={(e) => setFCategory(e.target.value)}>
-          <option value="All">All Categories</option>
-          <option value="Feed">Feed</option>
-          <option value="Medicine">Medicine</option>
-          <option value="Vaccines">Vaccines</option>
-          <option value="Supplies">Supplies</option>
-          <option value="Equipment">Equipment</option>
-          <option value="Other">Other</option>
-        </select>
-        <select className="form-select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
-          <option value="All">All Status</option>
-          <option value="OK">In Stock</option>
-          <option value="Low Stock">Low Stock</option>
-          <option value="Out of Stock">Out of Stock</option>
-          <option value="Expiring Soon">Expiring Soon</option>
-          <option value="Expired">Expired</option>
-        </select>
-      </div>
+      <FilterToolbar>
+        <FilterSearch
+          placeholder="Search name or supplier..."
+          value={search}
+          onChange={setSearch}
+        />
+        <FilterSelect
+          value={fCategory}
+          onChange={setFCategory}
+          options={[
+            { value: 'All', label: 'All Categories' },
+            { value: 'Feed', label: 'Feed' },
+            { value: 'Medicine', label: 'Medicine' },
+            { value: 'Vaccines', label: 'Vaccines' },
+            { value: 'Supplies', label: 'Supplies' },
+            { value: 'Equipment', label: 'Equipment' },
+            { value: 'Other', label: 'Other' },
+          ]}
+          ariaLabel="Filter Category"
+        />
+        <FilterSelect
+          value={fStatus}
+          onChange={setFStatus}
+          options={[
+            { value: 'All', label: 'All Status' },
+            { value: 'OK', label: 'In Stock' },
+            { value: 'Low Stock', label: 'Low Stock' },
+            { value: 'Out of Stock', label: 'Out of Stock' },
+            { value: 'Expiring Soon', label: 'Expiring Soon' },
+            { value: 'Expired', label: 'Expired' },
+          ]}
+          ariaLabel="Filter Status"
+        />
+      </FilterToolbar>
 
       <div className="card">
         {filtered.length === 0 ? (

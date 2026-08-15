@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { formatDate } from '../lib/analytics';
 import { Icons } from '../lib/icons';
+import { FilterToolbar, FilterSearch, FilterSelect, FilterDateRange, FilterResetButton } from '../components/FilterToolbar';
 import { Download, Printer, Filter } from 'lucide-react';
 
 // ── Activity entry types ──────────────────────────────────────────────────────
@@ -265,7 +266,7 @@ export function ActivityLogPage() {
   }
 
   const CATEGORIES: ActivityCategory[] = ['Animal', 'Health', 'Weight', 'Breeding', 'Vaccination', 'Feed', 'Milk', 'Inventory'];
-  const animalNames = [...new Set(allActivities.map((e) => e.animal).filter(Boolean))].sort();
+  const animalNames = [...new Set(allActivities.map((e) => e.animal).filter((a): a is string => Boolean(a)))].sort();
 
   return (
     <div>
@@ -315,31 +316,41 @@ export function ActivityLogPage() {
         })}
       </div>
 
-      {/* Filters */}
-      <div className="filter-bar" style={{ flexWrap: 'wrap' }}>
-        <input
-          className="form-input"
-          style={{ width: 200 }}
+      {/* One-Row Filters */}
+      <FilterToolbar>
+        <FilterSearch
           placeholder="Search activities..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
         />
-        <select className="form-select" value={filterAnimal} onChange={(e) => setFilterAnimal(e.target.value)}>
-          <option value="All">All Animals</option>
-          {animalNames.map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Filter size={14} color="var(--text-secondary)" />
-          <input className="form-input" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ width: 140 }} title="From date" />
-          <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>to</span>
-          <input className="form-input" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ width: 140 }} title="To date" />
-        </div>
+        <FilterSelect
+          value={filterAnimal}
+          onChange={setFilterAnimal}
+          options={[
+            { value: 'All', label: 'All Animals' },
+            ...animalNames.map((n) => ({ value: n, label: n })),
+          ]}
+          ariaLabel="Filter Animal"
+          minWidth={150}
+        />
+        <FilterDateRange
+          fromValue={dateFrom}
+          toValue={dateTo}
+          onFromChange={setDateFrom}
+          onToChange={setDateTo}
+        />
         {(filterCategory !== 'All' || filterAnimal !== 'All' || dateFrom || dateTo || search) && (
-          <button className="btn btn-ghost btn-sm" onClick={() => { setFilterCategory('All'); setFilterAnimal('All'); setDateFrom(''); setDateTo(''); setSearch(''); }}>
-            Clear filters
-          </button>
+          <FilterResetButton
+            onClick={() => {
+              setFilterCategory('All');
+              setFilterAnimal('All');
+              setDateFrom('');
+              setDateTo('');
+              setSearch('');
+            }}
+          />
         )}
-      </div>
+      </FilterToolbar>
 
       {/* Activity table */}
       <div className="card">

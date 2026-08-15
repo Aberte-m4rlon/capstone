@@ -4,6 +4,7 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Icons } from '../lib/icons';
+import { FilterToolbar, FilterPill } from '../components/FilterToolbar';
 import { formatDateTime } from '../lib/analytics';
 
 export function NotificationsPage() {
@@ -71,17 +72,16 @@ export function NotificationsPage() {
         </div>
       </div>
 
-      <div className="filter-bar">
+      <FilterToolbar>
         {['All', 'Health', 'Vaccination', 'Breeding', 'Weight', 'Inventory', 'System'].map((t) => (
-          <button
+          <FilterPill
             key={t}
-            className={`btn btn-sm ${filter === t ? 'btn-primary' : 'btn-secondary'}`}
+            active={filter === t}
             onClick={() => setFilter(t)}
-          >
-            {t}
-          </button>
+            label={t}
+          />
         ))}
-      </div>
+      </FilterToolbar>
 
       <div className="card">
         {filtered.length === 0 ? (

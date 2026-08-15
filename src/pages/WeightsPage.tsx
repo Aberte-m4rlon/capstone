@@ -3,6 +3,7 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../lib/toast';
 import { Modal, ConfirmDialog } from '../components/Modal';
+import { FilterToolbar, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2, TrendingUp, Brain } from 'lucide-react';
 import { calculateGrowth, formatDate, daysBetween } from '../lib/analytics';
@@ -251,12 +252,18 @@ export function WeightsPage() {
         </div>
       )}
 
-      <div className="filter-bar">
-        <select className="form-select" value={fAnimal} onChange={(e) => setFAnimal(e.target.value)}>
-          <option value="All">All Animals</option>
-          {activeAnimals.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.tag_id})</option>)}
-        </select>
-      </div>
+      <FilterToolbar>
+        <FilterSelect
+          value={fAnimal}
+          onChange={setFAnimal}
+          options={[
+            { value: 'All', label: 'All Animals' },
+            ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
+          ]}
+          ariaLabel="Filter Animal"
+          minWidth={180}
+        />
+      </FilterToolbar>
 
       <div className="card">
         {filtered.length === 0 ? (

@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
 import { generateRecommendations } from '../lib/recommendations';
+import { FilterToolbar, FilterPill } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 
 export function RecommendationsPage() {
   const farmData = useFarmData();
   const navigate = useNavigate();
+  const [categoryFilter, setCategoryFilter] = useState('All');
 
   const { recommendations, priorities } = useMemo(
     () => generateRecommendations(
@@ -16,6 +18,13 @@ export function RecommendationsPage() {
     ),
     [farmData],
   );
+
+  const categories = ['All', 'Health', 'Vaccination', 'Breeding', 'Inventory', 'Feed'];
+
+  const filteredRecs = useMemo(() => {
+    if (categoryFilter === 'All') return recommendations;
+    return recommendations.filter((r) => r.category.toLowerCase().includes(categoryFilter.toLowerCase()));
+  }, [recommendations, categoryFilter]);
 
   if (farmData.loading) return <div className="loading-center"><div className="spinner" /></div>;
 
@@ -37,6 +46,19 @@ export function RecommendationsPage() {
           Recommendations are automatically generated from your farm data — not hardcoded.
         </p>
       </div>
+
+      {/* Reusable Liquid Glass Category Filter Toolbar */}
+      <FilterToolbar>
+        {categories.map((cat) => (
+          <FilterPill
+            key={cat}
+            active={categoryFilter === cat}
+            onClick={() => setCategoryFilter(cat)}
+            label={cat}
+            count={cat === 'All' ? recommendations.length : recommendations.filter((r) => r.category.toLowerCase().includes(cat.toLowerCase())).length}
+          />
+        ))}
+      </FilterToolbar>
 
       {/* Today's Priorities */}
       <div className="card section-gap">
@@ -69,14 +91,14 @@ export function RecommendationsPage() {
           <div className="card-title">All Recommendations</div>
           <Icons.Lightbulb size={20} color="#F59E0B" />
         </div>
-        {recommendations.length === 0 ? (
+        {filteredRecs.length === 0 ? (
           <div className="empty-state">
             <div className="es-icon"><Icons.CheckCircle size={24} /></div>
-            <h4>No recommendations needed</h4>
+            <h4>No recommendations for this category</h4>
             <p>Everything looks good on your farm right now.</p>
           </div>
         ) : (
-          recommendations.map((rec, i) => (
+          filteredRecs.map((rec, i) => (
             <div key={i} className="rec-card" onClick={() => rec.link && navigate(rec.link)}>
               <div className={`rec-dot ${rec.severity_color}`}></div>
               <div style={{ flex: 1 }}>

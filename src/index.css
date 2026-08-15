@@ -71,6 +71,21 @@
 
   /* Sidebar Glass Pane */
   --sidebar-bg: linear-gradient(135deg, rgba(14, 30, 48, 0.78) 0%, rgba(6, 18, 32, 0.68) 100%);
+
+  /* Filter Toolbar Tokens (Dark Mode) */
+  --filter-text: #F8FAFC;
+  --filter-secondary: #AAB6C7;
+  --filter-bg: rgba(255, 255, 255, 0.07);
+  --filter-bg-hover: rgba(255, 255, 255, 0.14);
+  --filter-bg-active: rgba(255, 106, 42, 0.22);
+  --filter-border: rgba(255, 255, 255, 0.16);
+  --filter-border-hover: rgba(255, 106, 42, 0.50);
+  --filter-highlight: rgba(255, 255, 255, 0.18);
+  --filter-shadow: rgba(0, 0, 0, 0.25);
+  --filter-focus: #ff7a18;
+  --filter-wrapper-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03));
+  --filter-chevron: #D5DCE7;
+  --filter-placeholder: #9BA8BA;
 }
 
 /* Light mode (Frosted Acrylic Crystal Glass matching the Reference Sheet) */
@@ -89,8 +104,8 @@
   --surface: rgba(255, 255, 255, 0.75);
   --surface-hover: rgba(255, 255, 255, 0.92);
   --surface-active: rgba(255, 255, 255, 0.98);
-  --border: rgba(255, 255, 255, 0.85);
-  --border-light: rgba(0, 0, 0, 0.05);
+  --border: rgba(30, 45, 65, 0.12);
+  --border-light: rgba(30, 45, 65, 0.08);
   --border-specular: rgba(255, 255, 255, 1);
   --border-brand: rgba(255, 106, 42, 0.35);
 
@@ -101,7 +116,7 @@
   /* Semantic Theme Tokens (Light Mode) */
   --text-primary: #152033;
   --text-muted: #7A8799;
-  --border-glass: rgba(0, 0, 0, 0.08);
+  --border-glass: rgba(30, 45, 65, 0.12);
   --accent-orange: #FF6A2A;
   --accent-red: #FF3B30;
 
@@ -115,6 +130,21 @@
   --shadow-hover: 0 32px 80px rgba(50, 65, 85, 0.18), 0 0 30px rgba(255, 106, 42, 0.20);
   --shadow-inner: inset 0 1.5px 1px rgba(255, 255, 255, 1), inset 0 -1px 0 rgba(0, 0, 0, 0.03);
   --sidebar-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.90), rgba(255, 255, 255, 0.78));
+
+  /* Filter Toolbar Tokens (Light Mode) */
+  --filter-text: #172235;
+  --filter-secondary: #657286;
+  --filter-bg: rgba(255, 255, 255, 0.42);
+  --filter-bg-hover: rgba(255, 255, 255, 0.65);
+  --filter-bg-active: rgba(255, 106, 42, 0.12);
+  --filter-border: rgba(30, 45, 65, 0.12);
+  --filter-border-hover: rgba(255, 106, 42, 0.35);
+  --filter-highlight: rgba(255, 255, 255, 0.85);
+  --filter-shadow: rgba(20, 30, 50, 0.08);
+  --filter-focus: #ff6a2a;
+  --filter-wrapper-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.20));
+  --filter-chevron: #253348;
+  --filter-placeholder: #657286;
 }
 
 * {
@@ -126,8 +156,12 @@
 }
 
 html, body, #root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   height: 100%;
 }
+
 
 html {
   scrollbar-width: none;
@@ -2565,4 +2599,245 @@ table.data-table {
     margin: 0 auto;
     width: 100%;
   }
+}
+
+/* ==========================================================================
+   AUTHENTIC LIQUID GLASS FILTER TOOLBAR (ONE ROW GLOBAL UI)
+   ========================================================================== */
+
+.filter-toolbar-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--filter-wrapper-bg);
+  border: 1px solid var(--filter-border);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 var(--filter-highlight),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 35px var(--filter-shadow);
+  padding: 6px 8px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 5;
+}
+
+.filter-toolbar,
+.filter-bar {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-toolbar::-webkit-scrollbar,
+.filter-bar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Individual Filter Controls (Never wrap, Never 100% inside toolbar) */
+.filter-control {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Search Input */
+.filter-search-wrap {
+  position: relative;
+  flex: 0 0 auto !important;
+  display: inline-flex;
+  align-items: center;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+@media (max-width: 640px) {
+  .filter-search-wrap {
+    min-width: 190px;
+    max-width: 240px;
+  }
+}
+
+.filter-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 32px 0 36px;
+  border-radius: 999px;
+  background: var(--filter-bg);
+  border: 1px solid var(--filter-border);
+  color: var(--filter-text);
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  box-shadow: inset 0 1px 0 var(--filter-highlight), 0 1px 3px rgba(20, 30, 50, 0.04);
+  transition: all 180ms ease;
+  box-sizing: border-box;
+}
+
+.filter-search-input::placeholder {
+  color: var(--filter-placeholder);
+  opacity: 1;
+}
+
+.filter-search-input:focus {
+  border-color: rgba(255, 106, 42, 0.55);
+  background: var(--filter-bg-hover);
+  box-shadow:
+    0 0 0 3px rgba(255, 106, 42, 0.12),
+    inset 0 1px 0 var(--filter-highlight);
+}
+
+.filter-search-input:hover:not(:focus) {
+  border-color: var(--filter-border-hover);
+  transform: translateY(-1px);
+}
+
+.filter-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--filter-secondary);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Select Dropdown */
+.filter-select-wrap {
+  position: relative;
+  flex: 0 0 auto !important;
+  display: inline-flex;
+  align-items: center;
+  min-width: 130px;
+  max-width: 180px;
+}
+
+.filter-select {
+  width: 100%;
+  height: 40px;
+  padding: 0 32px 0 14px;
+  border-radius: 14px;
+  background: var(--filter-bg);
+  border: 1px solid var(--filter-border);
+  color: var(--filter-text);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 var(--filter-highlight), 0 1px 3px rgba(20, 30, 50, 0.04);
+  transition: all 180ms ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  box-sizing: border-box;
+}
+
+.filter-select:focus {
+  border-color: rgba(255, 106, 42, 0.55);
+  box-shadow:
+    0 0 0 3px rgba(255, 106, 42, 0.12),
+    inset 0 1px 0 var(--filter-highlight);
+}
+
+.filter-select:hover:not(:focus) {
+  border-color: var(--filter-border-hover);
+  transform: translateY(-1px);
+}
+
+.filter-select-chevron {
+  position: absolute;
+  right: 12px;
+  color: var(--filter-chevron);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-select option {
+  background: #0D1F35;
+  color: #F8FAFC;
+  padding: 8px;
+}
+
+[data-theme="light"] .filter-select option {
+  background: #FFFFFF;
+  color: #172235;
+}
+
+/* Toggle Button (e.g. Show Archived) */
+.filter-toggle-btn {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 14px;
+  background: var(--filter-bg);
+  border: 1px solid var(--filter-border);
+  color: var(--filter-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex: 0 0 auto !important;
+  box-shadow: inset 0 1px 0 var(--filter-highlight), 0 1px 3px rgba(20, 30, 50, 0.04);
+  transition: all 180ms ease;
+  user-select: none;
+}
+
+.filter-toggle-btn:hover {
+  border-color: var(--filter-border-hover);
+  background: var(--filter-bg-hover);
+  transform: translateY(-1px);
+}
+
+.filter-toggle-btn.active {
+  background: linear-gradient(135deg, rgba(255, 106, 42, 0.90), rgba(255, 59, 48, 0.85));
+  border-color: #FF6A2A;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(255, 106, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+}
+
+/* Date Input */
+.filter-date-input {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--filter-bg);
+  border: 1px solid var(--filter-border);
+  color: var(--filter-text);
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  box-shadow: inset 0 1px 0 var(--filter-highlight), 0 1px 3px rgba(20, 30, 50, 0.04);
+  transition: all 180ms ease;
+  min-width: 135px;
+  flex: 0 0 auto !important;
+  box-sizing: border-box;
+}
+
+.filter-date-input:focus {
+  border-color: rgba(255, 106, 42, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 106, 42, 0.12), inset 0 1px 0 var(--filter-highlight);
 }

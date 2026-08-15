@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
 import { useNavigate } from 'react-router-dom';
 import { Users, PawPrint, ShieldAlert, RefreshCw, Trash2, BarChart3, Search, CheckCircle, Mail, ChevronDown, ChevronRight, HeartPulse, Scale, Syringe } from 'lucide-react';
+import { FilterToolbar, FilterSearch } from '../components/FilterToolbar';
 import { formatDate } from '../lib/analytics';
 
 export const ADMIN_EMAILS = ['marlonaberte00@gmail.com'];
@@ -197,16 +198,21 @@ export function AdminPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="filter-bar" style={{ marginBottom: 16 }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-          <input className="form-input" style={{ paddingLeft: 32 }} placeholder="Search email or farm name..." value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--text-secondary)', alignSelf: 'center' }}>
-          {filtered.length} of {users.length} users
-        </span>
-      </div>
+      {/* Search Filter Toolbar */}
+      <FilterToolbar
+        rightAction={
+          <span style={{ fontSize: 12, color: 'var(--filter-secondary)', fontWeight: 600 }}>
+            {filtered.length} of {users.length} users
+          </span>
+        }
+      >
+        <FilterSearch
+          placeholder="Search email or farm name..."
+          value={search}
+          onChange={setSearch}
+          minWidth={260}
+        />
+      </FilterToolbar>
 
       {/* Table */}
       <div className="card">
