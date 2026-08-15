@@ -6,7 +6,6 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { AIAssistantPanel } from './AIAssistantPanel';
 import { Moon, Sun } from 'lucide-react';
-import { ADMIN_EMAILS } from '../pages/AdminPage';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord } from '../types';
 
 interface NavItem {
@@ -62,7 +61,7 @@ interface SearchResult {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const farmData = useFarmData();
@@ -88,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     localStorage.setItem('theme', theme);
   }, [darkMode]);
 
-  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
+  const isAdmin = role === 'system_admin';
 
   // Admin sees only Admin Panel; regular users see everything except Admin Panel
   const visibleNav = isAdmin
@@ -204,8 +203,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [location.pathname]);
 
   const handleSignOut = async () => {
+    setProfileOpen(false);
     await signOut();
-    navigate('/login');
+    // Clear any cached state and force navigation to login
+    navigate('/login', { replace: true });
   };
 
   const markAllRead = async () => {
@@ -384,12 +385,34 @@ export function AppShell({ children }: { children: ReactNode }) {
               {profileOpen && (
                 <div className="profile-dropdown">
                   <div className="pd-header">
-                    <p>{user?.email}</p>
-                    <span>Farmer</span>
+                    <p style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)', wordBreak: 'break-all' }}>
+                      {user?.email}
+                    </p>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      marginTop: 4,
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      background: isAdmin
+                        ? 'rgba(217,45,32,0.12)'
+                        : 'rgba(255,106,42,0.12)',
+                      color: isAdmin ? '#D92D20' : '#FF7A18',
+                      border: isAdmin
+                        ? '1px solid rgba(217,45,32,0.25)'
+                        : '1px solid rgba(255,106,42,0.25)',
+                    }}>
+                      {isAdmin ? 'System Administrator' : 'Farm Manager'}
+                    </span>
                   </div>
-                  <button className="pd-item" onClick={() => { navigate('/settings'); setProfileOpen(false); }}>
-                    <Icons.Settings size={16} /> Settings
-                  </button>
+                  {!isAdmin && (
+                    <button className="pd-item" onClick={() => { navigate('/settings'); setProfileOpen(false); }}>
+                      <Icons.Settings size={16} /> Settings
+                    </button>
+                  )}
                   <button className="pd-item" onClick={handleSignOut}>
                     <Icons.LogOut size={16} /> Sign out
                   </button>

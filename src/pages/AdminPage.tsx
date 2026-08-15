@@ -3,10 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
 import { useNavigate } from 'react-router-dom';
-import { Users, PawPrint, ShieldAlert, RefreshCw, Trash2, BarChart3, Search, CheckCircle, Mail, ChevronDown, ChevronRight, HeartPulse, Scale, Syringe } from 'lucide-react';
+import { Users, PawPrint, ShieldAlert, RefreshCw, Trash2, BarChart3, CheckCircle, Mail, ChevronDown, ChevronRight, HeartPulse, Syringe } from 'lucide-react';
 import { FilterToolbar, FilterSearch } from '../components/FilterToolbar';
 import { formatDate } from '../lib/analytics';
 
+// Admin emails list — kept only as a migration reference.
+// Role authorization is now handled by the auth context (profiles table).
 export const ADMIN_EMAILS = ['marlonaberte00@gmail.com'];
 
 const adminSupabase = createClient(
@@ -34,7 +36,7 @@ interface FarmDetail {
 }
 
 export function AdminPage() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -47,7 +49,7 @@ export function AdminPage() {
   const [farmDetails, setFarmDetails] = useState<Record<string, FarmDetail>>({});
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
 
-  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
+  const isAdmin = role === 'system_admin';
 
   useEffect(() => {
     if (isAdmin) loadUsers();
@@ -82,7 +84,6 @@ export function AdminPage() {
       }));
 
       setUsers(rows);
-      const today = new Date().toISOString().split('T')[0];
       setStats({
         totalUsers: rows.length,
         totalAnimals: Object.values(animalMap).reduce((s, v) => s + v, 0),

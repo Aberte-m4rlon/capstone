@@ -2841,3 +2841,56 @@ table.data-table {
   border-color: rgba(255, 106, 42, 0.55);
   box-shadow: 0 0 0 3px rgba(255, 106, 42, 0.12), inset 0 1px 0 var(--filter-highlight);
 }
+
+
+/* ===== LOADING / SPINNER (used by App.tsx route guards) ===== */
+.loading-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 106, 42, 0.20);
+  border-top-color: #FF7A18;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== LOGIN PAGE — LIGHT MODE OVERRIDES ===== */
+/* Ensure login card inputs are always visible in light mode */
+[data-theme="light"] .login-card-input {
+  background: rgba(255, 255, 255, 0.80) !important;
+  border-color: rgba(30, 45, 65, 0.18) !important;
+  color: #081628 !important;
+}
+
+/* The login page uses inline styles, so we adapt the page-level background */
+[data-theme="light"] .auth-page-bg {
+  background: #EAEFF5;
+}
+
+/* Ensure AuthPage works in light mode — override inline input backgrounds */
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="password"],
+[data-theme="light"] input[type="text"] {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(30, 45, 65, 0.15) !important;
+  color: #081628 !important;
+  -webkit-text-fill-color: #081628 !important;
+}
+
+[data-theme="light"] input[type="email"]::placeholder,
+[data-theme="light"] input[type="password"]::placeholder,
+[data-theme="light"] input[type="text"]::placeholder {
+  color: #7D8FA3 !important;
+}

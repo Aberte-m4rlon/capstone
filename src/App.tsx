@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './lib/auth';
+import { AuthProvider, useAuth, type UserRole } from './lib/auth';
 import { ToastProvider } from './lib/toast';
 import { AppShell } from './components/AppShell';
 import { LandingPage } from './pages/LandingPage';
@@ -23,11 +23,16 @@ import { ScannerPage } from './pages/ScannerPage';
 import { PublicAnimalPage } from './pages/PublicAnimalPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
 import { AdminPage } from './pages/AdminPage';
+import { ShieldAlert } from 'lucide-react';
 
-import { ADMIN_EMAILS } from './pages/AdminPage';
+// ─── Route guards ──────────────────────────────────────────────────────────────
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+/**
+ * Requires authentication. Unauthenticated users are redirected to /login.
+ */
+function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+
   if (loading) {
     return (
       <div className="loading-center">
@@ -35,12 +40,24 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
-function AppRoutes() {
-  const { user, loading } = useAuth();
+/**
+ * Requires one of the allowed roles in addition to authentication.
+ * Shows an "Access Denied" message if the role doesn't match instead of
+ * silently redirecting, so the user knows why they can't access the page.
+ */
+function RequireRole({
+  children,
+  allowed,
+}: {
+  children: React.ReactNode;
+  allowed: UserRole[];
+}) {
+  const { user, role, loading } = useAuth();
 
   if (loading) {
     return (
@@ -50,45 +67,246 @@ function AppRoutes() {
     );
   }
 
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (!role || !allowed.includes(role)) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+          gap: 16,
+          textAlign: 'center',
+          padding: 24,
+        }}
+      >
+        <ShieldAlert size={52} color="#EF4444" />
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>
+          Access Denied
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14, maxWidth: 360 }}>
+          You do not have permission to access this area. Contact the system administrator if
+          you believe this is a mistake.
+        </p>
+        <Navigate to={role === 'system_admin' ? '/admin' : '/dashboard'} replace />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+// ─── Route tree ───────────────────────────────────────────────────────────────
+
+function AppRoutes() {
+  const { user, role, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading-center">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  // Public routes (no auth needed)
   if (!user) {
     return (
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/public/:id" element={<PublicAnimalPage />} />
+        {/* Redirect everything else to landing */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
   }
 
+  // Authenticated routes
   return (
     <AppShell>
       <Routes>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/animals" element={<AnimalsPage />} />
-        <Route path="/animals/:id" element={<AnimalProfilePage />} />
-        <Route path="/health" element={<HealthPage />} />
-        <Route path="/breeding" element={<BreedingPage />} />
-        <Route path="/weights" element={<WeightsPage />} />
-        <Route path="/vaccinations" element={<VaccinationsPage />} />
-        <Route path="/feed" element={<FeedPage />} />
-        <Route path="/inventory" element={<InventoryPage />} />
-        <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/recommendations" element={<RecommendationsPage />} />
-        <Route path="/daily-alerts" element={<DailyAlertsPage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/scanner" element={<ScannerPage />} />
-        <Route path="/activity-log" element={<ActivityLogPage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        {/* ── Farm Manager routes ── */}
+        <Route
+          path="/dashboard"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <Dashboard />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/animals"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <AnimalsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/animals/:id"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <AnimalProfilePage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/health"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <HealthPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/breeding"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <BreedingPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/weights"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <WeightsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/vaccinations"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <VaccinationsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/feed"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <FeedPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/inventory"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <InventoryPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <AnalyticsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <ReportsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/recommendations"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <RecommendationsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/daily-alerts"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <DailyAlertsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <NotificationsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/scanner"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <ScannerPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/activity-log"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <ActivityLogPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RequireRole allowed={['farm_manager']}>
+              <SettingsPage />
+            </RequireRole>
+          }
+        />
+
+        {/* ── System Admin routes ── */}
+        <Route
+          path="/admin"
+          element={
+            <RequireRole allowed={['system_admin']}>
+              <AdminPage />
+            </RequireRole>
+          }
+        />
+
+        {/* ── Public (authenticated or not) ── */}
         <Route path="/public/:id" element={<PublicAnimalPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to={user && ADMIN_EMAILS.includes(user.email ?? '') ? '/admin' : '/dashboard'} replace />} />
+
+        {/* ── Root redirect based on role ── */}
+        <Route
+          path="/"
+          element={
+            <Navigate
+              to={role === 'system_admin' ? '/admin' : '/dashboard'}
+              replace
+            />
+          }
+        />
+
+        {/* ── Catch-all: redirect to role home ── */}
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={role === 'system_admin' ? '/admin' : '/dashboard'}
+              replace
+            />
+          }
+        />
       </Routes>
     </AppShell>
   );
 }
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
   return (
