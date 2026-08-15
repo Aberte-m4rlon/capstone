@@ -7,9 +7,7 @@ import { useAuth } from '../lib/auth';
 import { Icons } from '../lib/icons';
 import { Modal, ConfirmDialog } from '../components/Modal';
 import {
-  calculateHealthRisk,
   calculateGrowth,
-  calculateKiddingDate,
   ageLabel,
   formatDate,
   daysUntil,
@@ -17,10 +15,108 @@ import {
 } from '../lib/analytics';
 import { assessBreedingReadiness } from '../lib/analytics';
 import { Line } from 'react-chartjs-2';
-import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer } from 'lucide-react';
+import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 
+// ─── Status helpers ────────────────────────────────────────────────────────────
+const healthBadgeColor = (s: HealthStatus) =>
+  s === 'Healthy' ? '#16A34A' : s === 'Monitor' ? '#3B82F6' : s === 'At Risk' ? '#F59E0B' : '#EF4444';
+
+const healthBadgeBg = (s: HealthStatus) =>
+  s === 'Healthy' ? 'rgba(22,163,74,0.15)' : s === 'Monitor' ? 'rgba(59,130,246,0.15)' : s === 'At Risk' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)';
+
+const riskColor = (score: number) => {
+  if (score >= 70) return '#EF4444';
+  if (score >= 45) return '#F59E0B';
+  if (score >= 20) return '#3B82F6';
+  return '#16A34A';
+};
+
+const vaccBadgeColor = (s: string) =>
+  s === 'Up to Date' ? '#FF7A18' : s === 'Due Soon' ? '#F59E0B' : s === 'Overdue' ? '#EF4444' : '#8AA0B8';
+
+// ─── Reusable StatRow ──────────────────────────────────────────────────────────
+function StatRow({ label, value, valueStyle }: { label: string; value: React.ReactNode; valueStyle?: React.CSSProperties }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '10px 0', borderBottom: '1px solid var(--border-light)',
+      gap: 12, minWidth: 0,
+    }}>
+      <span style={{ fontSize: 13, color: 'var(--text-secondary)', flexShrink: 0, fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', textAlign: 'right', minWidth: 0, wordBreak: 'break-word', ...valueStyle }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ─── Glass Card ───────────────────────────────────────────────────────────────
+function GlassCard({
+  children, style, gridSpan,
+}: { children: React.ReactNode; style?: React.CSSProperties; gridSpan?: number }) {
+  return (
+    <div style={{
+      background: 'var(--glass-surface)',
+      backdropFilter: 'var(--glass-blur)',
+      WebkitBackdropFilter: 'var(--glass-blur)',
+      border: '1px solid var(--glass-border)',
+      borderRadius: 'var(--radius)',
+      boxShadow: 'var(--shadow)',
+      padding: '20px 22px',
+      position: 'relative' as const,
+      overflow: 'hidden',
+      minWidth: 0,
+      gridColumn: gridSpan ? `span ${gridSpan}` : undefined,
+      ...style,
+    }}>
+      {/* Specular highlight */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+        background: 'var(--glass-border-specular)', pointerEvents: 'none',
+      }} />
+      {children}
+    </div>
+  );
+}
+
+// ─── Card Title ───────────────────────────────────────────────────────────────
+function CardTitle({ icon: Icon, title }: { icon?: React.ComponentType<any>; title: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+      {Icon && (
+        <div style={{
+          width: 30, height: 30, borderRadius: 8,
+          background: 'linear-gradient(135deg, rgba(255,106,42,0.25), rgba(255,59,48,0.15))',
+          border: '1px solid rgba(255,106,42,0.30)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <Icon size={15} color="var(--accent-orange)" />
+        </div>
+      )}
+      <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.3px' }}>{title}</span>
+    </div>
+  );
+}
+
+// ─── Status Badge ─────────────────────────────────────────────────────────────
+function StatusBadge({ label, color, bg }: { label: string; color: string; bg: string }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '4px 11px', borderRadius: 999,
+      background: bg, border: `1px solid ${color}44`,
+      fontSize: 12, fontWeight: 700, color, whiteSpace: 'nowrap' as const,
+      letterSpacing: '0.3px',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      {label}
+    </span>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export function AnimalProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -75,13 +171,12 @@ export function AnimalProfilePage() {
       <div className="empty-state">
         <h4>Animal not found</h4>
         <p>This animal may have been deleted.</p>
-        <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => navigate('/animals')}>Back to Animals</button>
+        <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => navigate('/animals')}>
+          Back to Animals
+        </button>
       </div>
     );
   }
-
-  const healthBadge = (s: HealthStatus) =>
-    s === 'Healthy' ? 'green' : s === 'Monitor' ? 'blue' : s === 'At Risk' ? 'orange' : 'red';
 
   const handleSaveEdit = async () => {
     if (!animal) return;
@@ -118,7 +213,7 @@ export function AnimalProfilePage() {
   };
 
   const downloadQR = async () => {
-    const url = `${window.location.origin}/public/${animal.id}`;
+    const url = `https://capstone-delta-jet.vercel.app/public/${animal.id}`;
     const dataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
     const link = document.createElement('a');
     link.href = dataUrl;
@@ -128,7 +223,7 @@ export function AnimalProfilePage() {
   };
 
   const printQR = () => {
-    const url = `${window.location.origin}/public/${animal.id}`;
+    const url = `https://capstone-delta-jet.vercel.app/public/${animal.id}`;
     const win = window.open('', '_blank');
     if (!win) return;
     QRCode.toDataURL(url, { width: 300, margin: 2 }).then((dataUrl) => {
@@ -138,12 +233,17 @@ export function AnimalProfilePage() {
     });
   };
 
-  // Weight chart data
+  // Weight chart
+  const sortedWeights = [...animalWeights].sort((a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime());
   const weightChartData = {
-    labels: animalWeights.sort((a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime()).map((w) => formatDate(w.record_date)),
+    labels: sortedWeights.map((w) => formatDate(w.record_date)),
     datasets: [{
-      label: 'Weight (kg)', data: animalWeights.sort((a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime()).map((w) => Number(w.weight_kg)),
-      borderColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.3, pointRadius: 3,
+      label: 'Weight (kg)',
+      data: sortedWeights.map((w) => Number(w.weight_kg)),
+      borderColor: '#FF7A18',
+      backgroundColor: 'rgba(255,122,24,0.08)',
+      fill: true, tension: 0.3, pointRadius: 4,
+      pointBackgroundColor: '#FF7A18',
     }],
   };
 
@@ -157,343 +257,550 @@ export function AnimalProfilePage() {
     { key: 'history', label: 'History' },
   ] as const;
 
+  const scoreColor = riskColor(animal.health_risk_score);
+
   return (
-    <div>
-      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 12 }} onClick={() => navigate('/animals')}>
-        <ArrowLeft size={16} /> Back to Animals
-      </button>
-
-      {/* Profile Header */}
-      <div className="profile-header">
-        <div className="profile-photo">{animal.name[0]?.toUpperCase()}</div>
-        <div className="profile-info" style={{ flex: 1 }}>
-          <h2>{animal.name}</h2>
-          <p>ID: {animal.tag_id} · {animal.species} · {animal.sex} · {ageLabel(animal.date_of_birth)}</p>
-          {animal.breed && <p style={{ fontSize: 12, marginTop: 2 }}>{animal.breed}</p>}
-        </div>
-        <span className={`badge badge-${healthBadge(animal.health_status)}`} style={{ fontSize: 13, padding: '6px 14px' }}>
-          {animal.health_status}
-        </span>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none' }} onClick={() => setQrOpen(true)}>
-            <QrCode size={16} /> QR
-          </button>
-          <button className="btn btn-secondary" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none' }} onClick={() => setEditOpen(true)}>
-            <Pencil size={16} /> Edit
-          </button>
-          <button className="btn btn-secondary" style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none' }} onClick={() => setConfirmDelete(true)}>
-            <Trash2 size={16} />
-          </button>
-        </div>
+    <>
+      {/* Ambient background glows */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '-120px', left: '-80px', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,106,42,0.07) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+        <div style={{ position: 'absolute', bottom: '-100px', right: '-60px', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,59,48,0.06) 0%, transparent 70%)', filter: 'blur(60px)' }} />
       </div>
 
-      {/* Tabs */}
-      <div className="tabs">
-        {tabs.map((t) => (
-          <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* Page wrapper — prevents horizontal overflow */}
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1400, margin: '0 auto', width: '100%', boxSizing: 'border-box', minWidth: 0 }}>
 
-      {/* Overview Tab */}
-      {tab === 'overview' && (
-        <div className="grid-3">
-          <div className="card">
-            <div className="card-title" style={{ marginBottom: 12 }}>Health Risk</div>
-            <div className="risk-gauge">
-              <div className={`risk-circle ${levelFromScore(animal.health_risk_score).toLowerCase()}`}>
-                {animal.health_risk_score}
+        {/* ── Back button ── */}
+        <button
+          onClick={() => navigate('/animals')}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-pill)', padding: '7px 16px',
+            fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)',
+            cursor: 'pointer', marginBottom: 20, transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--accent-orange)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+        >
+          <ArrowLeft size={15} /> Back to Animals
+        </button>
+
+        {/* ── Animal Header ── */}
+        <div style={{
+          background: 'var(--glass-surface)',
+          backdropFilter: 'var(--glass-blur)',
+          WebkitBackdropFilter: 'var(--glass-blur)',
+          border: '1px solid var(--glass-border)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow)',
+          padding: 'clamp(18px, 3vw, 28px)',
+          marginBottom: 16,
+          position: 'relative' as const,
+          overflow: 'hidden',
+        }}>
+          {/* Specular top line */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'var(--glass-border-specular)' }} />
+
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 'clamp(14px,2.5vw,24px)',
+            flexWrap: 'wrap' as const, width: '100%', minWidth: 0,
+          }}>
+            {/* Avatar */}
+            <div style={{
+              width: 'clamp(56px,8vw,72px)', height: 'clamp(56px,8vw,72px)',
+              borderRadius: 'var(--radius)',
+              background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 'clamp(22px,4vw,28px)', fontWeight: 900, color: '#fff',
+              boxShadow: '0 8px 24px rgba(255,59,48,0.35)',
+              flexShrink: 0, border: '1px solid rgba(255,255,255,0.25)',
+              letterSpacing: '-1px',
+            }}>
+              {animal.name[0]?.toUpperCase()}
+            </div>
+
+            {/* Info block */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 style={{
+                fontSize: 'clamp(22px,3.5vw,32px)', fontWeight: 900, color: 'var(--text)',
+                letterSpacing: '-0.7px', margin: '0 0 4px', lineHeight: 1.1,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
+              }}>
+                {animal.name}
+              </h1>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 6, display: 'flex', flexWrap: 'wrap' as const, gap: '4px 8px', alignItems: 'center' }}>
+                <span style={{ color: 'var(--accent-orange)', fontWeight: 700 }}>{animal.tag_id}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span>{animal.species}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span>{animal.sex}</span>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span>{ageLabel(animal.date_of_birth)}</span>
+                {animal.breed && <><span style={{ opacity: 0.4 }}>·</span><span>{animal.breed}</span></>}
               </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{levelFromScore(animal.health_risk_score)} Risk</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {animal.health_risk_score >= 60 ? 'Needs attention' : 'Within normal range'}
+
+              {/* Status + actions row */}
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 10, marginTop: 8 }}>
+                <StatusBadge
+                  label={animal.health_status}
+                  color={healthBadgeColor(animal.health_status)}
+                  bg={healthBadgeBg(animal.health_status)}
+                />
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                  <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setQrOpen(true)} variant="neutral" />
+                  <ActionBtn icon={<Pencil size={14} />} label="Edit" onClick={() => setEditOpen(true)} variant="orange" />
+                  <ActionBtn icon={<Trash2 size={14} />} label="Delete" onClick={() => setConfirmDelete(true)} variant="red" />
                 </div>
               </div>
             </div>
-            <div className="divider" />
-            <div className="stat-row"><span className="sr-label">Temperature</span><span className="sr-value">{animal.current_temperature ? `${animal.current_temperature}°C` : '—'}</span></div>
-            <div className="stat-row"><span className="sr-label">Heart Rate</span><span className="sr-value">{animal.current_heart_rate ? `${animal.current_heart_rate} BPM` : '—'}</span></div>
-          </div>
-
-          <div className="card">
-            <div className="card-title" style={{ marginBottom: 12 }}>Weight & Growth</div>
-            <div className="stat-row"><span className="sr-label">Current Weight</span><span className="sr-value">{growth.currentWeight ? `${growth.currentWeight} kg` : '—'}</span></div>
-            <div className="stat-row"><span className="sr-label">Previous</span><span className="sr-value">{growth.previousWeight ? `${growth.previousWeight} kg` : '—'}</span></div>
-            <div className="stat-row"><span className="sr-label">Change</span><span className="sr-value">{growth.weightChange !== null ? `${growth.weightChange > 0 ? '+' : ''}${growth.weightChange} kg` : '—'}</span></div>
-            <div className="stat-row"><span className="sr-label">Daily Gain</span><span className="sr-value">{growth.dailyGain !== null ? `${growth.dailyGain} kg/day` : '—'}</span></div>
-            <div className="stat-row"><span className="sr-label">Trend</span><span className="sr-value">{growth.trend}</span></div>
-            {growth.marketReadyDate && (
-              <div className="stat-row"><span className="sr-label">Market Ready</span><span className="sr-value">{formatDate(growth.marketReadyDate)}</span></div>
-            )}
-          </div>
-
-          <div className="card">
-            <div className="card-title" style={{ marginBottom: 12 }}>Breeding</div>
-            <div className="stat-row"><span className="sr-label">Status</span><span className="sr-value">{animal.breeding_status}</span></div>
-            <div className="stat-row"><span className="sr-label">Last Mating</span><span className="sr-value">{formatDate(animal.last_mating_date)}</span></div>
-            <div className="stat-row"><span className="sr-label">Expected Kidding</span><span className="sr-value">{formatDate(animal.expected_kidding_date)}</span></div>
-            {breedingAssessment && (
-              <div className="stat-row">
-                <span className="sr-label">Readiness</span>
-                <span className={`badge badge-${breedingAssessment.recommendation === 'Ready' ? 'green' : breedingAssessment.recommendation === 'Monitor' ? 'yellow' : 'gray'}`}>
-                  {breedingAssessment.recommendation}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="card">
-            <div className="card-title" style={{ marginBottom: 12 }}>Vaccination</div>
-            <div className="stat-row"><span className="sr-label">Status</span>
-              <span className={`badge badge-${animal.vaccination_status === 'Up to Date' ? 'green' : animal.vaccination_status === 'Due Soon' ? 'yellow' : animal.vaccination_status === 'Overdue' ? 'red' : 'gray'}`}>
-                {animal.vaccination_status}
-              </span>
-            </div>
-            <div className="stat-row"><span className="sr-label">Last Vaccine</span><span className="sr-value">{formatDate(animal.last_vaccine_date)}</span></div>
-            <div className="stat-row"><span className="sr-label">Next Due</span><span className="sr-value">{formatDate(animal.next_vaccine_date)}</span></div>
-          </div>
-
-          <div className="card" style={{ gridColumn: 'span 2' }}>
-            <div className="card-title" style={{ marginBottom: 12 }}>Notes</div>
-            <p style={{ fontSize: 13, color: animal.notes ? 'var(--text)' : 'var(--text-secondary)' }}>
-              {animal.notes || 'No notes recorded.'}
-            </p>
           </div>
         </div>
-      )}
 
-      {/* Health Tab */}
-      {tab === 'health' && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Health Records</div>
-            <button className="btn btn-primary btn-sm" onClick={() => navigate('/health')}><Plus size={15} /> Add Record</button>
+        {/* ── Tab Navigation ── */}
+        <div style={{
+          width: '100%', maxWidth: '100%', boxSizing: 'border-box',
+          overflowX: 'auto', overflowY: 'hidden',
+          scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' as any,
+          marginBottom: 16,
+        }}>
+          <div style={{
+            display: 'inline-flex', gap: 4, minWidth: 'max-content',
+            background: 'var(--glass-surface)',
+            backdropFilter: 'var(--glass-blur-sm)',
+            WebkitBackdropFilter: 'var(--glass-blur-sm)',
+            border: '1px solid var(--glass-border)',
+            borderRadius: 'var(--radius-pill)',
+            padding: 5,
+            boxShadow: 'var(--shadow-sm)',
+          }}>
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '8px 18px', borderRadius: 'var(--radius-pill)',
+                  fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' as const,
+                  cursor: 'pointer', border: 'none', transition: 'all 0.2s ease',
+                  background: tab === t.key
+                    ? 'linear-gradient(135deg, #FF3B30, #FF7A18)'
+                    : 'transparent',
+                  color: tab === t.key ? '#fff' : 'var(--text-secondary)',
+                  boxShadow: tab === t.key ? '0 4px 14px rgba(255,59,48,0.35)' : 'none',
+                  letterSpacing: tab === t.key ? '0.2px' : '0',
+                }}
+                onMouseEnter={(e) => { if (tab !== t.key) e.currentTarget.style.background = 'var(--surface-hover)'; e.currentTarget.style.color = 'var(--text)'; }}
+                onMouseLeave={(e) => { if (tab !== t.key) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-          {animalHealth.length === 0 ? (
-            <div className="empty-state"><div className="es-icon"><Icons.HeartPulse size={24} /></div><h4>No health records</h4><p>Record a health check to start early illness detection.</p></div>
-          ) : (
-            <div>
-              {/* Early illness alerts for latest record */}
-              {(() => {
-                const latest = [...animalHealth].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[0];
-                const conditions = (latest as any).detected_conditions;
-                if (!conditions) return null;
-                return (
-                  <div style={{ margin: '0 0 14px', padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#991B1B' }}>⚠️ Early Illness Detection — Latest Record</span>
-                    </div>
-                    <p style={{ fontSize: 12, color: '#7F1D1D', margin: 0 }}>{conditions}</p>
+        </div>
+
+        {/* ── Tab Content ── */}
+
+        {/* OVERVIEW TAB */}
+        {tab === 'overview' && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 18,
+            width: '100%', minWidth: 0,
+          }} className="ap-grid">
+
+            {/* Health Risk Card */}
+            <GlassCard>
+              <CardTitle icon={Activity} title="Health Risk" />
+              {/* Score ring */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                <div style={{
+                  width: 72, height: 72, borderRadius: '50%', flexShrink: 0,
+                  background: `conic-gradient(${scoreColor} ${animal.health_risk_score * 3.6}deg, rgba(255,255,255,0.08) 0deg)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: `0 0 20px ${scoreColor}44`,
+                  position: 'relative' as const,
+                }}>
+                  <div style={{
+                    position: 'absolute', inset: 6, borderRadius: '50%',
+                    background: 'var(--bg)', display: 'flex', flexDirection: 'column' as const,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ fontSize: 20, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{animal.health_risk_score}</span>
+                    <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>SCORE</span>
                   </div>
-                );
-              })()}
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: scoreColor, marginBottom: 2 }}>
+                    {levelFromScore(animal.health_risk_score)} Risk
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {animal.health_risk_score >= 60 ? 'Needs immediate attention' : 'Within normal range'}
+                  </div>
+                </div>
+              </div>
+              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 12 }}>
+                <StatRow label="Temperature" value={animal.current_temperature ? `${animal.current_temperature}°C` : '—'} />
+                <StatRow label="Heart Rate" value={animal.current_heart_rate ? `${animal.current_heart_rate} BPM` : '—'} />
+              </div>
+            </GlassCard>
+
+            {/* Weight & Growth Card */}
+            <GlassCard>
+              <CardTitle icon={Scale} title="Weight & Growth" />
+              <StatRow label="Current Weight" value={growth.currentWeight ? `${growth.currentWeight} kg` : '—'} />
+              <StatRow label="Previous Weight" value={growth.previousWeight ? `${growth.previousWeight} kg` : '—'} />
+              <StatRow
+                label="Change"
+                value={growth.weightChange !== null
+                  ? `${growth.weightChange > 0 ? '+' : ''}${growth.weightChange} kg`
+                  : '—'}
+                valueStyle={growth.weightChange !== null ? { color: growth.weightChange >= 0 ? '#FF7A18' : '#EF4444' } : {}}
+              />
+              <StatRow label="Daily Gain" value={growth.dailyGain !== null ? `${growth.dailyGain} kg/day` : '—'} />
+              <StatRow label="Trend" value={growth.trend || 'Insufficient data'} />
+              {growth.marketReadyDate && (
+                <StatRow label="Market Ready" value={formatDate(growth.marketReadyDate)} />
+              )}
+            </GlassCard>
+
+            {/* Breeding Card */}
+            <GlassCard>
+              <CardTitle icon={Heart} title="Breeding" />
+              <StatRow label="Status" value={
+                <StatusBadge
+                  label={animal.breeding_status}
+                  color={animal.breeding_status === 'Pregnant' ? '#3B82F6' : animal.breeding_status === 'Open' ? '#FF7A18' : '#8AA0B8'}
+                  bg={animal.breeding_status === 'Pregnant' ? 'rgba(59,130,246,0.15)' : animal.breeding_status === 'Open' ? 'rgba(255,122,24,0.15)' : 'rgba(138,160,184,0.12)'}
+                />
+              } />
+              <StatRow label="Last Mating" value={formatDate(animal.last_mating_date)} />
+              <StatRow label="Expected Kidding" value={formatDate(animal.expected_kidding_date)} />
+              {breedingAssessment && (
+                <StatRow label="Readiness" value={
+                  <StatusBadge
+                    label={breedingAssessment.recommendation}
+                    color={breedingAssessment.recommendation === 'Ready' ? '#FF7A18' : breedingAssessment.recommendation === 'Monitor' ? '#F59E0B' : '#8AA0B8'}
+                    bg={breedingAssessment.recommendation === 'Ready' ? 'rgba(255,122,24,0.15)' : breedingAssessment.recommendation === 'Monitor' ? 'rgba(245,158,11,0.15)' : 'rgba(138,160,184,0.12)'}
+                  />
+                } />
+              )}
+            </GlassCard>
+
+            {/* Vaccination Card */}
+            <GlassCard>
+              <CardTitle icon={Syringe} title="Vaccination" />
+              <StatRow label="Status" value={
+                <StatusBadge
+                  label={animal.vaccination_status}
+                  color={vaccBadgeColor(animal.vaccination_status)}
+                  bg={`${vaccBadgeColor(animal.vaccination_status)}22`}
+                />
+              } />
+              <StatRow label="Last Vaccine" value={formatDate(animal.last_vaccine_date)} />
+              <StatRow label="Next Due" value={formatDate(animal.next_vaccine_date)} />
+            </GlassCard>
+
+            {/* Notes Card — spans 2 cols on desktop */}
+            <GlassCard style={{ gridColumn: 'span 2' }}>
+              <CardTitle title="Notes" />
+              <p style={{
+                fontSize: 14, color: animal.notes ? 'var(--text)' : 'var(--text-secondary)',
+                lineHeight: 1.7, margin: 0, fontStyle: animal.notes ? 'normal' : 'italic',
+              }}>
+                {animal.notes || 'No notes recorded for this animal.'}
+              </p>
+            </GlassCard>
+
+          </div>
+        )}
+
+        {/* HEALTH TAB */}
+        {tab === 'health' && (
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+              <CardTitle icon={Activity} title="Health Records" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/health')}><Plus size={15} /> Add Record</button>
+            </div>
+            {animalHealth.length === 0 ? (
+              <div className="empty-state">
+                <div className="es-icon"><Icons.HeartPulse size={24} /></div>
+                <h4>No health records</h4>
+                <p>Record a health check to start early illness detection.</p>
+              </div>
+            ) : (
+              <>
+                {(() => {
+                  const latest = [...animalHealth].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[0];
+                  const conditions = (latest as any).detected_conditions;
+                  if (!conditions) return null;
+                  return (
+                    <div style={{ marginBottom: 14, padding: '12px 14px', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', borderRadius: 12, display: 'flex', gap: 10 }}>
+                      <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', marginBottom: 3 }}>⚠️ Early Illness Detection — Latest Record</div>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{conditions}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th><th>Temp</th><th>HR</th><th>RR</th>
+                        <th>FAMACHA</th><th>Bloat</th><th>Gait</th>
+                        <th>Risk</th><th>Detected Conditions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {animalHealth.map((r) => (
+                        <tr key={r.id}>
+                          <td>{formatDate(r.record_date)}</td>
+                          <td>{r.temperature ? `${r.temperature}°C` : '—'}</td>
+                          <td>{r.heart_rate ?? '—'}</td>
+                          <td>{(r as any).respiratory_rate ?? '—'}</td>
+                          <td>{(r as any).famacha_score ? `${(r as any).famacha_score}/5` : '—'}</td>
+                          <td>{(r as any).bloat_score !== undefined ? `${(r as any).bloat_score}/3` : '—'}</td>
+                          <td style={{ fontSize: 11 }}>{(r as any).gait ?? '—'}</td>
+                          <td>
+                            <span className={`badge badge-${r.risk_level === 'Low' ? 'green' : r.risk_level === 'Moderate' ? 'yellow' : r.risk_level === 'High' ? 'orange' : 'red'}`}>
+                              {r.risk_level} ({r.risk_score})
+                            </span>
+                          </td>
+                          <td style={{ maxWidth: 200, fontSize: 11 }}>
+                            {(r as any).detected_conditions
+                              ? <span style={{ color: '#EF4444', fontWeight: 600 }}>{(r as any).detected_conditions}</span>
+                              : <span style={{ color: 'var(--text-secondary)' }}>None</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </GlassCard>
+        )}
+
+        {/* WEIGHT TAB */}
+        {tab === 'weight' && (
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+              <CardTitle icon={Scale} title="Weight History" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/weights')}><Plus size={15} /> Add Weight</button>
+            </div>
+            {animalWeights.length === 0 ? (
+              <div className="empty-state"><div className="es-icon"><Icons.Scale size={24} /></div><h4>No weight records</h4><p>Add a weigh-in to start tracking growth.</p></div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', padding: '4px 0' }}>
+                  <Line data={weightChartData} options={{
+                    responsive: true,
+                    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(6,18,32,0.92)', bodyColor: '#fff', titleColor: '#FF7A18' } },
+                    scales: {
+                      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-secondary)' as any } },
+                      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-secondary)' as any } },
+                    },
+                  }} />
+                </div>
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead><tr><th>Date</th><th>Weight</th><th>Change</th><th>Daily Gain</th></tr></thead>
+                    <tbody>
+                      {[...animalWeights].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime()).map((w) => (
+                        <tr key={w.id}>
+                          <td>{formatDate(w.record_date)}</td>
+                          <td><strong>{w.weight_kg} kg</strong></td>
+                          <td style={{ color: w.weight_change_kg !== null && w.weight_change_kg < 0 ? '#EF4444' : 'inherit' }}>
+                            {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
+                          </td>
+                          <td>{w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </GlassCard>
+        )}
+
+        {/* BREEDING TAB */}
+        {tab === 'breeding' && (
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+              <CardTitle icon={Heart} title="Breeding Records" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/breeding')}><Plus size={15} /> Add Record</button>
+            </div>
+            {animalBreedings.length === 0 ? (
+              <div className="empty-state"><div className="es-icon"><Icons.Heart size={24} /></div><h4>No breeding records</h4><p>Add a mating record to track pregnancy.</p></div>
+            ) : (
               <div className="table-wrap">
                 <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th><th>Temp</th><th>HR</th><th>RR</th>
-                      <th>FAMACHA</th><th>Bloat</th><th>Gait</th>
-                      <th>Risk</th><th>Detected Conditions</th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th>Mating Date</th><th>Expected Kidding</th><th>Status</th><th>Days Until Kidding</th></tr></thead>
                   <tbody>
-                    {animalHealth.map((r) => (
-                      <tr key={r.id}>
-                        <td>{formatDate(r.record_date)}</td>
-                        <td>{r.temperature ? `${r.temperature}°C` : '—'}</td>
-                        <td>{r.heart_rate ?? '—'}</td>
-                        <td>{(r as any).respiratory_rate ? `${(r as any).respiratory_rate}` : '—'}</td>
-                        <td>{(r as any).famacha_score ? `${(r as any).famacha_score}/5` : '—'}</td>
-                        <td>{(r as any).bloat_score !== undefined ? `${(r as any).bloat_score}/3` : '—'}</td>
-                        <td style={{ fontSize: 11 }}>{(r as any).gait ?? '—'}</td>
-                        <td>
-                          <span className={`badge badge-${r.risk_level === 'Low' ? 'green' : r.risk_level === 'Moderate' ? 'yellow' : r.risk_level === 'High' ? 'orange' : 'red'}`}>
-                            {r.risk_level} ({r.risk_score})
-                          </span>
-                        </td>
-                        <td style={{ maxWidth: 220, fontSize: 11 }}>
-                          {(r as any).detected_conditions
-                            ? <span style={{ color: '#B91C1C', fontWeight: 600 }}>{(r as any).detected_conditions}</span>
-                            : <span style={{ color: 'var(--text-secondary)' }}>None detected</span>}
-                        </td>
+                    {animalBreedings.map((b) => {
+                      const days = b.expected_kidding_date ? daysUntil(b.expected_kidding_date) : null;
+                      return (
+                        <tr key={b.id}>
+                          <td>{formatDate(b.mating_date)}</td>
+                          <td>{formatDate(b.expected_kidding_date)}</td>
+                          <td><span className={`badge badge-${b.status === 'Pregnant' ? 'blue' : b.status === 'Kidded' ? 'green' : 'gray'}`}>{b.status}</span></td>
+                          <td>{days !== null && days >= 0 ? `${days} days` : '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </GlassCard>
+        )}
+
+        {/* VACCINATION TAB */}
+        {tab === 'vaccination' && (
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+              <CardTitle icon={Syringe} title="Vaccination Records" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/vaccinations')}><Plus size={15} /> Add Vaccination</button>
+            </div>
+            {animalVaccinations.length === 0 ? (
+              <div className="empty-state"><div className="es-icon"><Icons.Syringe size={24} /></div><h4>No vaccination records</h4><p>Add a vaccination to track immunization.</p></div>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead><tr><th>Vaccine</th><th>Date Given</th><th>Next Due</th><th>Veterinarian</th></tr></thead>
+                  <tbody>
+                    {animalVaccinations.map((v) => (
+                      <tr key={v.id}>
+                        <td style={{ fontWeight: 600 }}>{v.vaccine_name}</td>
+                        <td>{formatDate(v.date_given)}</td>
+                        <td>{formatDate(v.next_due_date)}</td>
+                        <td>{v.veterinarian ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </GlassCard>
+        )}
 
-      {/* Weight Tab */}
-      {tab === 'weight' && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Weight History</div>
-            <button className="btn btn-primary btn-sm" onClick={() => navigate('/weights')}><Plus size={15} /> Add Weight</button>
-          </div>
-          {animalWeights.length === 0 ? (
-            <div className="empty-state"><div className="es-icon"><Icons.Scale size={24} /></div><h4>No weight records</h4><p>Add a weigh-in to start tracking growth.</p></div>
-          ) : (
-            <>
-              <div style={{ marginBottom: 20 }}>
-                <Line data={weightChartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
-              </div>
+        {/* FEED TAB */}
+        {tab === 'feed' && (
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+              <CardTitle icon={Wheat} title="Feed Records" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/feed')}><Plus size={15} /> Add Feed Record</button>
+            </div>
+            {animalFeed.length === 0 ? (
+              <div className="empty-state"><div className="es-icon"><Icons.Wheat size={24} /></div><h4>No feed records</h4><p>Record feed to track consumption and efficiency.</p></div>
+            ) : (
               <div className="table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Date</th><th>Weight</th><th>Change</th><th>Daily Gain</th></tr></thead>
+                  <thead><tr><th>Date</th><th>Feed Type</th><th>Quantity</th><th>Cost</th></tr></thead>
                   <tbody>
-                    {animalWeights.sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime()).map((w) => (
-                      <tr key={w.id}>
-                        <td>{formatDate(w.record_date)}</td>
-                        <td>{w.weight_kg} kg</td>
-                        <td>{w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}</td>
-                        <td>{w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}</td>
+                    {animalFeed.map((f) => (
+                      <tr key={f.id}>
+                        <td>{formatDate(f.record_date)}</td>
+                        <td style={{ fontWeight: 600 }}>{f.feed_type}</td>
+                        <td>{f.quantity_kg} kg</td>
+                        <td>{f.cost ? `₱${f.cost}` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </GlassCard>
+        )}
 
-      {/* Breeding Tab */}
-      {tab === 'breeding' && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Breeding Records</div>
-            <button className="btn btn-primary btn-sm" onClick={() => navigate('/breeding')}><Plus size={15} /> Add Record</button>
-          </div>
-          {animalBreedings.length === 0 ? (
-            <div className="empty-state"><div className="es-icon"><Icons.Heart size={24} /></div><h4>No breeding records</h4><p>Add a mating record to track pregnancy.</p></div>
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Mating Date</th><th>Expected Kidding</th><th>Status</th><th>Days Until Kidding</th></tr></thead>
-                <tbody>
-                  {animalBreedings.map((b) => {
-                    const days = b.expected_kidding_date ? daysUntil(b.expected_kidding_date) : null;
-                    return (
-                      <tr key={b.id}>
-                        <td>{formatDate(b.mating_date)}</td>
-                        <td>{formatDate(b.expected_kidding_date)}</td>
-                        <td><span className={`badge badge-${b.status === 'Pregnant' ? 'blue' : b.status === 'Kidded' ? 'green' : 'gray'}`}>{b.status}</span></td>
-                        <td>{days !== null && days >= 0 ? `${days} days` : '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+        {/* HISTORY TAB */}
+        {tab === 'history' && (
+          <GlassCard>
+            <CardTitle icon={Activity} title="Recent Activity" />
+            {animalHealth.length === 0 && animalWeights.length === 0 && animalVaccinations.length === 0 ? (
+              <div className="empty-state"><div className="es-icon"><Icons.Activity size={24} /></div><h4>No activity yet</h4><p>Records will appear here as you add them.</p></div>
+            ) : (
+              <div>
+                {animalHealth.slice(0, 3).map((r) => (
+                  <StatRow key={r.id} label={`Health Check — ${formatDate(r.record_date)}`} value={
+                    <StatusBadge
+                      label={`${r.risk_level} risk`}
+                      color={riskColor(r.risk_score)}
+                      bg={`${riskColor(r.risk_score)}22`}
+                    />
+                  } />
+                ))}
+                {animalWeights.slice(0, 3).map((w) => (
+                  <StatRow key={w.id} label={`Weight Record — ${formatDate(w.record_date)}`} value={`${w.weight_kg} kg`} />
+                ))}
+                {animalVaccinations.slice(0, 3).map((v) => (
+                  <StatRow key={v.id} label={`Vaccination — ${formatDate(v.date_given)}`} value={v.vaccine_name} />
+                ))}
+              </div>
+            )}
+          </GlassCard>
+        )}
 
-      {/* Vaccination Tab */}
-      {tab === 'vaccination' && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Vaccination Records</div>
-            <button className="btn btn-primary btn-sm" onClick={() => navigate('/vaccinations')}><Plus size={15} /> Add Vaccination</button>
-          </div>
-          {animalVaccinations.length === 0 ? (
-            <div className="empty-state"><div className="es-icon"><Icons.Syringe size={24} /></div><h4>No vaccination records</h4><p>Add a vaccination to track immunization.</p></div>
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Vaccine</th><th>Date Given</th><th>Next Due</th><th>Veterinarian</th></tr></thead>
-                <tbody>
-                  {animalVaccinations.map((v) => (
-                    <tr key={v.id}>
-                      <td style={{ fontWeight: 600 }}>{v.vaccine_name}</td>
-                      <td>{formatDate(v.date_given)}</td>
-                      <td>{formatDate(v.next_due_date)}</td>
-                      <td>{v.veterinarian ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+        {/* Spacing at bottom */}
+        <div style={{ height: 40 }} />
+      </div>
 
-      {/* Feed Tab */}
-      {tab === 'feed' && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Feed Records</div>
-            <button className="btn btn-primary btn-sm" onClick={() => navigate('/feed')}><Plus size={15} /> Add Feed Record</button>
-          </div>
-          {animalFeed.length === 0 ? (
-            <div className="empty-state"><div className="es-icon"><Icons.Wheat size={24} /></div><h4>No feed records</h4><p>Record feed to track consumption and efficiency.</p></div>
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Date</th><th>Feed Type</th><th>Quantity</th><th>Cost</th></tr></thead>
-                <tbody>
-                  {animalFeed.map((f) => (
-                    <tr key={f.id}>
-                      <td>{formatDate(f.record_date)}</td>
-                      <td style={{ fontWeight: 600 }}>{f.feed_type}</td>
-                      <td>{f.quantity_kg} kg</td>
-                      <td>{f.cost ? `₱${f.cost}` : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+      {/* ── Responsive grid CSS ── */}
+      <style>{`
+        .ap-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        }
+        @media (max-width: 1100px) {
+          .ap-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          .ap-grid > div[style*="span 2"] {
+            grid-column: span 2 !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .ap-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .ap-grid > div[style*="span 2"],
+          .ap-grid > div[style*="span 3"] {
+            grid-column: span 1 !important;
+          }
+        }
+        /* Hide scrollbar on tab nav */
+        div[style*="overflow-x: auto"]::-webkit-scrollbar { display: none; }
+        div[style*="overflow-x: auto"] { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
 
-      {/* History Tab */}
-      {tab === 'history' && (
-        <div className="card">
-          <div className="card-title" style={{ marginBottom: 14 }}>Recent Activity</div>
-          {animalHealth.length === 0 && animalWeights.length === 0 && animalVaccinations.length === 0 ? (
-            <div className="empty-state"><div className="es-icon"><Icons.Activity size={24} /></div><h4>No activity yet</h4><p>Records will appear here as you add them.</p></div>
-          ) : (
-            <div>
-              {animalHealth.slice(0, 3).map((r) => (
-                <div key={r.id} className="stat-row"><span className="sr-label">Health Check — {formatDate(r.record_date)}</span><span className="sr-value">{r.risk_level} risk</span></div>
-              ))}
-              {animalWeights.slice(0, 3).map((w) => (
-                <div key={w.id} className="stat-row"><span className="sr-label">Weight Record — {formatDate(w.record_date)}</span><span className="sr-value">{w.weight_kg} kg</span></div>
-              ))}
-              {animalVaccinations.slice(0, 3).map((v) => (
-                <div key={v.id} className="stat-row"><span className="sr-label">Vaccination — {formatDate(v.date_given)}</span><span className="sr-value">{v.vaccine_name}</span></div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* QR Modal */}
+      {/* ── QR Modal ── */}
       <Modal open={qrOpen} onClose={() => setQrOpen(false)} title={`QR Code — ${animal.name}`}
-        footer={<><button className="btn btn-secondary" onClick={() => setQrOpen(false)}>Close</button>
-        <button className="btn btn-secondary" onClick={downloadQR}><Download size={15} /> Download</button>
-        <button className="btn btn-primary" onClick={printQR}><Printer size={15} /> Print</button></>}
+        footer={<>
+          <button className="btn btn-secondary" onClick={() => setQrOpen(false)}>Close</button>
+          <button className="btn btn-secondary" onClick={downloadQR}><Download size={15} /> Download</button>
+          <button className="btn btn-primary" onClick={printQR}><Printer size={15} /> Print</button>
+        </>}
       >
         <div className="qr-display">
-          <QRCanvas value={`${window.location.origin}/public/${animal.id}`} size={240} />
+          <QRCanvas value={`https://capstone-delta-jet.vercel.app/public/${animal.id}`} size={240} />
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontWeight: 700, fontSize: 16 }}>{animal.name}</p>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{animal.tag_id}</p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 6 }}>Scan with any QR reader or Google Lens to view public profile</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 6 }}>Scan to view public profile</p>
           </div>
         </div>
       </Modal>
 
-      {/* Edit Modal */}
+      {/* ── Edit Modal ── */}
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Animal"
-        footer={<><button className="btn btn-secondary" onClick={() => setEditOpen(false)}>Cancel</button>
-        <button className="btn btn-primary" onClick={handleSaveEdit} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button></>}
+        footer={<>
+          <button className="btn btn-secondary" onClick={() => setEditOpen(false)}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleSaveEdit} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+        </>}
       >
         <div className="form-row">
           <div className="form-group"><label className="form-label">Tag ID <span className="req">*</span></label>
@@ -519,11 +826,50 @@ export function AnimalProfilePage() {
           <textarea className="form-textarea" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} /></div>
       </Modal>
 
-      <ConfirmDialog open={confirmDelete} title="Delete Animal" message={`Are you sure you want to delete ${animal.name}? All related records will also be deleted.`} confirmLabel="Delete" onConfirm={handleDelete} onCancel={() => setConfirmDelete(false)} />
-    </div>
+      {/* ── Confirm Delete ── */}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Animal"
+        message={`Are you sure you want to delete ${animal.name}? All related records will also be deleted.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+    </>
   );
 }
 
+// ─── Action Button ─────────────────────────────────────────────────────────────
+function ActionBtn({ icon, label, onClick, variant }: {
+  icon: React.ReactNode; label: string; onClick: () => void;
+  variant: 'neutral' | 'orange' | 'red';
+}) {
+  const colors = {
+    neutral: { base: 'var(--surface)', border: 'var(--border)', text: 'var(--text-secondary)', hover: 'var(--surface-hover)' },
+    orange: { base: 'rgba(255,106,42,0.12)', border: 'rgba(255,106,42,0.35)', text: '#FF7A18', hover: 'rgba(255,106,42,0.22)' },
+    red: { base: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.30)', text: '#EF4444', hover: 'rgba(239,68,68,0.20)' },
+  }[variant];
+
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        padding: '7px 14px', borderRadius: 'var(--radius-pill)',
+        background: colors.base, border: `1px solid ${colors.border}`,
+        color: colors.text, fontSize: 13, fontWeight: 700,
+        cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap' as const,
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = colors.hover; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = colors.base; e.currentTarget.style.transform = 'translateY(0)'; }}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+// ─── QR Canvas ────────────────────────────────────────────────────────────────
 function QRCanvas({ value, size }: { value: string; size: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
