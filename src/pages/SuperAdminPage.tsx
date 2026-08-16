@@ -27,6 +27,7 @@ import {
 import { FilterToolbar, FilterSearch } from '../components/FilterToolbar';
 import { formatDate } from '../lib/analytics';
 import { type UserRole, ALL_ROLES, getRoleLabel, SUPER_ADMIN_EMAILS_FALLBACK } from '../lib/auth';
+import { supabase } from '../lib/supabase';
 
 // ── Service client ─────────────────────────────────────────────────────────────
 // Used for auth.admin API (listUsers, deleteUser).
@@ -108,8 +109,10 @@ export function SuperAdminPage() {
     setLoadError(null);
 
     try {
-      // ── Step 1: Load profiles (primary source — always works with service key) ──
-      const profilesRes = await svcClient
+      // ── Step 1: Load profiles using the authenticated supabase client ──
+      // Uses the anon key + current user's session — works without service key.
+      // RLS allows super_admin to read all profiles (policy set in migration).
+      const profilesRes = await supabase
         .from('profiles')
         .select('id, role, full_name, is_active, created_at');
 
@@ -140,11 +143,11 @@ export function SuperAdminPage() {
         console.warn('[SuperAdmin] auth.admin.listUsers threw:', authEx);
       }
 
-      // ── Step 3: Load farm data ──
+      // ── Step 3: Load farm data using authenticated client ──
       const [animalsRes, healthRes, settingsRes] = await Promise.all([
-        svcClient.from('animals').select('user_id'),
-        svcClient.from('health_records').select('user_id'),
-        svcClient.from('settings').select('user_id, farm_name'),
+        supabase.from('animals').select('user_id'),
+        supabase.from('health_records').select('user_id'),
+        supabase.from('settings').select('user_id, farm_name'),
       ]);
 
       const animalMap: Record<string, number> = {};
@@ -222,7 +225,7 @@ export function SuperAdminPage() {
     }
     setSavingRole(true);
     try {
-      const { error } = await svcClient
+      const { error } = await supabase
         .from('profiles')
         .update({ role: newRole, updated_at: new Date().toISOString() })
         .eq('id', editRoleUser.id);
@@ -248,7 +251,7 @@ export function SuperAdminPage() {
       }
     }
     try {
-      const { error } = await svcClient
+      const { error } = await supabase
         .from('profiles')
         .update({ is_active: !u.is_active, updated_at: new Date().toISOString() })
         .eq('id', u.id);
@@ -272,7 +275,7 @@ export function SuperAdminPage() {
       const { error } = await svcClient.auth.admin.deleteUser(confirmDeleteUser.id);
       if (error) throw error;
       // Also delete profile row
-      await svcClient.from('profiles').delete().eq('id', confirmDeleteUser.id);
+      await supabase.from('profiles').delete().eq('id', confirmDeleteUser.id);
       toast(`User ${confirmDeleteUser.email} deleted.`, 'success');
       setConfirmDeleteUser(null);
       loadUsers();
