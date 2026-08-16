@@ -3,16 +3,18 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
 // ─── Role definitions ─────────────────────────────────────────────────────────
-export type UserRole = 'system_admin' | 'farm_manager';
+export type UserRole = 'super_admin' | 'system_admin' | 'farm_manager';
 
 /** Human-readable label for a role */
 export function getRoleLabel(role: UserRole | null): string {
+  if (role === 'super_admin') return 'Super Administrator';
   if (role === 'system_admin') return 'System Administrator';
   return 'Farm Manager';
 }
 
 /** Default landing route after sign-in */
 export function defaultRouteForRole(role: UserRole | null): string {
+  if (role === 'super_admin') return '/super-admin';
   if (role === 'system_admin') return '/admin';
   return '/dashboard';
 }
@@ -20,9 +22,34 @@ export function defaultRouteForRole(role: UserRole | null): string {
 /** Whether a role can access a given route */
 export function canAccessRoute(role: UserRole | null, route: string): boolean {
   if (!role) return false;
+  if (role === 'super_admin') return true; // super admin can access everything
   if (role === 'system_admin') return route === '/admin';
-  return route !== '/admin';
+  return route !== '/admin' && route !== '/super-admin';
 }
+
+/** Check if a role is an administrative role */
+export function isAdminRole(role: UserRole | null): boolean {
+  return role === 'super_admin' || role === 'system_admin';
+}
+
+/** Check if a role can manage users */
+export function canManageUsers(role: UserRole | null): boolean {
+  return role === 'super_admin';
+}
+
+/** Role hierarchy — higher number = more authority */
+export const ROLE_RANK: Record<UserRole, number> = {
+  farm_manager: 1,
+  system_admin: 2,
+  super_admin: 3,
+};
+
+/** All assignable roles with labels */
+export const ALL_ROLES: { value: UserRole; label: string }[] = [
+  { value: 'farm_manager', label: 'Farm Manager' },
+  { value: 'system_admin', label: 'System Administrator' },
+  { value: 'super_admin', label: 'Super Administrator' },
+];
 
 export interface UserProfile {
   id: string;
@@ -34,29 +61,34 @@ export interface UserProfile {
 /**
  * Fallback admin email list.
  * Used when the `profiles` table doesn't exist yet or has no row for the user.
- * Apply the database migration below to move to a proper role column.
  *
- * MIGRATION (run once in Supabase SQL Editor):
- * ─────────────────────────────────────────────
- * create table if not exists public.profiles (
- *   id          uuid primary key references auth.users(id) on delete cascade,
- *   role        text not null default 'farm_manager'
- *                 check (role in ('farm_manager', 'system_admin')),
- *   full_name   text,
- *   is_active   boolean not null default true,
- *   created_at  timestamptz not null default now(),
- *   updated_at  timestamptz not null default now()
- * );
- * alter table public.profiles enable row level security;
- * create policy "Users can view their own profile"
- *   on public.profiles for select using (auth.uid() = id);
- * -- Seed existing admin:
- * insert into public.profiles (id, role)
- *   select id, 'system_admin'
- *   from auth.users where email = 'marlonaberte00@gmail.com'
- *   on conflict (id) do update set role = 'system_admin';
+ * SUPABASE MIGRATION — run once in Supabase SQL Editor:
+ * ─────────────────────────────────────────────────────
+ * -- 1. Widen the CHECK constraint to include super_admin
+ * alter table public.profiles
+ *   drop constraint if exists profiles_role_check;
+ * alter table public.profiles
+ *   add constraint profiles_role_check
+ *   check (role in ('farm_manager', 'system_admin', 'super_admin'));
+ *
+ * -- 2. Promote your account to super_admin
+ * update public.profiles
+ *   set role = 'super_admin'
+ *   where id = (select id from auth.users where email = 'marlonaberte00@gmail.com');
+ *
+ * -- 3. Allow super_admin to update any profile row (for role assignment)
+ * create policy "Super admin can manage all profiles"
+ *   on public.profiles for all
+ *   using (
+ *     exists (
+ *       select 1 from public.profiles p
+ *       where p.id = auth.uid() and p.role = 'super_admin'
+ *     )
+ *   );
  */
 export const ADMIN_EMAILS_FALLBACK: string[] = ['marlonaberte00@gmail.com'];
+/** These emails get super_admin when no profiles row exists */
+export const SUPER_ADMIN_EMAILS_FALLBACK: string[] = ['marlonaberte00@gmail.com'];
 
 // ─── Context shape ────────────────────────────────────────────────────────────
 interface AuthContextValue {
@@ -81,6 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Fetch the profile row. Falls back gracefully if the table doesn't exist.
    */
   const fetchProfile = async (userId: string, userEmail?: string | null): Promise<UserProfile> => {
+    const isSuperAdmin = !!userEmail && SUPER_ADMIN_EMAILS_FALLBACK.includes(userEmail.toLowerCase());
+    const isAdminFallback = !!userEmail && ADMIN_EMAILS_FALLBACK.includes(userEmail.toLowerCase());
+
+    const fallbackRole: UserRole = isSuperAdmin ? 'super_admin' : isAdminFallback ? 'system_admin' : 'farm_manager';
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -89,44 +126,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (error) {
-        // profiles table may not be migrated yet
-        const isAdmin = !!userEmail && ADMIN_EMAILS_FALLBACK.includes(userEmail.toLowerCase());
-        return {
-          id: userId,
-          role: isAdmin ? 'system_admin' : 'farm_manager',
-          full_name: null,
-          is_active: true,
-        };
+        return { id: userId, role: fallbackRole, full_name: null, is_active: true };
       }
 
       if (!data) {
         // No row yet → insert a default profile
-        const isAdmin = !!userEmail && ADMIN_EMAILS_FALLBACK.includes(userEmail.toLowerCase());
-        const defaultRole: UserRole = isAdmin ? 'system_admin' : 'farm_manager';
         const { data: inserted } = await supabase
           .from('profiles')
-          .insert({ id: userId, role: defaultRole, full_name: null, is_active: true })
+          .insert({ id: userId, role: fallbackRole, full_name: null, is_active: true })
           .select('id, role, full_name, is_active')
           .maybeSingle();
-        return (
-          (inserted as UserProfile | null) ?? {
-            id: userId,
-            role: defaultRole,
-            full_name: null,
-            is_active: true,
-          }
-        );
+        return (inserted as UserProfile | null) ?? { id: userId, role: fallbackRole, full_name: null, is_active: true };
       }
 
       return data as UserProfile;
     } catch {
-      const isAdmin = !!userEmail && ADMIN_EMAILS_FALLBACK.includes(userEmail.toLowerCase());
-      return {
-        id: userId,
-        role: isAdmin ? 'system_admin' : 'farm_manager',
-        full_name: null,
-        is_active: true,
-      };
+      return { id: userId, role: fallbackRole, full_name: null, is_active: true };
     }
   };
 

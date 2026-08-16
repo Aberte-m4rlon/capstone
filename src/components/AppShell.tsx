@@ -6,7 +6,7 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { AIAssistantPanel } from './AIAssistantPanel';
 import { FloatingAICloud } from './FloatingAICloud';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Crown } from 'lucide-react';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord } from '../types';
 
 interface NavItem {
@@ -53,6 +53,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/activity-log': { title: 'Activity Log', subtitle: 'Complete history of all farm actions' },
   '/myai': { title: 'MyAI', subtitle: 'Local AI assistant powered by Ollama' },
   '/admin': { title: 'Admin Panel', subtitle: 'Manage users and system data' },
+  '/super-admin': { title: 'Super Admin', subtitle: 'Full system control and user management' },
   '/settings': { title: 'Settings', subtitle: 'Configure farm thresholds' },
 };
 
@@ -91,11 +92,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [darkMode]);
 
   const isAdmin = role === 'system_admin';
+  const isSuperAdmin = role === 'super_admin';
 
-  // Admin sees only Admin Panel; regular users see everything except Admin Panel
-  const visibleNav = isAdmin
-    ? [{ to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' as IconName }]
-    : NAV.filter(item => item.to !== '/admin');
+  // Nav logic:
+  // super_admin → sees all farm nav + Admin Panel + Super Admin Panel
+  // system_admin → sees only Admin Panel
+  // farm_manager → sees all farm nav (no Admin Panel, no Super Admin)
+  const visibleNav = isSuperAdmin
+    ? [
+        ...NAV.filter(item => item.to !== '/admin'),
+        { to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' as IconName },
+        { to: '/super-admin', label: 'Super Admin', icon: 'Crown' as IconName },
+      ]
+    : isAdmin
+      ? [{ to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' as IconName }]
+      : NAV.filter(item => item.to !== '/admin');
 
   const pathKey = Object.keys(PAGE_TITLES).find((k) => location.pathname.startsWith(k)) ?? '/dashboard';
   const pageTitle = PAGE_TITLES[pathKey] ?? { title: 'AlpasFarm', subtitle: '' };
@@ -400,15 +411,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                       borderRadius: 6,
                       fontSize: 11,
                       fontWeight: 700,
-                      background: isAdmin
-                        ? 'rgba(217,45,32,0.12)'
-                        : 'rgba(255,106,42,0.12)',
-                      color: isAdmin ? '#D92D20' : '#FF7A18',
-                      border: isAdmin
-                        ? '1px solid rgba(217,45,32,0.25)'
-                        : '1px solid rgba(255,106,42,0.25)',
+                      background: isSuperAdmin
+                        ? 'rgba(139,92,246,0.15)'
+                        : isAdmin
+                          ? 'rgba(217,45,32,0.12)'
+                          : 'rgba(255,106,42,0.12)',
+                      color: isSuperAdmin ? '#7C3AED' : isAdmin ? '#D92D20' : '#FF7A18',
+                      border: isSuperAdmin
+                        ? '1px solid rgba(139,92,246,0.30)'
+                        : isAdmin
+                          ? '1px solid rgba(217,45,32,0.25)'
+                          : '1px solid rgba(255,106,42,0.25)',
                     }}>
-                      {isAdmin ? 'System Administrator' : 'Farm Manager'}
+                      {isSuperAdmin ? '👑 Super Administrator' : isAdmin ? 'System Administrator' : 'Farm Manager'}
                     </span>
                   </div>
                   {!isAdmin && (
@@ -426,7 +441,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="content">{children}</main>
       </div>
-      {/* AI Cloud Floating Assistant — global, visible on every authenticated page */}
+      {/* AI Cloud Floating Assistant — global, visible on every authenticated page except system_admin-only */}
       {!isAdmin && <FloatingAICloud />}
     </div>
   );

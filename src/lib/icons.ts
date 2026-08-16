@@ -5,7 +5,7 @@ import {
   Archive, RotateCcw, AlertTriangle, TrendingUp, TrendingDown, Baby,
   PackageX, Menu, LogOut, ChevronDown, Filter, Activity, Milk, DollarSign,
   CheckCircle, Clock, Calendar, User, ArrowLeft, MoreVertical, Save,
-  ScanLine, ClipboardList, ShieldAlert, Bot,
+  ScanLine, ClipboardList, ShieldAlert, Bot, Crown,
 } from 'lucide-react';
 
 export const Icons = {
@@ -15,7 +15,7 @@ export const Icons = {
   Archive, RotateCcw, AlertTriangle, TrendingUp, TrendingDown, Baby,
   PackageX, Menu, LogOut, ChevronDown, Filter, Activity, Milk, DollarSign,
   CheckCircle, Clock, Calendar, User, ArrowLeft, MoreVertical, Save,
-  ScanLine, ClipboardList, ShieldAlert, Bot,
+  ScanLine, ClipboardList, ShieldAlert, Bot, Crown,
 };
 
 export type IconName = keyof typeof Icons;

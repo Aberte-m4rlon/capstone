@@ -24,6 +24,7 @@ import { PublicAnimalPage } from './pages/PublicAnimalPage';
 import { ActivityLogPage } from './pages/ActivityLogPage';
 import { AdminPage } from './pages/AdminPage';
 import { MyAIPage } from './pages/MyAIPage';
+import { SuperAdminPage } from './pages/SuperAdminPage';
 import { ShieldAlert } from 'lucide-react';
 
 // ─── Route guards ──────────────────────────────────────────────────────────────
@@ -92,7 +93,10 @@ function RequireRole({
           You do not have permission to access this area. Contact the system administrator if
           you believe this is a mistake.
         </p>
-        <Navigate to={role === 'system_admin' ? '/admin' : '/dashboard'} replace />
+        <Navigate to={
+          role === 'super_admin' ? '/super-admin' :
+          role === 'system_admin' ? '/admin' : '/dashboard'
+        } replace />
       </div>
     );
   }
@@ -130,11 +134,11 @@ function AppRoutes() {
   return (
     <AppShell>
       <Routes>
-        {/* ── Farm Manager routes ── */}
+        {/* ── Farm Manager + Super Admin routes ── */}
         <Route
           path="/dashboard"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <Dashboard />
             </RequireRole>
           }
@@ -142,7 +146,7 @@ function AppRoutes() {
         <Route
           path="/animals"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <AnimalsPage />
             </RequireRole>
           }
@@ -150,7 +154,7 @@ function AppRoutes() {
         <Route
           path="/animals/:id"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <AnimalProfilePage />
             </RequireRole>
           }
@@ -158,7 +162,7 @@ function AppRoutes() {
         <Route
           path="/health"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <HealthPage />
             </RequireRole>
           }
@@ -166,7 +170,7 @@ function AppRoutes() {
         <Route
           path="/breeding"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <BreedingPage />
             </RequireRole>
           }
@@ -174,7 +178,7 @@ function AppRoutes() {
         <Route
           path="/weights"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <WeightsPage />
             </RequireRole>
           }
@@ -182,7 +186,7 @@ function AppRoutes() {
         <Route
           path="/vaccinations"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <VaccinationsPage />
             </RequireRole>
           }
@@ -190,7 +194,7 @@ function AppRoutes() {
         <Route
           path="/feed"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <FeedPage />
             </RequireRole>
           }
@@ -198,7 +202,7 @@ function AppRoutes() {
         <Route
           path="/inventory"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <InventoryPage />
             </RequireRole>
           }
@@ -206,7 +210,7 @@ function AppRoutes() {
         <Route
           path="/analytics"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <AnalyticsPage />
             </RequireRole>
           }
@@ -214,7 +218,7 @@ function AppRoutes() {
         <Route
           path="/reports"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <ReportsPage />
             </RequireRole>
           }
@@ -222,7 +226,7 @@ function AppRoutes() {
         <Route
           path="/recommendations"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <RecommendationsPage />
             </RequireRole>
           }
@@ -230,7 +234,7 @@ function AppRoutes() {
         <Route
           path="/daily-alerts"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <DailyAlertsPage />
             </RequireRole>
           }
@@ -238,7 +242,7 @@ function AppRoutes() {
         <Route
           path="/notifications"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <NotificationsPage />
             </RequireRole>
           }
@@ -246,7 +250,7 @@ function AppRoutes() {
         <Route
           path="/scanner"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <ScannerPage />
             </RequireRole>
           }
@@ -254,7 +258,7 @@ function AppRoutes() {
         <Route
           path="/activity-log"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <ActivityLogPage />
             </RequireRole>
           }
@@ -262,7 +266,7 @@ function AppRoutes() {
         <Route
           path="/settings"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <SettingsPage />
             </RequireRole>
           }
@@ -270,7 +274,7 @@ function AppRoutes() {
         <Route
           path="/myai"
           element={
-            <RequireRole allowed={['farm_manager']}>
+            <RequireRole allowed={['farm_manager', 'super_admin']}>
               <MyAIPage />
             </RequireRole>
           }
@@ -280,8 +284,18 @@ function AppRoutes() {
         <Route
           path="/admin"
           element={
-            <RequireRole allowed={['system_admin']}>
+            <RequireRole allowed={['system_admin', 'super_admin']}>
               <AdminPage />
+            </RequireRole>
+          }
+        />
+
+        {/* ── Super Admin routes ── */}
+        <Route
+          path="/super-admin"
+          element={
+            <RequireRole allowed={['super_admin']}>
+              <SuperAdminPage />
             </RequireRole>
           }
         />
@@ -294,7 +308,10 @@ function AppRoutes() {
           path="/"
           element={
             <Navigate
-              to={role === 'system_admin' ? '/admin' : '/dashboard'}
+              to={
+                role === 'super_admin' ? '/super-admin' :
+                role === 'system_admin' ? '/admin' : '/dashboard'
+              }
               replace
             />
           }
@@ -305,7 +322,10 @@ function AppRoutes() {
           path="*"
           element={
             <Navigate
-              to={role === 'system_admin' ? '/admin' : '/dashboard'}
+              to={
+                role === 'super_admin' ? '/super-admin' :
+                role === 'system_admin' ? '/admin' : '/dashboard'
+              }
               replace
             />
           }
