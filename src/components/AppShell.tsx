@@ -94,16 +94,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isAdmin = role === 'system_admin';
   const isSuperAdmin = role === 'super_admin';
 
-  // Nav logic:
-  // super_admin → sees all farm nav + Admin Panel + Super Admin Panel
-  // system_admin → sees only Admin Panel
-  // farm_manager → sees all farm nav (no Admin Panel, no Super Admin)
+  // ── Role-based navigation ─────────────────────────────────────────────────
+  // farm_manager  → all farm nav, no admin links
+  // system_admin  → only Admin Panel
+  // super_admin   → only Super Admin nav (no farm items)
+  const SUPER_ADMIN_NAV: NavItem[] = [
+    { to: '/super-admin', label: 'Overview', icon: 'Crown' },
+    { to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' },
+  ];
+
   const visibleNav = isSuperAdmin
-    ? [
-        ...NAV.filter(item => item.to !== '/admin'),
-        { to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' as IconName },
-        { to: '/super-admin', label: 'Super Admin', icon: 'Crown' as IconName },
-      ]
+    ? SUPER_ADMIN_NAV
     : isAdmin
       ? [{ to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' as IconName }]
       : NAV.filter(item => item.to !== '/admin');
@@ -250,7 +251,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="sidebar-logo-icon">A</div>
             <div className="sidebar-logo-text">
               <h1>AlpasFarm</h1>
-              <span>Farm Management</span>
+              <span>{isSuperAdmin ? 'System Administration' : isAdmin ? 'Admin Panel' : 'Farm Management'}</span>
             </div>
             <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">
               <Icons.X size={20} />
