@@ -49,7 +49,7 @@ export function AdminPage() {
   const [farmDetails, setFarmDetails] = useState<Record<string, FarmDetail>>({});
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
 
-  const isAdmin = role === 'system_admin';
+  const isAdmin = role === 'system_admin' || role === 'super_admin';
 
   useEffect(() => {
     if (isAdmin) loadUsers();
