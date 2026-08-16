@@ -22,12 +22,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, PawPrint, ShieldAlert, ShieldCheck, RefreshCw, Trash2,
   CheckCircle, Mail, HeartPulse, Crown, UserCog, Database,
-  Activity, AlertTriangle, X, LayoutDashboard,
+  Activity, AlertTriangle, X, LayoutDashboard, Brain,
 } from 'lucide-react';
 import { FilterToolbar, FilterSearch } from '../components/FilterToolbar';
 import { formatDate } from '../lib/analytics';
 import { type UserRole, ALL_ROLES, getRoleLabel, SUPER_ADMIN_EMAILS_FALLBACK } from '../lib/auth';
 import { supabase } from '../lib/supabase';
+import { useMLHealthSummary, useEnhancedHealthModel } from '../lib/useMLHealth';
 
 // ── Service client ─────────────────────────────────────────────────────────────
 // Requires VITE_SUPABASE_SERVICE_KEY in Vercel environment variables.
@@ -85,6 +86,10 @@ export function SuperAdminPage() {
   const [savingRole, setSavingRole] = useState(false);
 
   const isSuperAdmin = role === 'super_admin';
+
+  // ML model stats (reads from same farm data the super admin can see system-wide)
+  const mlSummary = useMLHealthSummary();
+  const { model: mlModel, canPredict: mlCanPredict, accuracy: mlAccuracy, recall: mlRecall, f1: mlF1, trainingSamples: mlSamples } = useEnhancedHealthModel();
 
   useEffect(() => {
     if (isSuperAdmin) loadUsers();
@@ -554,7 +559,7 @@ export function SuperAdminPage() {
           </div>
 
           <div className="card">
-            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Database size={16} color="#7C3AED" /> Database Info
             </div>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
@@ -566,6 +571,68 @@ export function SuperAdminPage() {
               Make sure <code>VITE_SUPABASE_SERVICE_KEY</code> is set in Vercel environment variables for
               auth.admin APIs (delete user, list users). The profiles table works with the anon key.
             </p>
+          </div>
+
+          {/* ML Model Status */}
+          <div className="card">
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Brain size={16} color="#7C3AED" /> ML Health Risk Model
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+                background: mlCanPredict ? 'rgba(22,163,74,0.12)' : 'rgba(245,158,11,0.12)',
+                color: mlCanPredict ? '#16A34A' : '#F59E0B',
+                border: mlCanPredict ? '1px solid rgba(22,163,74,0.25)' : '1px solid rgba(245,158,11,0.25)',
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
+                {mlCanPredict ? 'Active' : 'Insufficient Data'}
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                AlpasFarm Health Risk Model v{mlModel?.version ?? '2.0'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+              {[
+                { label: 'Algorithm', value: 'Logistic Regression' },
+                { label: 'Features', value: '18 (incl. time-series)' },
+                { label: 'Training Samples', value: String(mlSamples) },
+                { label: 'Accuracy', value: mlCanPredict ? `${(mlAccuracy * 100).toFixed(1)}%` : '—' },
+                { label: 'Recall', value: mlCanPredict ? `${(mlRecall * 100).toFixed(1)}%` : '—' },
+                { label: 'F1 Score', value: mlCanPredict ? `${(mlF1 * 100).toFixed(1)}%` : '—' },
+              ].map((m) => (
+                <div key={m.label} style={{ padding: '8px 12px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{m.value}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+              {[
+                { label: 'Monitored Animals', value: String(mlSummary.monitored) },
+                { label: 'ML Warnings', value: String(mlSummary.warningCount) },
+                { label: 'High Risk (ML)', value: String(mlSummary.mlHigh) },
+                { label: 'Critical (ML)', value: String(mlSummary.mlCritical) },
+              ].map((m) => (
+                <div key={m.label} style={{ padding: '8px 12px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{m.value}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+            {mlModel && (
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                <strong>Label:</strong> Binary — health_record.risk_score ≥ 50 → at-risk (1), else healthy (0)<br />
+                <strong>Trained:</strong> {new Date(mlModel.trainedAt).toLocaleString()}<br />
+                <strong>Note:</strong> Labels are derived from the veterinary rule engine. The model generalizes those rules using statistical learning. Not a validated veterinary diagnostic tool.
+              </div>
+            )}
+            {!mlCanPredict && (
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
+                ⚠️ The ML model requires at least 5 health records to train. Add more health check records in the farm to activate ML predictions.
+              </div>
+            )}
           </div>
         </div>
       )}

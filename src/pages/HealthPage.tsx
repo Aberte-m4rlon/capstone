@@ -9,6 +9,9 @@ import { Plus, Pencil, Trash2, Brain, AlertTriangle, ShieldAlert } from 'lucide-
 import { calculateHealthRisk, formatDate, levelFromScore, type EarlyIllnessResult } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
 import { useHealthRiskModel } from '../lib/mlHooks';
+import { useMLHealthSummary, useEarlyWarnings } from '../lib/useMLHealth';
+import { EarlyWarningCard } from '../components/MLHealthPanel';
+import { useNavigate } from 'react-router-dom';
 import type { HealthRecord } from '../types';
 
 const emptyForm = {
@@ -36,6 +39,9 @@ export function HealthPage() {
   const farmData = useFarmData();
   const toast = useToast();
   const mlModel = useHealthRiskModel();
+  const mlSummary = useMLHealthSummary();
+  const { warnings } = useEarlyWarnings();
+  const navigate = useNavigate();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<HealthRecord | null>(null);
@@ -248,13 +254,57 @@ export function HealthPage() {
       {/* ML Model Status */}
       {mlModel.canPredict && (
         <div className="card section-gap" style={{ marginBottom: 16, borderLeft: '3px solid #7C3AED' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <Brain size={18} color="#7C3AED" />
-            <span style={{ fontWeight: 700, fontSize: 14 }}>AI Health Risk Model — Logistic Regression</span>
-            <span className="badge" style={{ background: '#EDE9FE', color: '#7C3AED' }}>Trained</span>
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)', marginLeft: 8 }}>
-              Accuracy: {Math.round(mlModel.accuracy * 100)}% · {mlModel.trainingSamples} samples · 14 features
+            <span style={{ fontWeight: 700, fontSize: 14 }}>AlpasFarm ML Health Model v2.0 — Logistic Regression</span>
+            <span className="badge" style={{ background: '#EDE9FE', color: '#7C3AED' }}>Active</span>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              Accuracy: <strong>{Math.round(mlSummary.modelAccuracy * 100)}%</strong>
+              {' '}· Samples: <strong>{mlSummary.trainingSamples}</strong>
+              {' '}· 18 features (incl. 7-day trends)
             </span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
+            ⚠️ Farm management support tool only. Not a veterinary diagnostic system. Consult a qualified veterinarian for confirmation.
+          </div>
+        </div>
+      )}
+
+      {/* ML Health KPIs */}
+      <div className="kpi-grid section-gap" style={{ marginBottom: 16 }}>
+        {[
+          { label: 'Monitored', value: mlSummary.monitored, color: 'blue' },
+          { label: 'Healthy', value: mlSummary.healthy, color: 'green' },
+          { label: 'At Risk', value: mlSummary.atRisk, color: 'orange' },
+          { label: 'High Risk', value: mlSummary.highRisk, color: 'red' },
+          { label: 'Critical', value: mlSummary.critical, color: 'red' },
+        ].map((s) => (
+          <div key={s.label} className="kpi-card">
+            <div className="kpi-top"><div className={`kpi-icon ${s.color}`}><Icons.HeartPulse size={18} /></div></div>
+            <div className="kpi-value">{s.value}</div>
+            <div className="kpi-label">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ML Early Warning Section */}
+      {warnings.length > 0 && (
+        <div className="card section-gap" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <AlertTriangle size={16} color="#F97316" />
+            <span style={{ fontWeight: 800, fontSize: 14 }}>⚡ Early Warning — ML Risk Detection</span>
+            <span className="badge badge-orange" style={{ fontSize: 11 }}>{warnings.length} animals</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {warnings.slice(0, 6).map((w) => (
+              <EarlyWarningCard
+                key={w.animal.id}
+                animalName={w.animal.name}
+                tagId={w.animal.tag_id}
+                prediction={w.prediction}
+                onView={() => navigate(`/animals/${w.animal.id}`)}
+              />
+            ))}
           </div>
         </div>
       )}

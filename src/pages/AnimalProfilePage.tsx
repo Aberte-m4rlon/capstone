@@ -18,6 +18,8 @@ import { Line } from 'react-chartjs-2';
 import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
+import { useAnimalMLPrediction, useAnimalRiskHistory } from '../lib/useMLHealth';
+import { MLHealthPanel } from '../components/MLHealthPanel';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const healthBadgeColor = (s: HealthStatus) =>
@@ -259,6 +261,10 @@ export function AnimalProfilePage() {
 
   const scoreColor = riskColor(animal.health_risk_score);
 
+  // ML hooks — enhanced logistic regression with time-series features
+  const mlPrediction = useAnimalMLPrediction(animal.id);
+  const { dates: riskDates, probabilities: riskProbs, riskScores } = useAnimalRiskHistory(animal.id);
+
   return (
     <>
       {/* Ambient background glows */}
@@ -446,6 +452,74 @@ export function AnimalProfilePage() {
                 <StatRow label="Heart Rate" value={animal.current_heart_rate ? `${animal.current_heart_rate} BPM` : '—'} />
               </div>
             </GlassCard>
+
+            {/* ML Health Assessment Card */}
+            <GlassCard gridSpan={2}>
+              {mlPrediction ? (
+                <MLHealthPanel
+                  prediction={mlPrediction}
+                  animalName={animal.name}
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-secondary)', fontSize: 13 }}>
+                  <AlertTriangle size={16} color="#F59E0B" />
+                  <span>
+                    <strong>ML Health Assessment</strong> — Add at least 5 health records to enable the ML risk model for this animal.
+                  </span>
+                </div>
+              )}
+            </GlassCard>
+
+            {/* ML Risk Probability History Chart */}
+            {riskDates.length >= 2 && (
+              <GlassCard gridSpan={2}>
+                <CardTitle icon={Activity} title="Health Risk Trend (ML Probability vs Vet Score)" />
+                <div style={{ height: 200 }}>
+                  <Line
+                    data={{
+                      labels: riskDates.map(d => {
+                        const date = new Date(d);
+                        return `${date.getMonth() + 1}/${date.getDate()}`;
+                      }),
+                      datasets: [
+                        {
+                          label: 'ML Risk %',
+                          data: riskProbs,
+                          borderColor: '#7C3AED',
+                          backgroundColor: 'rgba(124,58,237,0.1)',
+                          fill: true,
+                          tension: 0.4,
+                          pointRadius: 4,
+                          pointBackgroundColor: '#7C3AED',
+                        },
+                        {
+                          label: 'Vet Rule Score',
+                          data: riskScores,
+                          borderColor: '#F97316',
+                          backgroundColor: 'transparent',
+                          borderDash: [5, 5],
+                          tension: 0.4,
+                          pointRadius: 3,
+                          pointBackgroundColor: '#F97316',
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: true, position: 'top' as const, labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%` } },
+                      },
+                      scales: {
+                        y: { min: 0, max: 100, ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.06)' } },
+                        x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+                      },
+                    }}
+                  />
+                </div>
+              </GlassCard>
+            )}
 
             {/* Weight & Growth Card */}
             <GlassCard>
