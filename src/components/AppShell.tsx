@@ -426,7 +426,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       {isSuperAdmin ? '👑 Super Administrator' : isAdmin ? 'System Administrator' : 'Farm Manager'}
                     </span>
                   </div>
-                  {!isAdmin && (
+                  {!isAdmin && !isSuperAdmin && (
                     <button className="pd-item" onClick={() => { navigate('/settings'); setProfileOpen(false); }}>
                       <Icons.Settings size={16} /> Settings
                     </button>

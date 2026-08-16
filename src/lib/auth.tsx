@@ -111,12 +111,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * Fetch the profile row. Falls back gracefully if the table doesn't exist.
+   * Email-based fallback always wins for SUPER_ADMIN_EMAILS_FALLBACK so the
+   * super-admin account works even before the DB migration is run.
    */
   const fetchProfile = async (userId: string, userEmail?: string | null): Promise<UserProfile> => {
-    const isSuperAdmin = !!userEmail && SUPER_ADMIN_EMAILS_FALLBACK.includes(userEmail.toLowerCase());
-    const isAdminFallback = !!userEmail && ADMIN_EMAILS_FALLBACK.includes(userEmail.toLowerCase());
+    const emailLower = userEmail?.trim().toLowerCase() ?? '';
+    const isSuperAdminEmail = !!emailLower && SUPER_ADMIN_EMAILS_FALLBACK.includes(emailLower);
 
-    const fallbackRole: UserRole = isSuperAdmin ? 'super_admin' : isAdminFallback ? 'system_admin' : 'farm_manager';
+    // Super-admin email always gets super_admin role regardless of DB state
+    const fallbackRole: UserRole = isSuperAdminEmail ? 'super_admin' : 'farm_manager';
 
     try {
       const { data, error } = await supabase
@@ -125,21 +128,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .maybeSingle();
 
+      // Table doesn't exist or any DB error → use email fallback
       if (error) {
         return { id: userId, role: fallbackRole, full_name: null, is_active: true };
       }
 
       if (!data) {
-        // No row yet → insert a default profile
-        const { data: inserted } = await supabase
-          .from('profiles')
-          .insert({ id: userId, role: fallbackRole, full_name: null, is_active: true })
-          .select('id, role, full_name, is_active')
-          .maybeSingle();
-        return (inserted as UserProfile | null) ?? { id: userId, role: fallbackRole, full_name: null, is_active: true };
+        // No row yet → try to insert a default profile row
+        try {
+          const { data: inserted } = await supabase
+            .from('profiles')
+            .insert({ id: userId, role: fallbackRole, full_name: null, is_active: true })
+            .select('id, role, full_name, is_active')
+            .maybeSingle();
+          if (inserted) return inserted as UserProfile;
+        } catch {
+          // Insert failed (table may not exist) — fall through to fallback
+        }
+        return { id: userId, role: fallbackRole, full_name: null, is_active: true };
       }
 
-      return data as UserProfile;
+      // Row exists in DB — but if this is the super-admin email, always honour super_admin
+      // in case the DB row still has an old role value before the migration ran
+      const resolvedRole: UserRole = isSuperAdminEmail && data.role !== 'super_admin'
+        ? 'super_admin'
+        : (data.role as UserRole);
+
+      return { ...(data as UserProfile), role: resolvedRole };
     } catch {
       return { id: userId, role: fallbackRole, full_name: null, is_active: true };
     }

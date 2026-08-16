@@ -3,9 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
 import { useNavigate } from 'react-router-dom';
-import { Users, PawPrint, ShieldAlert, RefreshCw, Trash2, BarChart3, CheckCircle, Mail, ChevronDown, ChevronRight, HeartPulse, Syringe } from 'lucide-react';
+import { Users, PawPrint, ShieldAlert, RefreshCw, Trash2, BarChart3, CheckCircle, Mail, ChevronDown, ChevronRight, HeartPulse, Syringe, AlertTriangle } from 'lucide-react';
 import { FilterToolbar, FilterSearch } from '../components/FilterToolbar';
 import { formatDate } from '../lib/analytics';
+import { type UserRole, SUPER_ADMIN_EMAILS_FALLBACK } from '../lib/auth';
 
 // Admin emails list — kept only as a migration reference.
 // Role authorization is now handled by the auth context (profiles table).
@@ -25,6 +26,7 @@ interface UserRow {
   animal_count: number;
   health_count: number;
   farm_name: string | null;
+  role: UserRole;
 }
 
 interface FarmDetail {
@@ -42,6 +44,7 @@ export function AdminPage() {
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [stats, setStats] = useState({ totalUsers: 0, totalAnimals: 0, totalHealth: 0, activeFarms: 0 });
   const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null);
@@ -57,31 +60,48 @@ export function AdminPage() {
 
   const loadUsers = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const { data: authData, error } = await adminSupabase.auth.admin.listUsers({ perPage: 200 });
-      if (error) throw error;
+      if (error) throw new Error(`Auth admin error: ${error.message}`);
 
-      const { data: animals } = await adminSupabase.from('animals').select('user_id');
-      const { data: health } = await adminSupabase.from('health_records').select('user_id');
-      const { data: settings } = await adminSupabase.from('settings').select('user_id, farm_name');
+      const [animalsRes, healthRes, settingsRes] = await Promise.all([
+        adminSupabase.from('animals').select('user_id'),
+        adminSupabase.from('health_records').select('user_id'),
+        adminSupabase.from('settings').select('user_id, farm_name'),
+      ]);
+      // profiles table may not exist yet — don't let it block the rest
+      let profilesData: { id: string; role: string }[] = [];
+      try {
+        const pr = await adminSupabase.from('profiles').select('id, role');
+        if (!pr.error && pr.data) profilesData = pr.data as any;
+      } catch { /* table not yet created */ }
 
       const animalMap: Record<string, number> = {};
       const healthMap: Record<string, number> = {};
       const farmMap: Record<string, string> = {};
+      const roleMap: Record<string, UserRole> = {};
 
-      animals?.forEach((a: any) => { animalMap[a.user_id] = (animalMap[a.user_id] || 0) + 1; });
-      health?.forEach((h: any) => { healthMap[h.user_id] = (healthMap[h.user_id] || 0) + 1; });
-      settings?.forEach((s: any) => { if (s.farm_name) farmMap[s.user_id] = s.farm_name; });
+      animalsRes.data?.forEach((a: any) => { animalMap[a.user_id] = (animalMap[a.user_id] || 0) + 1; });
+      healthRes.data?.forEach((h: any) => { healthMap[h.user_id] = (healthMap[h.user_id] || 0) + 1; });
+      settingsRes.data?.forEach((s: any) => { if (s.farm_name) farmMap[s.user_id] = s.farm_name; });
+      profilesData.forEach((p: any) => { roleMap[p.id] = p.role as UserRole; });
 
-      const rows: UserRow[] = (authData?.users || []).map((u: any) => ({
-        id: u.id,
-        email: u.email || 'No email',
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at || null,
-        animal_count: animalMap[u.id] || 0,
-        health_count: healthMap[u.id] || 0,
-        farm_name: farmMap[u.id] || null,
-      }));
+      const rows: UserRow[] = (authData?.users || []).map((u: any) => {
+        const emailLower = (u.email ?? '').toLowerCase();
+        const isSuperEmail = SUPER_ADMIN_EMAILS_FALLBACK.includes(emailLower);
+        const resolvedRole: UserRole = roleMap[u.id] ?? (isSuperEmail ? 'super_admin' : 'farm_manager');
+        return {
+          id: u.id,
+          email: u.email || 'No email',
+          created_at: u.created_at,
+          last_sign_in_at: u.last_sign_in_at || null,
+          animal_count: animalMap[u.id] || 0,
+          health_count: healthMap[u.id] || 0,
+          farm_name: farmMap[u.id] || null,
+          role: resolvedRole,
+        };
+      });
 
       setUsers(rows);
       setStats({
@@ -91,7 +111,9 @@ export function AdminPage() {
         activeFarms: rows.filter(u => u.animal_count > 0).length,
       });
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to load users.', 'error');
+      const msg = err instanceof Error ? err.message : 'Failed to load users.';
+      setLoadError(msg);
+      toast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -166,6 +188,13 @@ export function AdminPage() {
     (u.farm_name ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
+  // Role badge helper
+  const roleBadgeStyle = (r: UserRole) => {
+    if (r === 'super_admin') return { bg: 'rgba(139,92,246,0.15)', color: '#7C3AED', label: '👑 Super Admin' };
+    if (r === 'system_admin') return { bg: 'rgba(217,45,32,0.12)', color: '#D92D20', label: '🛡 System Admin' };
+    return { bg: 'rgba(255,106,42,0.12)', color: '#FF7A18', label: 'Farm Manager' };
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -181,6 +210,20 @@ export function AdminPage() {
           <RefreshCw size={15} /> Refresh
         </button>
       </div>
+
+      {/* Error banner */}
+      {loadError && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 16px', borderRadius: 12, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', marginBottom: 16 }}>
+          <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#EF4444', marginBottom: 2 }}>Failed to load users</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{loadError}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+              Make sure <code>VITE_SUPABASE_SERVICE_KEY</code> is set correctly and matches project <code>bsotlxbvanpwengftfli</code>.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="kpi-grid section-gap">
@@ -231,6 +274,7 @@ export function AdminPage() {
               <thead>
                 <tr>
                   <th>Email</th>
+                  <th>Role</th>
                   <th>Farm Name</th>
                   <th style={{ textAlign: 'center' }}>Animals</th>
                   <th style={{ textAlign: 'center' }}>Health Records</th>
@@ -246,6 +290,7 @@ export function AdminPage() {
                   const isExpanded = expandedUser === u.id;
                   const detail = farmDetails[u.id];
                   const animalName = (id: string) => detail?.animals.find((a: any) => a.id === id)?.name ?? id.slice(0, 8);
+                  const rb = roleBadgeStyle(u.role);
                   return (
                     <>
                       <tr key={u.id} style={{ cursor: 'pointer' }} onClick={() => toggleFarmDetail(u.id)}>
@@ -254,7 +299,11 @@ export function AdminPage() {
                             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             {u.email}
                             {isMe && <span className="badge badge-red" style={{ fontSize: 10 }}>You</span>}
-                            {isAdminUser && <span className="badge" style={{ fontSize: 10, background: '#EDE9FE', color: '#7C3AED' }}>Admin</span>}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: rb.bg, color: rb.color }}>
+                            {rb.label}
                           </span>
                         </td>
                         <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.farm_name ?? '—'}</td>
@@ -274,7 +323,7 @@ export function AdminPage() {
                       {/* ── Expanded farm detail row ── */}
                       {isExpanded && (
                         <tr key={`${u.id}-detail`}>
-                          <td colSpan={7} style={{ background: 'var(--bg)', padding: '12px 20px' }}>
+                          <td colSpan={8} style={{ background: 'var(--bg)', padding: '12px 20px' }}>
                             {loadingDetail === u.id ? (
                               <div style={{ textAlign: 'center', padding: 16 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
                             ) : detail ? (
