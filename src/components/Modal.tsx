@@ -1,5 +1,8 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { Icons } from '../lib/icons';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
 interface ModalProps {
   open: boolean;
@@ -7,37 +10,80 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'md' | 'lg';
+  size?: ModalSize;
 }
 
+// ── Body scroll lock ──────────────────────────────────────────────────────────
+function useScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const scrollY = window.scrollY;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+      window.scrollTo(0, scrollY);
+    };
+  }, [active]);
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
 export function Modal({ open, onClose, title, children, footer, size = 'md' }: ModalProps) {
+  useScrollLock(open);
+
+  // Keyboard: Escape closes
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
   if (!open) return null;
 
+  const sizeClass = `modal-${size}`;   // modal-sm / modal-md / modal-lg / modal-xl
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className={`modal ${size === 'lg' ? 'modal-lg' : ''}`} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div
+        className={`modal ${sizeClass}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
         <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
-            <Icons.X size={18} />
+          <h3 id="modal-title">{title}</h3>
+          <button
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Close dialog"
+          >
+            <Icons.X size={16} />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
+
+        {/* ── Body (scrolls) ── */}
+        <div className="modal-body">
+          {children}
+        </div>
+
+        {/* ── Footer ── */}
+        {footer && (
+          <div className="modal-footer">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+// ── Confirm Dialog ────────────────────────────────────────────────────────────
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -59,19 +105,45 @@ export function ConfirmDialog({
   onCancel,
   danger = true,
 }: ConfirmDialogProps) {
+  useScrollLock(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onCancel]);
+
   if (!open) return null;
+
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onClick={onCancel}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+    >
+      <div
+        className="modal modal-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h3>{title}</h3>
+          <h3 id="confirm-title">{title}</h3>
+          <button className="modal-close" onClick={onCancel} aria-label="Close">
+            <Icons.X size={16} />
+          </button>
         </div>
         <div className="modal-body">
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{message}</p>
+          <p style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>{message}</p>
         </div>
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onCancel}>{cancelLabel}</button>
-          <button className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>
+          <button
+            className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
+            onClick={onConfirm}
+            autoFocus
+          >
             {confirmLabel}
           </button>
         </div>

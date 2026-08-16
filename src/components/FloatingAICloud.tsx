@@ -212,6 +212,7 @@ export function FloatingAICloud() {
         <button
           onClick={() => setOpen(true)}
           aria-label="Open AI Cloud Assistant"
+          data-ai-launcher="true"
           style={{
             position: 'fixed', bottom: 24, right: 24, zIndex: 200,
             display: 'flex', alignItems: 'center', gap: 9,
