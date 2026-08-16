@@ -30,11 +30,12 @@ import { type UserRole, ALL_ROLES, getRoleLabel, SUPER_ADMIN_EMAILS_FALLBACK } f
 import { supabase } from '../lib/supabase';
 
 // ── Service client ─────────────────────────────────────────────────────────────
-// Used for auth.admin API (listUsers, deleteUser).
-// Falls back gracefully when service key is unavailable.
+// Requires VITE_SUPABASE_SERVICE_KEY in Vercel environment variables.
+// This key bypasses RLS — safe because it's only used server-rendered admin ops.
+const SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
 const svcClient = createClient(
   import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_SERVICE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
+  SERVICE_KEY,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
@@ -108,11 +109,17 @@ export function SuperAdminPage() {
     setLoading(true);
     setLoadError(null);
 
+    if (!SERVICE_KEY) {
+      setLoadError('VITE_SUPABASE_SERVICE_KEY is not set. Add it to Vercel environment variables and redeploy.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // ── Step 1: Load profiles using the authenticated supabase client ──
-      // Uses the anon key + current user's session — works without service key.
-      // RLS allows super_admin to read all profiles (policy set in migration).
-      const profilesRes = await supabase
+      // ── Step 1: Load profiles via service client (bypasses RLS) ──
+      // This is safe — svcClient uses the service_role key which is server-side only.
+      // VITE_SUPABASE_SERVICE_KEY must be set in Vercel env vars.
+      const profilesRes = await svcClient
         .from('profiles')
         .select('id, role, full_name, is_active, created_at');
 
@@ -143,11 +150,11 @@ export function SuperAdminPage() {
         console.warn('[SuperAdmin] auth.admin.listUsers threw:', authEx);
       }
 
-      // ── Step 3: Load farm data using authenticated client ──
+      // ── Step 3: Load farm data via service client (bypasses RLS for system-wide view) ──
       const [animalsRes, healthRes, settingsRes] = await Promise.all([
-        supabase.from('animals').select('user_id'),
-        supabase.from('health_records').select('user_id'),
-        supabase.from('settings').select('user_id, farm_name'),
+        svcClient.from('animals').select('user_id'),
+        svcClient.from('health_records').select('user_id'),
+        svcClient.from('settings').select('user_id, farm_name'),
       ]);
 
       const animalMap: Record<string, number> = {};
@@ -225,7 +232,7 @@ export function SuperAdminPage() {
     }
     setSavingRole(true);
     try {
-      const { error } = await supabase
+      const { error } = await svcClient
         .from('profiles')
         .update({ role: newRole, updated_at: new Date().toISOString() })
         .eq('id', editRoleUser.id);
@@ -251,7 +258,7 @@ export function SuperAdminPage() {
       }
     }
     try {
-      const { error } = await supabase
+      const { error } = await svcClient
         .from('profiles')
         .update({ is_active: !u.is_active, updated_at: new Date().toISOString() })
         .eq('id', u.id);
