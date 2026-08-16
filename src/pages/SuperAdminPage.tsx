@@ -121,33 +121,33 @@ export function SuperAdminPage() {
       // VITE_SUPABASE_SERVICE_KEY must be set in Vercel env vars.
       const profilesRes = await svcClient
         .from('profiles')
-        .select('id, role, full_name, is_active, created_at');
+        .select('id, role, full_name, is_active, created_at, email');
 
       if (profilesRes.error) {
         throw new Error(`Profiles query failed: ${profilesRes.error.message}`);
       }
 
       const profilesData = profilesRes.data ?? [];
-      console.debug('[SuperAdmin] profiles loaded:', profilesData.length, profilesData.map(p => ({ id: p.id.slice(0,8), role: p.role })));
 
-      // ── Step 2: Try auth.admin.listUsers for email + last_sign_in ──
+      // ── Step 2: Try auth.admin.listUsers for email enrichment ──
+      // NOTE: This only works if the service key is accepted server-side.
+      // If it fails, we fall back to profile IDs — users will show as "user-XXXX"
+      // until emails are available. Non-critical — does NOT block dashboard load.
       let authUsers: Record<string, { email: string; last_sign_in_at: string | null; created_at: string }> = {};
       try {
-        const { data: authData, error: authErr } = await svcClient.auth.admin.listUsers({ perPage: 500 });
-        if (!authErr && authData?.users) {
-          authData.users.forEach((u: any) => {
+        const authRes = await svcClient.auth.admin.listUsers({ perPage: 500 });
+        if (!authRes.error && authRes.data?.users) {
+          authRes.data.users.forEach((u: any) => {
             authUsers[u.id] = {
               email: u.email ?? '',
               last_sign_in_at: u.last_sign_in_at ?? null,
               created_at: u.created_at ?? '',
             };
           });
-          console.debug('[SuperAdmin] auth.admin.listUsers:', authData.users.length, 'users');
-        } else {
-          console.warn('[SuperAdmin] auth.admin.listUsers failed (service key may be wrong in env):', authErr?.message);
         }
-      } catch (authEx) {
-        console.warn('[SuperAdmin] auth.admin.listUsers threw:', authEx);
+        // Silently ignore auth.admin errors — profiles data is sufficient
+      } catch {
+        // auth.admin not available in this context — continue with profiles only
       }
 
       // ── Step 3: Load farm data via service client (bypasses RLS for system-wide view) ──
@@ -165,20 +165,21 @@ export function SuperAdminPage() {
       healthRes.data?.forEach((h: any) => { healthMap[h.user_id] = (healthMap[h.user_id] || 0) + 1; });
       settingsRes.data?.forEach((s: any) => { if (s.farm_name) farmMap[s.user_id] = s.farm_name; });
 
-      // ── Step 4: Build rows from profiles (guaranteed) ──
+      // ── Step 4: Build rows from profiles ──
       const rows: UserRow[] = profilesData.map((p: any) => {
-        const auth = authUsers[p.id];
-        const emailLower = (auth?.email ?? '').toLowerCase();
-        // Email fallback: ensure super_admin email always gets correct role
+        // Email: from auth.admin enrichment if available, else from profiles.email column, else fallback
+        const authEntry = authUsers[p.id];
+        const email = authEntry?.email || p.email || `user-${p.id.slice(0, 8)}`;
+        const emailLower = email.toLowerCase();
         const resolvedRole: UserRole = (
           SUPER_ADMIN_EMAILS_FALLBACK.includes(emailLower) && p.role !== 'super_admin'
         ) ? 'super_admin' : (p.role as UserRole);
 
         return {
           id: p.id,
-          email: auth?.email ?? `user-${p.id.slice(0, 8)}`,
-          created_at: auth?.created_at ?? p.created_at ?? '',
-          last_sign_in_at: auth?.last_sign_in_at ?? null,
+          email,
+          created_at: authEntry?.created_at ?? p.created_at ?? '',
+          last_sign_in_at: authEntry?.last_sign_in_at ?? null,
           animal_count: animalMap[p.id] || 0,
           health_count: healthMap[p.id] || 0,
           farm_name: farmMap[p.id] || null,
@@ -186,12 +187,6 @@ export function SuperAdminPage() {
           is_active: p.is_active ?? true,
           full_name: p.full_name ?? null,
         };
-      });
-
-      console.debug('[SuperAdmin] Final user rows:', rows.length, {
-        super_admin: rows.filter(r => r.role === 'super_admin').length,
-        system_admin: rows.filter(r => r.role === 'system_admin').length,
-        farm_manager: rows.filter(r => r.role === 'farm_manager').length,
       });
 
       setUsers(rows);
