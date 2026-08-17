@@ -153,6 +153,10 @@ export function AnimalProfilePage() {
     return assessBreedingReadiness(animal, farmData.settings, lastMating);
   }, [animal, animalBreedings, farmData.settings]);
 
+  // ── ML hooks must be at top level, before any early returns (Rules of Hooks) ──
+  const mlPrediction = useAnimalMLPrediction(animal?.id ?? null);
+  const { dates: riskDates, probabilities: riskProbs, riskScores } = useAnimalRiskHistory(animal?.id ?? null);
+
   useEffect(() => {
     if (animal) {
       setEditForm({
@@ -260,10 +264,6 @@ export function AnimalProfilePage() {
   ] as const;
 
   const scoreColor = riskColor(animal.health_risk_score);
-
-  // ML hooks — enhanced logistic regression with time-series features
-  const mlPrediction = useAnimalMLPrediction(animal.id);
-  const { dates: riskDates, probabilities: riskProbs, riskScores } = useAnimalRiskHistory(animal.id);
 
   return (
     <>
