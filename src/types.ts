@@ -4,7 +4,30 @@ export type HealthStatus = 'Healthy' | 'Monitor' | 'At Risk' | 'Critical';
 export type RiskLevel = 'Low' | 'Moderate' | 'High' | 'Critical';
 export type BreedingStatus = 'Open' | 'Pregnant' | 'Nursing' | 'Ready' | 'Not Ready' | 'Monitor';
 export type VaccinationStatus = 'Up to Date' | 'Due Soon' | 'Overdue' | 'None';
-export type InventoryCategory = 'Feed' | 'Medicine' | 'Vaccines' | 'Supplies' | 'Equipment' | 'Other';
+export type InventoryTransactionType =
+  | 'STOCK_IN'
+  | 'CONSUMPTION'
+  | 'REMOVAL'
+  | 'ADJUSTMENT_IN'
+  | 'ADJUSTMENT_OUT'
+  | 'RETURN';
+
+export interface InventoryTransaction {
+  id: string;
+  user_id: string;
+  inventory_item_id: string;
+  type: InventoryTransactionType;
+  quantity: number;
+  unit: string;
+  reason: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
+  notes: string | null;
+  previous_stock: number;
+  new_stock: number;
+  cost_per_unit: number | null;
+  created_at: string;
+}
 export type NotificationType = 'Health' | 'Vaccination' | 'Breeding' | 'Weight' | 'Inventory' | 'System';
 export type Priority = 'Critical' | 'Warning' | 'Normal' | 'Success';
 
@@ -107,6 +130,8 @@ export interface Vaccination {
   created_at: string;
   updated_at: string;
 }
+
+export type InventoryCategory = 'Feed' | 'Medicine' | 'Vaccines' | 'Supplies' | 'Equipment' | 'Other';
 
 export interface InventoryItem {
   id: string;

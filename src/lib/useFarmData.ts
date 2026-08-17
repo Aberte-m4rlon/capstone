@@ -8,6 +8,7 @@ import type {
   BreedingRecord,
   Vaccination,
   InventoryItem,
+  InventoryTransaction,
   FeedRecord,
   MilkRecord,
   Notification,
@@ -22,6 +23,7 @@ interface FarmData {
   breedingRecords: BreedingRecord[];
   vaccinations: Vaccination[];
   inventory: InventoryItem[];
+  inventoryTransactions: InventoryTransaction[];
   feedRecords: FeedRecord[];
   milkRecords: MilkRecord[];
   notifications: Notification[];
@@ -38,6 +40,7 @@ const EMPTY: FarmData = {
   breedingRecords: [],
   vaccinations: [],
   inventory: [],
+  inventoryTransactions: [],
   feedRecords: [],
   milkRecords: [],
   notifications: [],
@@ -65,6 +68,7 @@ export function useFarmData(): FarmData {
       breedingRes,
       vaccRes,
       inventoryRes,
+      invTxRes,
       feedRes,
       milkRes,
       notifRes,
@@ -77,6 +81,7 @@ export function useFarmData(): FarmData {
       supabase.from('breeding_records').select('*').order('mating_date', { ascending: false }),
       supabase.from('vaccinations').select('*').order('date_given', { ascending: false }),
       supabase.from('inventory').select('*').order('name', { ascending: true }),
+      supabase.from('inventory_transactions').select('*').order('created_at', { ascending: false }).limit(500),
       supabase.from('feed_records').select('*').order('record_date', { ascending: false }),
       supabase.from('milk_records').select('*').order('record_date', { ascending: false }),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
@@ -91,6 +96,7 @@ export function useFarmData(): FarmData {
       breedingRecords: (breedingRes.data as BreedingRecord[]) ?? [],
       vaccinations: (vaccRes.data as Vaccination[]) ?? [],
       inventory: (inventoryRes.data as InventoryItem[]) ?? [],
+      inventoryTransactions: (invTxRes.data as InventoryTransaction[]) ?? [],
       feedRecords: (feedRes.data as FeedRecord[]) ?? [],
       milkRecords: (milkRes.data as MilkRecord[]) ?? [],
       notifications: (notifRes.data as Notification[]) ?? [],
