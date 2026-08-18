@@ -92,14 +92,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const errText = await groqResponse.text().catch(() => '');
       console.error('[MyAI] Groq error:', groqResponse.status, errText);
 
+      if (groqResponse.status === 401) {
+        return res.status(502).json({
+          error: 'AI Assistant: invalid API key. Please contact the farm administrator.',
+          code: 'INVALID_KEY',
+        });
+      }
       if (groqResponse.status === 429) {
         return res.status(429).json({
           error: 'AI Assistant is temporarily busy. Please try again in a moment.',
           code: 'RATE_LIMIT',
         });
       }
+      if (groqResponse.status === 503) {
+        return res.status(503).json({
+          error: 'AI service is currently down. Please try again later.',
+          code: 'PROVIDER_DOWN',
+        });
+      }
       return res.status(502).json({
-        error: 'AI Assistant is temporarily unavailable. Please try again.',
+        error: `AI Assistant error (${groqResponse.status}). Please try again.`,
         code: 'PROVIDER_ERROR',
       });
     }
