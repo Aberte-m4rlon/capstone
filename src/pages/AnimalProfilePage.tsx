@@ -219,8 +219,8 @@ export function AnimalProfilePage() {
   };
 
   const downloadQR = async () => {
-    const url = `https://capstone-delta-jet.vercel.app/public/${animal.id}`;
-    const dataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
+    const url = `${window.location.origin}/public/${animal.id}`;
+    const dataUrl = await QRCode.toDataURL(url, { width: 512, margin: 2, color: { dark: '#000000', light: '#FFFFFF' } });
     const link = document.createElement('a');
     link.href = dataUrl;
     link.download = `qr-${animal.tag_id}.png`;
@@ -229,13 +229,33 @@ export function AnimalProfilePage() {
   };
 
   const printQR = () => {
-    const url = `https://capstone-delta-jet.vercel.app/public/${animal.id}`;
+    const url = `${window.location.origin}/public/${animal.id}`;
     const win = window.open('', '_blank');
     if (!win) return;
-    QRCode.toDataURL(url, { width: 300, margin: 2 }).then((dataUrl) => {
-      win.document.write(`<html><head><title>QR - ${animal.name}</title></head><body style="text-align:center;padding:40px;font-family:sans-serif"><h2>${animal.name} (${animal.tag_id})</h2><img src="${dataUrl}" /><p>Scan to view animal profile</p></body></html>`);
+    QRCode.toDataURL(url, { width: 400, margin: 2, color: { dark: '#000000', light: '#FFFFFF' } }).then((dataUrl) => {
+      win.document.write(`<!DOCTYPE html><html><head><title>QR — ${animal.name}</title><style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+        .card{border:2px solid #000;border-radius:16px;padding:28px 24px;max-width:300px;width:100%;text-align:center}
+        .brand{font-size:16px;font-weight:900;color:#FF7A18;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:6px}
+        img{width:220px;height:220px;margin:14px auto;display:block;border-radius:8px}
+        .name{font-size:22px;font-weight:900;color:#1F2937;margin:8px 0 4px}
+        .tag{font-size:13px;color:#6B7280;margin-bottom:3px}
+        .meta{font-size:12px;color:#9CA3AF;margin-bottom:14px}
+        .hint{font-size:11px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:12px;margin-top:4px;line-height:1.5}
+        @media print{body{padding:0}.card{border-color:#000;page-break-inside:avoid}}
+      </style></head><body>
+        <div class="card">
+          <div class="brand">🐐 AlpasFarm</div>
+          <img src="${dataUrl}" alt="QR Code" />
+          <div class="name">${animal.name}</div>
+          <div class="tag">${animal.tag_id}</div>
+          <div class="meta">${animal.species}${animal.breed ? ` · ${animal.breed}` : ''} · ${animal.sex}</div>
+          <div class="hint">Scan this QR code with your phone camera or Google Lens to view this animal's profile.</div>
+        </div>
+      </body></html>`);
       win.document.close();
-      win.print();
+      setTimeout(() => win.print(), 300);
     });
   };
 
