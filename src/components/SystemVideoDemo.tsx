@@ -928,7 +928,228 @@ export function SystemVideoDemo() {
 // Individual Chapter Screen Mockups (Real UI Walkthrough)
 // -------------------------------------------------------------
 
+// ─── Cursor waypoint system ──────────────────────────────────────────────────
+
+interface CursorWaypoint {
+  t: number;  // 0–1 normalized time within chapter
+  x: number;  // % of container width
+  y: number;  // % of container height
+  click?: boolean;
+  label?: string;
+}
+
+const CURSOR_PATHS: Record<DemoChapter['screenType'], CursorWaypoint[]> = {
+  intro: [
+    { t: 0.0, x: 50, y: 50 },
+    { t: 0.4, x: 50, y: 62 },
+    { t: 0.7, x: 50, y: 62, click: true, label: 'Get Started' },
+    { t: 1.0, x: 50, y: 62 },
+  ],
+  dashboard: [
+    { t: 0.0, x: 20, y: 20 },
+    { t: 0.2, x: 22, y: 32, label: 'Total Animals' },
+    { t: 0.35, x: 52, y: 32, label: 'Health Alerts' },
+    { t: 0.55, x: 52, y: 32, click: true },
+    { t: 0.7, x: 30, y: 60, label: 'Quick Action' },
+    { t: 0.85, x: 30, y: 60, click: true },
+    { t: 1.0, x: 75, y: 20 },
+  ],
+  add_animal: [
+    { t: 0.0, x: 80, y: 10, label: '+ Add Animal' },
+    { t: 0.15, x: 80, y: 10, click: true },
+    { t: 0.3, x: 30, y: 35, label: 'Tag ID' },
+    { t: 0.45, x: 30, y: 35, click: true },
+    { t: 0.6, x: 68, y: 35, label: 'Breed' },
+    { t: 0.75, x: 40, y: 60, label: 'Weight' },
+    { t: 0.85, x: 40, y: 60, click: true },
+    { t: 0.95, x: 72, y: 85, label: 'Save', click: true },
+    { t: 1.0, x: 72, y: 85 },
+  ],
+  animal_profile: [
+    { t: 0.0, x: 50, y: 20 },
+    { t: 0.2, x: 25, y: 42, label: 'Health Risk' },
+    { t: 0.4, x: 25, y: 42, click: true },
+    { t: 0.55, x: 60, y: 55, label: 'Weight & Growth' },
+    { t: 0.7, x: 60, y: 55, click: true },
+    { t: 0.85, x: 80, y: 20, label: 'QR Code' },
+    { t: 0.95, x: 80, y: 20, click: true },
+    { t: 1.0, x: 80, y: 20 },
+  ],
+  health: [
+    { t: 0.0, x: 30, y: 30 },
+    { t: 0.2, x: 30, y: 40, label: 'Temperature' },
+    { t: 0.4, x: 30, y: 40, click: true },
+    { t: 0.55, x: 65, y: 40, label: 'Heart Rate' },
+    { t: 0.7, x: 65, y: 40, click: true },
+    { t: 0.85, x: 50, y: 75, label: 'Analyze', click: true },
+    { t: 1.0, x: 50, y: 75 },
+  ],
+  illness_risk: [
+    { t: 0.0, x: 50, y: 30 },
+    { t: 0.25, x: 50, y: 45, label: 'Risk Score' },
+    { t: 0.5, x: 25, y: 60, label: 'Detected Condition' },
+    { t: 0.7, x: 25, y: 60, click: true },
+    { t: 0.85, x: 70, y: 75, label: 'View Animal' },
+    { t: 0.95, x: 70, y: 75, click: true },
+    { t: 1.0, x: 70, y: 75 },
+  ],
+  breeding: [
+    { t: 0.0, x: 20, y: 25 },
+    { t: 0.2, x: 35, y: 35, label: 'Mating Date' },
+    { t: 0.4, x: 35, y: 35, click: true },
+    { t: 0.55, x: 65, y: 35, label: 'Expected Kidding' },
+    { t: 0.7, x: 50, y: 65, label: 'Status: Pregnant' },
+    { t: 0.85, x: 50, y: 65, click: true },
+    { t: 1.0, x: 75, y: 20 },
+  ],
+  weight: [
+    { t: 0.0, x: 20, y: 20 },
+    { t: 0.2, x: 50, y: 45, label: 'Weight Chart' },
+    { t: 0.45, x: 70, y: 55, label: 'Growth Trend' },
+    { t: 0.65, x: 70, y: 55, click: true },
+    { t: 0.8, x: 35, y: 75, label: 'Record Weight' },
+    { t: 0.9, x: 35, y: 75, click: true },
+    { t: 1.0, x: 50, y: 50 },
+  ],
+  inventory: [
+    { t: 0.0, x: 30, y: 25 },
+    { t: 0.2, x: 30, y: 42, label: 'Rice Bran' },
+    { t: 0.35, x: 30, y: 42, click: true },
+    { t: 0.5, x: 62, y: 42, label: 'Current Stock' },
+    { t: 0.65, x: 78, y: 55, label: 'Record Usage' },
+    { t: 0.75, x: 78, y: 55, click: true },
+    { t: 0.88, x: 55, y: 70, label: 'Confirm' },
+    { t: 0.95, x: 55, y: 70, click: true },
+    { t: 1.0, x: 55, y: 70 },
+  ],
+  ai_assistant: [
+    { t: 0.0, x: 88, y: 88, label: '✨ AI Cloud' },
+    { t: 0.2, x: 88, y: 88, click: true },
+    { t: 0.35, x: 50, y: 65, label: 'Type question' },
+    { t: 0.5, x: 50, y: 65, click: true },
+    { t: 0.7, x: 82, y: 72, label: 'Send' },
+    { t: 0.8, x: 82, y: 72, click: true },
+    { t: 0.95, x: 50, y: 45, label: 'AI Response' },
+    { t: 1.0, x: 50, y: 45 },
+  ],
+  ending: [
+    { t: 0.0, x: 50, y: 40 },
+    { t: 0.3, x: 50, y: 55, label: 'One Platform' },
+    { t: 0.6, x: 50, y: 68, label: 'Get Started' },
+    { t: 0.75, x: 50, y: 68, click: true },
+    { t: 0.9, x: 50, y: 68 },
+    { t: 1.0, x: 50, y: 68 },
+  ],
+};
+
+/** Smooth cubic ease-in-out interpolation */
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+/** Interpolate cursor position between waypoints */
+function interpolateCursor(waypoints: CursorWaypoint[], progress: number): { x: number; y: number; click: boolean; label: string } {
+  if (waypoints.length === 0) return { x: 50, y: 50, click: false, label: '' };
+  if (progress <= waypoints[0].t) return { x: waypoints[0].x, y: waypoints[0].y, click: false, label: '' };
+  if (progress >= waypoints[waypoints.length - 1].t) {
+    const last = waypoints[waypoints.length - 1];
+    return { x: last.x, y: last.y, click: !!last.click, label: last.label ?? '' };
+  }
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const a = waypoints[i];
+    const b = waypoints[i + 1];
+    if (progress >= a.t && progress <= b.t) {
+      const span = b.t - a.t;
+      const local = span > 0 ? (progress - a.t) / span : 0;
+      const t = easeInOut(local);
+      const isNearClick = b.click && local > 0.85;
+      return {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        click: !!isNearClick,
+        label: isNearClick ? (b.label ?? '') : (local > 0.3 ? (b.label ?? '') : (a.label ?? '')),
+      };
+    }
+  }
+  const last = waypoints[waypoints.length - 1];
+  return { x: last.x, y: last.y, click: false, label: last.label ?? '' };
+}
+
+// ─── Cursor SVG ───────────────────────────────────────────────────────────────
+
+function DemoCursor({ x, y, clicking, label, visible }: { x: number; y: number; clicking: boolean; label: string; visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: `${x}%`,
+        top: `${y}%`,
+        transform: 'translate(-4px, -4px)',
+        pointerEvents: 'none',
+        zIndex: 50,
+        transition: 'left 0.12s cubic-bezier(0.25,0.46,0.45,0.94), top 0.12s cubic-bezier(0.25,0.46,0.45,0.94)',
+      }}
+    >
+      {/* Click ripple */}
+      {clicking && (
+        <div style={{
+          position: 'absolute',
+          width: 32, height: 32,
+          borderRadius: '50%',
+          border: '2px solid rgba(255,122,24,0.7)',
+          top: -12, left: -12,
+          animation: 'none',
+          opacity: 0.8,
+          transform: 'scale(1.2)',
+          transition: 'all 0.15s',
+        }} />
+      )}
+      {/* Cursor SVG */}
+      <svg width="22" height="28" viewBox="0 0 22 28" fill="none">
+        <filter id="cs">
+          <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="rgba(0,0,0,0.5)" />
+        </filter>
+        <path
+          d="M4 2L4 22L9 17L13 26L15.5 25L11.5 16L18 16Z"
+          fill={clicking ? '#FF7A18' : '#ffffff'}
+          stroke="#333"
+          strokeWidth="1"
+          filter="url(#cs)"
+          style={{ transition: 'fill 0.1s' }}
+        />
+      </svg>
+      {/* Label tooltip */}
+      {label && (
+        <div style={{
+          position: 'absolute',
+          left: 20,
+          top: -4,
+          background: 'rgba(0,0,0,0.82)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,122,24,0.5)',
+          borderRadius: 6,
+          padding: '3px 8px',
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#FF9F0A',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        }}>
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Updated SimulatedChapterView with cursor ────────────────────────────────
+
 function SimulatedChapterView({ chapter, progress }: { chapter: DemoChapter; progress: number }) {
+  const waypoints = CURSOR_PATHS[chapter.screenType] ?? [];
+  const cursor = interpolateCursor(waypoints, progress);
+
   return (
     <div
       style={{
@@ -939,8 +1160,17 @@ function SimulatedChapterView({ chapter, progress }: { chapter: DemoChapter; pro
         border: '1px solid rgba(255, 255, 255, 0.16)',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.20)',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
+      {/* Animated cursor overlay — rendered on top of everything */}
+      <DemoCursor
+        x={cursor.x}
+        y={cursor.y}
+        clicking={cursor.click}
+        label={cursor.label}
+        visible={true}
+      />
       {/* Mock Browser Topbar */}
       <div
         style={{
