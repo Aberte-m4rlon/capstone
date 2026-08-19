@@ -98,7 +98,16 @@ interface AuthContextValue {
   role: UserRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (opts: SignUpOptions) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
+}
+
+export interface SignUpOptions {
+  email: string;
+  password: string;
+  fullName: string;
+  farmName: string;
+  farmLocation: string;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -197,6 +206,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Sign up ───────────────────────────────────────────────────────────────────
+  const signUp = async (opts: SignUpOptions): Promise<{ error: string | null; needsConfirmation: boolean }> => {
+    const email = opts.email.trim().toLowerCase();
+    const password = opts.password.trim();
+    const fullName = opts.fullName.trim();
+    const farmName = opts.farmName.trim();
+
+    if (!email || !password || !fullName || !farmName) {
+      return { error: 'All required fields must be filled in.', needsConfirmation: false };
+    }
+
+    // ── Create the Supabase auth account ─────────────────────────────────────
+    // role is NEVER accepted from the client — always assigned server-side as farm_manager
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          // Supabase stores this in auth.users.raw_user_meta_data
+          // The handle_new_user trigger picks it up and creates a profiles row
+        },
+      },
+    });
+
+    if (error) {
+      const msg = error.message?.toLowerCase() ?? '';
+      if (msg.includes('already registered') || msg.includes('user already exists') || msg.includes('already been registered')) {
+        return { error: 'This email is already registered. Please sign in.', needsConfirmation: false };
+      }
+      if (msg.includes('password') || msg.includes('weak')) {
+        return { error: 'Password is too weak. Use at least 8 characters with mixed case and a number.', needsConfirmation: false };
+      }
+      if (msg.includes('invalid') && msg.includes('email')) {
+        return { error: 'Please enter a valid email address.', needsConfirmation: false };
+      }
+      return { error: 'Unable to create account. Please try again.', needsConfirmation: false };
+    }
+
+    if (!data.user) {
+      return { error: 'Unable to create account. Please try again.', needsConfirmation: false };
+    }
+
+    // ── Create profiles row with farm_manager role (never from client input) ──
+    try {
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        role: 'farm_manager' as UserRole,  // hardcoded — never user-supplied
+        full_name: fullName,
+        is_active: true,
+        email,
+      }, { onConflict: 'id' });
+    } catch {
+      // Profile creation failure is non-fatal; the trigger may have already created it
+    }
+
+    // ── Create initial farm settings ─────────────────────────────────────────
+    if (farmName) {
+      try {
+        await supabase.from('settings').upsert({
+          user_id: data.user.id,
+          farm_name: farmName,
+          target_weight_kg: 40,
+          gestation_days: 150,
+          temp_critical: 40,
+          heart_rate_high: 90,
+          expiry_warning_days: 15,
+          vaccine_due_days: 30,
+          breeding_min_age_months: 8,
+          breeding_min_weight_kg: 25,
+        }, { onConflict: 'user_id' });
+      } catch {
+        // Non-fatal — user can set up farm settings later
+      }
+    }
+
+    // If session was immediately returned, email confirmation is disabled in Supabase
+    const needsConfirmation = !data.session;
+    return { error: null, needsConfirmation };
+  };
+
   // ── Sign in with email + password ────────────────────────────────────────────
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     const trimmedEmail = email.trim().toLowerCase();
@@ -268,6 +358,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: profile?.role ?? null,
         loading,
         signIn,
+        signUp,
         signOut,
       }}
     >

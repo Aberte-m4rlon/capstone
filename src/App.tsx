@@ -123,6 +123,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<AuthPage />} />
+        <Route path="/register" element={<AuthPage />} />
         <Route path="/public/:id" element={<PublicAnimalPage />} />
         {/* Redirect everything else to landing */}
         <Route path="*" element={<Navigate to="/" replace />} />
