@@ -139,10 +139,11 @@ export function InventoryPage() {
     const outOfStock = inv.filter((i) => inventoryStatus(i, warningDaysLocal).status === 'Out of Stock').length;
     const expiring = inv.filter((i) => inventoryStatus(i, warningDaysLocal).status === 'Expiring Soon').length;
     const expired = inv.filter((i) => inventoryStatus(i, warningDaysLocal).status === 'Expired').length;
+    // Total value = current stock × unit cost
     const totalValue = inv.reduce((s, i) => s + (Number(i.quantity) * (Number(i.cost) || 0)), 0);
     const totalConsumed = allTx.filter((t) => t.type === 'CONSUMPTION').reduce((s, t) => s + t.quantity, 0);
 
-    // This month/week/today
+    // Time boundaries
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
@@ -164,9 +165,29 @@ export function InventoryPage() {
       (t) => (t.type === 'STOCK_IN' || t.type === 'RETURN') && new Date(t.created_at) >= monthStart,
     ).reduce((s, t) => s + t.quantity, 0);
 
+    // ── Money spent = sum of (qty × cost_per_unit) for all STOCK_IN transactions ──
+    // cost_per_unit is the unit cost at time of purchase; cost_per_unit × qty = purchase spend
+    const spendTx = allTx.filter((t) => t.type === 'STOCK_IN' || t.type === 'RETURN');
+    const totalSpent = spendTx.reduce((s, t) => s + (t.quantity * (Number(t.cost_per_unit) || 0)), 0);
+    const spentThisMonth = spendTx
+      .filter((t) => new Date(t.created_at) >= monthStart)
+      .reduce((s, t) => s + (t.quantity * (Number(t.cost_per_unit) || 0)), 0);
+    const spentThisWeek = spendTx
+      .filter((t) => new Date(t.created_at) >= weekAgo)
+      .reduce((s, t) => s + (t.quantity * (Number(t.cost_per_unit) || 0)), 0);
+    const spentToday = spendTx
+      .filter((t) => t.created_at.startsWith(todayStr))
+      .reduce((s, t) => s + (t.quantity * (Number(t.cost_per_unit) || 0)), 0);
+
+    // Fallback: if no transactions have cost_per_unit recorded yet, use inventory cost field
+    const totalSpentFallback = totalSpent === 0
+      ? inv.reduce((s, i) => s + (Number(i.cost) || 0) * (Number(i.quantity) || 0), 0)
+      : totalSpent;
+
     return {
       totalItems: inv.length, lowStock, outOfStock, expiring, expired,
       totalValue, totalConsumed, consumedToday, consumedWeek, consumedMonth, addedMonth,
+      totalSpent: totalSpentFallback, spentThisMonth, spentThisWeek, spentToday,
     };
   }, [farmData.inventory, allTx, warningDays]);
 
@@ -481,32 +502,85 @@ export function InventoryPage() {
         <button className="btn btn-primary" onClick={openAdd}><Plus size={16} /> Add Inventory</button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="kpi-grid section-gap">
+      {/* KPI Cards — forced 4-col on desktop, 2-col on tablet, 1-col on mobile */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+        gap: 16,
+        marginBottom: 16,
+      }} className="inv-kpi-grid">
+        {/* Total Items */}
         <div className="kpi-card">
           <div className="kpi-top"><div className="kpi-icon blue"><Icons.Package size={20} /></div></div>
           <div className="kpi-value">{summary.totalItems}</div>
           <div className="kpi-label">Total Items</div>
           <div className="kpi-delta up">₱{summary.totalValue.toLocaleString('en-PH', { maximumFractionDigits: 0 })} value</div>
         </div>
+
+        {/* Money Spent */}
         <div className="kpi-card">
-          <div className="kpi-top"><div className="kpi-icon green"><TrendingDown size={20} /></div></div>
-          <div className="kpi-value">{summary.consumedMonth.toFixed(1)}</div>
-          <div className="kpi-label">Consumed This Month</div>
-          <div className="kpi-delta up">Today: {summary.consumedToday.toFixed(1)} · Week: {summary.consumedWeek.toFixed(1)}</div>
+          <div className="kpi-top"><div className="kpi-icon orange"><Icons.DollarSign size={20} /></div></div>
+          <div className="kpi-value" style={{ fontSize: summary.totalSpent >= 100000 ? 18 : undefined }}>
+            ₱{summary.totalSpent.toLocaleString('en-PH', { maximumFractionDigits: 0 })}
+          </div>
+          <div className="kpi-label">Total Purchases</div>
+          <div className="kpi-delta up">This month: ₱{summary.spentThisMonth.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</div>
         </div>
+
+        {/* Consumed */}
+        <div className="kpi-card">
+          <div className="kpi-top"><div className="kpi-icon red"><TrendingDown size={20} /></div></div>
+          <div className="kpi-value">{summary.consumedMonth.toFixed(1)}</div>
+          <div className="kpi-label">Consumed / Month</div>
+          <div className="kpi-delta up">Today: {summary.consumedToday.toFixed(1)} · Wk: {summary.consumedWeek.toFixed(1)}</div>
+        </div>
+
+        {/* Stock Alerts */}
         <div className="kpi-card">
           <div className="kpi-top"><div className="kpi-icon orange"><Icons.AlertTriangle size={20} /></div></div>
-          <div className="kpi-value">{summary.lowStock}</div>
-          <div className="kpi-label">Low Stock</div>
-          <div className="kpi-delta down">{summary.outOfStock} out of stock</div>
+          <div className="kpi-value">{summary.lowStock + summary.outOfStock}</div>
+          <div className="kpi-label">Stock Alerts</div>
+          <div className="kpi-delta down">{summary.expiring} expiring · {summary.expired} expired</div>
         </div>
-        <div className="kpi-card">
-          <div className="kpi-top"><div className="kpi-icon red"><Icons.Clock size={20} /></div></div>
-          <div className="kpi-value">{summary.expiring}</div>
-          <div className="kpi-label">Expiring Soon</div>
-          <div className="kpi-delta down">{summary.expired} expired</div>
+      </div>
+      {/* responsive CSS for the grid */}
+      <style>{`
+        @media (max-width: 900px) { .inv-kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
+        @media (max-width: 480px) { .inv-kpi-grid { grid-template-columns: repeat(1, minmax(0,1fr)) !important; } }
+      `}</style>
+
+      {/* Expense Summary Strip */}
+      <div className="card section-gap" style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icons.DollarSign size={16} color="var(--accent-orange)" /> Inventory Expenses
         </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }} className="inv-expense-grid">
+          {[
+            { label: 'Total Spent', value: summary.totalSpent },
+            { label: 'This Month', value: summary.spentThisMonth },
+            { label: 'This Week', value: summary.spentThisWeek },
+            { label: 'Today', value: summary.spentToday },
+          ].map((e) => (
+            <div key={e.label} style={{
+              padding: '12px 14px', borderRadius: 12,
+              background: 'var(--bg)', border: '1px solid var(--border-light)',
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{e.label}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>
+                ₱{e.value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <style>{`
+          @media (max-width: 640px) { .inv-expense-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
+          @media (max-width: 360px) { .inv-expense-grid { grid-template-columns: repeat(1, minmax(0,1fr)) !important; } }
+        `}</style>
+        {summary.totalSpent === 0 && allTx.filter(t => t.type === 'STOCK_IN').length === 0 && (
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 10 }}>
+            💡 Add a <strong>Unit Cost (₱)</strong> when adding or restocking inventory items to enable expense tracking.
+          </p>
+        )}
       </div>
 
       {/* Filters */}
@@ -674,7 +748,7 @@ export function InventoryPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Unit Cost (₱)</label>
-            <input className="form-input" type="number" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="per unit" />
+            <input className="form-input" type="number" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="per unit/kg/pcs" />
           </div>
         </div>
         <div className="form-group">
