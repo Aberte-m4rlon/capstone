@@ -22,8 +22,12 @@ export const AI_MODE: AIMode =
 const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL ?? 'http://localhost:11434';
 const OLLAMA_MODEL = import.meta.env.VITE_OLLAMA_MODEL ?? 'qwen2.5:1.5b';
 
-// Production endpoint (Vercel serverless function)
-const PRODUCTION_ENDPOINT = '/api/ai/chat';
+// Production endpoint — Supabase Edge Function (reliable, no Vercel Node issues)
+// Falls back to /api/ai/chat (Vercel) if VITE_AI_EDGE_URL is not set
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const PRODUCTION_ENDPOINT = SUPABASE_URL
+  ? `${SUPABASE_URL}/functions/v1/ai-chat`
+  : '/api/ai/chat';
 
 // Displayed model label
 export const MYAI_MODEL = AI_MODE === 'local' ? OLLAMA_MODEL : 'MyAI Cloud';
@@ -55,18 +59,19 @@ export type AIStatus =
 // ── Status check ──────────────────────────────────────────────────────────────
 export async function checkAIStatus(): Promise<AIStatus> {
   if (AI_MODE === 'production') {
-    // In production mode, do a lightweight health-check
     try {
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (anonKey) { headers['Authorization'] = `Bearer ${anonKey}`; headers['apikey'] = anonKey; }
       const r = await fetch(PRODUCTION_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }], stream: false }),
         signal: AbortSignal.timeout(8000),
       });
-      // 503 means key not configured; 200/other means endpoint is reachable
       if (r.status === 503) {
         const data = await r.json().catch(() => ({}));
-        if (data?.code === 'NO_API_KEY') return 'unavailable';
+        if ((data as any)?.code === 'NO_API_KEY') return 'unavailable';
       }
       return 'production';
     } catch {
@@ -306,15 +311,23 @@ async function* _streamOllama(
   }
 }
 
-// ── Production: /api/ai/chat SSE streaming ────────────────────────────────────
+// ── Production: Supabase Edge Function SSE streaming ─────────────────────────
 async function* _streamProduction(
   messages: Array<{ role: string; content: string }>,
   onToken: (token: string) => void,
   signal?: AbortSignal,
 ): AsyncGenerator<void> {
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  // Supabase Edge Functions require the anon key as Authorization
+  if (anonKey) {
+    headers['Authorization'] = `Bearer ${anonKey}`;
+    headers['apikey'] = anonKey;
+  }
+
   const resp = await fetch(PRODUCTION_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ messages, stream: true }),
     signal,
   });
