@@ -18,18 +18,20 @@ export type AIMode = 'local' | 'production';
 export const AI_MODE: AIMode =
   (import.meta.env.VITE_AI_MODE as AIMode) === 'local' ? 'local' : 'production';
 
-// Local Ollama config (used only when AI_MODE === 'local')
+// Local Ollama config
 const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL ?? 'http://localhost:11434';
 const OLLAMA_MODEL = import.meta.env.VITE_OLLAMA_MODEL ?? 'qwen2.5:1.5b';
 
-// Production endpoint — Supabase Edge Function (reliable, no Vercel Node issues)
-// Falls back to /api/ai/chat (Vercel) if VITE_AI_EDGE_URL is not set
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const PRODUCTION_ENDPOINT = SUPABASE_URL
-  ? `${SUPABASE_URL}/functions/v1/ai-chat`
-  : '/api/ai/chat';
+// Production: Groq direct (capstone/demo mode — key scoped to this project)
+// For a production SaaS, move this to a server-side proxy.
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY as string | undefined;
+const GROQ_MODEL = 'llama-3.1-8b-instant';
 
-// Displayed model label
+// Supabase Edge Function fallback (if deployed)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const EDGE_ENDPOINT = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/ai-chat` : null;
+
 export const MYAI_MODEL = AI_MODE === 'local' ? OLLAMA_MODEL : 'MyAI Cloud';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -59,26 +61,23 @@ export type AIStatus =
 // ── Status check ──────────────────────────────────────────────────────────────
 export async function checkAIStatus(): Promise<AIStatus> {
   if (AI_MODE === 'production') {
-    try {
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (anonKey) { headers['Authorization'] = `Bearer ${anonKey}`; headers['apikey'] = anonKey; }
-      const r = await fetch(PRODUCTION_ENDPOINT, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }], stream: false }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (r.status === 503) {
-        const data = await r.json().catch(() => ({}));
-        if ((data as any)?.code === 'NO_API_KEY') return 'unavailable';
-      }
-      return 'production';
-    } catch {
-      return 'unavailable';
+    // Try Groq directly first (most reliable for capstone deployment)
+    if (GROQ_KEY) return 'production';
+    // Try Edge Function
+    if (EDGE_ENDPOINT) {
+      try {
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+        const r = await fetch(EDGE_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
+          body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }] }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (r.status < 500) return 'production';
+      } catch { /* fall through */ }
     }
+    return 'unavailable';
   }
-
   // Local Ollama check
   try {
     const r = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
@@ -253,7 +252,7 @@ export function buildFarmContext(
   return lines.join('\n');
 }
 
-// ── Stream chat — routes to Ollama (local) or /api/ai/chat (production) ───────
+// ── Stream chat — routes based on mode ───────────────────────────────────────
 export async function* streamChat(
   messages: Array<{ role: string; content: string }>,
   onToken: (token: string) => void,
@@ -261,12 +260,115 @@ export async function* streamChat(
 ): AsyncGenerator<void> {
   if (AI_MODE === 'local') {
     yield* _streamOllama(messages, onToken, signal);
-  } else {
-    yield* _streamProduction(messages, onToken, signal);
+    return;
+  }
+  // Production: try Groq direct first, fall back to Edge Function
+  if (GROQ_KEY) {
+    yield* _streamGroqDirect(messages, onToken, signal);
+    return;
+  }
+  if (EDGE_ENDPOINT) {
+    yield* _streamEdgeFunction(messages, onToken, signal);
+    return;
+  }
+  throw new Error('AI service is not configured. Please contact the administrator.');
+}
+
+// ── Groq direct (browser → Groq API) ─────────────────────────────────────────
+async function* _streamGroqDirect(
+  messages: Array<{ role: string; content: string }>,
+  onToken: (token: string) => void,
+  signal?: AbortSignal,
+): AsyncGenerator<void> {
+  const resp = await fetch(GROQ_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: messages.slice(-20),
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 1024,
+    }),
+    signal,
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    if (resp.status === 401) throw new Error('Invalid AI API key. Please contact the administrator.');
+    if (resp.status === 429) throw new Error('AI is temporarily busy. Please try again in a moment.');
+    throw new Error(`AI service error (${resp.status}). Please try again.`);
+  }
+
+  const reader = resp.body?.getReader();
+  if (!reader) throw new Error('No response stream from AI provider.');
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t || t === 'data: [DONE]') { if (t === 'data: [DONE]') return; continue; }
+      if (!t.startsWith('data: ')) continue;
+      try {
+        const d = JSON.parse(t.slice(6));
+        const token = d?.choices?.[0]?.delta?.content ?? '';
+        if (token) onToken(token);
+        if (d?.choices?.[0]?.finish_reason === 'stop') return;
+      } catch { /* skip malformed */ }
+    }
+    yield;
   }
 }
 
-// ── Local: direct Ollama streaming ───────────────────────────────────────────
+// ── Supabase Edge Function streaming ─────────────────────────────────────────
+async function* _streamEdgeFunction(
+  messages: Array<{ role: string; content: string }>,
+  onToken: (token: string) => void,
+  signal?: AbortSignal,
+): AsyncGenerator<void> {
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const resp = await fetch(EDGE_ENDPOINT!, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+  if (!resp.ok) {
+    let msg = `AI service error (${resp.status}). Please try again.`;
+    try { const d = await resp.json(); if (d?.error) msg = d.error; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  const reader = resp.body?.getReader();
+  if (!reader) throw new Error('No response stream.');
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t || !t.startsWith('data: ')) continue;
+      try {
+        const d = JSON.parse(t.slice(6));
+        if (d?.token) onToken(d.token);
+        if (d?.done) return;
+      } catch { /* skip */ }
+    }
+    yield;
+  }
+}
 async function* _streamOllama(
   messages: Array<{ role: string; content: string }>,
   onToken: (token: string) => void,
@@ -306,65 +408,6 @@ async function* _streamOllama(
         if (token) onToken(token);
         if (data?.done) return;
       } catch { /* skip */ }
-    }
-    yield;
-  }
-}
-
-// ── Production: Supabase Edge Function SSE streaming ─────────────────────────
-async function* _streamProduction(
-  messages: Array<{ role: string; content: string }>,
-  onToken: (token: string) => void,
-  signal?: AbortSignal,
-): AsyncGenerator<void> {
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  // Supabase Edge Functions require the anon key as Authorization
-  if (anonKey) {
-    headers['Authorization'] = `Bearer ${anonKey}`;
-    headers['apikey'] = anonKey;
-  }
-
-  const resp = await fetch(PRODUCTION_ENDPOINT, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ messages, stream: true }),
-    signal,
-  });
-
-  if (!resp.ok) {
-    let errorMsg = 'AI Assistant is temporarily unavailable. Please try again.';
-    try {
-      const data = await resp.json();
-      if (data?.error) errorMsg = data.error;
-    } catch { /* use default */ }
-    throw new Error(errorMsg);
-  }
-
-  const reader = resp.body?.getReader();
-  if (!reader) throw new Error('No response stream from AI service');
-
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith('data: ')) continue;
-      try {
-        const data = JSON.parse(trimmed.slice(6));
-        if (data?.token) onToken(data.token);
-        if (data?.done) return;
-        if (data?.error) throw new Error(data.error);
-      } catch (e: any) {
-        // Re-throw only real errors, not JSON parse failures on empty lines
-        if (e?.message && !e.message.includes('JSON')) throw e;
-      }
     }
     yield;
   }
