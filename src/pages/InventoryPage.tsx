@@ -166,7 +166,6 @@ export function InventoryPage() {
     ).reduce((s, t) => s + t.quantity, 0);
 
     // ── Money spent = sum of (qty × cost_per_unit) for all STOCK_IN transactions ──
-    // cost_per_unit is the unit cost at time of purchase; cost_per_unit × qty = purchase spend
     const spendTx = allTx.filter((t) => t.type === 'STOCK_IN' || t.type === 'RETURN');
     const totalSpent = spendTx.reduce((s, t) => s + (t.quantity * (Number(t.cost_per_unit) || 0)), 0);
     const spentThisMonth = spendTx
@@ -184,10 +183,30 @@ export function InventoryPage() {
       ? inv.reduce((s, i) => s + (Number(i.cost) || 0) * (Number(i.quantity) || 0), 0)
       : totalSpent;
 
+    // ── Consumed monetary value = sum of (qty × cost_per_unit) for CONSUMPTION txs ──
+    const consumedTx = allTx.filter((t) => t.type === 'CONSUMPTION');
+    const totalConsumedValue = consumedTx.reduce((s, t) => s + (t.quantity * (Number(t.cost_per_unit) || 0)), 0);
+    const consumedValueMonth = consumedTx
+      .filter((t) => new Date(t.created_at) >= monthStart)
+      .reduce((s, t) => s + (t.quantity * (Number(t.cost_per_unit) || 0)), 0);
+
+    // ── Current inventory value = remaining stock × unit cost ──
+    const currentInventoryValue = inv.reduce((s, i) => s + (Number(i.quantity) * (Number(i.cost) || 0)), 0);
+
+    // ── Category breakdown ──────────────────────────────────────────────────
+    const byCategory: Record<string, number> = {};
+    for (const t of spendTx) {
+      const item = inv.find((i) => i.id === t.inventory_item_id);
+      const cat = item?.category ?? 'Other';
+      byCategory[cat] = (byCategory[cat] || 0) + (t.quantity * (Number(t.cost_per_unit) || 0));
+    }
+
     return {
       totalItems: inv.length, lowStock, outOfStock, expiring, expired,
-      totalValue, totalConsumed, consumedToday, consumedWeek, consumedMonth, addedMonth,
+      totalValue: currentInventoryValue,
+      totalConsumed, consumedToday, consumedWeek, consumedMonth, addedMonth,
       totalSpent: totalSpentFallback, spentThisMonth, spentThisWeek, spentToday,
+      totalConsumedValue, consumedValueMonth, currentInventoryValue, byCategory,
     };
   }, [farmData.inventory, allTx, warningDays]);
 
@@ -502,51 +521,55 @@ export function InventoryPage() {
         <button className="btn btn-primary" onClick={openAdd}><Plus size={16} /> Add Inventory</button>
       </div>
 
-      {/* KPI Cards — forced 4-col on desktop, 2-col on tablet, 1-col on mobile */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-        gap: 16,
-        marginBottom: 16,
-      }} className="inv-kpi-grid">
+      {/* KPI Cards — horizontal scroll on mobile, 4-col on desktop */}
+      <div style={{ marginBottom: 16, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(140px, 1fr))',
+          gap: 12,
+          minWidth: 'max-content',
+          width: '100%',
+        }} className="inv-kpi-grid">
         {/* Total Items */}
-        <div className="kpi-card">
-          <div className="kpi-top"><div className="kpi-icon blue"><Icons.Package size={20} /></div></div>
+        <div className="kpi-card" style={{ minWidth: 140 }}>
+          <div className="kpi-top"><div className="kpi-icon blue"><Icons.Package size={18} /></div></div>
           <div className="kpi-value">{summary.totalItems}</div>
           <div className="kpi-label">Total Items</div>
-          <div className="kpi-delta up">₱{summary.totalValue.toLocaleString('en-PH', { maximumFractionDigits: 0 })} value</div>
+          <div className="kpi-delta up">₱{summary.currentInventoryValue.toLocaleString('en-PH', { maximumFractionDigits: 0 })} value</div>
         </div>
 
         {/* Money Spent */}
-        <div className="kpi-card">
-          <div className="kpi-top"><div className="kpi-icon orange"><Icons.DollarSign size={20} /></div></div>
-          <div className="kpi-value" style={{ fontSize: summary.totalSpent >= 100000 ? 18 : undefined }}>
+        <div className="kpi-card" style={{ minWidth: 140 }}>
+          <div className="kpi-top"><div className="kpi-icon orange"><Icons.DollarSign size={18} /></div></div>
+          <div className="kpi-value" style={{ fontSize: summary.totalSpent >= 100000 ? 16 : undefined }}>
             ₱{summary.totalSpent.toLocaleString('en-PH', { maximumFractionDigits: 0 })}
           </div>
-          <div className="kpi-label">Total Purchases</div>
-          <div className="kpi-delta up">This month: ₱{summary.spentThisMonth.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</div>
+          <div className="kpi-label">Purchased</div>
+          <div className="kpi-delta up">Mo: ₱{summary.spentThisMonth.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</div>
         </div>
 
         {/* Consumed */}
-        <div className="kpi-card">
-          <div className="kpi-top"><div className="kpi-icon red"><TrendingDown size={20} /></div></div>
+        <div className="kpi-card" style={{ minWidth: 140 }}>
+          <div className="kpi-top"><div className="kpi-icon red"><TrendingDown size={18} /></div></div>
           <div className="kpi-value">{summary.consumedMonth.toFixed(1)}</div>
-          <div className="kpi-label">Consumed / Month</div>
-          <div className="kpi-delta up">Today: {summary.consumedToday.toFixed(1)} · Wk: {summary.consumedWeek.toFixed(1)}</div>
+          <div className="kpi-label">Consumed / Mo</div>
+          <div className="kpi-delta up">₱{summary.consumedValueMonth.toLocaleString('en-PH', { maximumFractionDigits: 0 })} val</div>
         </div>
 
         {/* Stock Alerts */}
-        <div className="kpi-card">
-          <div className="kpi-top"><div className="kpi-icon orange"><Icons.AlertTriangle size={20} /></div></div>
+        <div className="kpi-card" style={{ minWidth: 140 }}>
+          <div className="kpi-top"><div className="kpi-icon orange"><Icons.AlertTriangle size={18} /></div></div>
           <div className="kpi-value">{summary.lowStock + summary.outOfStock}</div>
           <div className="kpi-label">Stock Alerts</div>
-          <div className="kpi-delta down">{summary.expiring} expiring · {summary.expired} expired</div>
+          <div className="kpi-delta down">{summary.expiring} exp · {summary.expired} exp'd</div>
+        </div>
         </div>
       </div>
-      {/* responsive CSS for the grid */}
+      {/* responsive CSS — on desktop use full-width auto grid, on mobile horizontal scroll */}
       <style>{`
-        @media (max-width: 900px) { .inv-kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
-        @media (max-width: 480px) { .inv-kpi-grid { grid-template-columns: repeat(1, minmax(0,1fr)) !important; } }
+        @media (min-width: 640px) {
+          .inv-kpi-grid { min-width: unset !important; grid-template-columns: repeat(4, minmax(0,1fr)) !important; }
+        }
       `}</style>
 
       {/* Expense Summary Strip */}
@@ -554,27 +577,62 @@ export function InventoryPage() {
         <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Icons.DollarSign size={16} color="var(--accent-orange)" /> Inventory Expenses
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }} className="inv-expense-grid">
+
+        {/* Main 3-metric row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12, marginBottom: 12 }} className="inv-main-expense">
           {[
-            { label: 'Total Spent', value: summary.totalSpent },
-            { label: 'This Month', value: summary.spentThisMonth },
-            { label: 'This Week', value: summary.spentThisWeek },
-            { label: 'Today', value: summary.spentToday },
+            { label: 'Total Purchased', value: summary.totalSpent, color: '#FF7A18' },
+            { label: 'Total Consumed', value: summary.totalConsumedValue, color: '#EF4444' },
+            { label: 'Current Inventory Value', value: summary.currentInventoryValue, color: '#3B82F6' },
           ].map((e) => (
-            <div key={e.label} style={{
-              padding: '12px 14px', borderRadius: 12,
-              background: 'var(--bg)', border: '1px solid var(--border-light)',
-            }}>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{e.label}</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>
+            <div key={e.label} style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border-light)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>{e.label}</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: e.color }}>
                 ₱{e.value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
           ))}
         </div>
+
+        {/* Period breakdown */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10 }} className="inv-expense-grid">
+          {[
+            { label: 'Today', value: summary.spentToday },
+            { label: 'This Week', value: summary.spentThisWeek },
+            { label: 'This Month', value: summary.spentThisMonth },
+            { label: 'Total', value: summary.totalSpent },
+          ].map((e) => (
+            <div key={e.label} style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border-light)' }}>
+              <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 3 }}>{e.label}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>
+                ₱{e.value.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Category breakdown — only shown if we have data */}
+        {Object.keys(summary.byCategory).length > 0 && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-light)' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>By Category</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {Object.entries(summary.byCategory)
+                .sort(([, a], [, b]) => b - a)
+                .map(([cat, val]) => (
+                  <div key={cat} style={{ padding: '5px 10px', borderRadius: 8, background: 'rgba(255,122,24,0.10)', border: '1px solid rgba(255,122,24,0.25)', fontSize: 12 }}>
+                    <span style={{ fontWeight: 700, color: '#FF7A18' }}>{cat}</span>
+                    <span style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>₱{val.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         <style>{`
-          @media (max-width: 640px) { .inv-expense-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; } }
-          @media (max-width: 360px) { .inv-expense-grid { grid-template-columns: repeat(1, minmax(0,1fr)) !important; } }
+          @media (max-width: 640px) {
+            .inv-main-expense { grid-template-columns: repeat(1, minmax(0,1fr)) !important; }
+            .inv-expense-grid { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+          }
         `}</style>
         {summary.totalSpent === 0 && allTx.filter(t => t.type === 'STOCK_IN').length === 0 && (
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 10 }}>
