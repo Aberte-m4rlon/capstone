@@ -60,37 +60,45 @@ export type AIStatus =
 
 // ── Status check ──────────────────────────────────────────────────────────────
 export async function checkAIStatus(): Promise<AIStatus> {
-  if (AI_MODE === 'production') {
-    // If GROQ key is bundled, AI is available — verify with a lightweight OPTIONS check
-    if (GROQ_KEY) {
-      try {
-        // Just check reachability with a minimal request (not a real completion)
-        const r = await fetch('https://api.groq.com/openai/v1/models', {
-          headers: { 'Authorization': `Bearer ${GROQ_KEY}` },
-          signal: AbortSignal.timeout(5000),
-        });
-        // 200 = valid key, 401 = invalid key, anything else = reachable
-        if (r.status === 401) return 'unavailable';
-        return 'production';
-      } catch {
-        // Network issue — still mark production so user can try
+  // If local Ollama is explicitly requested, test it first
+  if (AI_MODE === 'local') {
+    try {
+      const r = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
+      if (r.ok) {
+        const data = await r.json();
+        const models: string[] = (data.models || []).map((m: { name: string }) => m.name);
+        const hasModel = models.some((m) => m.includes(OLLAMA_MODEL.split(':')[0]));
+        return hasModel ? 'online' : 'no_model';
+      }
+    } catch {
+      // Ollama not reachable — fallback to Groq Cloud if key is present
+      if (GROQ_KEY) {
         return 'production';
       }
+      return 'offline';
     }
-    // No key configured at all
-    return 'unavailable';
   }
-  // Local Ollama check
-  try {
-    const r = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    if (!r.ok) return 'offline';
-    const data = await r.json();
-    const models: string[] = (data.models || []).map((m: { name: string }) => m.name);
-    const hasModel = models.some((m) => m.includes(OLLAMA_MODEL.split(':')[0]));
-    return hasModel ? 'online' : 'no_model';
-  } catch {
-    return 'offline';
+
+  // Production mode (or cloud AI)
+  if (GROQ_KEY) {
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { 'Authorization': `Bearer ${GROQ_KEY}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (r.status === 401) return 'unavailable';
+      return 'production';
+    } catch {
+      // If network glitch or timeout during ping, keep production available so chat attempt works
+      return 'production';
+    }
   }
+
+  if (EDGE_ENDPOINT) {
+    return 'production';
+  }
+
+  return 'unavailable';
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
@@ -261,13 +269,30 @@ export async function* streamChat(
   signal?: AbortSignal,
 ): AsyncGenerator<void> {
   if (AI_MODE === 'local') {
-    yield* _streamOllama(messages, onToken, signal);
-    return;
+    try {
+      yield* _streamOllama(messages, onToken, signal);
+      return;
+    } catch (ollamaErr) {
+      if (GROQ_KEY) {
+        console.warn('Ollama unavailable, falling back to Groq Cloud AI:', ollamaErr);
+        yield* _streamGroqDirect(messages, onToken, signal);
+        return;
+      }
+      throw ollamaErr;
+    }
   }
   // Production: try Groq direct first, fall back to Edge Function
   if (GROQ_KEY) {
-    yield* _streamGroqDirect(messages, onToken, signal);
-    return;
+    try {
+      yield* _streamGroqDirect(messages, onToken, signal);
+      return;
+    } catch (groqErr) {
+      if (EDGE_ENDPOINT) {
+        yield* _streamEdgeFunction(messages, onToken, signal);
+        return;
+      }
+      throw groqErr;
+    }
   }
   if (EDGE_ENDPOINT) {
     yield* _streamEdgeFunction(messages, onToken, signal);

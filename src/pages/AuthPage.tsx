@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, defaultRouteForRole } from '../lib/auth';
 import {
   Eye, EyeOff, User, Lock, ArrowRight, AlertCircle,
   Mail, Building2, MapPin, CheckCircle2, UserPlus, LogIn,
+  KeyRound, RefreshCw, Edit2, ShieldCheck,
 } from 'lucide-react';
 
 // ─── Password strength ────────────────────────────────────────────────────────
@@ -39,16 +40,22 @@ function inputStyle(focused?: boolean): React.CSSProperties {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-type View = 'signin' | 'signup' | 'confirmed';
+type View = 'signin' | 'signup' | 'verify';
 
 export function AuthPage() {
-  const { signIn, signUp, role } = useAuth();
+  const { signIn, signUp, verifyEmailOtp, resendVerificationCode, role } = useAuth();
   const navigate = useNavigate();
 
   const [view, setView] = useState<View>('signin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedEmail, setConfirmedEmail] = useState('');
+
+  // Verification state
+  const [verificationCode, setVerificationCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
+  const [verifySuccess, setVerifySuccess] = useState(false);
 
   // Sign-in state
   const [siEmail, setSiEmail] = useState('');
@@ -68,9 +75,19 @@ export function AuthPage() {
 
   const pwStr = passwordStrength(suPassword);
 
+  // Cooldown countdown timer for resend code
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
   const switchView = (v: View) => {
     setView(v);
     setError(null);
+    setResendSuccess(null);
   };
 
   // ── Sign In ────────────────────────────────────────────────────────────────
@@ -84,7 +101,16 @@ export function AuthPage() {
     setLoading(true);
     const { error: err } = await signIn(email, siPassword);
     setLoading(false);
-    if (err) { setError(err); return; }
+    if (err) {
+      if (err.toLowerCase().includes('verify your email')) {
+        setConfirmedEmail(email);
+        setView('verify');
+        setError('Please enter the verification code sent to your email.');
+        return;
+      }
+      setError(err);
+      return;
+    }
     navigate(defaultRouteForRole(role), { replace: true });
   };
 
@@ -93,6 +119,7 @@ export function AuthPage() {
     e.preventDefault();
     if (loading) return;
     setError(null);
+    setResendSuccess(null);
 
     // Client-side validation
     if (!suFullName.trim()) { setError('Full name is required.'); return; }
@@ -117,11 +144,61 @@ export function AuthPage() {
 
     if (needsConfirmation) {
       setConfirmedEmail(suEmail.trim());
-      setView('confirmed');
+      setView('verify');
+      setResendCooldown(60);
+      setVerificationCode('');
     } else {
       // Email confirmation is disabled in Supabase — immediately signed in
       navigate(defaultRouteForRole(role), { replace: true });
     }
+  };
+
+  // ── Verify Code ────────────────────────────────────────────────────────────
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading || verifySuccess) return;
+    const code = verificationCode.trim();
+    if (!code) {
+      setError('Please enter the verification code.');
+      return;
+    }
+    setError(null);
+    setResendSuccess(null);
+    setLoading(true);
+
+    const { error: err } = await verifyEmailOtp(confirmedEmail, code, {
+      fullName: suFullName.trim(),
+      farmName: suFarmName.trim(),
+    });
+    setLoading(false);
+
+    if (err) {
+      setError(err);
+      return;
+    }
+
+    setVerifySuccess(true);
+    setTimeout(() => {
+      navigate(defaultRouteForRole(role || 'farm_manager'), { replace: true });
+    }, 1100);
+  };
+
+  // ── Resend Code ────────────────────────────────────────────────────────────
+  const handleResend = async () => {
+    if (resendCooldown > 0 || loading) return;
+    setError(null);
+    setResendSuccess(null);
+    setLoading(true);
+    const { error: err } = await resendVerificationCode(confirmedEmail);
+    setLoading(false);
+
+    if (err) {
+      setError(err);
+      return;
+    }
+
+    setResendSuccess('A fresh 6-digit verification code has been sent to your email.');
+    setResendCooldown(60);
   };
 
   // ── Shared background ──────────────────────────────────────────────────────
@@ -148,35 +225,174 @@ export function AuthPage() {
     boxSizing: 'border-box',
   };
 
-  // ── Confirmed screen ───────────────────────────────────────────────────────
-  if (view === 'confirmed') {
+  // ── Verification / Confirmed screen ────────────────────────────────────────
+  if (view === 'verify') {
     return (
       <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '20px', position: 'relative' }}>
         {bg}
         <div style={cardStyle}>
           <div style={{ position: 'absolute', inset: 0, borderRadius: '28px', background: 'linear-gradient(135deg, rgba(255,255,255,0.22), transparent 30%)', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', textAlign: 'center' }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg,#16A34A,#22C55E)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, boxShadow: '0 14px 36px rgba(22,163,74,0.35)' }}>
-              <CheckCircle2 size={36} color="#fff" />
+            <div style={{
+              width: 72, height: 72, borderRadius: '50%',
+              background: verifySuccess ? 'linear-gradient(135deg,#16A34A,#22C55E)' : 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 18,
+              boxShadow: verifySuccess ? '0 14px 36px rgba(22,163,74,0.35)' : '0 14px 36px rgba(255,59,48,0.35)',
+              transition: 'all 0.3s ease',
+            }}>
+              {verifySuccess ? <CheckCircle2 size={36} color="#fff" /> : <ShieldCheck size={36} color="#fff" />}
             </div>
-            <h2 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)', marginBottom: 12 }}>Check Your Email</h2>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>
-              We sent a verification link to:
+
+            <h2 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)', marginBottom: 8, letterSpacing: '-0.5px' }}>
+              {verifySuccess ? 'Account Verified!' : 'Enter Verification Code'}
+            </h2>
+
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 12 }}>
+              We sent a 6-digit authentication verification code to:
             </p>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#FF7A18', marginBottom: 20, wordBreak: 'break-all' }}>{confirmedEmail}</p>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 28 }}>
-              Click the link in the email to activate your AlpasFarm account. Check your spam folder if you don't see it within a few minutes.
-            </p>
-            <button
-              onClick={() => switchView('signin')}
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '13px', fontSize: 15, fontWeight: 800 }}
-            >
-              <LogIn size={16} /> Back to Sign In
-            </button>
+
+            {/* Email pill with edit option */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '6px 14px', borderRadius: 999,
+              background: 'rgba(255,106,42,0.12)', border: '1px solid rgba(255,106,42,0.30)',
+              marginBottom: 20, maxWidth: '100%',
+            }}>
+              <Mail size={13} color="#FF7A18" />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#FF7A18', wordBreak: 'break-all' }}>
+                {confirmedEmail || 'your email'}
+              </span>
+              <button
+                type="button"
+                onClick={() => switchView('signup')}
+                title="Change email"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', padding: 2 }}
+              >
+                <Edit2 size={12} />
+              </button>
+            </div>
+
+            {/* Success message */}
+            {resendSuccess && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', marginBottom: 16, borderRadius: 12, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.30)', color: '#22C55E', fontSize: 13, fontWeight: 600, textAlign: 'left' }}>
+                <CheckCircle2 size={15} style={{ flexShrink: 0 }} />
+                <span>{resendSuccess}</span>
+              </div>
+            )}
+
+            {/* Error message */}
+            {error && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', marginBottom: 16, borderRadius: 12, background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.28)', color: '#FF3B30', fontSize: 13, fontWeight: 600, textAlign: 'left', lineHeight: 1.4 }}>
+                <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Verification Form */}
+            <form onSubmit={handleVerifyOtp} noValidate>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  6-Digit Verification Code
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <KeyRound size={16} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={8}
+                    autoFocus
+                    value={verificationCode}
+                    onChange={(e) => {
+                      setVerificationCode(e.target.value.replace(/[^0-9a-zA-Z]/g, ''));
+                      setError(null);
+                    }}
+                    placeholder="123456"
+                    disabled={loading || verifySuccess}
+                    style={{
+                      ...inputStyle(),
+                      padding: '13px 14px 13px 44px',
+                      fontSize: '20px',
+                      fontWeight: 800,
+                      letterSpacing: '6px',
+                      textAlign: 'center',
+                      fontFamily: 'monospace',
+                    }}
+                    onFocus={(e) => { e.target.style.borderColor = 'rgba(255,106,42,0.70)'; e.target.style.boxShadow = '0 0 0 3px rgba(255,106,42,0.20)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.18)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || verifySuccess || !verificationCode.trim()}
+                style={{
+                  width: '100%', padding: '13px',
+                  background: verifySuccess
+                    ? 'linear-gradient(135deg,#16A34A,#22C55E)'
+                    : loading || !verificationCode.trim()
+                      ? 'rgba(255,106,42,0.5)'
+                      : 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                  border: '1px solid rgba(255,255,255,0.20)', borderRadius: 12,
+                  color: '#fff', fontSize: 15, fontWeight: 800,
+                  boxShadow: loading ? 'none' : 'inset 0 1.5px 1px rgba(255,255,255,0.25), 0 10px 28px rgba(255,59,48,0.38)',
+                  cursor: (loading || !verificationCode.trim()) ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  boxSizing: 'border-box',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                {loading ? (
+                  <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />Verifying code…</>
+                ) : verifySuccess ? (
+                  <><CheckCircle2 size={18} /> Verified! Loading…</>
+                ) : (
+                  <>Verify &amp; Activate Account <ArrowRight size={17} /></>
+                )}
+              </button>
+            </form>
+
+            {/* Resend button */}
+            <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendCooldown > 0 || loading}
+                style={{
+                  background: 'none', border: 'none', cursor: resendCooldown > 0 ? 'default' : 'pointer',
+                  color: resendCooldown > 0 ? 'var(--text-secondary)' : '#FF7A18',
+                  fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6,
+                  opacity: resendCooldown > 0 ? 0.65 : 1,
+                  padding: '4px 8px', borderRadius: 8,
+                }}
+              >
+                <RefreshCw size={13} className={loading ? 'spin' : ''} />
+                {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend Verification Code'}
+              </button>
+
+              <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
+                <button
+                  type="button"
+                  onClick={() => switchView('signin')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}
+                >
+                  Back to Sign In
+                </button>
+                <span style={{ color: 'rgba(255,255,255,0.2)' }}>•</span>
+                <button
+                  type="button"
+                  onClick={() => switchView('signup')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 600, padding: 0, textDecoration: 'underline' }}
+                >
+                  Edit Registration
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 0.8s linear infinite;}`}</style>
       </div>
     );
   }
@@ -273,12 +489,22 @@ export function AuthPage() {
                 {loading ? <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />Signing in…</> : <>Sign In <ArrowRight size={17} /></>}
               </button>
 
-              <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'var(--text-secondary)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, fontSize: 13 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (siEmail.trim()) setConfirmedEmail(siEmail.trim());
+                    switchView('verify');
+                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF7A18', fontSize: 13, fontWeight: 700, padding: 0 }}
+                >
+                  Enter Verification Code
+                </button>
                 <button type="button" onClick={() => alert('Please contact your administrator or use the Supabase email reset link.')}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, padding: 0, textDecoration: 'underline' }}>
                   Forgot Password?
                 </button>
-              </p>
+              </div>
             </form>
           )}
 
@@ -416,7 +642,7 @@ export function AuthPage() {
           )}
         </div>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 0.8s linear infinite;}`}</style>
     </div>
   );
 }

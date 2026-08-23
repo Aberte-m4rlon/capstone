@@ -90,7 +90,6 @@ export const ADMIN_EMAILS_FALLBACK: string[] = ['marlonaberte00@gmail.com'];
 /** These emails get super_admin when no profiles row exists */
 export const SUPER_ADMIN_EMAILS_FALLBACK: string[] = ['marlonaberte00@gmail.com'];
 
-// ─── Context shape ────────────────────────────────────────────────────────────
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
@@ -99,6 +98,8 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (opts: SignUpOptions) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  verifyEmailOtp: (email: string, token: string, extraData?: { fullName?: string; farmName?: string }) => Promise<{ error: string | null }>;
+  resendVerificationCode: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -338,6 +339,119 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
+  // ── Verify OTP code (email confirmation / signup token) ───────────────────────
+  const verifyEmailOtp = async (
+    email: string,
+    token: string,
+    extraData?: { fullName?: string; farmName?: string },
+  ): Promise<{ error: string | null }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedToken = token.trim();
+
+    if (!trimmedEmail) return { error: 'Email address is required.' };
+    if (!trimmedToken) return { error: 'Please enter the verification code.' };
+
+    try {
+      // 1. Try signup token type first
+      let res = await supabase.auth.verifyOtp({
+        email: trimmedEmail,
+        token: trimmedToken,
+        type: 'signup',
+      });
+
+      // 2. If signup fails, try email type as fallback
+      if (res.error) {
+        const retry = await supabase.auth.verifyOtp({
+          email: trimmedEmail,
+          token: trimmedToken,
+          type: 'email',
+        });
+        if (!retry.error && retry.data.user) {
+          res = retry;
+        }
+      }
+
+      if (res.error) {
+        const msg = res.error.message?.toLowerCase() ?? '';
+        if (msg.includes('expired')) {
+          return { error: 'The verification code has expired. Please click "Resend Code" to get a new code.' };
+        }
+        if (msg.includes('invalid') || msg.includes('token') || msg.includes('otp')) {
+          return { error: 'Invalid verification code. Please check your email and try again.' };
+        }
+        return { error: res.error.message || 'Verification failed. Please try again.' };
+      }
+
+      if (res.data.session && res.data.user) {
+        setSession(res.data.session);
+        const p = await fetchProfile(res.data.user.id, res.data.user.email);
+
+        // Update profile with full name if available
+        if (extraData?.fullName && (!p.full_name || p.full_name === '')) {
+          try {
+            await supabase.from('profiles').upsert({
+              id: res.data.user.id,
+              role: p.role || 'farm_manager',
+              full_name: extraData.fullName,
+              is_active: true,
+              email: trimmedEmail,
+            }, { onConflict: 'id' });
+            p.full_name = extraData.fullName;
+          } catch { /* ignore */ }
+        }
+
+        // Initialize farm settings if available
+        if (extraData?.farmName) {
+          try {
+            await supabase.from('settings').upsert({
+              user_id: res.data.user.id,
+              farm_name: extraData.farmName,
+              target_weight_kg: 40,
+              gestation_days: 150,
+              temp_critical: 40,
+              heart_rate_high: 90,
+              expiry_warning_days: 15,
+              vaccine_due_days: 30,
+              breeding_min_age_months: 8,
+              breeding_min_weight_kg: 25,
+            }, { onConflict: 'user_id' });
+          } catch { /* ignore */ }
+        }
+
+        setProfile(p);
+      }
+
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || 'Network error during verification. Please check your connection.' };
+    }
+  };
+
+  // ── Resend verification code ─────────────────────────────────────────────────
+  const resendVerificationCode = async (email: string): Promise<{ error: string | null }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) return { error: 'Email address is required.' };
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: trimmedEmail,
+      });
+
+      if (error) {
+        const msg = error.message?.toLowerCase() ?? '';
+        if (msg.includes('rate') || msg.includes('limit') || msg.includes('seconds')) {
+          return { error: 'Please wait a moment before requesting another code.' };
+        }
+        return { error: error.message || 'Unable to resend code right now.' };
+      }
+
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || 'Network error while resending verification code.' };
+    }
+  };
+
   // ── Sign out ─────────────────────────────────────────────────────────────────
   const signOut = async () => {
     setProfile(null);
@@ -359,6 +473,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signIn,
         signUp,
+        verifyEmailOtp,
+        resendVerificationCode,
         signOut,
       }}
     >
