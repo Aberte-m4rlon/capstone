@@ -39,6 +39,21 @@ function inputStyle(focused?: boolean): React.CSSProperties {
   };
 }
 
+// ─── Field helper — defined OUTSIDE AuthPage to prevent remount on every render ──
+// If defined inside AuthPage, every state update creates a new component identity,
+// causing React to unmount/remount inputs (including autoFocus ones), stealing focus.
+function Field({ label, icon: Icon, children }: { label: string; icon: React.ComponentType<any>; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <Icon size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 type View = 'signin' | 'signup' | 'verify';
 
@@ -427,16 +442,8 @@ export function AuthPage() {
     </div>
   );
 
-  // ── Field helper ───────────────────────────────────────────────────────────
-  const Field = ({ label, icon: Icon, children }: { label: string; icon: React.ComponentType<any>; children: React.ReactNode }) => (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</label>
-      <div style={{ position: 'relative' }}>
-        <Icon size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
-        {children}
-      </div>
-    </div>
-  );
+  // Field helper is now defined outside the component (see top of file)
+  // This prevents React from remounting inputs on every state update
 
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '20px', overflowX: 'hidden', position: 'relative' }}>
@@ -460,7 +467,7 @@ export function AuthPage() {
             <form onSubmit={handleSignIn} noValidate>
               <Field label="Email Address" icon={Mail}>
                 <input type="email" value={siEmail} onChange={(e) => { setSiEmail(e.target.value); setError(null); }}
-                  placeholder="you@example.com" autoComplete="username" autoFocus disabled={loading}
+                  placeholder="you@example.com" autoComplete="username" disabled={loading}
                   style={inputStyle()}
                   onFocus={(e) => { e.target.style.borderColor = 'rgba(255,106,42,0.60)'; e.target.style.boxShadow = '0 0 0 3px rgba(255,106,42,0.18)'; }}
                   onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.18)'; e.target.style.boxShadow = 'none'; }}
@@ -515,7 +522,7 @@ export function AuthPage() {
 
                 <Field label="Full Name *" icon={User}>
                   <input type="text" value={suFullName} onChange={(e) => { setSuFullName(e.target.value); setError(null); }}
-                    placeholder="Juan dela Cruz" autoComplete="name" autoFocus disabled={loading} style={inputStyle()}
+                    placeholder="Juan dela Cruz" autoComplete="name" disabled={loading} style={inputStyle()}
                     onFocus={(e) => { e.target.style.borderColor = 'rgba(255,106,42,0.60)'; e.target.style.boxShadow = '0 0 0 3px rgba(255,106,42,0.18)'; }}
                     onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.18)'; e.target.style.boxShadow = 'none'; }}
                   />
