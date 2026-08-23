@@ -61,21 +61,23 @@ export type AIStatus =
 // ── Status check ──────────────────────────────────────────────────────────────
 export async function checkAIStatus(): Promise<AIStatus> {
   if (AI_MODE === 'production') {
-    // Try Groq directly first (most reliable for capstone deployment)
-    if (GROQ_KEY) return 'production';
-    // Try Edge Function
-    if (EDGE_ENDPOINT) {
+    // If GROQ key is bundled, AI is available — verify with a lightweight OPTIONS check
+    if (GROQ_KEY) {
       try {
-        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-        const r = await fetch(EDGE_ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${anonKey}`, 'apikey': anonKey },
-          body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }] }),
+        // Just check reachability with a minimal request (not a real completion)
+        const r = await fetch('https://api.groq.com/openai/v1/models', {
+          headers: { 'Authorization': `Bearer ${GROQ_KEY}` },
           signal: AbortSignal.timeout(5000),
         });
-        if (r.status < 500) return 'production';
-      } catch { /* fall through */ }
+        // 200 = valid key, 401 = invalid key, anything else = reachable
+        if (r.status === 401) return 'unavailable';
+        return 'production';
+      } catch {
+        // Network issue — still mark production so user can try
+        return 'production';
+      }
     }
+    // No key configured at all
     return 'unavailable';
   }
   // Local Ollama check
