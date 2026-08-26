@@ -1082,6 +1082,31 @@ export function AnimalProfilePage() {
           animalId={animal.id}
           animalName={animal.name}
           animalTag={animal.tag_id}
+          animal={animal}
+          farmContext={{
+            temperature: animal.current_temperature ?? undefined,
+            heartRate: animal.current_heart_rate ?? undefined,
+            weightKg: animal.weight_kg ? Number(animal.weight_kg) : undefined,
+            previousWeightKg: animalWeights.length > 1
+              ? Number(animalWeights.sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[1]?.weight_kg)
+              : undefined,
+            healthStatus: animal.health_status,
+            healthRiskScore: animal.health_risk_score,
+            lastHealthRecordDaysAgo: animalHealth.length > 0
+              ? Math.round((Date.now() - new Date(animalHealth[0].record_date).getTime()) / 86400000)
+              : undefined,
+            recentIllnesses: animalHealth
+              .filter((r) => r.detected_conditions)
+              .slice(0, 3)
+              .map((r) => r.detected_conditions!)
+              .filter(Boolean),
+            vaccinationStatus: animal.vaccination_status,
+            ageMonths: animal.date_of_birth
+              ? Math.floor((Date.now() - new Date(animal.date_of_birth).getTime()) / (30 * 86400000))
+              : undefined,
+            sex: animal.sex,
+            breedingStatus: animal.breeding_status,
+          }}
           onClose={() => setCameraScreeningOpen(false)}
           onSaved={() => { refreshScreenings(); setCameraScreeningOpen(false); }}
         />

@@ -1,11 +1,10 @@
 /**
- * useCameraScreenings.ts
- * React hooks for camera health screening CRUD operations via Supabase.
+ * useCameraScreenings.ts — React hooks + CRUD for AI Health Scanner results
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './auth';
-import type { ScreeningResult } from './cameraML';
+import type { ScanResult } from './cameraML';
 import { canvasToBlob } from './cameraML';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -16,6 +15,7 @@ export interface CameraScreening {
   animal_id: string;
   image_path: string | null;
   image_url: string | null;
+  // Legacy field
   prediction: 'normal_appearance' | 'possible_health_concern' | 'low_confidence';
   confidence: number;
   model_version: string;
@@ -23,58 +23,58 @@ export interface CameraScreening {
   quality_issues: string[];
   notes: string | null;
   created_at: string;
+  // Extended fields (may be null for old records)
+  risk_score?: number | null;
+  risk_level?: string | null;
+  indicators?: string[] | null;
+  combined_risk_score?: number | null;
+  combined_factors?: string[] | null;
+  recommendation?: string | null;
+  goat_detected?: boolean | null;
+  scan_type?: string | null;
 }
 
 export interface ScreeningSummary {
   total: number;
   possibleConcerns: number;
+  highRisk: number;
   lowConfidence: number;
   lastScreeningDate: string | null;
 }
 
-// ── Storage bucket name ───────────────────────────────────────────────────────
-
 const BUCKET = 'animal-screenings';
 
-// ── Save screening result to Supabase ────────────────────────────────────────
+// ── Save result ───────────────────────────────────────────────────────────────
 
 export async function saveScreeningResult(
   animalId: string,
   userId: string,
-  result: ScreeningResult,
+  result: ScanResult,
   canvas: HTMLCanvasElement | null,
   notes?: string,
 ): Promise<{ data: CameraScreening | null; error: string | null }> {
   let imagePath: string | null = null;
   let imageUrl: string | null = null;
 
-  // Upload image to Supabase Storage if canvas is provided
   if (canvas) {
     try {
       const blob = await canvasToBlob(canvas);
       const fileName = `${crypto.randomUUID()}.jpg`;
       const storagePath = `screenings/${userId}/${fileName}`;
-
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
-        .upload(storagePath, blob, {
-          contentType: 'image/jpeg',
-          upsert: false,
-        });
-
+        .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
       if (!uploadError) {
         imagePath = storagePath;
-        // Get a signed URL (valid 7 days) — private bucket
         const { data: signed } = await supabase.storage
           .from(BUCKET)
           .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
         imageUrl = signed?.signedUrl ?? null;
       }
-      // If upload fails, we continue without the image — non-fatal
-    } catch {
-      // Non-fatal — proceed without image
-    }
+    } catch { /* non-fatal */ }
   }
+
+  const finalScore = result.combinedRiskScore ?? result.riskScore;
 
   const { data, error } = await supabase
     .from('camera_health_screenings')
@@ -89,33 +89,54 @@ export async function saveScreeningResult(
       quality_score: result.qualityReport.score,
       quality_issues: result.qualityReport.issues,
       notes: notes ?? null,
+      // Extended fields — stored in notes JSON fallback if column not present
+      risk_score: finalScore,
+      risk_level: result.riskLevel,
+      indicators: result.indicators.map((i) => i.label),
+      combined_risk_score: result.combinedRiskScore,
+      combined_factors: result.combinedFactors,
+      recommendation: result.recommendation,
+      goat_detected: result.goatDetected,
+      scan_type: result.scanType,
     })
     .select()
     .single();
 
-  if (error) {
-    return { data: null, error: error.message };
+  // If extended columns don't exist yet, retry with base columns only
+  if (error && (error.message.includes('column') || error.message.includes('schema'))) {
+    const { data: data2, error: error2 } = await supabase
+      .from('camera_health_screenings')
+      .insert({
+        user_id: userId,
+        animal_id: animalId,
+        image_path: imagePath,
+        image_url: imageUrl,
+        prediction: result.prediction,
+        confidence: result.confidence,
+        model_version: result.modelVersion,
+        quality_score: result.qualityReport.score,
+        quality_issues: result.qualityReport.issues,
+        notes: notes ? `${notes} | Risk:${finalScore} | ${result.riskLevelLabel}` : `Risk:${finalScore} | ${result.riskLevelLabel}`,
+      })
+      .select()
+      .single();
+    if (error2) return { data: null, error: error2.message };
+    return { data: data2 as CameraScreening, error: null };
   }
 
+  if (error) return { data: null, error: error.message };
   return { data: data as CameraScreening, error: null };
 }
 
-// ── Hook: screenings for a specific animal ────────────────────────────────────
+// ── Hooks ─────────────────────────────────────────────────────────────────────
 
-export function useAnimalScreenings(animalId: string | null): {
-  screenings: CameraScreening[];
-  loading: boolean;
-  refresh: () => Promise<void>;
-} {
+export function useAnimalScreenings(animalId: string | null) {
   const { user } = useAuth();
   const [screenings, setScreenings] = useState<CameraScreening[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!user || !animalId) {
-      setScreenings([]);
-      return;
-    }
+    if (!user || !animalId) { setScreenings([]); return; }
     setLoading(true);
     const { data } = await supabase
       .from('camera_health_screenings')
@@ -127,30 +148,17 @@ export function useAnimalScreenings(animalId: string | null): {
     setLoading(false);
   }, [user, animalId]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
+  useEffect(() => { refresh(); }, [refresh]);
   return { screenings, loading, refresh };
 }
 
-// ── Hook: all screenings for the farm ────────────────────────────────────────
-
-export function useAllScreenings(): {
-  screenings: CameraScreening[];
-  summary: ScreeningSummary;
-  loading: boolean;
-  refresh: () => Promise<void>;
-} {
+export function useAllScreenings() {
   const { user } = useAuth();
   const [screenings, setScreenings] = useState<CameraScreening[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!user) {
-      setScreenings([]);
-      return;
-    }
+    if (!user) { setScreenings([]); return; }
     setLoading(true);
     const { data } = await supabase
       .from('camera_health_screenings')
@@ -162,13 +170,12 @@ export function useAllScreenings(): {
     setLoading(false);
   }, [user]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   const summary: ScreeningSummary = {
     total: screenings.length,
     possibleConcerns: screenings.filter((s) => s.prediction === 'possible_health_concern').length,
+    highRisk: screenings.filter((s) => s.risk_level === 'HIGH' || s.risk_level === 'CRITICAL').length,
     lowConfidence: screenings.filter((s) => s.prediction === 'low_confidence').length,
     lastScreeningDate: screenings[0]?.created_at ?? null,
   };
@@ -176,30 +183,21 @@ export function useAllScreenings(): {
   return { screenings, summary, loading, refresh };
 }
 
-// ── Delete a screening ────────────────────────────────────────────────────────
-
 export async function deleteScreening(
   screeningId: string,
   imagePath: string | null,
 ): Promise<{ error: string | null }> {
-  // Delete from storage if image exists
-  if (imagePath) {
-    await supabase.storage.from(BUCKET).remove([imagePath]);
-  }
-
+  if (imagePath) await supabase.storage.from(BUCKET).remove([imagePath]);
   const { error } = await supabase
     .from('camera_health_screenings')
     .delete()
     .eq('id', screeningId);
-
   return { error: error?.message ?? null };
 }
-
-// ── Get signed URL for an existing screening image ────────────────────────────
 
 export async function getScreeningImageUrl(imagePath: string): Promise<string | null> {
   const { data } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrl(imagePath, 60 * 60 * 24); // 24h
+    .createSignedUrl(imagePath, 60 * 60 * 24);
   return data?.signedUrl ?? null;
 }
