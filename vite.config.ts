@@ -7,6 +7,14 @@ export default defineConfig({
     exclude: ['@electric-sql/pglite'],
   },
   build: {
-    chunkSizeWarningLimit: 1600,
+    chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // Split TensorFlow.js into its own async chunk — only loaded when camera screening runs
+          if (id.includes('@tensorflow/tfjs')) return 'tfjs';
+        },
+      },
+    },
   },
 });

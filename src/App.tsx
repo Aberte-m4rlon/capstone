@@ -25,6 +25,7 @@ import { ActivityLogPage } from './pages/ActivityLogPage';
 import { AdminPage } from './pages/AdminPage';
 import { MyAIPage } from './pages/MyAIPage';
 import { SuperAdminPage } from './pages/SuperAdminPage';
+import { CameraScreeningPage } from './pages/CameraScreeningPage';
 import { ShieldAlert } from 'lucide-react';
 
 // ─── Route guards ──────────────────────────────────────────────────────────────
@@ -154,6 +155,7 @@ function AppRoutes() {
         <Route path="/activity-log" element={<RequireRole allowed={['farm_manager']}><ActivityLogPage /></RequireRole>} />
         <Route path="/settings" element={<RequireRole allowed={['farm_manager']}><SettingsPage /></RequireRole>} />
         <Route path="/myai" element={<RequireRole allowed={['farm_manager']}><MyAIPage /></RequireRole>} />
+        <Route path="/camera-screening" element={<RequireRole allowed={['farm_manager']}><CameraScreeningPage /></RequireRole>} />
 
         {/* ── System Admin routes ── */}
         <Route path="/admin" element={<RequireRole allowed={['system_admin', 'super_admin']}><AdminPage /></RequireRole>} />

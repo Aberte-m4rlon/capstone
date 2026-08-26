@@ -156,6 +156,20 @@ def get_milk_records(user_id: str, limit: int = 30) -> List[dict]:
     return res.data or []
 
 
+def get_camera_screenings(user_id: str, limit: int = 20) -> list:
+    """Return recent camera health screening results."""
+    sb = _client()
+    res = (
+        sb.table("camera_health_screenings")
+        .select("id, animal_id, prediction, confidence, model_version, quality_score, created_at, notes")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return res.data or []
+
+
 def get_settings(user_id: str) -> Optional[dict]:
     """Return farm settings."""
     sb = _client()
@@ -318,6 +332,32 @@ def build_context(question: str, user_id: str) -> str:
                 f"target weight:{s.get('target_weight_kg')}kg | "
                 f"gestation:{s.get('gestation_days')}days | "
                 f"temp critical:{s.get('temp_critical')}°C"
+            )
+
+    # ── Camera Screenings ─────────────────────────────────────────────────────
+    if any(k in q for k in ["camera", "screen", "photo", "image", "visual", "picture",
+                              "larawan", "litrato", "screening", "concern"]):
+        screenings = get_camera_screenings(user_id, 15)
+        concerns = [s for s in screenings if s.get("prediction") == "possible_health_concern"]
+        sections.append(
+            f"\n[CAMERA SCREENINGS] {len(screenings)} total, {len(concerns)} possible concerns:"
+        )
+        sections.append(
+            "⚠️ IMPORTANT: Camera screenings are PRELIMINARY ML assessments only, NOT veterinary diagnoses."
+        )
+        for s in screenings[:15]:
+            aname = nm.get(s["animal_id"], s["animal_id"][:8])
+            pred = s.get("prediction", "unknown")
+            label = (
+                "Possible Health Concern" if pred == "possible_health_concern"
+                else "Normal Appearance" if pred == "normal_appearance"
+                else "Low Confidence"
+            )
+            conf = round(float(s.get("confidence", 0)) * 100)
+            sections.append(
+                f"  {aname} | {s.get('created_at','?')[:10]} | {label} | "
+                f"confidence:{conf}% | model:{s.get('model_version','?')} | "
+                f"quality:{s.get('quality_score','?')}/100"
             )
 
     return "\n".join(sections)

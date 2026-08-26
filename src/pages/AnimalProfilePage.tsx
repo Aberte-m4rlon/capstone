@@ -15,11 +15,14 @@ import {
 } from '../lib/analytics';
 import { assessBreedingReadiness } from '../lib/analytics';
 import { Line } from 'react-chartjs-2';
-import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 import { useAnimalMLPrediction, useAnimalRiskHistory } from '../lib/useMLHealth';
 import { MLHealthPanel } from '../components/MLHealthPanel';
+import { CameraScreeningModal } from '../components/CameraScreeningModal';
+import { ScreeningHistoryPanel } from '../components/ScreeningHistoryPanel';
+import { useAnimalScreenings } from '../lib/useCameraScreenings';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const healthBadgeColor = (s: HealthStatus) =>
@@ -126,10 +129,11 @@ export function AnimalProfilePage() {
   const { user } = useAuth();
   const toast = useToast();
 
-  const [tab, setTab] = useState<'overview' | 'health' | 'weight' | 'breeding' | 'vaccination' | 'feed' | 'history'>('overview');
+  const [tab, setTab] = useState<'overview' | 'health' | 'weight' | 'breeding' | 'vaccination' | 'feed' | 'history' | 'camera'>('overview');
   const [qrOpen, setQrOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [cameraScreeningOpen, setCameraScreeningOpen] = useState(false);
 
   const [editForm, setEditForm] = useState({
     tag_id: '', name: '', species: 'Goat' as Species, breed: '', sex: 'Female' as Sex,
@@ -156,6 +160,7 @@ export function AnimalProfilePage() {
   // ── ML hooks must be at top level, before any early returns (Rules of Hooks) ──
   const mlPrediction = useAnimalMLPrediction(animal?.id ?? null);
   const { dates: riskDates, probabilities: riskProbs, riskScores } = useAnimalRiskHistory(animal?.id ?? null);
+  const { screenings: animalScreenings, refresh: refreshScreenings } = useAnimalScreenings(animal?.id ?? null);
 
   useEffect(() => {
     if (animal) {
@@ -281,6 +286,7 @@ export function AnimalProfilePage() {
     { key: 'vaccination', label: 'Vaccination' },
     { key: 'feed', label: 'Feed' },
     { key: 'history', label: 'History' },
+    { key: 'camera', label: '📷 Camera Screening' },
   ] as const;
 
   const scoreColor = riskColor(animal.health_risk_score);
@@ -376,6 +382,7 @@ export function AnimalProfilePage() {
                 {/* Action buttons */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setQrOpen(true)} variant="neutral" />
+                  <ActionBtn icon={<Camera size={14} />} label="Screen" onClick={() => setCameraScreeningOpen(true)} variant="orange" />
                   <ActionBtn icon={<Pencil size={14} />} label="Edit" onClick={() => setEditOpen(true)} variant="orange" />
                   <ActionBtn icon={<Trash2 size={14} />} label="Delete" onClick={() => setConfirmDelete(true)} variant="red" />
                 </div>
@@ -606,6 +613,65 @@ export function AnimalProfilePage() {
               }}>
                 {animal.notes || 'No notes recorded for this animal.'}
               </p>
+            </GlassCard>
+
+            {/* Camera Screening summary card */}
+            <GlassCard>
+              <CardTitle icon={Camera} title="Camera Health Screening" />
+              {animalScreenings.length > 0 ? (() => {
+                const latest = animalScreenings[0];
+                const predColor = latest.prediction === 'possible_health_concern' ? '#EF4444' : latest.prediction === 'normal_appearance' ? '#16A34A' : '#F59E0B';
+                const predLabel = latest.prediction === 'possible_health_concern' ? 'Possible Health Concern' : latest.prediction === 'normal_appearance' ? 'Normal Appearance' : 'Low Confidence';
+                return (
+                  <div>
+                    <StatRow label="Last Screening" value={formatDate(latest.created_at)} />
+                    <StatRow label="Result" value={<span style={{ fontWeight: 700, color: predColor }}>{predLabel}</span>} />
+                    <StatRow label="Confidence" value={`${Math.round(latest.confidence * 100)}%`} />
+                    <StatRow label="Total Screenings" value={animalScreenings.length} />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                      <button
+                        onClick={() => setCameraScreeningOpen(true)}
+                        style={{
+                          flex: 1, padding: '8px', borderRadius: 9, border: 'none',
+                          background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                          color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        }}
+                      >
+                        <Camera size={12} /> New Screening
+                      </button>
+                      <button
+                        onClick={() => setTab('camera')}
+                        style={{
+                          flex: 1, padding: '8px', borderRadius: 9,
+                          border: '1px solid var(--border)', background: 'var(--surface)',
+                          color: 'var(--text)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                        }}
+                      >
+                        View History
+                      </button>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div style={{ textAlign: 'center', paddingTop: 8 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                    No screenings yet. Run a preliminary ML health screening using the camera.
+                  </div>
+                  <button
+                    onClick={() => setCameraScreeningOpen(true)}
+                    style={{
+                      padding: '9px 16px', borderRadius: 10, border: 'none',
+                      background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                      color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      boxShadow: '0 4px 14px rgba(255,59,48,0.3)',
+                    }}
+                  >
+                    <Camera size={14} /> Run Screening
+                  </button>
+                </div>
+              )}
             </GlassCard>
 
           </div>
@@ -840,6 +906,86 @@ export function AnimalProfilePage() {
           </GlassCard>
         )}
 
+        {/* CAMERA SCREENING TAB */}
+        {tab === 'camera' && (
+          <div>
+            {/* Latest screening summary + run button */}
+            {animalScreenings.length > 0 && (() => {
+              const latest = animalScreenings[0];
+              const predColor = latest.prediction === 'possible_health_concern' ? '#EF4444' : latest.prediction === 'normal_appearance' ? '#16A34A' : '#F59E0B';
+              const predLabel = latest.prediction === 'possible_health_concern' ? 'Possible Health Concern' : latest.prediction === 'normal_appearance' ? 'Normal Appearance' : 'Low Confidence';
+              return (
+                <GlassCard style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+                    <CardTitle icon={Camera} title="Latest Camera Screening" />
+                    <button
+                      onClick={() => setCameraScreeningOpen(true)}
+                      style={{
+                        padding: '8px 16px', borderRadius: 10, border: 'none',
+                        background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                        color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        boxShadow: '0 4px 14px rgba(255,59,48,0.3)',
+                      }}
+                    >
+                      <Camera size={14} /> Run New Screening
+                    </button>
+                  </div>
+                  <StatRow label="Date" value={formatDate(latest.created_at)} />
+                  <StatRow label="Result" value={<span style={{ fontWeight: 700, color: predColor }}>{predLabel}</span>} />
+                  <StatRow label="ML Confidence" value={`${Math.round(latest.confidence * 100)}%`} />
+                  <StatRow label="Model" value={latest.model_version} />
+                  <StatRow label="Image Quality Score" value={`${latest.quality_score}/100`} />
+                  {latest.notes && <StatRow label="Notes" value={latest.notes} />}
+                  <div style={{
+                    marginTop: 12, padding: '10px 12px',
+                    background: 'rgba(59,130,246,0.07)',
+                    border: '1px solid rgba(59,130,246,0.18)',
+                    borderRadius: 8, fontSize: 11, color: '#3B82F6', lineHeight: 1.6,
+                  }}>
+                    ℹ️ Camera screening is a preliminary assessment only. It does not replace professional veterinary diagnosis.
+                  </div>
+                </GlassCard>
+              );
+            })()}
+
+            {/* If no screenings, show prompt */}
+            {animalScreenings.length === 0 && (
+              <GlassCard style={{ marginBottom: 16 }}>
+                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                  <Camera size={36} color="var(--accent-orange)" style={{ marginBottom: 12, opacity: 0.7 }} />
+                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>
+                    No Camera Screenings Yet
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+                    Run a preliminary ML health screening using your phone camera or by uploading a photo of {animal.name}.
+                  </div>
+                  <button
+                    onClick={() => setCameraScreeningOpen(true)}
+                    style={{
+                      padding: '10px 24px', borderRadius: 12, border: 'none',
+                      background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                      color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      boxShadow: '0 6px 20px rgba(255,59,48,0.35)',
+                    }}
+                  >
+                    <Camera size={16} /> Start Camera Screening
+                  </button>
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Screening history */}
+            <GlassCard>
+              <ScreeningHistoryPanel
+                animalId={animal.id}
+                animalName={animal.name}
+              />
+            </GlassCard>
+          </div>
+        )}
+
         {/* Spacing at bottom */}
         <div style={{ height: 40 }} />
       </div>
@@ -929,6 +1075,17 @@ export function AnimalProfilePage() {
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}
       />
+
+      {/* ── Camera Screening Modal ── */}
+      {cameraScreeningOpen && (
+        <CameraScreeningModal
+          animalId={animal.id}
+          animalName={animal.name}
+          animalTag={animal.tag_id}
+          onClose={() => setCameraScreeningOpen(false)}
+          onSaved={() => { refreshScreenings(); setCameraScreeningOpen(false); }}
+        />
+      )}
     </>
   );
 }

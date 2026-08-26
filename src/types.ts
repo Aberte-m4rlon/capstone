@@ -199,6 +199,27 @@ export interface Recommendation {
   created_at: string;
 }
 
+// Camera Health Screening
+export type ScreeningPrediction =
+  | 'normal_appearance'
+  | 'possible_health_concern'
+  | 'low_confidence';
+
+export interface CameraScreeningRecord {
+  id: string;
+  user_id: string;
+  animal_id: string;
+  image_path: string | null;
+  image_url: string | null;
+  prediction: ScreeningPrediction;
+  confidence: number;
+  model_version: string;
+  quality_score: number;
+  quality_issues: string[];
+  notes: string | null;
+  created_at: string;
+}
+
 export interface Settings {
   id: string;
   user_id: string;

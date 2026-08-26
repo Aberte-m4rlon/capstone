@@ -11,6 +11,7 @@ import {
   Copy, Check, Plus, Trash2,
 } from 'lucide-react';
 import { useFarmData } from '../lib/useFarmData';
+import { useAllScreenings } from '../lib/useCameraScreenings';
 import {
   type MyAIConversation, type MyAIMessage, type AIStatus,
   checkAIStatus, buildFarmContext, streamChat,
@@ -74,11 +75,14 @@ const QUICK = [
   'Overdue vaccinations',
   'Pregnant animals',
   'Low inventory',
+  'Camera screening results',
+  'Which animals have possible health concerns?',
 ];
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function FloatingAICloud() {
   const farmData = useFarmData();
+  const { screenings: cameraScreenings } = useAllScreenings();
 
   const [open, setOpen] = useState(false);
   const [aiStatus, setAiStatus] = useState<AIStatus>('checking');
@@ -165,7 +169,7 @@ export function FloatingAICloud() {
     const userMsg: MyAIMessage = { id: crypto.randomUUID(), role: 'user', content: message, timestamp: Date.now() };
     setConversations((p) => p.map((c) => c.id === conv!.id ? { ...c, messages: [...c.messages, userMsg], updatedAt: Date.now() } : c));
 
-    const farmContext = !farmData.loading ? buildFarmContext(farmData, message) : '';
+    const farmContext = !farmData.loading ? buildFarmContext({ ...farmData, cameraScreenings }, message) : '';
     const systemContent = farmContext
       ? `You are MyAI, the AI assistant for AlpasFarm — a Goat & Sheep Farm Management System.\nIMPORTANT RULES:\n- Use the REAL farm data below. NEVER invent records.\n- If data is unavailable say so clearly.\n- READ-ONLY — never claim to modify records.\n- Respond in the user's language (English or Filipino).\n- Be concise. Use bullet points.\n- For veterinary advice, remind the user to consult a licensed veterinarian.\n\nCURRENT FARM DATA:\n${farmContext}`
       : `You are MyAI, the AI assistant for AlpasFarm — a Goat & Sheep Farm Management System for Filipino farmers. Help with farm management questions. Be concise. Respond in the user's language.`;

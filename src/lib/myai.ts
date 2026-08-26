@@ -115,7 +115,14 @@ IMPORTANT RULES:
 - You support both English and Filipino (Tagalog). Respond in the language the user uses.
 - When giving health or veterinary recommendations, always remind the user to consult a licensed veterinarian (beterinaryo).
 - Health risk scores, ML predictions, and calculated values come from AlpasFarm's own algorithms — do not recalculate them.
-- Keep responses concise and practical. Use bullet points for lists.`;
+- Keep responses concise and practical. Use bullet points for lists.
+
+CAMERA SCREENING RULES (CRITICAL):
+- Camera screening results come ONLY from the actual ML model in AlpasFarm. NEVER invent confidence scores, predictions, or screening results.
+- Always state that camera screenings are PRELIMINARY assessments and NOT veterinary diagnoses.
+- If asked about a camera screening, use the [CAMERA SCREENINGS] data provided. Do not fabricate results.
+- Example: "According to AlpasFarm's camera screening, [animal] was flagged with a possible health concern at [confidence]% ML confidence. This is only a preliminary visual screening — please consult a veterinarian."
+- If no camera screening data is available for an animal, say so clearly.`;
 
 // ── Farm context builder ──────────────────────────────────────────────────────
 export function buildFarmContext(
@@ -129,6 +136,7 @@ export function buildFarmContext(
     feedRecords: any[];
     milkRecords: any[];
     settings: any | null;
+    cameraScreenings?: any[]; // optional — camera ML screening results
   },
   question: string,
 ): string {
@@ -257,6 +265,41 @@ export function buildFarmContext(
     lines.push(
       `\n[FARM SETTINGS] Farm:${farmData.settings.farm_name} | target_weight:${farmData.settings.target_weight_kg}kg | gestation:${farmData.settings.gestation_days}days`,
     );
+  }
+
+  // Camera screenings — include when question is about camera/screening/visual
+  if (
+    /camera|screen|photo|image|visual|picture|larawan|litrato|screening/.test(q) ||
+    (farmData.cameraScreenings && farmData.cameraScreenings.length > 0 &&
+      /health|sick|risk|concern/.test(q))
+  ) {
+    const screenings = farmData.cameraScreenings ?? [];
+    if (screenings.length > 0) {
+      const nm2: Record<string, string> = {};
+      farmData.animals.forEach((a: any) => { nm2[a.id] = a.name; });
+
+      const concerns = screenings.filter((s: any) => s.prediction === 'possible_health_concern');
+      lines.push(
+        `\n[CAMERA SCREENINGS] ${screenings.length} total, ${concerns.length} possible concerns:`,
+      );
+      lines.push(
+        '⚠️ IMPORTANT: Camera screenings are PRELIMINARY ML assessments only, NOT veterinary diagnoses.',
+      );
+      screenings.slice(0, 15).forEach((s: any) => {
+        const aname = nm2[s.animal_id] ?? '?';
+        const label =
+          s.prediction === 'possible_health_concern'
+            ? 'Possible Health Concern'
+            : s.prediction === 'normal_appearance'
+            ? 'Normal Appearance'
+            : 'Low Confidence';
+        lines.push(
+          `  ${aname} | ${s.created_at?.slice(0, 10)} | ${label} | confidence:${Math.round(s.confidence * 100)}% | model:${s.model_version} | quality:${s.quality_score}/100`,
+        );
+      });
+    } else {
+      lines.push('\n[CAMERA SCREENINGS] No camera screenings have been performed yet.');
+    }
   }
 
   return lines.join('\n');
