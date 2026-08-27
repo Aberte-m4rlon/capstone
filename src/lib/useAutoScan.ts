@@ -1,26 +1,33 @@
 /**
- * useAutoScan.ts — Automatic Goat Detection + Health Screening State Machine
+ * useAutoScan.ts — Automatic Goat/Sheep Detection + Health Screening
  *
  * STATE MACHINE:
- *   idle
- *     ↓ camera started
- *   detecting          ← running goat detection at ~5 fps
- *     ↓ REQUIRED_STABLE_FRAMES consecutive goat detections
- *   stable             ← show "Goat detected, preparing scan..."
- *     ↓ capture best frame
- *   scanning           ← running ML health scan (cameraML.ts)
- *     ↓ result ready
- *   result             ← showing screening result
- *     ↓ SCAN_COOLDOWN_SECONDS
- *   cooldown           ← showing cooldown timer
- *     ↓ cooldown expires
- *   detecting          ← back to detection loop
  *
- * IMPORTANT:
- *   - Detection runs at DETECTION_INTERVAL_MS (not every frame)
- *   - Scanning only runs when goat is stable (REQUIRED_STABLE_FRAMES)
- *   - Same-goat protection via cooldown + stable frame reset
- *   - All thresholds are configurable constants in goatDetector.ts
+ *   idle
+ *     ↓ startAutoScan()
+ *   loading        ← loading MobileNet model
+ *     ↓
+ *   detecting      ← running detection at ~5 FPS
+ *     ↓ goat/sheep stable (REQUIRED_STABLE_FRAMES)
+ *   stable         ← "Goat detected — preparing scan..."
+ *     ↓ auto-capture
+ *   scanning       ← running health ML
+ *     ↓
+ *   result         ← showing result (6 s)
+ *     ↓
+ *   cooldown       ← SCAN_COOLDOWN_SECONDS
+ *     ↓
+ *   detecting      ← loop
+ *
+ *   ALSO:
+ *   detecting → other_detected  when non-goat/sheep is seen
+ *   other_detected → detecting  when it leaves
+ *
+ * KEY UPGRADE:
+ *   - Distinguishes goat vs sheep vs other object
+ *   - Shows "Dog detected — this is not a goat or sheep" for non-targets
+ *   - Health scan only runs for goat or sheep
+ *   - Saves species ('goat'|'sheep') with the screening result
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -44,14 +51,15 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type ScanState =
-  | 'idle'        // camera not started
-  | 'loading'     // loading ML model
-  | 'detecting'   // running detection loop, no goat yet
-  | 'stable'      // goat stable, about to capture
-  | 'scanning'    // running health scan on captured frame
-  | 'result'      // showing result
-  | 'cooldown'    // waiting before next scan
-  | 'error';      // unrecoverable error
+  | 'idle'
+  | 'loading'
+  | 'detecting'       // looking for goat/sheep
+  | 'other_detected'  // non-target object visible
+  | 'stable'          // goat/sheep stable — about to capture
+  | 'scanning'        // running health ML
+  | 'result'          // showing result
+  | 'cooldown'        // waiting before next scan
+  | 'error';
 
 export interface AutoScanStatus {
   state: ScanState;
@@ -59,11 +67,47 @@ export interface AutoScanStatus {
   result: ScanResult | null;
   capturedUrl: string | null;
   capturedCanvas: HTMLCanvasElement | null;
-  cooldownRemaining: number;   // seconds
+  cooldownRemaining: number;
   error: string | null;
   modelReady: boolean;
   usingFallback: boolean;
-  message: string;             // user-facing status message
+  message: string;
+  detectedSpecies: 'goat' | 'sheep' | null;
+}
+
+// ── User-facing messages ──────────────────────────────────────────────────────
+
+function buildMessage(
+  state: ScanState,
+  det: DetectionResult | null,
+  cd: number,
+): string {
+  switch (state) {
+    case 'idle':           return 'Camera not started.';
+    case 'loading':        return 'Loading AI detection model…';
+    case 'other_detected': {
+      const obj = det?.nonTargetClass ?? 'Object';
+      return `${obj} detected — this is not a goat or sheep.`;
+    }
+    case 'detecting':
+      if (!det || (!det.detected && !det.otherDetected)) {
+        return 'Looking for a goat or sheep…';
+      }
+      if (det.detected) {
+        const sp = det.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
+        return `${sp} detected — stabilizing… (${det.stableFrames}/${REQUIRED_STABLE_FRAMES})`;
+      }
+      return 'Looking for a goat or sheep…';
+    case 'stable': {
+      const sp = det?.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
+      return `${sp} detected — preparing automatic scan…`;
+    }
+    case 'scanning':       return 'Analyzing health…';
+    case 'result':         return 'Screening complete.';
+    case 'cooldown':       return `Looking for another animal in ${cd}s…`;
+    case 'error':          return 'An error occurred.';
+    default:               return '';
+  }
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -73,49 +117,32 @@ export function useAutoScan(options: {
   animalId?: string;
   animalName?: string;
   farmContext?: FarmHealthContext;
-  onResult?: (result: ScanResult, canvas: HTMLCanvasElement) => void;
+  onResult?: (result: ScanResult, canvas: HTMLCanvasElement, species: 'goat' | 'sheep') => void;
 }) {
   const { videoRef, animalId, animalName, farmContext, onResult } = options;
 
-  const [state, setState]                     = useState<ScanState>('idle');
-  const [detection, setDetection]             = useState<DetectionResult | null>(null);
-  const [result, setResult]                   = useState<ScanResult | null>(null);
-  const [capturedUrl, setCapturedUrl]         = useState<string | null>(null);
-  const [capturedCanvas, setCapturedCanvas]   = useState<HTMLCanvasElement | null>(null);
+  const [state, setState]               = useState<ScanState>('idle');
+  const [detection, setDetection]       = useState<DetectionResult | null>(null);
+  const [result, setResult]             = useState<ScanResult | null>(null);
+  const [capturedUrl, setCapturedUrl]   = useState<string | null>(null);
+  const [capturedCanvas, setCapturedCanvas] = useState<HTMLCanvasElement | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const [error, setError]                     = useState<string | null>(null);
-  const [modelReady, setModelReady]           = useState(false);
-  const [usingFallback, setUsingFallback]     = useState(false);
+  const [error, setError]               = useState<string | null>(null);
+  const [modelReady, setModelReady]     = useState(false);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [detectedSpecies, setDetectedSpecies] = useState<'goat' | 'sheep' | null>(null);
 
-  const modelRef          = useRef<any>(null);
-  const detectionTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const cooldownTimer     = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scanningRef       = useRef(false);        // prevent concurrent scans
-  const stateRef          = useRef<ScanState>('idle');
-  const mountedRef        = useRef(true);
+  const modelRef       = useRef<any>(null);
+  const detectionTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cooldownTimer  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scanningRef    = useRef(false);
+  const stateRef       = useRef<ScanState>('idle');
+  const mountedRef     = useRef(true);
 
-  // Keep stateRef in sync
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
-  // ── User-facing message ─────────────────────────────────────────────────────
-  function getStatusMessage(s: ScanState, det: DetectionResult | null, cd: number): string {
-    switch (s) {
-      case 'idle':       return 'Camera not started.';
-      case 'loading':    return 'Loading AI model…';
-      case 'detecting':
-        if (!det || !det.detected) return 'Looking for a goat…';
-        return `Goat detected — stabilizing… (${det.stableFrames}/${REQUIRED_STABLE_FRAMES})`;
-      case 'stable':     return 'Goat detected — preparing automatic scan…';
-      case 'scanning':   return 'Analyzing health…';
-      case 'result':     return 'Screening complete.';
-      case 'cooldown':   return `Next scan in ${cd}s…`;
-      case 'error':      return 'An error occurred.';
-      default:           return '';
-    }
-  }
-
-  // ── Stop detection loop ─────────────────────────────────────────────────────
+  // ── Stop detection loop ──────────────────────────────────────────────────
   const stopDetection = useCallback(() => {
     if (detectionTimer.current) {
       clearInterval(detectionTimer.current);
@@ -123,20 +150,21 @@ export function useAutoScan(options: {
     }
   }, []);
 
-  // ── Start cooldown ──────────────────────────────────────────────────────────
+  // ── Cooldown ─────────────────────────────────────────────────────────────
   const startCooldown = useCallback(() => {
     if (!mountedRef.current) return;
     setState('cooldown');
     stateRef.current = 'cooldown';
-    let remaining = SCAN_COOLDOWN_SECONDS;
-    setCooldownRemaining(remaining);
+    let rem = SCAN_COOLDOWN_SECONDS;
+    setCooldownRemaining(rem);
     resetStableFrameCount();
+    setDetectedSpecies(null);
 
     cooldownTimer.current = setInterval(() => {
-      remaining--;
+      rem--;
       if (!mountedRef.current) { clearInterval(cooldownTimer.current!); return; }
-      setCooldownRemaining(remaining);
-      if (remaining <= 0) {
+      setCooldownRemaining(rem);
+      if (rem <= 0) {
         clearInterval(cooldownTimer.current!);
         cooldownTimer.current = null;
         if (mountedRef.current) {
@@ -147,8 +175,11 @@ export function useAutoScan(options: {
     }, 1000);
   }, []);
 
-  // ── Run health scan ─────────────────────────────────────────────────────────
-  const runScan = useCallback(async (canvas: HTMLCanvasElement) => {
+  // ── Health scan ──────────────────────────────────────────────────────────
+  const runScan = useCallback(async (
+    canvas: HTMLCanvasElement,
+    species: 'goat' | 'sheep',
+  ) => {
     if (scanningRef.current) return;
     scanningRef.current = true;
     stopDetection();
@@ -157,28 +188,29 @@ export function useAutoScan(options: {
     setState('scanning');
     stateRef.current = 'scanning';
 
-    const url = canvas.toDataURL('image/jpeg', 0.85);
-    setCapturedUrl(url);
+    setCapturedUrl(canvas.toDataURL('image/jpeg', 0.85));
     setCapturedCanvas(canvas);
 
     try {
       const scanResult = await runHealthScan(canvas, {
-        animalId, animalName, farmContext, scanType: 'image',
+        animalId,
+        animalName,
+        farmContext,
+        scanType: 'image',
       });
 
       if (!mountedRef.current) { scanningRef.current = false; return; }
       setResult(scanResult);
       setState('result');
       stateRef.current = 'result';
-      onResult?.(scanResult, canvas);
+      onResult?.(scanResult, canvas, species);
 
-      // Auto-transition to cooldown after 6 seconds of showing result
+      // Auto-transition to cooldown after 7 s
       setTimeout(() => {
         if (mountedRef.current && stateRef.current === 'result') {
           startCooldown();
         }
-      }, 6000);
-
+      }, 7000);
     } catch (err: any) {
       if (!mountedRef.current) { scanningRef.current = false; return; }
       setError(err?.message ?? 'Scan failed');
@@ -188,11 +220,12 @@ export function useAutoScan(options: {
     }
   }, [animalId, animalName, farmContext, onResult, stopDetection, startCooldown]);
 
-  // ── Detection loop tick ─────────────────────────────────────────────────────
+  // ── Detection tick ────────────────────────────────────────────────────────
   const detectionTick = useCallback(async () => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) return;
-    if (stateRef.current !== 'detecting' && stateRef.current !== 'stable') return;
+    const cur = stateRef.current;
+    if (cur !== 'detecting' && cur !== 'stable' && cur !== 'other_detected') return;
 
     let det: DetectionResult;
     if (modelRef.current) {
@@ -208,71 +241,93 @@ export function useAutoScan(options: {
     if (!mountedRef.current) return;
     setDetection(det);
 
-    if (det.detected && !det.isStable) {
-      setState('detecting');
-      stateRef.current = 'detecting';
-    } else if (det.isStable && !scanningRef.current) {
-      // Stable detection → capture and scan
+    // ── Non-target object (dog, cat, person, car…) ──────────────────────
+    if (det.otherDetected && !det.detected) {
+      if (stateRef.current !== 'other_detected') {
+        setState('other_detected');
+        stateRef.current = 'other_detected';
+      }
+      return;
+    }
+
+    // ── No detection ─────────────────────────────────────────────────────
+    if (!det.detected) {
+      if (stateRef.current === 'other_detected' || stateRef.current === 'stable') {
+        setState('detecting');
+        stateRef.current = 'detecting';
+      }
+      return;
+    }
+
+    // ── Goat or sheep detected ────────────────────────────────────────────
+    const sp = det.detectedSpecies!;
+    setDetectedSpecies(sp);
+
+    if (!det.isStable) {
+      // Still building stable frames
+      if (stateRef.current !== 'detecting') {
+        setState('detecting');
+        stateRef.current = 'detecting';
+      }
+      return;
+    }
+
+    // ── Stable → capture and scan ─────────────────────────────────────────
+    if (!scanningRef.current) {
       setState('stable');
       stateRef.current = 'stable';
 
-      // Small delay so user sees "stable" message
       await new Promise((r) => setTimeout(r, 500));
       if (!mountedRef.current || stateRef.current !== 'stable') return;
 
       const canvas = captureVideoFrame(video);
-      await runScan(canvas);
-    } else if (!det.detected) {
-      if (stateRef.current === 'stable') {
-        setState('detecting');
-        stateRef.current = 'detecting';
-      }
+      await runScan(canvas, sp);
     }
   }, [videoRef, runScan]);
 
-  // ── Start scanning session ──────────────────────────────────────────────────
+  // ── Start ─────────────────────────────────────────────────────────────────
   const startAutoScan = useCallback(async () => {
     if (!mountedRef.current) return;
-
     setState('loading');
     stateRef.current = 'loading';
     setError(null);
     setResult(null);
     setCapturedUrl(null);
     setCapturedCanvas(null);
+    setDetection(null);
+    setDetectedSpecies(null);
     resetStableFrameCount();
 
-    // Load MobileNet (returns null if unavailable → fallback mode)
     const model = await loadMobileNet();
     if (!mountedRef.current) return;
 
     modelRef.current = model;
     setModelReady(!!model);
     setUsingFallback(!model);
-
     setState('detecting');
     stateRef.current = 'detecting';
 
-    // Start detection interval
     stopDetection();
     detectionTimer.current = setInterval(detectionTick, DETECTION_INTERVAL_MS);
   }, [stopDetection, detectionTick]);
 
-  // ── Stop everything ─────────────────────────────────────────────────────────
+  // ── Stop ──────────────────────────────────────────────────────────────────
   const stopAutoScan = useCallback(() => {
     stopDetection();
     if (cooldownTimer.current) { clearInterval(cooldownTimer.current); cooldownTimer.current = null; }
     resetStableFrameCount();
     setState('idle');
     stateRef.current = 'idle';
+    setDetectedSpecies(null);
   }, [stopDetection]);
 
-  // ── Force re-scan ───────────────────────────────────────────────────────────
+  // ── Rescan ────────────────────────────────────────────────────────────────
   const rescan = useCallback(() => {
     setResult(null);
     setCapturedUrl(null);
     setCapturedCanvas(null);
     setDetection(null);
+    setDetectedSpecies(null);
     resetStableFrameCount();
     if (cooldownTimer.current) { clearInterval(cooldownTimer.current); cooldownTimer.current = null; }
     setState('detecting');
@@ -281,7 +336,7 @@ export function useAutoScan(options: {
     detectionTimer.current = setInterval(detectionTick, DETECTION_INTERVAL_MS);
   }, [stopDetection, detectionTick]);
 
-  // ── Cleanup on unmount ──────────────────────────────────────────────────────
+  // ── Cleanup ───────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       mountedRef.current = false;
@@ -291,10 +346,9 @@ export function useAutoScan(options: {
     };
   }, [stopDetection]);
 
-  const message = getStatusMessage(state, detection, cooldownRemaining);
+  const message = buildMessage(state, detection, cooldownRemaining);
 
   return {
-    // State
     state,
     detection,
     result,
@@ -305,7 +359,7 @@ export function useAutoScan(options: {
     modelReady,
     usingFallback,
     message,
-    // Actions
+    detectedSpecies,
     startAutoScan,
     stopAutoScan,
     rescan,

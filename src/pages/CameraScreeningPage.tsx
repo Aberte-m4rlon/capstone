@@ -1,21 +1,19 @@
 /**
- * CameraScreeningPage.tsx — AI Health Scanner with Auto-Scan
+ * CameraScreeningPage.tsx — AI Livestock Health Scanner
  *
- * FLOW:
- *   Page opens → Camera auto-starts → Detection loop begins
- *   Goat detected (stable) → Auto-capture → ML scan → Result
- *   Cooldown → Back to detection → Repeat
- *
- * Two tabs:
- *   LIVE SCAN   — automatic real-time scanning
- *   HISTORY     — past screening records
+ * AUTO-SCAN WORKFLOW:
+ *   Camera opens → MobileNet detects object every 200ms
+ *   GOAT / SHEEP → stable 5 frames → auto-capture → health scan → result
+ *   OTHER (dog/person/car/etc.) → "This is not a goat or sheep"
+ *   NOTHING → "Looking for a goat or sheep…"
+ *   After result → 8s cooldown → back to detecting
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, AlertTriangle, CheckCircle, XCircle, RefreshCw,
   Loader2, Search, Info, WifiOff, ScanLine, History,
-  PawPrint, Save, Zap,
+  Save, Ban,
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -24,59 +22,74 @@ import { useToast } from '../lib/toast';
 import { useAutoScan, type ScanState } from '../lib/useAutoScan';
 import { formatDate } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
-import type { ScanResult } from '../lib/cameraML';
 import {
   GOAT_DETECTION_THRESHOLD,
   REQUIRED_STABLE_FRAMES,
   SCAN_COOLDOWN_SECONDS,
 } from '../lib/goatDetector';
 
-// ── Camera permission handling ────────────────────────────────────────────────
+// ── Permission type ───────────────────────────────────────────────────────────
 type CameraPermission = 'pending' | 'granted' | 'denied' | 'unavailable' | 'https_required';
 
-// ── State colours ─────────────────────────────────────────────────────────────
+// ── Colour helpers ────────────────────────────────────────────────────────────
 function stateColor(s: ScanState): string {
   switch (s) {
-    case 'stable':   return '#FF7A18';
-    case 'scanning': return '#7C3AED';
-    case 'result':   return '#16A34A';
-    case 'cooldown': return '#3B82F6';
-    case 'error':    return '#EF4444';
-    default:         return 'var(--text-secondary)';
+    case 'other_detected': return '#EF4444';
+    case 'stable':         return '#FF7A18';
+    case 'scanning':       return '#7C3AED';
+    case 'result':         return '#16A34A';
+    case 'cooldown':       return '#3B82F6';
+    case 'error':          return '#EF4444';
+    default:               return 'rgba(255,255,255,0.35)';
   }
 }
-
-function predColor(p: string): string {
+function predColor(p: string) {
   if (p === 'possible_health_concern') return '#F97316';
   if (p === 'normal_appearance')       return '#16A34A';
   return '#F59E0B';
 }
-function predLabel(p: string): string {
+function predLabel(p: string) {
   if (p === 'possible_health_concern') return 'Needs Attention';
   if (p === 'normal_appearance')       return 'No Obvious Concern';
   return 'Low Confidence';
 }
-function predEmoji(p: string): string {
+function predEmoji(p: string) {
   if (p === 'possible_health_concern') return '🟠';
   if (p === 'normal_appearance')       return '🟢';
   return '⚠️';
 }
 
+// ── What-to-do recommendations ────────────────────────────────────────────────
+const HEALTHY_ACTIONS = [
+  'Continue normal monitoring schedule.',
+  'Maintain regular feeding, hydration, and rest.',
+  'Keep vaccination and health records up to date in AlpasFarm.',
+  'Schedule routine check-ups as needed.',
+];
+const ATTENTION_ACTIONS = [
+  'Recheck the animal\'s vital signs (temperature, heart rate).',
+  'Review recent health records in AlpasFarm.',
+  'Monitor appetite and activity level closely.',
+  'Observe the animal for any visible changes or discharge.',
+  'Record your observations in AlpasFarm.',
+  'Consult a qualified veterinarian if concerning signs persist or worsen.',
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function CameraScreeningPage() {
-  const navigate         = useNavigate();
-  const { user }         = useAuth();
-  const toast            = useToast();
-  const farmData         = useFarmData();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const toast    = useToast();
+  const farmData = useFarmData();
   const { screenings, summary, loading: histLoading, refresh } = useAllScreenings();
 
-  const [tab, setTab]               = useState<'scan' | 'history'>('scan');
-  const [permission, setPermission] = useState<CameraPermission>('pending');
-  const [saving, setSaving]         = useState(false);
-  const [savedId, setSavedId]       = useState<string | null>(null);
-  const [selectedAnimalId, setSelectedAnimalId] = useState<string>('');
-  const [search, setSearch]         = useState('');
+  const [tab, setTab]                   = useState<'scan' | 'history'>('scan');
+  const [permission, setPermission]     = useState<CameraPermission>('pending');
+  const [saving, setSaving]             = useState(false);
+  const [savedId, setSavedId]           = useState<string | null>(null);
+  const [selectedAnimalId, setSelectedAnimalId] = useState('');
+  const [search, setSearch]             = useState('');
 
   const videoRef  = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -86,90 +99,67 @@ export function CameraScreeningPage() {
     videoRef,
     animalId:   selectedAnimalId || undefined,
     animalName: farmData.animals.find(a => a.id === selectedAnimalId)?.name,
-    onResult: (_result, _canvas) => {
-      // Auto-create alert for high-risk results
-      if (user && (_result.riskLevel === 'HIGH' || _result.riskLevel === 'CRITICAL')) {
-        const animalName = farmData.animals.find(a => a.id === selectedAnimalId)?.name ?? 'Animal';
+    onResult: (scanResult, _canvas, species) => {
+      // Auto-create health alert for high/critical results
+      if (user && (scanResult.riskLevel === 'HIGH' || scanResult.riskLevel === 'CRITICAL')) {
+        const animalName = farmData.animals.find(a => a.id === selectedAnimalId)?.name
+          ?? (species === 'sheep' ? 'Sheep' : 'Goat');
         supabase.from('notifications').insert({
-          user_id: user.id,
-          type: 'Health',
-          title: `AI Scanner: ${_result.riskLevelLabel} — ${animalName}`,
-          description: `Camera screening: ${_result.riskLevelLabel} (${_result.combinedRiskScore ?? _result.riskScore}% risk). ${_result.primaryIndicators.slice(0, 2).join(', ')}`,
-          priority: _result.riskLevel === 'CRITICAL' ? 'Critical' : 'Warning',
-          link: selectedAnimalId ? `/animals/${selectedAnimalId}` : '/camera-screening',
-          read: false,
+          user_id:     user.id,
+          type:        'Health',
+          title:       `AI Scanner: ${scanResult.riskLevelLabel} — ${animalName}`,
+          description: `Camera screening (${species}): ${scanResult.riskLevelLabel}. ${scanResult.primaryIndicators.slice(0, 2).join(', ')}`,
+          priority:    scanResult.riskLevel === 'CRITICAL' ? 'Critical' : 'Warning',
+          link:        selectedAnimalId ? `/animals/${selectedAnimalId}` : '/camera-screening',
+          read:        false,
         });
       }
     },
   });
 
-  // ── Start camera ──────────────────────────────────────────────────────────
+  // ── Camera management ─────────────────────────────────────────────────────
   const startCamera = useCallback(async () => {
     setPermission('pending');
-
-    if (window.location.protocol !== 'https:' &&
-        window.location.hostname !== 'localhost' &&
-        window.location.hostname !== '127.0.0.1') {
-      setPermission('https_required');
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setPermission('unavailable');
-      return;
-    }
+    if (
+      window.location.protocol !== 'https:' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'
+    ) { setPermission('https_required'); return; }
+    if (!navigator.mediaDevices?.getUserMedia) { setPermission('unavailable'); return; }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 }, height: { ideal: 720 },
-        },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
       setPermission('granted');
       autoScan.startAutoScan();
     } catch (err: any) {
       const msg = (err?.message ?? '').toLowerCase();
-      if (msg.includes('permission') || err?.name === 'NotAllowedError') {
-        setPermission('denied');
-      } else {
-        setPermission('unavailable');
-      }
+      setPermission(msg.includes('permission') || err?.name === 'NotAllowedError' ? 'denied' : 'unavailable');
     }
   }, [autoScan]);
 
-  // ── Stop camera ───────────────────────────────────────────────────────────
   const stopCamera = useCallback(() => {
     autoScan.stopAutoScan();
     streamRef.current?.getTracks().forEach(t => t.stop());
     streamRef.current = null;
   }, [autoScan]);
 
-  // Auto-start camera when page tab is selected
   useEffect(() => {
-    if (tab === 'scan' && permission === 'pending') {
-      startCamera();
-    }
-    return () => {
-      if (tab !== 'scan') stopCamera();
-    };
+    if (tab === 'scan' && permission === 'pending') startCamera();
+    return () => { if (tab !== 'scan') stopCamera(); };
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => stopCamera();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => stopCamera(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Save result ───────────────────────────────────────────────────────────
+  // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!autoScan.result || !user) return;
     setSaving(true);
     try {
-      const animalId = selectedAnimalId || `unlinked-${Date.now()}`;
+      const animalId = selectedAnimalId || 'unlinked';
       const { data, error } = await saveScreeningResult(
         animalId, user.id, autoScan.result, autoScan.capturedCanvas,
       );
@@ -179,12 +169,18 @@ export function CameraScreeningPage() {
       refresh();
     } catch (err: any) {
       toast(`Could not save: ${err?.message}`, 'error');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }, [autoScan.result, autoScan.capturedCanvas, user, selectedAnimalId, toast, refresh]);
 
-  // ── History filter ────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const activeAnimals = farmData.animals.filter(a => !a.archived);
+  const det           = autoScan.detection;
+  const speciesEmoji  = autoScan.detectedSpecies === 'sheep' ? '🐑' : '🐐';
+  const speciesLabel  = autoScan.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
+
+  const borderColor = permission === 'granted' ? stateColor(autoScan.state) : 'var(--border)';
+
+  // History enrichment
   const enriched = screenings.map(s => ({
     ...s,
     animalName: farmData.animals.find(a => a.id === s.animal_id)?.name ?? 'Unknown',
@@ -196,100 +192,120 @@ export function CameraScreeningPage() {
     s.animalTag.toLowerCase().includes(search.toLowerCase())
   );
 
-  const activeAnimals = farmData.animals.filter(a => !a.archived);
-
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: 'var(--glass-surface)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: 5, width: 'fit-content' }}>
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 5, marginBottom: 20, background: 'var(--glass-surface)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: 5, width: 'fit-content' }}>
         {[
-          { key: 'scan', label: 'Live Scanner', icon: <ScanLine size={15} /> },
-          { key: 'history', label: 'History', icon: <History size={15} /> },
+          { key: 'scan',    label: 'Live Scanner', icon: <ScanLine size={14} /> },
+          { key: 'history', label: 'History',      icon: <History size={14} />  },
         ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key as any)} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, background: tab === t.key ? 'linear-gradient(135deg,#FF3B30,#FF7A18)' : 'transparent', color: tab === t.key ? '#fff' : 'var(--text-secondary)', boxShadow: tab === t.key ? '0 4px 14px rgba(255,59,48,0.35)' : 'none', transition: 'all 0.2s' }}>
-            {t.icon}{t.label}
+          <button key={t.key} onClick={() => setTab(t.key as any)}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, background: tab === t.key ? 'linear-gradient(135deg,#FF3B30,#FF7A18)' : 'transparent', color: tab === t.key ? '#fff' : 'var(--text-secondary)', boxShadow: tab === t.key ? '0 4px 14px rgba(255,59,48,0.35)' : 'none', transition: 'all 0.2s' }}>
+            {t.icon} {t.label}
           </button>
         ))}
       </div>
 
-      {/* ── LIVE SCANNER TAB ── */}
+      {/* ══ LIVE SCANNER ══ */}
       {tab === 'scan' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,0.9fr)', gap: 18, alignItems: 'start' }} className="scanner-grid">
+        <div className="scanner-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,0.85fr)', gap: 18, alignItems: 'start' }}>
 
-          {/* Left: Camera */}
+          {/* ── LEFT: Camera ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-            {/* Camera viewport */}
-            <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden', background: '#000', aspectRatio: '4/3', border: `2px solid ${permission === 'granted' ? stateColor(autoScan.state) : 'var(--border)'}`, boxShadow: permission === 'granted' ? `0 0 24px ${stateColor(autoScan.state)}33` : 'none', transition: 'border-color 0.4s, box-shadow 0.4s' }}>
+            {/* Viewport */}
+            <div style={{ position: 'relative', borderRadius: 18, overflow: 'hidden', background: '#000', aspectRatio: '4/3', border: `2px solid ${borderColor}`, boxShadow: permission === 'granted' ? `0 0 28px ${borderColor}44` : 'none', transition: 'border-color 0.4s, box-shadow 0.4s' }}>
 
-              <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', display: permission === 'granted' ? 'block' : 'none' }} />
+              <video ref={videoRef} autoPlay playsInline muted
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: permission === 'granted' ? 'block' : 'none' }} />
 
-              {/* No-camera overlay */}
+              {/* No-camera states */}
               {permission !== 'granted' && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, textAlign: 'center' }}>
-                  {permission === 'pending' && <Loader2 size={32} color="var(--accent-orange)" style={{ animation: 'spin 1s linear infinite' }} />}
-                  {permission === 'denied' && <WifiOff size={36} color="#EF4444" />}
-                  {(permission === 'unavailable' || permission === 'https_required') && <Camera size={36} color="var(--text-secondary)" />}
-                  <div style={{ color: 'var(--text)', fontSize: 14, fontWeight: 700 }}>
-                    {permission === 'pending'       && 'Starting camera…'}
-                    {permission === 'denied'        && 'Camera access denied'}
-                    {permission === 'unavailable'   && 'No camera available'}
-                    {permission === 'https_required'&& 'HTTPS required for camera'}
+                  {permission === 'pending'        && <Loader2 size={32} color="var(--accent-orange)" style={{ animation: 'spin 1s linear infinite' }} />}
+                  {permission === 'denied'         && <WifiOff size={36} color="#EF4444" />}
+                  {permission === 'unavailable'    && <Camera size={36} color="var(--text-secondary)" />}
+                  {permission === 'https_required' && <Camera size={36} color="var(--text-secondary)" />}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                    {permission === 'pending'        && 'Starting camera…'}
+                    {permission === 'denied'         && 'Camera access denied'}
+                    {permission === 'unavailable'    && 'Camera not available'}
+                    {permission === 'https_required' && 'HTTPS required for camera'}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 280 }}>
                     {permission === 'denied'         && 'Camera permission is required for automatic health screening. Please allow camera access in your browser settings.'}
                     {permission === 'unavailable'    && 'No camera was detected on this device.'}
-                    {permission === 'https_required' && 'Camera requires a secure connection (HTTPS). Use the Upload tab instead.'}
+                    {permission === 'https_required' && 'Camera requires a secure connection (HTTPS).'}
                   </div>
                   {(permission === 'denied' || permission === 'unavailable') && (
-                    <button onClick={startCamera} style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                    <button onClick={startCamera} style={{ padding: '9px 22px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
                       Try Again
                     </button>
                   )}
                 </div>
               )}
 
-              {/* Scanning frame overlay */}
+              {/* Live overlay */}
               {permission === 'granted' && (
                 <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                  {/* Corner brackets */}
-                  {['tl','tr','bl','br'].map(corner => (
-                    <div key={corner} style={{
-                      position: 'absolute',
-                      width: 28, height: 28,
-                      top: corner.startsWith('t') ? 16 : undefined,
-                      bottom: corner.startsWith('b') ? 16 : undefined,
-                      left: corner.endsWith('l') ? 16 : undefined,
-                      right: corner.endsWith('r') ? 16 : undefined,
-                      borderTop: corner.startsWith('t') ? `3px solid ${stateColor(autoScan.state)}` : undefined,
-                      borderBottom: corner.startsWith('b') ? `3px solid ${stateColor(autoScan.state)}` : undefined,
-                      borderLeft: corner.endsWith('l') ? `3px solid ${stateColor(autoScan.state)}` : undefined,
-                      borderRight: corner.endsWith('r') ? `3px solid ${stateColor(autoScan.state)}` : undefined,
-                      borderRadius: corner === 'tl' ? '8px 0 0 0' : corner === 'tr' ? '0 8px 0 0' : corner === 'bl' ? '0 0 0 8px' : '0 0 8px 0',
+
+                  {/* Corner brackets — always show */}
+                  {(['tl','tr','bl','br'] as const).map(c => (
+                    <div key={c} style={{
+                      position: 'absolute', width: 30, height: 30,
+                      top:    c[0]==='t' ? 14 : undefined, bottom: c[0]==='b' ? 14 : undefined,
+                      left:   c[1]==='l' ? 14 : undefined, right:  c[1]==='r' ? 14 : undefined,
+                      borderTop:    c[0]==='t' ? `3px solid ${borderColor}` : undefined,
+                      borderBottom: c[0]==='b' ? `3px solid ${borderColor}` : undefined,
+                      borderLeft:   c[1]==='l' ? `3px solid ${borderColor}` : undefined,
+                      borderRight:  c[1]==='r' ? `3px solid ${borderColor}` : undefined,
+                      borderRadius: c==='tl'?'8px 0 0 0':c==='tr'?'0 8px 0 0':c==='bl'?'0 0 0 8px':'0 0 8px 0',
                       transition: 'border-color 0.4s',
                     }} />
                   ))}
 
-                  {/* Scanning animation line */}
+                  {/* ── OTHER OBJECT OVERLAY ── */}
+                  {autoScan.state === 'other_detected' && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
+                      <div style={{ fontSize: 44 }}>{det?.detectedEmoji || '🚫'}</div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: '#EF4444' }}>
+                        {det?.nonTargetClass ? `${det.nonTargetClass} Detected` : 'Object Detected'}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', background: 'rgba(239,68,68,0.25)', border: '1px solid rgba(239,68,68,0.5)', borderRadius: 10, padding: '8px 18px' }}>
+                        THIS IS NOT A GOAT OR SHEEP
+                      </div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
+                        {det?.nonTargetClass
+                          ? `Please point the camera at a goat or sheep.`
+                          : 'Please point the camera at a goat or sheep.'}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Scan line when running */}
                   {autoScan.state === 'scanning' && (
-                    <div style={{ position: 'absolute', left: '10%', right: '10%', height: 2, background: `linear-gradient(90deg, transparent, #7C3AED, transparent)`, animation: 'scanLine 1.5s ease-in-out infinite' }} />
+                    <div style={{ position: 'absolute', left: '8%', right: '8%', height: 2, background: 'linear-gradient(90deg,transparent,#7C3AED,transparent)', animation: 'scanLine 1.5s ease-in-out infinite' }} />
                   )}
 
-                  {/* Detection box when goat found */}
-                  {autoScan.detection?.detected && autoScan.state !== 'result' && (
-                    <div style={{ position: 'absolute', top: '20%', left: '15%', right: '15%', bottom: '20%', border: `2px solid ${stateColor(autoScan.state)}`, borderRadius: 8, background: `${stateColor(autoScan.state)}12` }} />
+                  {/* Detection box for goat/sheep */}
+                  {det?.detected && autoScan.state !== 'result' && autoScan.state !== 'other_detected' && (
+                    <div style={{ position: 'absolute', top: '18%', left: '12%', right: '12%', bottom: '18%', border: `2px solid ${borderColor}`, borderRadius: 10, background: `${borderColor}14` }} />
                   )}
 
-                  {/* Status pill */}
-                  <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', borderRadius: 999, padding: '6px 16px', display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}>
-                    {autoScan.state === 'scanning' && <Loader2 size={13} color="#7C3AED" style={{ animation: 'spin 1s linear infinite' }} />}
-                    {autoScan.state === 'detecting' && !autoScan.detection?.detected && <PawPrint size={13} color="var(--text-secondary)" />}
-                    {autoScan.detection?.detected && autoScan.state !== 'result' && <PawPrint size={13} color={stateColor(autoScan.state)} />}
-                    {autoScan.state === 'result' && <CheckCircle size={13} color="#16A34A" />}
-                    {autoScan.state === 'cooldown' && <RefreshCw size={13} color="#3B82F6" />}
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                  {/* Bottom status pill */}
+                  <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', borderRadius: 999, padding: '6px 18px', display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', maxWidth: 'calc(100% - 32px)' }}>
+                    {autoScan.state === 'loading'   && <Loader2 size={13} color="var(--accent-orange)" style={{ animation: 'spin 1s linear infinite' }} />}
+                    {autoScan.state === 'scanning'  && <Loader2 size={13} color="#7C3AED" style={{ animation: 'spin 1s linear infinite' }} />}
+                    {autoScan.state === 'result'    && <CheckCircle size={13} color="#16A34A" />}
+                    {autoScan.state === 'cooldown'  && <RefreshCw size={13} color="#3B82F6" />}
+                    {autoScan.state === 'other_detected' && <Ban size={13} color="#EF4444" />}
+                    {(autoScan.state === 'detecting' || autoScan.state === 'stable') && det?.detected && (
+                      <span style={{ fontSize: 15 }}>{speciesEmoji}</span>
+                    )}
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {autoScan.message}
                     </span>
                   </div>
@@ -297,25 +313,25 @@ export function CameraScreeningPage() {
               )}
             </div>
 
-            {/* Detection confidence bar */}
-            {permission === 'granted' && autoScan.state === 'detecting' && (
+            {/* Detection progress */}
+            {permission === 'granted' && (autoScan.state === 'detecting' || autoScan.state === 'stable') && (
               <div style={{ background: 'var(--glass-surface)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '10px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                  <span>Goat Detection</span>
-                  <span>{autoScan.detection ? Math.round(autoScan.detection.confidence * 100) : 0}% · threshold: {Math.round(GOAT_DETECTION_THRESHOLD * 100)}%</span>
+                  <span>{det?.detected ? `${speciesEmoji} ${speciesLabel} Detected` : 'Detection'}</span>
+                  <span>{det ? Math.round(det.confidence * 100) : 0}% · min {Math.round(GOAT_DETECTION_THRESHOLD * 100)}%</span>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: 'var(--surface)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: 999, background: autoScan.detection?.detected ? 'linear-gradient(90deg,#FF7A18,#FF3B30)' : 'var(--border)', width: `${Math.round((autoScan.detection?.confidence ?? 0) * 100)}%`, transition: 'width 0.3s ease' }} />
+                <div style={{ height: 5, borderRadius: 999, background: 'var(--surface)', overflow: 'hidden', marginBottom: 8 }}>
+                  <div style={{ height: '100%', borderRadius: 999, background: det?.detected ? `linear-gradient(90deg,#FF7A18,#FF3B30)` : 'var(--border)', width: `${Math.round((det?.confidence ?? 0) * 100)}%`, transition: 'width 0.3s' }} />
                 </div>
-                {autoScan.detection?.detected && (
-                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {det?.detected && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ display: 'flex', gap: 3 }}>
                       {Array.from({ length: REQUIRED_STABLE_FRAMES }).map((_, i) => (
-                        <div key={i} style={{ width: 8, height: 8, borderRadius: 2, background: i < (autoScan.detection?.stableFrames ?? 0) ? '#FF7A18' : 'var(--border)', transition: 'background 0.2s' }} />
+                        <div key={i} style={{ width: 9, height: 9, borderRadius: 3, background: i < (det.stableFrames ?? 0) ? '#FF7A18' : 'var(--border)', transition: 'background 0.2s' }} />
                       ))}
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                      Stable frames ({autoScan.detection?.stableFrames ?? 0}/{REQUIRED_STABLE_FRAMES})
+                      Stable {det.stableFrames}/{REQUIRED_STABLE_FRAMES} frames needed
                     </span>
                   </div>
                 )}
@@ -328,82 +344,115 @@ export function CameraScreeningPage() {
                 <button onClick={autoScan.rescan} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <RefreshCw size={14} /> Rescan
                 </button>
-                <button onClick={() => { stopCamera(); setPermission('pending'); setTimeout(startCamera, 300); }} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Camera size={14} /> Restart Camera
+                <button onClick={() => { stopCamera(); setPermission('pending'); setTimeout(startCamera, 300); }}
+                  style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Camera size={14} /> Restart
                 </button>
               </div>
             )}
 
-            {/* Model info */}
             {autoScan.usingFallback && permission === 'granted' && (
               <div style={{ padding: '8px 12px', borderRadius: 9, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', fontSize: 11, color: '#D97706', lineHeight: 1.5 }}>
-                ⚠ MobileNet model unavailable (network issue). Using fallback pixel analysis. Detection accuracy is reduced.
+                ⚠ MobileNet unavailable — using fallback pixel analysis. Detection accuracy is reduced.
               </div>
             )}
           </div>
 
-          {/* Right: Result + Settings */}
+          {/* ── RIGHT: Status panel ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
             {/* Animal selector */}
             <div style={{ background: 'var(--glass-surface)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: '14px 16px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Link to Animal (optional)</div>
-              <select value={selectedAnimalId} onChange={e => setSelectedAnimalId(e.target.value)} style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13 }}>
-                <option value=''>— Unlinked scan —</option>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+                Link to Animal (optional)
+              </div>
+              <select value={selectedAnimalId} onChange={e => { setSelectedAnimalId(e.target.value); setSavedId(null); }}
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13 }}>
+                <option value="">— Unlinked scan —</option>
                 {activeAnimals.map(a => <option key={a.id} value={a.id}>{a.name} ({a.tag_id})</option>)}
               </select>
-              {!selectedAnimalId && (
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
-                  Screening will be saved without an animal ID. You can link it later.
-                </div>
-              )}
+              {!selectedAnimalId && <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>Result saved without animal ID. Link it later from the History tab.</div>}
             </div>
 
-            {/* Scan result */}
-            {(autoScan.state === 'result' || autoScan.state === 'cooldown') && autoScan.result && (
-              <ScanResultCard
-                result={autoScan.result}
-                capturedUrl={autoScan.capturedUrl}
-                saving={saving}
-                savedId={savedId}
-                onSave={handleSave}
-              />
-            )}
-
-            {/* Waiting / scanning state */}
-            {autoScan.state === 'scanning' && (
-              <div style={{ background: 'var(--glass-surface)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: '32px 20px', textAlign: 'center' }}>
-                <Loader2 size={32} color="#7C3AED" style={{ animation: 'spin 1s linear infinite', marginBottom: 12 }} />
-                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Analyzing Health…</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Running ML screening on captured frame</div>
+            {/* ── OTHER DETECTED panel ── */}
+            {autoScan.state === 'other_detected' && (
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 14, padding: '20px 18px', textAlign: 'center' }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>{det?.detectedEmoji || '🚫'}</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
+                  {det?.nonTargetClass ? `${det.nonTargetClass} Detected` : 'Non-Target Detected'}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
+                  This is not a goat or sheep.
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Health screening is only performed for goats and sheep.<br />
+                  Please point the camera at a goat or sheep to begin scanning.
+                </div>
               </div>
             )}
 
-            {(autoScan.state === 'detecting' || autoScan.state === 'stable' || autoScan.state === 'loading' || autoScan.state === 'idle') && !autoScan.result && (
+            {/* ── WAITING panel ── */}
+            {(autoScan.state === 'idle' || autoScan.state === 'loading' || autoScan.state === 'detecting' || autoScan.state === 'stable') && !autoScan.result && (
               <div style={{ background: 'var(--glass-surface)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: '28px 20px', textAlign: 'center' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🐐</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Waiting for Goat…</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Position a goat in front of the camera. The system will automatically detect and screen it.
-                </div>
-                {autoScan.state === 'stable' && (
-                  <div style={{ marginTop: 12, padding: '8px 14px', borderRadius: 8, background: 'rgba(255,122,24,0.1)', border: '1px solid rgba(255,122,24,0.3)', fontSize: 12, color: '#FF7A18', fontWeight: 700 }}>
-                    🐐 Goat detected — preparing scan…
-                  </div>
+                {autoScan.state === 'stable' ? (
+                  <>
+                    <div style={{ fontSize: 40, marginBottom: 10 }}>{speciesEmoji}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#FF7A18', marginBottom: 6 }}>{speciesLabel} Detected!</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>Preparing automatic scan…</div>
+                  </>
+                ) : det?.detected ? (
+                  <>
+                    <div style={{ fontSize: 40, marginBottom: 10 }}>{speciesEmoji}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#FF7A18', marginBottom: 4 }}>{speciesLabel} Detected</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Stabilizing detection…</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 36, marginBottom: 10, opacity: 0.6 }}>🐐🐑</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Waiting for Goat or Sheep…</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      Point the camera at a goat or sheep.<br />The system will detect and screen automatically.
+                    </div>
+                  </>
                 )}
               </div>
             )}
 
-            {autoScan.state === 'cooldown' && (
-              <div style={{ background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#3B82F6', textAlign: 'center' }}>
-                Next auto-scan in {autoScan.cooldownRemaining}s
+            {/* ── SCANNING panel ── */}
+            {autoScan.state === 'scanning' && (
+              <div style={{ background: 'var(--glass-surface)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 14, padding: '32px 20px', textAlign: 'center' }}>
+                <Loader2 size={34} color="#7C3AED" style={{ animation: 'spin 1s linear infinite', marginBottom: 14 }} />
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Analyzing Health…</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  {speciesEmoji} Running {speciesLabel.toLowerCase()} health screening
+                </div>
               </div>
             )}
 
-            {/* Config info */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-              <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Auto-Scan Settings</div>
-              Detection threshold: {Math.round(GOAT_DETECTION_THRESHOLD * 100)}% ·
+            {/* ── RESULT panel ── */}
+            {(autoScan.state === 'result' || autoScan.state === 'cooldown') && autoScan.result && (
+              <ScanResultCard
+                result={autoScan.result}
+                capturedUrl={autoScan.capturedUrl}
+                species={autoScan.detectedSpecies ?? 'goat'}
+                saving={saving}
+                savedId={savedId}
+                cooldownRemaining={autoScan.state === 'cooldown' ? autoScan.cooldownRemaining : null}
+                onSave={handleSave}
+              />
+            )}
+
+            {/* Cooldown banner */}
+            {autoScan.state === 'cooldown' && (
+              <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#3B82F6', textAlign: 'center', fontWeight: 600 }}>
+                Next scan in {autoScan.cooldownRemaining}s…
+              </div>
+            )}
+
+            {/* Settings info */}
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+              <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>Scanner Settings</div>
+              Threshold: {Math.round(GOAT_DETECTION_THRESHOLD * 100)}% ·
               Stable frames: {REQUIRED_STABLE_FRAMES} ·
               Cooldown: {SCAN_COOLDOWN_SECONDS}s
             </div>
@@ -411,10 +460,9 @@ export function CameraScreeningPage() {
         </div>
       )}
 
-      {/* ── HISTORY TAB ── */}
+      {/* ══ HISTORY ══ */}
       {tab === 'history' && (
         <div>
-          {/* Summary cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 14, marginBottom: 20 }}>
             <SummaryCard label="Total Screenings"  value={summary.total}           color="var(--accent-orange)" icon={<Camera size={16}/>} />
             <SummaryCard label="Possible Concerns" value={summary.possibleConcerns} color="#F97316"             icon={<AlertTriangle size={16}/>} />
@@ -422,16 +470,15 @@ export function CameraScreeningPage() {
             <SummaryCard label="Last Screening"    value={summary.lastScreeningDate ? formatDate(summary.lastScreeningDate) : '—'} color="#3B82F6" icon={<CheckCircle size={16}/>} small />
           </div>
 
-          {/* Search */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, background: 'var(--glass-surface)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 12, padding: '10px 14px', alignItems: 'center' }}>
             <Search size={15} color="var(--text-secondary)" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by animal name or tag…" style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: 'var(--text)', flex: 1 }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by animal name or tag…"
+              style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: 'var(--text)', flex: 1 }} />
             <button onClick={refresh} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
               <RefreshCw size={13} /> Refresh
             </button>
           </div>
 
-          {/* Table */}
           <div style={{ background: 'var(--glass-surface)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 14, overflow: 'hidden' }}>
             {histLoading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '40px', color: 'var(--text-secondary)', fontSize: 13 }}>
@@ -440,15 +487,15 @@ export function CameraScreeningPage() {
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text-secondary)' }}>
                 <Camera size={36} style={{ opacity: 0.3, marginBottom: 12 }} />
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>No screenings found</div>
-                <div style={{ fontSize: 13 }}>Screenings you save will appear here.</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>No screenings yet</div>
+                <div style={{ fontSize: 13 }}>Saved screenings will appear here.</div>
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-                      {['Date', 'Animal', 'Result', 'Confidence', 'Model', 'Actions'].map(h => (
+                      {['Date','Animal','Result','Confidence','Model','Actions'].map(h => (
                         <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 700, color: 'var(--text-secondary)', fontSize: 11, letterSpacing: '0.5px', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -466,10 +513,9 @@ export function CameraScreeningPage() {
                           <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{s.animalTag}</div>
                         </td>
                         <td style={{ padding: '11px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 14 }}>{predEmoji(s.prediction)}</span>
-                            <span style={{ fontWeight: 700, color: predColor(s.prediction) }}>{predLabel(s.prediction)}</span>
-                          </div>
+                          <span style={{ fontSize: 14 }}>{predEmoji(s.prediction)}</span>
+                          {' '}
+                          <span style={{ fontWeight: 700, color: predColor(s.prediction) }}>{predLabel(s.prediction)}</span>
                         </td>
                         <td style={{ padding: '11px 16px', fontWeight: 700, color: predColor(s.prediction) }}>{Math.round(s.confidence * 100)}%</td>
                         <td style={{ padding: '11px 16px', color: 'var(--text-secondary)', fontSize: 12 }}>{s.model_version}</td>
@@ -486,7 +532,6 @@ export function CameraScreeningPage() {
             )}
           </div>
 
-          {/* Disclaimer */}
           <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 10, fontSize: 11, color: '#3B82F6', lineHeight: 1.6 }}>
             ℹ️ Camera screening is a preliminary AI assessment and does not replace professional veterinary diagnosis.
           </div>
@@ -494,15 +539,9 @@ export function CameraScreeningPage() {
       )}
 
       <style>{`
-        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes scanLine {
-          0%   { top: 15%; opacity: 0.8; }
-          50%  { top: 80%; opacity: 0.4; }
-          100% { top: 15%; opacity: 0.8; }
-        }
-        @media (max-width: 700px) {
-          .scanner-grid { grid-template-columns: 1fr !important; }
-        }
+        @keyframes spin    { from{transform:rotate(0deg)}  to{transform:rotate(360deg)} }
+        @keyframes scanLine { 0%{top:15%;opacity:.8} 50%{top:80%;opacity:.4} 100%{top:15%;opacity:.8} }
+        @media (max-width: 700px) { .scanner-grid { grid-template-columns: 1fr !important; } }
       `}</style>
     </div>
   );
@@ -510,78 +549,108 @@ export function CameraScreeningPage() {
 
 // ── Scan Result Card ──────────────────────────────────────────────────────────
 
-function ScanResultCard({ result, capturedUrl, saving, savedId, onSave }: {
-  result: ScanResult;
+function ScanResultCard({ result, capturedUrl, species, saving, savedId, cooldownRemaining, onSave }: {
+  result: import('../lib/cameraML').ScanResult;
   capturedUrl: string | null;
+  species: 'goat' | 'sheep';
   saving: boolean;
   savedId: string | null;
+  cooldownRemaining: number | null;
   onSave: () => void;
 }) {
   const finalScore = result.combinedRiskScore ?? result.riskScore;
-  const col = result.riskLevelColor;
+  const col  = result.riskLevelColor;
+  const isHealthy = result.prediction === 'normal_appearance';
+  const speciesLabel = species === 'sheep' ? 'SHEEP' : 'GOAT';
+  const speciesEmoji = species === 'sheep' ? '🐑' : '🐐';
+  const actions = isHealthy ? HEALTHY_ACTIONS : ATTENTION_ACTIONS;
 
   return (
     <div style={{ background: 'var(--glass-surface)', backdropFilter: 'var(--glass-blur)', border: '1px solid var(--glass-border)', borderRadius: 14, overflow: 'hidden' }}>
 
-      {/* Captured image */}
       {capturedUrl && (
         <img src={capturedUrl} alt="Screened" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
       )}
 
       <div style={{ padding: '14px 16px' }}>
 
-        {/* Status header */}
+        {/* Species badge */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 10, padding: '3px 12px', borderRadius: 999, background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
+          {speciesEmoji} {speciesLabel}
+        </div>
+
+        {/* Status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <div style={{ fontSize: 28 }}>{result.riskLevelEmoji}</div>
+          <div style={{ fontSize: 26 }}>{result.riskLevelEmoji}</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: col }}>{result.riskLevelLabel}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>AI Health Screening</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: col }}>
+              {isHealthy ? 'HEALTHY' : 'NEEDS ATTENTION'}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              {isHealthy ? 'No obvious warning detected by the screening model.' : 'Further assessment recommended.'}
+            </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 24, fontWeight: 900, color: col, lineHeight: 1 }}>{finalScore}%</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Risk Score</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: col, lineHeight: 1 }}>{finalScore}%</div>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Risk</div>
           </div>
         </div>
 
-        {/* Confidence + quality */}
+        {/* Confidence row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '7px 10px', textAlign: 'center' }}>
             <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)' }}>{result.confidencePercent}%</div>
             <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>AI Confidence</div>
           </div>
           <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '7px 10px', textAlign: 'center' }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)' }}>{result.modelVersion}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{result.modelVersion}</div>
             <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Model</div>
           </div>
         </div>
 
-        {/* Indicators */}
+        {/* Important indicators */}
         {result.indicators.filter(i => i.indicator !== 'NORMAL').length > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Detected Indicators</div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginBottom: 6 }}>Detected Indicators</div>
             {result.indicators.filter(i => i.indicator !== 'NORMAL').slice(0, 3).map((ind, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text)', padding: '4px 0' }}>
-                <AlertTriangle size={12} color="#F97316" />
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text)', padding: '3px 0' }}>
+                <AlertTriangle size={11} color="#F97316" />
                 <span>{ind.label}</span>
               </div>
             ))}
           </div>
         )}
 
-        {/* Disclaimer */}
-        <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.18)', fontSize: 10, color: '#3B82F6', lineHeight: 1.5, marginBottom: 12, display: 'flex', gap: 6 }}>
-          <Info size={12} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>ML screening is an early-warning tool. NOT a veterinary diagnosis.</span>
+        {/* What to do */}
+        <div style={{ marginBottom: 12, background: isHealthy ? 'rgba(22,163,74,0.07)' : 'rgba(249,115,22,0.07)', border: `1px solid ${isHealthy ? 'rgba(22,163,74,0.2)' : 'rgba(249,115,22,0.2)'}`, borderRadius: 10, padding: '10px 12px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginBottom: 7 }}>
+            {isHealthy ? 'Continue Normal Care' : 'What Should I Do?'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {actions.map((a, i) => (
+              <div key={i} style={{ display: 'flex', gap: 7, fontSize: 11, color: 'var(--text)', lineHeight: 1.5 }}>
+                <span style={{ color: isHealthy ? '#16A34A' : '#F97316', fontWeight: 700, flexShrink: 0 }}>{i + 1}.</span>
+                <span>{a}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Save button */}
+        {/* Disclaimer */}
+        <div style={{ display: 'flex', gap: 7, padding: '8px 10px', borderRadius: 8, background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.18)', fontSize: 10, color: '#3B82F6', lineHeight: 1.5, marginBottom: 12 }}>
+          <Info size={12} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>ML screening is an early-warning tool. NOT a veterinary diagnosis. Consult a licensed veterinarian for confirmation.</span>
+        </div>
+
+        {/* Save / saved */}
         {savedId ? (
           <div style={{ textAlign: 'center', fontSize: 13, color: '#16A34A', fontWeight: 700, padding: '8px' }}>
-            ✓ Saved to screening history
+            ✓ Saved to history
           </div>
         ) : (
-          <button onClick={onSave} disabled={saving} style={{ width: '100%', padding: '11px', borderRadius: 10, border: 'none', background: saving ? 'var(--surface)' : 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: saving ? 'var(--text-secondary)' : '#fff', fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 4px 14px rgba(255,59,48,0.3)' }}>
-            {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</> : <><Save size={14} /> Save Result</>}
+          <button onClick={onSave} disabled={saving}
+            style={{ width: '100%', padding: '11px', borderRadius: 10, border: 'none', background: saving ? 'var(--surface)' : 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: saving ? 'var(--text-secondary)' : '#fff', fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 4px 14px rgba(255,59,48,0.3)', transition: 'all 0.2s' }}>
+            {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</> : <><Save size={14} /> Save Screening</>}
           </button>
         )}
       </div>

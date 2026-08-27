@@ -1,251 +1,327 @@
 /**
- * goatDetector.ts — Lightweight Real-Time Goat/Sheep Presence Detection
+ * goatDetector.ts — Goat / Sheep / Other Object Detection
  *
- * Uses MobileNetV2 (already loaded for health scanning) to check whether
- * a goat or sheep is visible in the current camera frame.
+ * Uses MobileNetV2's classify() output (1000 ImageNet classes) to
+ * distinguish between:
+ *   TARGET   → goat | sheep  → proceed to health screening
+ *   OTHER    → dog, cat, person, car, etc. → block health screening
+ *   NOTHING  → below threshold → "Looking for a goat or sheep..."
  *
- * MobileNet classifies images into 1000 ImageNet classes.
- * Several of those classes correspond to goats, sheep, and livestock.
- * We check the top predictions for known animal class names.
+ * Key upgrade over the previous version:
+ *   - Returns `detectedSpecies` ('goat' | 'sheep' | null)
+ *   - Returns `nonTargetClass` (human-readable name when OTHER detected)
+ *   - `detected` only true for goat or sheep
+ *   - `otherDetected` true when a non-target object is clearly seen
  *
- * This requires NO additional model download — it reuses the MobileNet
- * model already loaded by cameraML.ts.
- *
- * Performance:
- *   - Runs at configurable FPS (default 5 fps = every 200ms)
- *   - Resizes frames to 224×224 before inference (MobileNet input size)
- *   - CPU-only, works on 8GB RAM machines
- *   - Far cheaper than a full YOLO detector
- *
- * Limitations:
- *   - MobileNet was trained on ImageNet, not goat-specific data
- *   - Will catch obvious goats/sheep; may miss unusual angles
- *   - Cannot distinguish individual animals
- *   - A dedicated YOLO goat detector would be more accurate but is
- *     much larger (50–150MB vs MobileNet's ~16MB)
+ * THRESHOLDS (all configurable):
+ *   OBJECT_DETECTION_THRESHOLD  = 0.25  minimum to consider any detection
+ *   GOAT_DETECTION_THRESHOLD    = 0.25  minimum for goat/sheep
+ *   REQUIRED_STABLE_FRAMES      = 5     consecutive frames needed
+ *   SCAN_COOLDOWN_SECONDS       = 8     wait after result before next scan
+ *   DETECTION_INTERVAL_MS       = 200   ~5 FPS detection cadence
  */
 
-// ── Configuration ─────────────────────────────────────────────────────────────
+// ── Configurable constants ────────────────────────────────────────────────────
 
-/** Minimum MobileNet classification confidence to consider it a detection */
-export const GOAT_DETECTION_THRESHOLD = 0.30;
+export const OBJECT_DETECTION_THRESHOLD = 0.25;
+export const GOAT_DETECTION_THRESHOLD   = 0.25;   // same as object threshold
+export const REQUIRED_STABLE_FRAMES     = 5;
+export const SCAN_COOLDOWN_SECONDS      = 8;
+export const DETECTION_INTERVAL_MS      = 200;
 
-/** Frames that must consecutively detect a goat before triggering auto-scan */
-export const REQUIRED_STABLE_FRAMES = 5;
-
-/** Seconds after a scan result before allowing a new scan */
-export const SCAN_COOLDOWN_SECONDS = 8;
-
-/** Detection interval in ms (200ms = ~5 fps detection rate) */
-export const DETECTION_INTERVAL_MS = 200;
-
-// ── ImageNet class names that indicate a goat/sheep/livestock is present ──────
+// ── ImageNet classes → species mapping ───────────────────────────────────────
 //
-// These are the exact class names MobileNet returns for relevant animals.
-// Source: ImageNet 1000-class label list.
-const GOAT_SHEEP_CLASSES = new Set([
-  // Direct goat/sheep
-  'goat',
-  'sheep',
-  'ram',
-  'ibex',
-  'bighorn',
-  'ox',
-  'buffalo',
-  // Livestock context (may indicate a barn/farm animal scene)
-  'llama',
-  'alpaca',
-  'bison',
-  'yak',
-  'water buffalo',
-  'calf',
-  'cow',
-  'dairy cattle',
-  'bull',
-  // Generic quadruped fallbacks
-  'domestic goat',
-  'boer goat',
-  'angora goat',
-  'cashmere goat',
-  // MobileNet sometimes returns these for goats in unusual poses
-  'giraffe',
-  'deer',
-  'antelope',
-]);
+// MobileNet returns comma-separated class names (e.g. "goat" or "ram, tup").
+// We map each known class to 'goat', 'sheep', or 'other'.
 
-// Partial match strings — if a class name contains any of these substrings
-const GOAT_PARTIAL_MATCH = [
-  'goat', 'sheep', 'lamb', 'ewe', 'ram', 'capra', 'ovis',
-  'livestock', 'ungulate', 'ruminant', 'caprinae',
+type Species = 'goat' | 'sheep' | 'other';
+
+interface ClassMapping {
+  species: Species;
+  displayName: string;   // what to show in the UI
+  emoji: string;
+}
+
+// Full ImageNet synset → species map
+// Source: ImageNet 1000-class labels (https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a)
+const CLASS_MAP: Record<string, ClassMapping> = {
+  // ── GOAT (n02416519, n02417914) ──────────────────────────────────────────
+  'goat':           { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
+  'ibex':           { species: 'goat',  displayName: 'Goat (Ibex)',  emoji: '🐐' },
+  'domestic goat':  { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
+  'boer goat':      { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
+  'angora goat':    { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
+  'cashmere goat':  { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
+  'nanny':          { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
+  'billy':          { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
+
+  // ── SHEEP (n10588074, n02412080) ─────────────────────────────────────────
+  'sheep':          { species: 'sheep', displayName: 'Sheep', emoji: '🐑' },
+  'ram':            { species: 'sheep', displayName: 'Sheep (Ram)', emoji: '🐑' },
+  'tup':            { species: 'sheep', displayName: 'Sheep', emoji: '🐑' },
+  'ewe':            { species: 'sheep', displayName: 'Sheep (Ewe)', emoji: '🐑' },
+  'lamb':           { species: 'sheep', displayName: 'Sheep (Lamb)', emoji: '🐑' },
+  'bighorn':        { species: 'sheep', displayName: 'Sheep (Bighorn)', emoji: '🐑' },
+  'merino':         { species: 'sheep', displayName: 'Sheep (Merino)', emoji: '🐑' },
+
+  // ── NON-TARGET (shown in "not a goat/sheep" message) ─────────────────────
+  'dog':            { species: 'other', displayName: 'Dog',    emoji: '🐕' },
+  'cat':            { species: 'other', displayName: 'Cat',    emoji: '🐈' },
+  'person':         { species: 'other', displayName: 'Person', emoji: '🧑' },
+  'man':            { species: 'other', displayName: 'Person', emoji: '🧑' },
+  'woman':          { species: 'other', displayName: 'Person', emoji: '🧑' },
+  'human':          { species: 'other', displayName: 'Person', emoji: '🧑' },
+  'face':           { species: 'other', displayName: 'Person', emoji: '🧑' },
+  'cow':            { species: 'other', displayName: 'Cow',    emoji: '🐄' },
+  'cattle':         { species: 'other', displayName: 'Cow',    emoji: '🐄' },
+  'bull':           { species: 'other', displayName: 'Cow',    emoji: '🐄' },
+  'calf':           { species: 'other', displayName: 'Calf',   emoji: '🐄' },
+  'horse':          { species: 'other', displayName: 'Horse',  emoji: '🐴' },
+  'pony':           { species: 'other', displayName: 'Horse',  emoji: '🐴' },
+  'chicken':        { species: 'other', displayName: 'Chicken', emoji: '🐔' },
+  'rooster':        { species: 'other', displayName: 'Chicken', emoji: '🐔' },
+  'hen':            { species: 'other', displayName: 'Chicken', emoji: '🐔' },
+  'bird':           { species: 'other', displayName: 'Bird',   emoji: '🐦' },
+  'pig':            { species: 'other', displayName: 'Pig',    emoji: '🐖' },
+  'hog':            { species: 'other', displayName: 'Pig',    emoji: '🐖' },
+  'car':            { species: 'other', displayName: 'Car',    emoji: '🚗' },
+  'truck':          { species: 'other', displayName: 'Vehicle', emoji: '🚛' },
+  'motorcycle':     { species: 'other', displayName: 'Motorcycle', emoji: '🏍️' },
+  'bicycle':        { species: 'other', displayName: 'Bicycle', emoji: '🚲' },
+  'chair':          { species: 'other', displayName: 'Object', emoji: '🪑' },
+  'table':          { species: 'other', displayName: 'Object', emoji: '🪑' },
+  'llama':          { species: 'other', displayName: 'Llama',  emoji: '🦙' },
+  'alpaca':         { species: 'other', displayName: 'Alpaca', emoji: '🦙' },
+  'deer':           { species: 'other', displayName: 'Deer',   emoji: '🦌' },
+  'elephant':       { species: 'other', displayName: 'Elephant', emoji: '🐘' },
+  'giraffe':        { species: 'other', displayName: 'Giraffe', emoji: '🦒' },
+  'zebra':          { species: 'other', displayName: 'Zebra',  emoji: '🦓' },
+};
+
+// Partial string matches for class names not in the map above
+interface PartialMatch { substr: string; species: Species; displayName: string; emoji: string }
+const PARTIAL_MATCHES: PartialMatch[] = [
+  // Goat substrings
+  { substr: 'goat',  species: 'goat',  displayName: 'Goat',   emoji: '🐐' },
+  { substr: 'capra', species: 'goat',  displayName: 'Goat',   emoji: '🐐' },
+  { substr: 'caprine', species: 'goat', displayName: 'Goat',  emoji: '🐐' },
+  // Sheep substrings
+  { substr: 'sheep', species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
+  { substr: 'lamb',  species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
+  { substr: 'ewe',   species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
+  { substr: ' ram',  species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
+  { substr: 'ovis',  species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
+  { substr: 'merino',species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
+  // Non-target substrings
+  { substr: 'dog',   species: 'other', displayName: 'Dog',    emoji: '🐕' },
+  { substr: 'cat',   species: 'other', displayName: 'Cat',    emoji: '🐈' },
+  { substr: 'person',species: 'other', displayName: 'Person', emoji: '🧑' },
+  { substr: 'human', species: 'other', displayName: 'Person', emoji: '🧑' },
+  { substr: 'cow',   species: 'other', displayName: 'Cow',    emoji: '🐄' },
+  { substr: 'cattle',species: 'other', displayName: 'Cow',    emoji: '🐄' },
+  { substr: 'horse', species: 'other', displayName: 'Horse',  emoji: '🐴' },
+  { substr: 'bird',  species: 'other', displayName: 'Bird',   emoji: '🐦' },
+  { substr: 'chick', species: 'other', displayName: 'Chicken',emoji: '🐔' },
+  { substr: 'pig',   species: 'other', displayName: 'Pig',    emoji: '🐖' },
+  { substr: 'car',   species: 'other', displayName: 'Car',    emoji: '🚗' },
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface DetectionResult {
+  /** True only if a GOAT or SHEEP was detected above threshold */
   detected: boolean;
-  confidence: number;      // 0–1, best matching class confidence
-  topClass: string;        // name of the top detected class
+  /** True if a NON-TARGET object was detected above threshold */
+  otherDetected: boolean;
+  /** 'goat' | 'sheep' | null — only set when detected is true */
+  detectedSpecies: 'goat' | 'sheep' | null;
+  /** Human-readable class of non-target object, e.g. "Dog", "Person" */
+  nonTargetClass: string | null;
+  /** Emoji for the detected class */
+  detectedEmoji: string;
+  /** Confidence 0–1 */
+  confidence: number;
+  /** Raw MobileNet top class name */
+  topClass: string;
+  /** All MobileNet top predictions */
   allClasses: Array<{ className: string; probability: number }>;
-  isStable: boolean;       // true once REQUIRED_STABLE_FRAMES consecutive detections
-  stableFrames: number;    // current count of consecutive detections
+  /** True once REQUIRED_STABLE_FRAMES consecutive goat/sheep detections */
+  isStable: boolean;
+  /** Current stable frame count */
+  stableFrames: number;
 }
 
 // ── Internal state ────────────────────────────────────────────────────────────
 
-let _stableFrameCount = 0;
-let _lastNonDetectionTime = 0;
+let _stableFrameCount  = 0;
+let _lastMissedTime    = 0;
 
-// ── Detection function ────────────────────────────────────────────────────────
+// ── Class lookup ──────────────────────────────────────────────────────────────
+
+function lookupClass(className: string): ClassMapping | null {
+  const lower = className.toLowerCase().trim();
+
+  // 1. Exact map lookup (check each word in comma-separated class name)
+  const parts = lower.split(/[,\s]+/).filter(Boolean);
+  for (const part of parts) {
+    if (CLASS_MAP[part]) return CLASS_MAP[part];
+  }
+
+  // 2. Full string exact lookup
+  if (CLASS_MAP[lower]) return CLASS_MAP[lower];
+
+  // 3. Partial substring match
+  for (const pm of PARTIAL_MATCHES) {
+    if (lower.includes(pm.substr)) {
+      return { species: pm.species, displayName: pm.displayName, emoji: pm.emoji };
+    }
+  }
+
+  return null;
+}
+
+// ── Main detection function ───────────────────────────────────────────────────
 
 /**
- * Classify one video frame using MobileNet and check if a goat/sheep is present.
- * Call this from a setInterval at DETECTION_INTERVAL_MS cadence.
- *
- * @param video  The live <video> element from the camera stream
- * @param model  Loaded MobileNet model (from loadMobileNet())
- * @returns      DetectionResult
+ * Classify one video frame using MobileNet and determine:
+ *   - Is this a goat? → detected = true, detectedSpecies = 'goat'
+ *   - Is this a sheep? → detected = true, detectedSpecies = 'sheep'
+ *   - Is this something else? → otherDetected = true, nonTargetClass = 'Dog'
+ *   - Nothing confident? → all false
  */
 export async function detectGoatInFrame(
   video: HTMLVideoElement,
   model: any,
 ): Promise<DetectionResult> {
+  const empty: DetectionResult = {
+    detected: false, otherDetected: false,
+    detectedSpecies: null, nonTargetClass: null,
+    detectedEmoji: '', confidence: 0,
+    topClass: '', allClasses: [],
+    isStable: false, stableFrames: _stableFrameCount,
+  };
+
   if (!model || video.readyState < 2) {
     _stableFrameCount = 0;
+    return empty;
+  }
+
+  let predictions: Array<{ className: string; probability: number }> = [];
+  try {
+    predictions = await model.classify(video, 5); // top-5 predictions
+  } catch {
+    _stableFrameCount = 0;
+    return empty;
+  }
+
+  // Find the best matching class across all top-5 predictions
+  let bestGoatSheep: { mapping: ClassMapping; confidence: number; rawClass: string } | null = null;
+  let bestOther:     { mapping: ClassMapping; confidence: number; rawClass: string } | null = null;
+
+  for (const pred of predictions) {
+    if (pred.probability < OBJECT_DETECTION_THRESHOLD) continue;
+    const mapping = lookupClass(pred.className);
+    if (!mapping) continue;
+
+    if (mapping.species === 'goat' || mapping.species === 'sheep') {
+      if (!bestGoatSheep || pred.probability > bestGoatSheep.confidence) {
+        bestGoatSheep = { mapping, confidence: pred.probability, rawClass: pred.className };
+      }
+    } else if (mapping.species === 'other') {
+      if (!bestOther || pred.probability > bestOther.confidence) {
+        bestOther = { mapping, confidence: pred.probability, rawClass: pred.className };
+      }
+    }
+  }
+
+  const topPred = predictions[0] ?? { className: '', probability: 0 };
+
+  // ── Decision: goat/sheep wins if confidence >= threshold ─────────────────
+  if (bestGoatSheep && bestGoatSheep.confidence >= GOAT_DETECTION_THRESHOLD) {
+    _stableFrameCount++;
+    _lastMissedTime = 0;
+    return {
+      detected: true,
+      otherDetected: false,
+      detectedSpecies: bestGoatSheep.mapping.species as 'goat' | 'sheep',
+      nonTargetClass: null,
+      detectedEmoji: bestGoatSheep.mapping.emoji,
+      confidence: bestGoatSheep.confidence,
+      topClass: bestGoatSheep.rawClass,
+      allClasses: predictions,
+      isStable: _stableFrameCount >= REQUIRED_STABLE_FRAMES,
+      stableFrames: _stableFrameCount,
+    };
+  }
+
+  // ── Reset stable counter (with grace period for 1 missed frame) ───────────
+  if (_lastMissedTime === 0) {
+    _lastMissedTime = Date.now();
+  } else if (Date.now() - _lastMissedTime > 400) {
+    _stableFrameCount = 0;
+    _lastMissedTime = 0;
+  }
+
+  // ── Other object detected ─────────────────────────────────────────────────
+  if (bestOther && bestOther.confidence >= OBJECT_DETECTION_THRESHOLD) {
     return {
       detected: false,
-      confidence: 0,
-      topClass: '',
-      allClasses: [],
+      otherDetected: true,
+      detectedSpecies: null,
+      nonTargetClass: bestOther.mapping.displayName,
+      detectedEmoji: bestOther.mapping.emoji,
+      confidence: bestOther.confidence,
+      topClass: bestOther.rawClass,
+      allClasses: predictions,
       isStable: false,
       stableFrames: 0,
     };
   }
 
-  let predictions: Array<{ className: string; probability: number }> = [];
-
-  try {
-    // MobileNet .classify() returns top-3 predictions with className + probability
-    predictions = await model.classify(video);
-  } catch {
-    _stableFrameCount = 0;
-    return { detected: false, confidence: 0, topClass: '', allClasses: [], isStable: false, stableFrames: 0 };
-  }
-
-  // Find best matching goat/sheep class
-  let bestConfidence = 0;
-  let bestClass = '';
-
-  for (const pred of predictions) {
-    const nameLower = pred.className.toLowerCase();
-
-    // Exact set match
-    if (GOAT_SHEEP_CLASSES.has(nameLower)) {
-      if (pred.probability > bestConfidence) {
-        bestConfidence = pred.probability;
-        bestClass = pred.className;
-      }
-      continue;
-    }
-
-    // Partial match
-    for (const partial of GOAT_PARTIAL_MATCH) {
-      if (nameLower.includes(partial)) {
-        if (pred.probability > bestConfidence) {
-          bestConfidence = pred.probability;
-          bestClass = pred.className;
-        }
-        break;
-      }
-    }
-  }
-
-  const detected = bestConfidence >= GOAT_DETECTION_THRESHOLD;
-
-  if (detected) {
-    _stableFrameCount++;
-    _lastNonDetectionTime = 0;
-  } else {
-    // Reset stable count after a brief grace period (1 missed frame ok)
-    if (_lastNonDetectionTime === 0) {
-      _lastNonDetectionTime = Date.now();
-    } else if (Date.now() - _lastNonDetectionTime > 400) {
-      // More than 2 missed frames → reset
-      _stableFrameCount = 0;
-      _lastNonDetectionTime = 0;
-    }
-  }
-
+  // ── Nothing recognizable ──────────────────────────────────────────────────
   return {
-    detected,
-    confidence: bestConfidence,
-    topClass: bestClass,
+    ...empty,
+    topClass: topPred.className,
     allClasses: predictions,
-    isStable: _stableFrameCount >= REQUIRED_STABLE_FRAMES,
     stableFrames: _stableFrameCount,
   };
 }
 
-/** Reset stable frame counter (call after a scan completes) */
+/** Reset stable frame counter — call after a scan completes or goat leaves */
 export function resetStableFrameCount(): void {
   _stableFrameCount = 0;
-  _lastNonDetectionTime = 0;
+  _lastMissedTime   = 0;
 }
 
-/**
- * Fallback goat detection using pure-JS pixel analysis.
- * Used when MobileNet is unavailable.
- *
- * Analyzes the color distribution and texture of the frame:
- * - Goats tend to have warm/neutral tones with distinct texture
- * - This is a heuristic, not a trained classifier
- * - Will produce 'low_confidence' results intentionally
- *
- * Returns confidence in range [0, 0.45] — always below threshold
- * unless explicitly confirmed, to avoid false positives.
- */
+/** Fallback pixel-analysis detection when MobileNet is unavailable */
 export function fallbackDetectGoat(video: HTMLVideoElement): DetectionResult {
+  const empty: DetectionResult = {
+    detected: false, otherDetected: false,
+    detectedSpecies: null, nonTargetClass: null,
+    detectedEmoji: '', confidence: 0,
+    topClass: '', allClasses: [],
+    isStable: false, stableFrames: _stableFrameCount,
+  };
+
   const canvas = document.createElement('canvas');
   canvas.width = 64; canvas.height = 64;
   const ctx = canvas.getContext('2d');
-  if (!ctx || video.readyState < 2) {
-    return { detected: false, confidence: 0, topClass: '', allClasses: [], isStable: false, stableFrames: 0 };
-  }
+  if (!ctx || video.readyState < 2) return empty;
 
   ctx.drawImage(video, 0, 0, 64, 64);
   const data = ctx.getImageData(0, 0, 64, 64).data;
 
-  let warmPixels = 0, totalPixels = 0;
-  let textureScore = 0;
-  let prevLum = -1;
-
+  let warm = 0, total = 0, texScore = 0, prevLum = -1;
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-    // Warm/neutral tones (goat-like colors: brown, white, grey, tan)
-    const isWarm = (r > 80 && g > 60 && b < r * 1.2 && lum > 50 && lum < 220);
-    if (isWarm) warmPixels++;
-    totalPixels++;
-
-    // Texture variation
-    if (prevLum >= 0) textureScore += Math.abs(lum - prevLum);
+    if (r > 80 && g > 60 && b < r * 1.2 && lum > 50 && lum < 220) warm++;
+    total++;
+    if (prevLum >= 0) texScore += Math.abs(lum - prevLum);
     prevLum = lum;
   }
 
-  const warmRatio = warmPixels / totalPixels;
-  const avgTexture = textureScore / totalPixels;
-
-  // Heuristic: warm pixels + moderate texture → possible animal
-  // Deliberately conservative — returns low confidence without model
-  const confidence = Math.min(0.40, warmRatio * 0.3 + (avgTexture / 100) * 0.15);
-  const detected = confidence >= GOAT_DETECTION_THRESHOLD;
-
-  return {
-    detected,
-    confidence,
-    topClass: detected ? 'Animal-like pattern (fallback)' : '',
-    allClasses: [],
-    isStable: detected && ++_stableFrameCount >= REQUIRED_STABLE_FRAMES,
-    stableFrames: _stableFrameCount,
-  };
+  const confidence = Math.min(0.38, (warm / total) * 0.3 + (texScore / total / 100) * 0.15);
+  // Fallback never crosses GOAT_DETECTION_THRESHOLD to avoid false positives on non-goats
+  return { ...empty, confidence, stableFrames: _stableFrameCount };
 }
