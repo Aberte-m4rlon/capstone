@@ -1,27 +1,17 @@
 /**
  * useMLScreening.ts — AlpasFarm Tabular Health Screening Hook
  *
- * Calls the local Python ML service (myai_service) to run the trained
- * Random Forest model on an animal's health record data.
+ * UPDATED: Now calls /api/ml/health-screening (Vercel serverless function)
+ * instead of localhost:8000 (Python service).
+ *
+ * The Vercel endpoint implements the trained Random Forest's prediction logic
+ * in TypeScript using the model's scaler parameters and feature importances.
+ * It runs on every Vercel deployment — no Python, no server required.
  *
  * IMPORTANT DISTINCTIONS:
- *   ml_probability      = Random Forest output (synthetic-data model)
+ *   ml_probability      = TypeScript RF approximation output (synthetic-data model)
  *   veterinary_score    = AlpasFarm rule engine score (AUTHORITATIVE)
  *   These are separate values — never combine or equate them.
- *
- * The ML service runs locally at http://localhost:8000
- * It requires the myai_service to be running with the trained model.
- *
- * ARCHITECTURE:
- *   Animal health record
- *     ↓
- *   This hook (browser → localhost:8000)
- *     ↓
- *   Python Random Forest model
- *     ↓
- *   MLScreeningResult
- *     ↓
- *   Displayed alongside (NOT replacing) the veterinary rule score
  */
 
 import { useState, useCallback } from 'react';
@@ -30,100 +20,100 @@ import type { HealthRecord, Animal } from '../types';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface MLTopFeature {
-  feature: string;
-  label: string;
+  feature:    string;
+  label:      string;
   importance: number;
+  value?:     number;
 }
 
 export interface MLScreeningResult {
-  animal_id: string;
-  prediction: 'healthy' | 'suspected_ill';
-  ml_probability: number;           // 0–1 from model (NOT veterinary score)
-  ml_probability_pct: number;       // 0–100
-  screening_status: 'needs_attention' | 'no_concern';
-  risk_label: string;               // "Needs Attention" | "No Obvious Concern"
-  model_version: string;
-  top_features: MLTopFeature[];
-  disclaimer: string;
-  timestamp: string;
-  dataset_type: string;
-  // Returned for traceability — from AlpasFarm rule engine
+  animal_id:            string;
+  prediction:           'healthy' | 'suspected_ill';
+  ml_probability:       number;   // 0–1 (NOT veterinary score)
+  ml_probability_pct:   number;   // 0–100
+  screening_status:     'needs_attention' | 'no_concern';
+  risk_label:           string;
+  model_version:        string;
+  top_features:         MLTopFeature[];
+  disclaimer:           string;
+  timestamp:            string;
+  dataset_type?:        string;
+  note?:                string;
   veterinary_risk_score: number | null;
   veterinary_risk_level: string | null;
-  note: string;
 }
 
-export type MLServiceStatus = 'checking' | 'ready' | 'unavailable' | 'no_model';
+export type MLServiceStatus = 'checking' | 'ready' | 'unavailable';
 
-const ML_SERVICE_URL = 'http://localhost:8000';
+// ── Endpoint (same-origin Vercel serverless) ──────────────────────────────────
+const ML_ENDPOINT = '/api/ml/health-screening';
 
-// ── Build screening request from existing health record ───────────────────────
+// ── Map AlpasFarm health record → ML model input ──────────────────────────────
 
 export function buildScreeningRequest(
   record: HealthRecord,
   animal: Animal,
 ): Record<string, number | string> | null {
-  // temperature and heart_rate are required — skip if missing
   if (record.temperature === null || record.heart_rate === null) return null;
 
-  // Map AlpasFarm fields to ML model fields
   const appetiteMap: Record<string, string> = {
-    'Normal': 'normal',
-    'Reduced': 'reduced',
-    'None': 'poor',    // AlpasFarm 'None' maps to model 'poor'
+    Normal:  'normal',
+    Reduced: 'reduced',
+    None:    'poor',
   };
   const activityMap: Record<string, string> = {
-    'Normal': 'normal',
-    'Low': 'reduced',
-    'Lethargic': 'lethargic',
+    Normal:    'normal',
+    Low:       'reduced',
+    Lethargic: 'lethargic',
   };
 
-  const appetite       = appetiteMap[record.appetite]      ?? 'normal';
+  const appetite       = appetiteMap[record.appetite]       ?? 'normal';
   const activity_level = activityMap[record.activity_level] ?? 'normal';
 
-  // Age in months
   const age_months = animal.date_of_birth
     ? Math.max(1, Math.floor(
-        (Date.now() - new Date(animal.date_of_birth).getTime()) / (30 * 24 * 60 * 60 * 1000)
+        (Date.now() - new Date(animal.date_of_birth).getTime()) / (30 * 24 * 60 * 60 * 1000),
       ))
-    : 24;  // default if unknown
+    : 24;
 
   return {
-    animal_id:            animal.id,
+    animal_id:             animal.id,
     age_months,
-    weight_kg:            Number(animal.weight_kg ?? 35),
-    temperature_c:        Number(record.temperature),
-    heart_rate_bpm:       Number(record.heart_rate),
-    respiratory_rate_bpm: Number(record.respiratory_rate ?? 20),
+    weight_kg:             Number(animal.weight_kg ?? 35),
+    temperature_c:         Number(record.temperature),
+    heart_rate_bpm:        Number(record.heart_rate),
+    respiratory_rate_bpm:  Number((record as any).respiratory_rate ?? 20),
     appetite,
     activity_level,
-    cough:             record.cough            ? 1 : 0,
-    nasal_discharge:   record.nasal_discharge  ? 1 : 0,
-    diarrhea:          record.diarrhea         ? 1 : 0,
-    lameness:          record.gait === 'Slight Limp' || record.gait === 'Severe Limp' || record.gait === 'Cannot Walk' ? 1 : 0,
-    weight_loss_kg_30d: 0,   // not stored in health records, default 0
+    cough:             record.cough           ? 1 : 0,
+    nasal_discharge:   record.nasal_discharge ? 1 : 0,
+    diarrhea:          record.diarrhea        ? 1 : 0,
+    lameness:
+      record.gait === 'Slight Limp' ||
+      record.gait === 'Severe Limp' ||
+      record.gait === 'Cannot Walk' ? 1 : 0,
+    weight_loss_kg_30d:    0,
     veterinary_risk_score: record.risk_score,
     veterinary_risk_level: record.risk_level,
   };
 }
 
-// ── Check ML service availability ────────────────────────────────────────────
+// ── Status check ──────────────────────────────────────────────────────────────
 
 export async function checkMLServiceStatus(): Promise<MLServiceStatus> {
   try {
-    const resp = await fetch(`${ML_SERVICE_URL}/api/ml/health-model/status`, {
-      signal: AbortSignal.timeout(3000),
+    const resp = await fetch(ML_ENDPOINT, {
+      method: 'GET',
+      signal: AbortSignal.timeout(4000),
     });
-    if (!resp.ok) return 'unavailable';
-    const data = await resp.json();
-    if (data.status === 'ready') return 'ready';
-    return 'no_model';
+    if (resp.ok) return 'ready';
+    return 'unavailable';
   } catch {
     return 'unavailable';
   }
 }
 
-// ── Run ML screening for a single record ─────────────────────────────────────
+// ── Run prediction ────────────────────────────────────────────────────────────
 
 export async function runMLScreening(
   record: HealthRecord,
@@ -133,11 +123,11 @@ export async function runMLScreening(
   if (!requestBody) {
     throw new Error(
       'Temperature and heart rate are required for ML screening. ' +
-      'Please complete the health record first.'
+      'Please complete the health record first.',
     );
   }
 
-  const resp = await fetch(`${ML_SERVICE_URL}/api/ml/health-screening`, {
+  const resp = await fetch(ML_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(requestBody),
@@ -145,25 +135,29 @@ export async function runMLScreening(
   });
 
   if (!resp.ok) {
-    const err = await resp.json().catch(() => ({ detail: 'Unknown error' }));
-    if (resp.status === 503) {
-      throw new Error(
-        'ML service is unavailable. Start the MyAI service and ensure the model is trained.'
-      );
-    }
-    throw new Error(err.detail ?? `ML service error (${resp.status})`);
+    let errMsg = `ML service error (${resp.status})`;
+    try {
+      const errBody = await resp.json();
+      if (errBody?.error)   errMsg = errBody.error;
+      if (errBody?.details) errMsg += ': ' + (errBody.details as string[]).join('; ');
+    } catch { /* ignore */ }
+    throw new Error(errMsg);
   }
 
-  return resp.json() as Promise<MLScreeningResult>;
+  const result = await resp.json() as MLScreeningResult;
+  // Attach veterinary context from input for display
+  result.veterinary_risk_score = result.veterinary_risk_score ?? record.risk_score;
+  result.veterinary_risk_level = result.veterinary_risk_level ?? record.risk_level;
+  return result;
 }
 
 // ── React hook ────────────────────────────────────────────────────────────────
 
 export function useMLScreening() {
-  const [result, setResult]     = useState<MLScreeningResult | null>(null);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState<string | null>(null);
-  const [status, setStatus]     = useState<MLServiceStatus>('checking');
+  const [result, setResult]   = useState<MLScreeningResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+  const [status, setStatus]   = useState<MLServiceStatus>('checking');
 
   const checkStatus = useCallback(async () => {
     const s = await checkMLServiceStatus();

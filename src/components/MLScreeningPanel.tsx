@@ -87,9 +87,8 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
         <div>
           <strong style={{ color: 'var(--text)' }}>ML Screening Unavailable</strong>
           <div style={{ marginTop: 2 }}>
-            {status === 'no_model'
-              ? 'Model not trained. Run train_health_model.py in myai_service/.'
-              : 'Start the MyAI service (start_myai.bat) to enable ML screening.'}
+            The tabular ML health screening endpoint is not responding.
+            Vercel deployment may be needed.
           </div>
         </div>
       </div>
