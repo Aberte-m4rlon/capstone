@@ -162,8 +162,13 @@
 html, body, #root {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
-  height: 100%;
+  /* overflow-x: clip instead of hidden — clip blocks horizontal overflow
+     without creating a new scroll container that would break position:sticky */
+  overflow-x: clip;
+  /* min-height instead of height:100% — height:100% on #root creates a
+     fixed-height container which makes .app-layout the scroll container
+     instead of the body, breaking position:sticky on .topbar */
+  min-height: 100%;
 }
 
 
@@ -187,7 +192,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -258,6 +263,19 @@ select:-webkit-autofill:focus {
 }
 
 /* ===== APP LAYOUT ===== */
+/* ===== APP LAYOUT ===== */
+/*
+ * SCROLLING ARCHITECTURE:
+ *   The page body / html scrolls naturally (default browser behavior).
+ *   .app-layout is a flex container — no overflow set here.
+ *   .sidebar is position:fixed — always visible, not in flow.
+ *   .main-area is position:static flex column — overflow-x:clip only.
+ *   .topbar is position:sticky top:0 — sticks to viewport top as body scrolls.
+ *   .content scrolls with the body (no overflow set on .content itself).
+ *
+ * DO NOT add overflow:hidden/auto/scroll to .app-layout or .main-area —
+ * that would create a new scroll container and break position:sticky.
+ */
 .app-layout {
   display: flex;
   min-height: 100vh;
@@ -265,7 +283,7 @@ select:-webkit-autofill:focus {
   background: var(--bg);
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  /* No overflow property — let the body scroll naturally */
 }
 
 /* ===== SIDEBAR (CLEAN MODERN SOLID PANEL) ===== */
@@ -462,10 +480,21 @@ select:-webkit-autofill:focus {
   background: transparent;
   width: calc(100% - 280px);
   max-width: calc(100vw - 280px);
-  overflow-x: hidden;
+  /* overflow-x: clip does NOT create a scroll/stacking context,
+     so position:sticky on .topbar works correctly.
+     overflow-x: hidden would break sticky by creating a containing block. */
+  overflow-x: clip;
 }
 
 /* ===== TOPBAR (CLEAN SOLID BAR) ===== */
+/*
+ * STICKY HEADER FIX:
+ * .topbar uses position:sticky so it stays visible on scroll.
+ * For this to work, .main-area must NOT have overflow:hidden/auto/scroll
+ * (those break sticky by creating a new scroll container).
+ * .main-area uses overflow-x:clip instead — blocks horizontal overflow
+ * without creating a stacking/scroll context, so sticky works correctly.
+ */
 .topbar {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
@@ -476,10 +505,16 @@ select:-webkit-autofill:focus {
   gap: 16px;
   position: sticky;
   top: 0;
-  z-index: 50;
+  /* z-index 90: above page content (cards/tables/forms),
+     below modals (9998+) and sidebar (9999),
+     below AI Cloud (200) */
+  z-index: 90;
   overflow: visible;
   box-shadow: var(--shadow-sm);
   width: 100%;
+  /* Backdrop for glassy look while scrolling */
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
 }
 
 .topbar-left {
@@ -751,7 +786,10 @@ select:-webkit-autofill:focus {
 .content {
   padding: 24px 32px;
   flex: 1;
-  overflow-y: auto;
+  /* Content scrolls with the body — no overflow-y:auto here.
+     overflow-y:auto would create a sub-scroll container which breaks
+     position:sticky on the topbar.
+     The body/html handles all scrolling. */
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
