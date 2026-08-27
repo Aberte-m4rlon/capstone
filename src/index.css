@@ -2328,6 +2328,9 @@ table.data-table {
     gap: 12px;
     flex-wrap: wrap;
     justify-content: space-between;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 90 !important;
   }
 
   .topbar-left {
@@ -2403,7 +2406,8 @@ table.data-table {
     margin-left: 0 !important;
     width: 100% !important;
     max-width: 100vw !important;
-    overflow-x: hidden !important;
+    /* Use clip instead of hidden — hidden breaks position:sticky on .topbar */
+    overflow-x: clip !important;
   }
 
   .topbar {
@@ -2411,6 +2415,10 @@ table.data-table {
     gap: 8px;
     flex-wrap: wrap;
     justify-content: space-between;
+    /* Ensure sticky stays active on mobile */
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 90 !important;
   }
 
   .topbar-left {
@@ -2700,6 +2708,9 @@ table.data-table {
   .topbar {
     padding: 8px 10px;
     gap: 6px;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 90 !important;
   }
 
   .topbar-left {
