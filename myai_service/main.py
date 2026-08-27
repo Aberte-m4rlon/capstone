@@ -20,6 +20,14 @@ load_dotenv()
 
 from system_prompt import SYSTEM_PROMPT
 from farm_tools import build_context
+from health_predictor import (
+    get_model_status,
+    predict as ml_predict,
+    validate_input,
+    ValidationError,
+    VALID_APPETITE,
+    VALID_ACTIVITY,
+)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -249,3 +257,108 @@ async def list_models():
             return r.json()
     except Exception:
         raise HTTPException(status_code=503, detail="Cannot reach Ollama.")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ML HEALTH SCREENING ROUTES
+# ──────────────────────────────────────────────────────────────────────────────
+# These routes use the trained Random Forest model (health_model.joblib).
+#
+# IMPORTANT:
+#   ml_probability  = model output (synthetic-data trained, NOT veterinary)
+#   veterinary_score = AlpasFarm rule engine (authoritative, separate system)
+#   These must NEVER be combined or presented as equivalent.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class HealthScreeningRequest(BaseModel):
+    """
+    Input for the ML health screening endpoint.
+    All fields are required except weight_loss_kg_30d (defaults to 0.0).
+    """
+    animal_id:             str
+    age_months:            float
+    weight_kg:             float
+    temperature_c:         float
+    heart_rate_bpm:        float
+    respiratory_rate_bpm:  float
+    appetite:              str   # normal | reduced | poor
+    activity_level:        str   # normal | reduced | lethargic
+    cough:                 int   # 0 | 1
+    nasal_discharge:       int   # 0 | 1
+    diarrhea:              int   # 0 | 1
+    lameness:              int   # 0 | 1
+    weight_loss_kg_30d:    float = 0.0
+    # Optional farm context (not used in ML, returned in response for traceability)
+    veterinary_risk_score: Optional[int]  = None
+    veterinary_risk_level: Optional[str]  = None
+
+
+@app.get("/api/ml/health-model/status")
+async def ml_model_status():
+    """Check if the ML model is loaded and return metadata."""
+    status = get_model_status()
+    return {
+        "status":       "ready" if status["model_loaded"] else "unavailable",
+        "model_loaded": status["model_loaded"],
+        "error":        status.get("error"),
+        "version":      status["metadata"].get("version") if status.get("metadata") else None,
+        "trained_at":   status["metadata"].get("trained_at") if status.get("metadata") else None,
+        "dataset_type": status["metadata"].get("dataset_type") if status.get("metadata") else None,
+        "disclaimer":   (
+            "Trained on SYNTHETIC data. Not clinically validated. "
+            "Veterinary confirmation required."
+        ),
+    }
+
+
+@app.post("/api/ml/health-screening")
+async def health_screening(req: HealthScreeningRequest):
+    """
+    Run ML health screening for an animal.
+
+    Returns:
+        prediction         : "healthy" | "suspected_ill"
+        ml_probability_pct : 0–100  (model probability, NOT veterinary score)
+        screening_status   : "needs_attention" | "no_concern"
+        risk_label         : human-readable label
+        top_features       : top contributing model features
+        disclaimer         : mandatory veterinary disclaimer
+
+    NOTE: ml_probability is separate from the AlpasFarm veterinary rule score.
+    The veterinary rule engine remains authoritative.
+    """
+    status = get_model_status()
+    if not status["model_loaded"]:
+        raise HTTPException(
+            status_code=503,
+            detail=f"ML model is not available. {status.get('error', '')} Run train_health_model.py."
+        )
+
+    input_dict = req.model_dump(exclude={"animal_id", "veterinary_risk_score", "veterinary_risk_level"})
+
+    try:
+        result = ml_predict(input_dict, animal_id=req.animal_id)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    # Include veterinary context in response for traceability
+    result["veterinary_risk_score"] = req.veterinary_risk_score
+    result["veterinary_risk_level"] = req.veterinary_risk_level
+    result["note"] = (
+        "ml_probability is the model output from training on a SYNTHETIC dataset. "
+        "veterinary_risk_score is the AlpasFarm rule-based score and remains authoritative."
+    )
+
+    return result
+
+
+@app.get("/api/ml/health-screening/model-info")
+async def ml_model_info():
+    """Return full model metadata including evaluation metrics."""
+    status = get_model_status()
+    if not status["model_loaded"] or not status.get("metadata"):
+        raise HTTPException(status_code=503, detail="Model metadata not available.")
+    return status["metadata"]

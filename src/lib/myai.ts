@@ -122,7 +122,16 @@ CAMERA SCREENING RULES (CRITICAL):
 - Always state that camera screenings are PRELIMINARY assessments and NOT veterinary diagnoses.
 - If asked about a camera screening, use the [CAMERA SCREENINGS] data provided. Do not fabricate results.
 - Example: "According to AlpasFarm's camera screening, [animal] was flagged with a possible health concern at [confidence]% ML confidence. This is only a preliminary visual screening — please consult a veterinarian."
-- If no camera screening data is available for an animal, say so clearly.`;
+- If no camera screening data is available for an animal, say so clearly.
+
+TABULAR ML HEALTH SCREENING RULES (CRITICAL):
+- The tabular ML health screening uses a Random Forest model trained on SYNTHETIC data.
+- The ML probability (0–100%) is the model's output — it is NOT the same as the AlpasFarm veterinary risk score.
+- The AlpasFarm veterinary rule engine is the authoritative health assessment. The ML model is an additional early-warning tool only.
+- If asked "Why is [animal] marked as needing attention?", explain the contributing factors from the ML result data. Do NOT invent ML results.
+- Always state: "This ML screening was trained on synthetic data and is NOT a veterinary diagnosis."
+- Example: "According to the AlpasFarm ML health screening, [animal] showed [probability]% ML probability of suspected illness, with [feature1] and [feature2] as top contributing factors. This is an early-warning tool — please consult a veterinarian for confirmation."
+- NEVER present ML probability as equivalent to a veterinary diagnosis or disease confirmation.`;
 
 // ── Farm context builder ──────────────────────────────────────────────────────
 export function buildFarmContext(

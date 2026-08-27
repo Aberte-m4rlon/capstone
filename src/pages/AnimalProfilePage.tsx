@@ -23,6 +23,7 @@ import { MLHealthPanel } from '../components/MLHealthPanel';
 import { CameraScreeningModal } from '../components/CameraScreeningModal';
 import { ScreeningHistoryPanel } from '../components/ScreeningHistoryPanel';
 import { useAnimalScreenings } from '../lib/useCameraScreenings';
+import { MLScreeningPanel } from '../components/MLScreeningPanel';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const healthBadgeColor = (s: HealthStatus) =>
@@ -695,15 +696,22 @@ export function AnimalProfilePage() {
                 {(() => {
                   const latest = [...animalHealth].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[0];
                   const conditions = (latest as any).detected_conditions;
-                  if (!conditions) return null;
                   return (
-                    <div style={{ marginBottom: 14, padding: '12px 14px', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', borderRadius: 12, display: 'flex', gap: 10 }}>
-                      <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', marginBottom: 3 }}>⚠️ Early Illness Detection — Latest Record</div>
-                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{conditions}</p>
+                    <>
+                      {conditions && (
+                        <div style={{ marginBottom: 14, padding: '12px 14px', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', borderRadius: 12, display: 'flex', gap: 10 }}>
+                          <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', marginBottom: 3 }}>⚠️ Early Illness Detection — Latest Record</div>
+                            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{conditions}</p>
+                          </div>
+                        </div>
+                      )}
+                      {/* ML Health Screening — uses trained Random Forest model */}
+                      <div style={{ marginBottom: 16 }}>
+                        <MLScreeningPanel record={latest} animal={animal} />
                       </div>
-                    </div>
+                    </>
                   );
                 })()}
                 <div className="table-wrap">

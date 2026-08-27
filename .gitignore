@@ -13,6 +13,11 @@ node_modules
 myai_service/.venv
 myai_service/__pycache__
 
+# ML model artifacts — binaries, do not commit to git
+# Re-generate by running: python myai_service/train_health_model.py
+myai_service/models/*.joblib
+myai_service/models/*.pkl
+
 # Build output
 dist
 .env*
