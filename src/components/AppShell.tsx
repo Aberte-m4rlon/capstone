@@ -37,7 +37,7 @@ const FARM_MANAGER_NAV: NavSection[] = [
     items: [
       { to: '/dashboard',    label: 'Dashboard',        icon: 'LayoutDashboard' },
       { to: '/animals',      label: 'Animals',          icon: 'PawPrint'        },
-      { to: '/health',       label: 'Health Monitoring', icon: 'HeartPulse'     },
+      { to: '/health',       label: 'Early Illness Prediction', icon: 'HeartPulse' },
       { to: '/breeding',     label: 'Breeding',         icon: 'Heart'           },
       { to: '/weights',      label: 'Weight & Growth',  icon: 'Scale'           },
       { to: '/vaccinations', label: 'Vaccinations',     icon: 'Syringe'         },

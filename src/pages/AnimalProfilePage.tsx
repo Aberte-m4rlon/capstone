@@ -15,7 +15,7 @@ import {
 } from '../lib/analytics';
 import { assessBreedingReadiness } from '../lib/analytics';
 import { Line } from 'react-chartjs-2';
-import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera } from 'lucide-react';
+import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera, Sparkles } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 import { useAnimalMLPrediction, useAnimalRiskHistory } from '../lib/useMLHealth';
@@ -682,8 +682,10 @@ export function AnimalProfilePage() {
         {tab === 'health' && (
           <GlassCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={Activity} title="Health Records" />
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/health')}><Plus size={15} /> Add Record</button>
+              <CardTitle icon={Activity} title="Early Illness & Health Records" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/health')}>
+                <Sparkles size={15} /> Run Early Illness Prediction
+              </button>
             </div>
             {animalHealth.length === 0 ? (
               <div className="empty-state">
@@ -718,9 +720,8 @@ export function AnimalProfilePage() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Date</th><th>Temp</th><th>HR</th><th>RR</th>
-                        <th>FAMACHA</th><th>Bloat</th><th>Gait</th>
-                        <th>Risk</th><th>Detected Conditions</th>
+                        <th>Date</th><th>Temp</th><th>Appetite</th><th>Activity</th>
+                        <th>Risk Score</th><th>Detected Concerns / Reasons</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -728,19 +729,18 @@ export function AnimalProfilePage() {
                         <tr key={r.id}>
                           <td>{formatDate(r.record_date)}</td>
                           <td>{r.temperature ? `${r.temperature}°C` : '—'}</td>
-                          <td>{r.heart_rate ?? '—'}</td>
-                          <td>{(r as any).respiratory_rate ?? '—'}</td>
-                          <td>{(r as any).famacha_score ? `${(r as any).famacha_score}/5` : '—'}</td>
-                          <td>{(r as any).bloat_score !== undefined ? `${(r as any).bloat_score}/3` : '—'}</td>
-                          <td style={{ fontSize: 11 }}>{(r as any).gait ?? '—'}</td>
+                          <td>{r.appetite ?? '—'}</td>
+                          <td>{r.activity_level ?? '—'}</td>
                           <td>
                             <span className={`badge badge-${r.risk_level === 'Low' ? 'green' : r.risk_level === 'Moderate' ? 'yellow' : r.risk_level === 'High' ? 'orange' : 'red'}`}>
-                              {r.risk_level} ({r.risk_score})
+                              {r.risk_level} ({r.risk_score}%)
                             </span>
                           </td>
-                          <td style={{ maxWidth: 200, fontSize: 11 }}>
+                          <td style={{ maxWidth: 260, fontSize: 11 }}>
                             {(r as any).detected_conditions
                               ? <span style={{ color: '#EF4444', fontWeight: 600 }}>{(r as any).detected_conditions}</span>
+                              : r.reasons
+                              ? <span style={{ color: 'var(--text-secondary)' }}>{r.reasons}</span>
                               : <span style={{ color: 'var(--text-secondary)' }}>None</span>}
                           </td>
                         </tr>
