@@ -230,7 +230,11 @@ export function FloatingAICloud() {
     const sys = ctx
       ? `You are MyAI, the AI assistant for AlpasFarm.\nIMPORTANT:\n- Use the REAL farm data below. NEVER invent records.\n- READ-ONLY. Respond in the user's language. Be concise. Consult a vet for medical advice.\n\nFARM DATA:\n${ctx}`
       : `You are MyAI, the AI assistant for AlpasFarm — a Goat & Sheep Farm Management System. Be concise. Respond in the user's language.`;
-    const msgs = [{ role: 'system', content: sys }, ...conv.messages.slice(-10).map((m) => ({ role: m.role, content: m.content })), { role: 'user', content: msg }];
+    const historyMsgs = conv.messages
+      .filter((m) => m && m.content && !m.content.trim().startsWith('⚠️'))
+      .slice(-8)
+      .map((m) => ({ role: m.role, content: m.content.trim() }));
+    const msgs = [{ role: 'system', content: sys }, ...historyMsgs, { role: 'user', content: msg }];
     setStreaming(true); setStreamText('');
     const ctrl = new AbortController(); abortRef.current = ctrl;
     let full = '';
