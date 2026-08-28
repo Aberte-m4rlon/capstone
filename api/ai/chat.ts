@@ -15,7 +15,7 @@ import * as https from 'https';
 
 const GROQ_HOST  = 'api.groq.com';
 const GROQ_PATH  = '/openai/v1/chat/completions';
-const MODEL      = process.env.GROQ_MODEL ?? 'llama-3.1-8b-instant';
+const MODEL      = process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b';
 
 interface Message { role: string; content: string; }
 
