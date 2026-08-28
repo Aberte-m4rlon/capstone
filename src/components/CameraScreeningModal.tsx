@@ -480,9 +480,54 @@ function ScanResultCard({
 
   return (
     <div>
-      {/* Thumbnail */}
+      {/* Thumbnail with Bounding Box Overlay */}
       {capturedUrl && (
-        <img src={capturedUrl} alt="Scanned" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 12, border: '1px solid var(--border)', background: '#000', marginBottom: 14 }} />
+        <div style={{ position: 'relative', width: '100%', maxHeight: 220, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: '#000', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={capturedUrl} alt="Scanned" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', display: 'block' }} />
+          
+          {/* YOLO Bounding Boxes */}
+          {result.boundingBoxes && result.boundingBoxes.map((b, idx) => {
+            const [x1, y1, x2, y2] = b.box;
+            const isTargetGoat = b.class_name === 'goat';
+            const color = isTargetGoat ? '#22C55E' : '#EF4444';
+            const labelText = isTargetGoat ? `Goat ${(b.confidence * 100).toFixed(0)}%` : `${b.class_name.replace('_', ' ')} ${(b.confidence * 100).toFixed(0)}%`;
+
+            return (
+              <div
+                key={idx}
+                style={{
+                  position: 'absolute',
+                  left: `${x1 * 100}%`,
+                  top: `${y1 * 100}%`,
+                  width: `${(x2 - x1) * 100}%`,
+                  height: `${(y2 - y1) * 100}%`,
+                  border: `2px solid ${color}`,
+                  background: isTargetGoat ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.18)',
+                  borderRadius: 4,
+                  pointerEvents: 'none',
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -20,
+                    left: 0,
+                    background: color,
+                    color: '#fff',
+                    fontSize: 10,
+                    fontWeight: 800,
+                    padding: '2px 6px',
+                    borderRadius: 3,
+                    whiteSpace: 'nowrap',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {labelText}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {result.multipleAnimals && (
@@ -498,8 +543,13 @@ function ScanResultCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <div style={{ fontSize: 28 }}>{result.riskLevelEmoji}</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: result.riskLevelColor }}>{result.riskLevelLabel}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>AI Health Screening — {animalName}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 16, fontWeight: 900, color: result.riskLevelColor }}>{result.riskLevelLabel}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: result.detectionEngine === 'yolov8' ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)', color: result.detectionEngine === 'yolov8' ? '#16A34A' : '#3B82F6', border: `1px solid ${result.detectionEngine === 'yolov8' ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)'}` }}>
+                {result.detectionEngine === 'yolov8' ? 'YOLOv8 Vision Scanner' : 'MobileNetV2 Engine'}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>AI Health Screening — {animalName}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 26, fontWeight: 900, color: result.riskLevelColor, lineHeight: 1 }}>{finalScore}%</div>

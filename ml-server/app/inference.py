@@ -315,12 +315,12 @@ def analyze_visual_features(features: np.ndarray) -> List[Dict[str, Any]]:
 def run_predictions(img: Image.Image) -> Dict[str, Any]:
     """
     Main entry point for Python inference:
-      1. Preprocess image.
-      2. Quality check.
-      3. Classify with model.
-      4. Detect animal species.
-      5. Analyze health indicators.
-      6. Build response object.
+      1. Preprocess image & run quality check.
+      2. If YOLOv8 model is available, perform high-precision bounding box detection
+         for goat and specific health indicators (eye_discharge, nasal_discharge,
+         skin_lesion, abnormal_posture, possible_lameness).
+      3. If YOLO is unavailable or yields no detections, fall back to MobileNetV2.
+      4. Return structured predictions with bounding boxes for the frontend scanner.
     """
     start_time = time.time()
     
@@ -334,15 +334,124 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
             "health_status": "low_confidence",
             "health_confidence": 0.0,
             "predictions": [],
+            "bounding_boxes": [],
+            "detection_engine": "quality_gate",
             "recommendation": "Please reposition the camera to ensure good lighting, focus, and that the animal fills the frame.",
-            "model_version": "goat-health-v1.0",
+            "model_version": "goat-health-v2.0",
             "processing_time_ms": int((time.time() - start_time) * 1000),
             "quality_report": q_report,
             "is_reliable": False,
             "disclaimer": "Preliminary AI screening result. Always consult a veterinarian."
         }
 
-    # 2. Image Preprocessing for MobileNetV2
+    # Ensure RGB
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    loader = ModelLoader()
+
+    # 2. Attempt YOLOv8 Detection Pipeline
+    yolo_detections = loader.get_yolo_detections(img, conf_threshold=0.20)
+    
+    if yolo_detections is not None and len(yolo_detections) > 0:
+        # Check if goat or health indicators are detected
+        goat_dets = [d for d in yolo_detections if d["class_name"] == "goat"]
+        indicator_dets = [d for d in yolo_detections if d["class_name"] != "goat"]
+
+        species = "goat" if (goat_dets or indicator_dets) else "unknown"
+        species_confidence = max([d["confidence"] for d in goat_dets], default=0.85) if goat_dets else (0.80 if indicator_dets else 0.0)
+
+        indicators = []
+        for det in indicator_dets:
+            cname = det["class_name"]
+            conf = det["confidence"]
+            box = det["box"]
+
+            if cname == "eye_discharge":
+                indicators.append({
+                    "indicator": "VISIBLE_EYE_ABNORMALITY",
+                    "label": "Visible Eye Discharge",
+                    "riskPoints": 20,
+                    "confidence": round(conf, 3),
+                    "description": f"Ocular discharge detected by YOLO scanner (confidence: {int(conf*100)}%).",
+                    "bounding_box": box
+                })
+            elif cname == "nasal_discharge":
+                indicators.append({
+                    "indicator": "VISIBLE_DISCHARGE",
+                    "label": "Visible Nasal Discharge",
+                    "riskPoints": 20,
+                    "confidence": round(conf, 3),
+                    "description": f"Nasal discharge / mucous detected by YOLO scanner (confidence: {int(conf*100)}%).",
+                    "bounding_box": box
+                })
+            elif cname == "skin_lesion":
+                indicators.append({
+                    "indicator": "VISIBLE_SKIN_ABNORMALITY",
+                    "label": "Visible Skin Lesion",
+                    "riskPoints": 15,
+                    "confidence": round(conf, 3),
+                    "description": f"Skin lesion or coat irregularity detected by YOLO scanner (confidence: {int(conf*100)}%).",
+                    "bounding_box": box
+                })
+            elif cname == "abnormal_posture":
+                indicators.append({
+                    "indicator": "ABNORMAL_POSTURE",
+                    "label": "Abnormal Posture",
+                    "riskPoints": 20,
+                    "confidence": round(conf, 3),
+                    "description": f"Unusual posture or hunched stance detected by YOLO scanner (confidence: {int(conf*100)}%).",
+                    "bounding_box": box
+                })
+            elif cname == "possible_lameness":
+                indicators.append({
+                    "indicator": "POSSIBLE_LAMENESS",
+                    "label": "Possible Lameness / Gait Abnormality",
+                    "riskPoints": 20,
+                    "confidence": round(conf, 3),
+                    "description": f"Limb or gait asymmetry detected by YOLO scanner (confidence: {int(conf*100)}%).",
+                    "bounding_box": box
+                })
+
+        if not indicators:
+            indicators.append({
+                "indicator": "NORMAL",
+                "label": "Normal Appearance",
+                "riskPoints": 0,
+                "confidence": 0.92,
+                "description": "No visual lesions, discharge, or posture abnormalities detected by YOLOv8.",
+                "bounding_box": None
+            })
+
+        total_risk_points = sum(i["riskPoints"] for i in indicators)
+        if total_risk_points >= 20:
+            health_status = "potentially_abnormal"
+            rec = "YOLO scanner detected potential health indicators. Please inspect the animal and consult a veterinarian."
+        else:
+            health_status = "healthy"
+            rec = "Goat appears healthy based on YOLO visual screening. Continue regular health tracking."
+
+        avg_conf = sum(i["confidence"] for i in indicators) / len(indicators)
+        health_conf = min(0.98, species_confidence * 0.3 + avg_conf * 0.7)
+
+        return {
+            "success": True,
+            "species": species,
+            "species_confidence": float(species_confidence),
+            "health_status": health_status,
+            "health_confidence": float(health_conf),
+            "predictions": indicators,
+            "bounding_boxes": yolo_detections,
+            "detection_engine": "yolov8",
+            "recommendation": rec,
+            "model_version": "goat-yolov8-v2.0",
+            "processing_time_ms": int((time.time() - start_time) * 1000),
+            "quality_report": q_report,
+            "is_reliable": health_conf >= LOW_CONFIDENCE_THRESHOLD,
+            "disclaimer": "Preliminary AI screening result. It is NOT a definitive diagnosis. Always consult a licensed veterinarian."
+        }
+
+    # 3. Fallback: Image Preprocessing for MobileNetV2
     preprocess = transforms.Compose([
         transforms.Resize(224),
         transforms.CenterCrop(224),
@@ -350,17 +459,12 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
     
-    # Ensure RGB
-    if img.mode != "RGB":
-        img = img.convert("RGB")
-        
     tensor_img = preprocess(img).unsqueeze(0)  # Shape [1, 3, 224, 224]
 
-    # 3. Model Inference
-    loader = ModelLoader()
+    # Model Inference
     features, class_probs = loader.get_inference_outputs(tensor_img)
 
-    # 4. Species Detection mapping
+    # Species Detection mapping
     species, sp_conf, non_target, best_prob = map_predictions(class_probs)
 
     if species == "other" or species == "unknown":
@@ -372,6 +476,8 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
             "health_status": "low_confidence",
             "health_confidence": 0.0,
             "predictions": [],
+            "bounding_boxes": [],
+            "detection_engine": "mobilenet_v2",
             "recommendation": f"Please point the camera at a goat or sheep. {msg}",
             "model_version": "goat-health-v1.0",
             "processing_time_ms": int((time.time() - start_time) * 1000),
@@ -380,14 +486,10 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
             "disclaimer": "Not a goat or sheep. Visual health analysis will not execute."
         }
 
-    # 5. Visual Health Indicator Analysis
+    # Visual Health Indicator Analysis
     indicators = analyze_visual_features(features)
-    abnormal = [i for i in indicators if i["indicator"] != "NORMAL"]
-
-    # Calculate overall risk point total
     total_risk_points = sum(i["riskPoints"] for i in indicators)
     
-    # Determine Health Status
     if total_risk_points >= 20:
         health_status = "potentially_abnormal"
         rec = "Potential abnormality detected. Please perform manual checks and consult a qualified veterinarian."
@@ -395,11 +497,9 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
         health_status = "healthy"
         rec = "No visual abnormalities detected. Continue regular health monitoring."
 
-    # Mean confidence
     avg_conf = sum(i["confidence"] for i in indicators) / len(indicators)
     health_confidence = min(0.95, sp_conf * 0.4 + avg_conf * 0.6)
 
-    # Compile result
     return {
         "success": True,
         "species": species,
@@ -407,6 +507,8 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
         "health_status": health_status,
         "health_confidence": float(health_confidence),
         "predictions": indicators,
+        "bounding_boxes": [],
+        "detection_engine": "mobilenet_v2",
         "recommendation": rec,
         "model_version": "goat-health-v1.0",
         "processing_time_ms": int((time.time() - start_time) * 1000),
@@ -414,3 +516,4 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
         "is_reliable": health_confidence >= LOW_CONFIDENCE_THRESHOLD,
         "disclaimer": "This is a preliminary AI screening result. It is NOT a veterinary diagnosis. Always consult a licensed veterinarian."
     }
+

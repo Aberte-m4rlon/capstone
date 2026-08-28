@@ -79,11 +79,14 @@ def verify_api_key(x_api_key: str = Header(None)):
 @app.get("/health", response_model=schemas.HealthResponse)
 async def health():
     loader = ModelLoader()
+    engine = "yolov8" if loader.yolo_model is not None else ("mobilenet_v2" if loader.model is not None else "loading")
     return schemas.HealthResponse(
         status="healthy",
-        model_loaded=loader.model is not None,
-        model_version=config.MODEL_VERSION
+        model_loaded=(loader.yolo_model is not None or loader.model is not None),
+        model_version="goat-yolov8-v2.0" if loader.yolo_model is not None else config.MODEL_VERSION,
+        detection_engine=engine
     )
+
 
 @app.post("/api/v1/predict", response_model=schemas.PredictResponse)
 async def predict(

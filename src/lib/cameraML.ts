@@ -117,6 +117,14 @@ export interface DetectedIndicator {
   riskPoints: number;
   confidence: number;   // 0–1 confidence in this specific indicator
   description: string;
+  boundingBox?: number[] | null;  // [x1, y1, x2, y2] normalized 0..1
+}
+
+export interface BoundingBoxDetection {
+  class_id: number;
+  class_name: string;
+  confidence: number;
+  box: number[]; // [x1, y1, x2, y2] normalized 0..1
 }
 
 export interface ImageQualityReport {
@@ -140,6 +148,8 @@ export interface ScanResult {
   multipleAnimals: boolean;
   nonTargetClass?: string | null;
   species?: 'goat' | 'sheep' | 'other' | 'unknown' | string | null;
+  boundingBoxes?: BoundingBoxDetection[];
+  detectionEngine?: string;
 
   // Risk scoring
   riskScore: number;         // 0–100, transparent additive scoring
@@ -1123,6 +1133,8 @@ export async function runHealthScan(
         multipleAnimals: !!serverResult.quality_report?.issues?.includes('multiple_animals'),
         nonTargetClass: null,
         species: serverResult.species,
+        boundingBoxes: serverResult.bounding_boxes || [],
+        detectionEngine: serverResult.detection_engine || 'yolov8',
         riskScore,
         riskLevel,
         riskLevelLabel: riskMeta.label,
