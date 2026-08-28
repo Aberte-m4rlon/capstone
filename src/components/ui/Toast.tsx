@@ -171,7 +171,17 @@ export type ToastHook = ((message: string, type?: ToastType) => void) & ToastCon
 
 export function useToast(): ToastHook {
   const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used within ToastProvider');
+  if (!ctx) {
+    const fallbackFn = ((msg: string, type?: ToastType) => {
+      console.warn('[Toast]', type, msg);
+    }) as ToastHook;
+    fallbackFn.toast = (msg: string, type?: ToastType) => console.warn('[Toast]', type, msg);
+    fallbackFn.success = (msg: string) => console.warn('[Toast success]', msg);
+    fallbackFn.error = (msg: string) => console.warn('[Toast error]', msg);
+    fallbackFn.warning = (msg: string) => console.warn('[Toast warning]', msg);
+    fallbackFn.info = (msg: string) => console.warn('[Toast info]', msg);
+    return fallbackFn;
+  }
 
   const fn = ((message: string, type?: ToastType) => {
     ctx.toast(message, type);

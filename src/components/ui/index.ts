@@ -11,3 +11,4 @@ export * from './EmptyState';
 export * from './ErrorState';
 export * from './ResponsiveGrid';
 export * from './DataTable';
+export * from './ErrorBoundary';
