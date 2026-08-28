@@ -23,7 +23,7 @@ export function defaultRouteForRole(role: UserRole | null): string {
 export function canAccessRoute(role: UserRole | null, route: string): boolean {
   if (!role) return false;
   if (role === 'super_admin') return true; // super admin can access everything
-  if (role === 'system_admin') return route === '/admin';
+  if (role === 'system_admin') return route !== '/super-admin';
   return route !== '/admin' && route !== '/super-admin';
 }
 

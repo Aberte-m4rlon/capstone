@@ -72,6 +72,9 @@ function RequireRole({
 
   if (!user) return <Navigate to="/login" replace />;
 
+  // Super Admin has full permission to access all routes in the system
+  if (role === 'super_admin') return <>{children}</>;
+
   if (!role || !allowed.includes(role)) {
     return (
       <div
@@ -95,7 +98,6 @@ function RequireRole({
           you believe this is a mistake.
         </p>
         <Navigate to={
-          role === 'super_admin' ? '/super-admin' :
           role === 'system_admin' ? '/admin' : '/dashboard'
         } replace />
       </div>
@@ -106,6 +108,8 @@ function RequireRole({
 }
 
 // ─── Route tree ───────────────────────────────────────────────────────────────
+
+const ALL_FARM_ROLES: UserRole[] = ['farm_manager', 'super_admin', 'system_admin'];
 
 function AppRoutes() {
   const { user, role, loading } = useAuth();
@@ -136,26 +140,26 @@ function AppRoutes() {
   return (
     <AppShell>
       <Routes>
-        {/* ── Farm Manager ONLY routes ── */}
-        <Route path="/dashboard" element={<RequireRole allowed={['farm_manager']}><Dashboard /></RequireRole>} />
-        <Route path="/animals" element={<RequireRole allowed={['farm_manager']}><AnimalsPage /></RequireRole>} />
-        <Route path="/animals/:id" element={<RequireRole allowed={['farm_manager']}><AnimalProfilePage /></RequireRole>} />
-        <Route path="/health" element={<RequireRole allowed={['farm_manager']}><HealthPage /></RequireRole>} />
-        <Route path="/breeding" element={<RequireRole allowed={['farm_manager']}><BreedingPage /></RequireRole>} />
-        <Route path="/weights" element={<RequireRole allowed={['farm_manager']}><WeightsPage /></RequireRole>} />
-        <Route path="/vaccinations" element={<RequireRole allowed={['farm_manager']}><VaccinationsPage /></RequireRole>} />
-        <Route path="/feed" element={<RequireRole allowed={['farm_manager']}><FeedPage /></RequireRole>} />
-        <Route path="/inventory" element={<RequireRole allowed={['farm_manager']}><InventoryPage /></RequireRole>} />
-        <Route path="/analytics" element={<RequireRole allowed={['farm_manager']}><AnalyticsPage /></RequireRole>} />
-        <Route path="/reports" element={<RequireRole allowed={['farm_manager']}><ReportsPage /></RequireRole>} />
-        <Route path="/recommendations" element={<RequireRole allowed={['farm_manager']}><RecommendationsPage /></RequireRole>} />
-        <Route path="/daily-alerts" element={<RequireRole allowed={['farm_manager']}><DailyAlertsPage /></RequireRole>} />
-        <Route path="/notifications" element={<RequireRole allowed={['farm_manager']}><NotificationsPage /></RequireRole>} />
-        <Route path="/scanner" element={<RequireRole allowed={['farm_manager']}><ScannerPage /></RequireRole>} />
-        <Route path="/activity-log" element={<RequireRole allowed={['farm_manager']}><ActivityLogPage /></RequireRole>} />
-        <Route path="/settings" element={<RequireRole allowed={['farm_manager']}><SettingsPage /></RequireRole>} />
-        <Route path="/myai" element={<RequireRole allowed={['farm_manager']}><MyAIPage /></RequireRole>} />
-        <Route path="/camera-screening" element={<RequireRole allowed={['farm_manager']}><CameraScreeningPage /></RequireRole>} />
+        {/* ── Farm Management routes ── */}
+        <Route path="/dashboard" element={<RequireRole allowed={ALL_FARM_ROLES}><Dashboard /></RequireRole>} />
+        <Route path="/animals" element={<RequireRole allowed={ALL_FARM_ROLES}><AnimalsPage /></RequireRole>} />
+        <Route path="/animals/:id" element={<RequireRole allowed={ALL_FARM_ROLES}><AnimalProfilePage /></RequireRole>} />
+        <Route path="/health" element={<RequireRole allowed={ALL_FARM_ROLES}><HealthPage /></RequireRole>} />
+        <Route path="/breeding" element={<RequireRole allowed={ALL_FARM_ROLES}><BreedingPage /></RequireRole>} />
+        <Route path="/weights" element={<RequireRole allowed={ALL_FARM_ROLES}><WeightsPage /></RequireRole>} />
+        <Route path="/vaccinations" element={<RequireRole allowed={ALL_FARM_ROLES}><VaccinationsPage /></RequireRole>} />
+        <Route path="/feed" element={<RequireRole allowed={ALL_FARM_ROLES}><FeedPage /></RequireRole>} />
+        <Route path="/inventory" element={<RequireRole allowed={ALL_FARM_ROLES}><InventoryPage /></RequireRole>} />
+        <Route path="/analytics" element={<RequireRole allowed={ALL_FARM_ROLES}><AnalyticsPage /></RequireRole>} />
+        <Route path="/reports" element={<RequireRole allowed={ALL_FARM_ROLES}><ReportsPage /></RequireRole>} />
+        <Route path="/recommendations" element={<RequireRole allowed={ALL_FARM_ROLES}><RecommendationsPage /></RequireRole>} />
+        <Route path="/daily-alerts" element={<RequireRole allowed={ALL_FARM_ROLES}><DailyAlertsPage /></RequireRole>} />
+        <Route path="/notifications" element={<RequireRole allowed={ALL_FARM_ROLES}><NotificationsPage /></RequireRole>} />
+        <Route path="/scanner" element={<RequireRole allowed={ALL_FARM_ROLES}><ScannerPage /></RequireRole>} />
+        <Route path="/activity-log" element={<RequireRole allowed={ALL_FARM_ROLES}><ActivityLogPage /></RequireRole>} />
+        <Route path="/settings" element={<RequireRole allowed={ALL_FARM_ROLES}><SettingsPage /></RequireRole>} />
+        <Route path="/myai" element={<RequireRole allowed={ALL_FARM_ROLES}><MyAIPage /></RequireRole>} />
+        <Route path="/camera-screening" element={<RequireRole allowed={ALL_FARM_ROLES}><CameraScreeningPage /></RequireRole>} />
 
         {/* ── System Admin routes ── */}
         <Route path="/admin" element={<RequireRole allowed={['system_admin', 'super_admin']}><AdminPage /></RequireRole>} />

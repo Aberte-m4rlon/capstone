@@ -96,8 +96,8 @@ export function AppShell({ children }: AppShellProps) {
         <main className="content">{children}</main>
       </div>
 
-      {/* AI Cloud Floating Assistant for Farm Managers */}
-      {isFarmManager && <FloatingAICloud />}
+      {/* AI Cloud Floating Assistant */}
+      <FloatingAICloud />
     </div>
   );
 }

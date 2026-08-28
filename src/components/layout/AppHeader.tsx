@@ -67,7 +67,7 @@ export function AppHeader({
 
   // ── Search logic ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!isFarmManager || !searchQuery.trim() || searchQuery.length < 2) {
+    if (!searchQuery.trim() || searchQuery.length < 2) {
       setSearchResults([]);
       setSearchOpen(false);
       return;
@@ -128,7 +128,7 @@ export function AppHeader({
 
     setSearchResults(results);
     setSearchOpen(results.length > 0);
-  }, [searchQuery, animals, inventory, vaccinations, breedingRecords, isFarmManager]);
+  }, [searchQuery, animals, inventory, vaccinations, breedingRecords]);
 
   // ── Close dropdowns on outside click ─────────────────────────────────────
   useEffect(() => {
@@ -176,62 +176,60 @@ export function AppHeader({
         </div>
       </div>
 
-      {/* Topbar Search — Farm Managers */}
-      {isFarmManager && (
-        <div className="topbar-search" ref={searchRef}>
-          <Search className="search-icon" size={16} />
-          <input
-            type="text"
-            placeholder="Search animals, inventory, vaccines..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
-              aria-label="Clear search"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--color-text-muted, #64748B)',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 4px',
-              }}
-            >
-              <X size={14} />
-            </button>
-          )}
+      {/* Topbar Search */}
+      <div className="topbar-search" ref={searchRef}>
+        <Search className="search-icon" size={16} />
+        <input
+          type="text"
+          placeholder="Search animals, inventory, vaccines..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
+            aria-label="Clear search"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--color-text-muted, #64748B)',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 4px',
+            }}
+          >
+            <X size={14} />
+          </button>
+        )}
 
-          {searchOpen && (
-            <div className="search-results">
-              {Object.entries(groupedResults).map(([group, items]) => (
-                <div key={group}>
-                  <div className="search-group-label">{group}</div>
-                  {items.map((r, i) => (
-                    <div
-                      key={i}
-                      className="search-result-item"
-                      onClick={() => {
-                        navigate(r.link);
-                        setSearchQuery('');
-                        setSearchOpen(false);
-                      }}
-                    >
-                      <div>
-                        <div>{r.label}</div>
-                        <div className="sr-sub">{r.sub}</div>
-                      </div>
+        {searchOpen && (
+          <div className="search-results">
+            {Object.entries(groupedResults).map(([group, items]) => (
+              <div key={group}>
+                <div className="search-group-label">{group}</div>
+                {items.map((r, i) => (
+                  <div
+                    key={i}
+                    className="search-result-item"
+                    onClick={() => {
+                      navigate(r.link);
+                      setSearchQuery('');
+                      setSearchOpen(false);
+                    }}
+                  >
+                    <div>
+                      <div>{r.label}</div>
+                      <div className="sr-sub">{r.sub}</div>
                     </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Topbar Right Actions */}
       <div className="topbar-actions">
@@ -246,87 +244,85 @@ export function AppHeader({
         </button>
 
         {/* Notifications Dropdown */}
-        {isFarmManager && (
-          <div ref={notifRef} style={{ position: 'relative' }}>
-            <button
-              className="topbar-icon-btn"
-              onClick={() => setNotifOpen(!notifOpen)}
-              aria-label="Notifications"
-            >
-              <Bell size={18} />
-              {unreadNotifs > 0 && <span className="notif-dot" />}
-            </button>
-            {notifOpen && (
-              <div className="profile-dropdown notif-dropdown">
-                <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p style={{ fontWeight: 700 }}>Notifications</p>
-                  {unreadNotifs > 0 && (
-                    <button className="btn-ghost btn-sm" onClick={markAllRead}>
-                      Mark all read
-                    </button>
-                  )}
-                </div>
-                <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-                  {notifications.length === 0 && (
-                    <div className="search-empty">No notifications</div>
-                  )}
-                  {notifications.slice(0, 10).map((n) => (
-                    <div
-                      key={n.id}
-                      className="pd-item"
-                      style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
-                      onClick={() => {
-                        if (n.link) navigate(n.link);
-                        setNotifOpen(false);
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+        <div ref={notifRef} style={{ position: 'relative' }}>
+          <button
+            className="topbar-icon-btn"
+            onClick={() => setNotifOpen(!notifOpen)}
+            aria-label="Notifications"
+          >
+            <Bell size={18} />
+            {unreadNotifs > 0 && <span className="notif-dot" />}
+          </button>
+          {notifOpen && (
+            <div className="profile-dropdown notif-dropdown">
+              <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontWeight: 700 }}>Notifications</p>
+                {unreadNotifs > 0 && (
+                  <button className="btn-ghost btn-sm" onClick={markAllRead}>
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                {notifications.length === 0 && (
+                  <div className="search-empty">No notifications</div>
+                )}
+                {notifications.slice(0, 10).map((n) => (
+                  <div
+                    key={n.id}
+                    className="pd-item"
+                    style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
+                    onClick={() => {
+                      if (n.link) navigate(n.link);
+                      setNotifOpen(false);
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                      <span
+                        className={`badge badge-${
+                          n.priority === 'Critical'
+                            ? 'red'
+                            : n.priority === 'Warning'
+                            ? 'orange'
+                            : n.priority === 'Success'
+                            ? 'green'
+                            : 'blue'
+                        }`}
+                      >
+                        {n.type}
+                      </span>
+                      {!n.read && (
                         <span
-                          className={`badge badge-${
-                            n.priority === 'Critical'
-                              ? 'red'
-                              : n.priority === 'Warning'
-                              ? 'orange'
-                              : n.priority === 'Success'
-                              ? 'green'
-                              : 'blue'
-                          }`}
-                        >
-                          {n.type}
-                        </span>
-                        {!n.read && (
-                          <span
-                            style={{
-                              width: 7,
-                              height: 7,
-                              borderRadius: '50%',
-                              background: 'var(--color-primary, #FF6A2A)',
-                            }}
-                          />
-                        )}
-                      </div>
-                      <span style={{ fontWeight: 600, fontSize: 12 }}>{n.title}</span>
-                      {n.description && (
-                        <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)' }}>
-                          {n.description}
-                        </span>
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: '50%',
+                            background: 'var(--color-primary, #FF6A2A)',
+                          }}
+                        />
                       )}
                     </div>
-                  ))}
-                </div>
-                <div
-                  className="pd-item"
-                  onClick={() => {
-                    navigate('/notifications');
-                    setNotifOpen(false);
-                  }}
-                >
-                  View all notifications
-                </div>
+                    <span style={{ fontWeight: 600, fontSize: 12 }}>{n.title}</span>
+                    {n.description && (
+                      <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)' }}>
+                        {n.description}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-        )}
+              <div
+                className="pd-item"
+                onClick={() => {
+                  navigate('/notifications');
+                  setNotifOpen(false);
+                }}
+              >
+                View all notifications
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* User Profile Menu */}
         <div className="profile-menu" ref={profileRef}>

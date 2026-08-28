@@ -31,9 +31,13 @@ export const FARM_MANAGER_NAV: NavSection[] = [
     ],
   },
   {
-    heading: 'Tools',
+    heading: 'Tools & Intelligence',
     items: [
-      { to: '/daily-alerts',     label: 'Alerts',               icon: 'Bell'            },
+      { to: '/recommendations',  label: 'Recommendations',     icon: 'Lightbulb'       },
+      { to: '/daily-alerts',     label: 'Daily Alerts',         icon: 'Bell'            },
+      { to: '/notifications',    label: 'Notifications',        icon: 'ClipboardList'   },
+      { to: '/scanner',          label: 'QR Scanner',           icon: 'QrCode'          },
+      { to: '/activity-log',     label: 'Activity Log',         icon: 'Activity'        },
       { to: '/myai',             label: 'AI Cloud',             icon: 'Bot'             },
     ],
   },
@@ -49,19 +53,21 @@ export const ADMIN_NAV: NavSection[] = [
   {
     heading: 'Administration',
     items: [
-      { to: '/admin', label: 'Admin Panel', icon: 'ShieldAlert' },
+      { to: '/admin',            label: 'Admin Panel',          icon: 'ShieldAlert'     },
     ],
   },
+  ...FARM_MANAGER_NAV,
 ];
 
 export const SUPER_ADMIN_NAV: NavSection[] = [
   {
-    heading: 'System',
+    heading: 'Administration',
     items: [
-      { to: '/super-admin', label: 'Overview',    icon: 'Crown'       },
-      { to: '/admin',       label: 'Admin Panel', icon: 'ShieldAlert' },
+      { to: '/super-admin',      label: 'Super Admin',          icon: 'Crown'           },
+      { to: '/admin',            label: 'Admin Panel',          icon: 'ShieldAlert'     },
     ],
   },
+  ...FARM_MANAGER_NAV,
 ];
 
 export interface AppSidebarProps {
