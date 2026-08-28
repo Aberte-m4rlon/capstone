@@ -30,6 +30,8 @@
  * MODEL VERSION: goat-health-v1.0
  */
 
+import { supabase } from './supabase';
+
 // ── Lazy TF.js imports ────────────────────────────────────────────────────────
 type TFModule = typeof import('@tensorflow/tfjs');
 type MobileNetModule = typeof import('@tensorflow-models/mobilenet');
@@ -1018,6 +1020,96 @@ export async function runHealthScan(
   const timestamp = new Date().toISOString();
   const scanType = options.scanType ?? 'image';
 
+  // ── Step A: Try Production ML Inference Server via Vercel proxy ──────────
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || '';
+
+    // Convert canvas frame to JPEG blob
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (!blob) throw new Error('Canvas conversion to blob failed');
+
+    const formData = new FormData();
+    formData.append('image', blob, 'scan.jpg');
+
+    const resp = await fetch('/api/ml/predict', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData,
+    });
+
+    if (resp.ok) {
+      const serverResult = await resp.json();
+
+      // Parse indicators returned by the server
+      const indicators = serverResult.predictions || [];
+      const { riskScore, riskLevel, combinedRiskScore, combinedFactors } =
+        calculateRiskScore(indicators, options.farmContext);
+
+      const riskMeta = riskLevelMeta(riskLevel);
+      const { recommendation, actions } = buildRecommendation(
+        riskLevel,
+        indicators,
+        options.animalName,
+      );
+
+      const abnormal = indicators.filter((i: any) => i.indicator !== 'NORMAL');
+      let explanation = `AI Health Scanner analyzed ${options.animalName ?? 'the animal'} using production server ML. `;
+      if (abnormal.length > 0) {
+        explanation += `Detected indicators: ${abnormal.map((i: any) => i.label).join(', ')}. `;
+        explanation += `These are visual observations only — not a veterinary diagnosis. `;
+      } else {
+        explanation += 'No obvious visual abnormalities were detected. ';
+      }
+      explanation += `Risk score: ${combinedRiskScore ?? riskScore}/100 (${riskLevel}). `;
+      if (combinedFactors.length > 0) {
+        explanation += `Combined with farm data: ${combinedFactors.slice(0, 3).join('; ')}.`;
+      }
+
+      const finalScore = combinedRiskScore ?? riskScore;
+      const prediction: ScanResult['prediction'] =
+        finalScore >= 51 ? 'possible_health_concern' :
+        finalScore === 0 || !abnormal.length ? 'normal_appearance' :
+        finalScore >= 21 ? 'possible_health_concern' : 'normal_appearance';
+
+      return {
+        goatDetected: serverResult.species === 'goat' || serverResult.species === 'sheep',
+        goatDetectionConfidence: serverResult.species_confidence,
+        multipleAnimals: !!serverResult.quality_report.issues.includes('multiple_animals'),
+        riskScore,
+        riskLevel,
+        riskLevelLabel: riskMeta.label,
+        riskLevelColor: riskMeta.color,
+        riskLevelEmoji: riskMeta.emoji,
+        confidence: serverResult.health_confidence,
+        confidencePercent: Math.round(serverResult.health_confidence * 100),
+        indicators,
+        primaryIndicators: abnormal.slice(0, 3).map((i: any) => i.label),
+        combinedRiskScore,
+        combinedFactors,
+        recommendation,
+        recommendedActions: actions,
+        explanation,
+        modelVersion: serverResult.model_version || MODEL_VERSION,
+        scanType,
+        timestamp,
+        qualityReport: serverResult.quality_report,
+        disclaimer: serverResult.disclaimer,
+        isReliable: serverResult.is_reliable,
+        prediction,
+        label: riskMeta.label,
+        labelColor: riskMeta.color,
+      };
+    } else {
+      console.warn(`[AlpasFarm Camera ML] Server proxy status ${resp.status}, falling back to local TF.js`);
+    }
+  } catch (err) {
+    console.warn('[AlpasFarm Camera ML] Server proxy call failed, falling back to local TF.js:', err);
+  }
+
+  // ── Step B: Local In-Browser Fallback ──────────────────────────────────────
   // Step 1: Image quality check
   const qualityReport = await assessImageQuality(canvas);
 
