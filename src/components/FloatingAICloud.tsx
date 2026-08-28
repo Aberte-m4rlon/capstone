@@ -372,8 +372,20 @@ export function FloatingAICloud() {
                     <div style={{ marginTop: 16, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: 'rgba(255,255,255,0.55)', display: 'flex', gap: 7, alignItems: 'flex-start', textAlign: 'left' }}>
                       <AlertCircle size={13} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
                       <div>
-                        <div style={{ fontWeight: 700, color: '#EF4444', marginBottom: 3 }}>AI service temporarily unavailable</div>
-                        {AI_MODE === 'local' ? 'Start Ollama locally.' : 'Ensure GROQ_API_KEY is set in Vercel environment variables.'}
+                        <div style={{ fontWeight: 700, color: '#EF4444', marginBottom: 3 }}>
+                          {aiStatus === 'offline' ? 'Ollama is not running' :
+                           aiStatus === 'no_model' ? 'Ollama model not found' :
+                           'AI service not configured'}
+                        </div>
+                        {aiStatus === 'offline' && 'Start Ollama on your computer, then click Retry.'}
+                        {aiStatus === 'no_model' && `Pull the model first: ollama pull ${import.meta.env.VITE_OLLAMA_MODEL ?? 'qwen2.5:1.5b'}`}
+                        {aiStatus === 'unavailable' && (
+                          <span>
+                            Add <code style={{ background: 'rgba(255,255,255,0.12)', padding: '1px 5px', borderRadius: 3 }}>GROQ_API_KEY</code> in{' '}
+                            <strong>Vercel Dashboard → Settings → Environment Variables</strong>,
+                            then redeploy.
+                          </span>
+                        )}
                         <button onClick={() => { setRetryCount((n) => n + 1); checkStatus(); }} style={{ display: 'block', marginTop: 7, padding: '4px 12px', borderRadius: 6, background: 'rgba(255,106,42,0.18)', border: '1px solid rgba(255,106,42,0.30)', color: '#FF7A18', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                           <RefreshCw size={10} style={{ marginRight: 4, verticalAlign: 'middle' }} />Retry
                         </button>

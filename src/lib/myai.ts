@@ -5,11 +5,12 @@
  *   Browser → Ollama localhost:11434 directly
  *
  * PRODUCTION  (VITE_AI_MODE=production, or env not set):
- *   Browser → /api/ai/chat (Vercel serverless) → Groq API
- *   API key never reaches the browser.
+ *   Browser → POST /api/ai/chat (Vercel serverless) → Groq API
+ *   The Groq API key is NEVER exposed to the browser.
+ *   Set GROQ_API_KEY in Vercel Dashboard → Settings → Environment Variables.
  *
  * Farm context is built from Supabase data already loaded by the
- * authenticated user's session — no extra DB queries needed here.
+ * authenticated user's session.
  */
 
 // ── Provider detection ────────────────────────────────────────────────────────
@@ -18,18 +19,16 @@ export type AIMode = 'local' | 'production';
 export const AI_MODE: AIMode =
   (import.meta.env.VITE_AI_MODE as AIMode) === 'local' ? 'local' : 'production';
 
-// Local Ollama config
-const OLLAMA_URL = import.meta.env.VITE_OLLAMA_URL ?? 'http://localhost:11434';
+// Local Ollama config (used only when VITE_AI_MODE=local)
+const OLLAMA_URL   = import.meta.env.VITE_OLLAMA_URL   ?? 'http://localhost:11434';
 const OLLAMA_MODEL = import.meta.env.VITE_OLLAMA_MODEL ?? 'qwen2.5:1.5b';
 
-// Production: Groq direct (capstone/demo mode — key scoped to this project)
-// For a production SaaS, move this to a server-side proxy.
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY as string | undefined;
-const GROQ_MODEL = 'llama-3.1-8b-instant';
+// Production endpoint — the Vercel serverless function holds the API key
+// NEVER call Groq directly from the browser — CORS + key exposure
+const VERCEL_AI_ENDPOINT = '/api/ai/chat';
 
 // Supabase Edge Function fallback (if deployed)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL as string;
 const EDGE_ENDPOINT = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/ai-chat` : null;
 
 export const MYAI_MODEL = AI_MODE === 'local' ? OLLAMA_MODEL : 'MyAI Cloud';
@@ -60,7 +59,7 @@ export type AIStatus =
 
 // ── Status check ──────────────────────────────────────────────────────────────
 export async function checkAIStatus(): Promise<AIStatus> {
-  // Local mode: test Ollama first
+  // Local mode: test Ollama directly
   if (AI_MODE === 'local') {
     try {
       const r = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
@@ -70,36 +69,30 @@ export async function checkAIStatus(): Promise<AIStatus> {
         const hasModel = models.some((m) => m.includes(OLLAMA_MODEL.split(':')[0]));
         return hasModel ? 'online' : 'no_model';
       }
+      return 'offline';
     } catch {
-      // Ollama not reachable — check if /api/ai/chat is available as fallback
+      return 'offline';
     }
   }
 
-  // Production / fallback: ping /api/ai/chat with an OPTIONS-like test
-  // We don't send a real message — just check if the endpoint responds
+  // Production: probe /api/ai/chat
+  // 400 = endpoint exists + GROQ_API_KEY is set (returned for empty messages) → 'production'
+  // 503 = endpoint exists but GROQ_API_KEY missing in Vercel              → 'unavailable'
+  // 404 = function not deployed yet                                        → 'unavailable'
+  // network error = local dev without Vercel dev server                   → 'unavailable'
   try {
-    const r = await fetch('/api/ai/chat', {
+    const r = await fetch(VERCEL_AI_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // Send an empty messages array — server will return 400, not 503/404
-      // 400 = endpoint exists and is configured; 503 = missing key; 404 = not deployed
-      body: JSON.stringify({ messages: [] }),
-      signal: AbortSignal.timeout(5000),
+      body: JSON.stringify({ messages: [] }),   // empty → 400 (not 503) when key exists
+      signal: AbortSignal.timeout(6000),
     });
-    // 400 = endpoint works, just bad input — AI is available
-    // 503 = endpoint works, key missing — unavailable
-    // 404 = endpoint not deployed yet
     if (r.status === 400 || r.status === 200) return 'production';
-    if (r.status === 503) return 'unavailable';
-    if (r.status === 404) {
-      // /api/ai/chat not deployed — try direct Groq if key available
-      if (GROQ_KEY) return 'production';
-      return 'unavailable';
-    }
-    return 'production';
+    if (r.status === 503) return 'unavailable';   // key missing
+    if (r.status === 404) return 'unavailable';   // not deployed
+    if (r.status === 429) return 'production';    // rate limited but reachable
+    return 'production';   // other codes still mean the endpoint is there
   } catch {
-    // Network error — likely local dev without Vercel functions
-    if (GROQ_KEY) return 'production';
     return 'unavailable';
   }
 }
@@ -323,58 +316,47 @@ export async function* streamChat(
   onToken: (token: string) => void,
   signal?: AbortSignal,
 ): AsyncGenerator<void> {
+  // LOCAL mode: use Ollama running on the developer's machine
   if (AI_MODE === 'local') {
     try {
       yield* _streamOllama(messages, onToken, signal);
       return;
     } catch (ollamaErr) {
-      // Ollama unavailable — fall through to cloud AI
-      console.warn('[AlpasFarm AI] Ollama unavailable, trying cloud AI:', ollamaErr);
+      // Ollama not running — fall through to production path
+      console.warn('[AlpasFarm AI] Ollama unavailable, trying /api/ai/chat:', ollamaErr);
     }
   }
 
-  // Production path — ALWAYS go through /api/ai/chat Vercel function.
-  // This keeps the API key server-side and avoids Groq CORS restrictions.
+  // PRODUCTION path — always route through /api/ai/chat (Vercel serverless).
+  // The Groq API key is kept server-side. Direct browser→Groq is CORS-blocked
+  // in production and would also leak the API key.
   try {
     yield* _streamViaVercel(messages, onToken, signal);
     return;
   } catch (vercelErr) {
-    // /api/ai/chat failed (e.g. local dev without Vercel functions)
-    // Fall back to direct Groq only if running locally with the key
-    console.warn('[AlpasFarm AI] /api/ai/chat failed, trying direct Groq fallback:', vercelErr);
-  }
-
-  if (GROQ_KEY) {
-    try {
-      yield* _streamGroqDirect(messages, onToken, signal);
-      return;
-    } catch (groqErr) {
-      console.warn('[AlpasFarm AI] Direct Groq failed:', groqErr);
-      if (EDGE_ENDPOINT) {
+    // /api/ai/chat failed — check if we have a Supabase Edge Function fallback
+    console.warn('[AlpasFarm AI] /api/ai/chat failed:', vercelErr);
+    if (EDGE_ENDPOINT) {
+      try {
         yield* _streamEdgeFunction(messages, onToken, signal);
         return;
+      } catch (edgeErr) {
+        console.warn('[AlpasFarm AI] Supabase Edge Function also failed:', edgeErr);
       }
-      throw groqErr;
     }
+    throw vercelErr;   // re-throw the original error with its descriptive message
   }
-
-  if (EDGE_ENDPOINT) {
-    yield* _streamEdgeFunction(messages, onToken, signal);
-    return;
-  }
-
-  throw new Error('AI service is not configured. Please check that GROQ_API_KEY is set in Vercel environment variables.');
 }
 
 // ── Primary production path: /api/ai/chat (Vercel serverless) ────────────────
 // The Vercel function holds the GROQ_API_KEY server-side.
-// It accepts the messages array and returns SSE tokens.
+// It accepts the messages array and returns SSE: data: {"token":"..."}
 async function* _streamViaVercel(
   messages: Array<{ role: string; content: string }>,
   onToken: (token: string) => void,
   signal?: AbortSignal,
 ): AsyncGenerator<void> {
-  const resp = await fetch('/api/ai/chat', {
+  const resp = await fetch(VERCEL_AI_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages }),
@@ -382,22 +364,37 @@ async function* _streamViaVercel(
   });
 
   if (!resp.ok) {
+    // Read the error body for a descriptive message
     let errMsg = `AI service error (${resp.status}).`;
+    let errCode = '';
     try {
       const errBody = await resp.json();
       if (errBody?.error) errMsg = errBody.error;
+      if (errBody?.code)  errCode = errBody.code;
     } catch { /* ignore parse error */ }
 
-    if (resp.status === 503) throw new Error('AI is not configured on the server. Add GROQ_API_KEY to Vercel environment variables.');
-    if (resp.status === 401) throw new Error('Authentication error. Please try signing out and back in.');
-    if (resp.status === 429) throw new Error('AI is temporarily busy. Please try again in a moment.');
-    if (resp.status === 404) throw new Error('/api/ai/chat endpoint not found. Ensure Vercel deployment is up to date.');
+    // Map HTTP status to actionable user messages
+    if (resp.status === 503 || errCode === 'NO_API_KEY') {
+      throw new Error('AI service is not configured for production. Set GROQ_API_KEY in Vercel Dashboard → Settings → Environment Variables.');
+    }
+    if (resp.status === 502 && errCode === 'INVALID_KEY') {
+      throw new Error('The AI API key is invalid. Verify GROQ_API_KEY in Vercel environment variables.');
+    }
+    if (resp.status === 429 || errCode === 'RATE_LIMIT') {
+      throw new Error('AI is temporarily busy (rate limit). Please wait a moment and try again.');
+    }
+    if (resp.status === 404) {
+      throw new Error('AI endpoint not found. Check that Vercel deployment includes api/ai/chat.ts.');
+    }
+    if (resp.status === 405) {
+      throw new Error('AI endpoint configuration error (405). Check vercel.json rewrites.');
+    }
     throw new Error(errMsg);
   }
 
-  // The Vercel function returns SSE: data: {"token":"..."}\n\n
+  // Parse SSE stream: data: {"token":"..."} or data: {"done":true}
   const reader = resp.body?.getReader();
-  if (!reader) throw new Error('No response stream from AI service.');
+  if (!reader) throw new Error('No response stream from AI service. Please try again.');
   const decoder = new TextDecoder();
   let buffer = '';
 
@@ -412,68 +409,23 @@ async function* _streamViaVercel(
       if (!t || !t.startsWith('data: ')) continue;
       try {
         const d = JSON.parse(t.slice(6));
+        if (d?.error) throw new Error(d.error);
         if (d?.token) onToken(d.token);
         if (d?.done) return;
-      } catch { /* skip malformed SSE chunk */ }
+      } catch (parseErr) {
+        // Re-throw actual errors, skip malformed SSE chunks
+        if (parseErr instanceof SyntaxError) continue;
+        throw parseErr;
+      }
     }
     yield;
   }
 }
 
-// ── Groq direct (browser → Groq API) ─────────────────────────────────────────
-async function* _streamGroqDirect(
-  messages: Array<{ role: string; content: string }>,
-  onToken: (token: string) => void,
-  signal?: AbortSignal,
-): AsyncGenerator<void> {
-  const resp = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${GROQ_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: messages.slice(-20),
-      stream: true,
-      temperature: 0.7,
-      max_tokens: 1024,
-    }),
-    signal,
-  });
-
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => '');
-    if (resp.status === 401) throw new Error('Invalid AI API key. Please contact the administrator.');
-    if (resp.status === 429) throw new Error('AI is temporarily busy. Please try again in a moment.');
-    throw new Error(`AI service error (${resp.status}). Please try again.`);
-  }
-
-  const reader = resp.body?.getReader();
-  if (!reader) throw new Error('No response stream from AI provider.');
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-    for (const line of lines) {
-      const t = line.trim();
-      if (!t || t === 'data: [DONE]') { if (t === 'data: [DONE]') return; continue; }
-      if (!t.startsWith('data: ')) continue;
-      try {
-        const d = JSON.parse(t.slice(6));
-        const token = d?.choices?.[0]?.delta?.content ?? '';
-        if (token) onToken(token);
-        if (d?.choices?.[0]?.finish_reason === 'stop') return;
-      } catch { /* skip malformed */ }
-    }
-    yield;
-  }
-}
+// ── Direct Groq function removed ──────────────────────────────────────────────
+// Browser → Groq direct calls are CORS-blocked in production and would expose
+// the API key. All production AI goes through /api/ai/chat (Vercel serverless).
+// This function is intentionally removed.
 
 // ── Supabase Edge Function streaming ─────────────────────────────────────────
 async function* _streamEdgeFunction(
