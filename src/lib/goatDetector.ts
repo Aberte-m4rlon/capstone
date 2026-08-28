@@ -23,11 +23,11 @@
 
 // ── Configurable constants ────────────────────────────────────────────────────
 
-export const OBJECT_DETECTION_THRESHOLD = 0.25;
-export const GOAT_DETECTION_THRESHOLD   = 0.25;   // same as object threshold
-export const REQUIRED_STABLE_FRAMES     = 5;
-export const SCAN_COOLDOWN_SECONDS      = 8;
-export const DETECTION_INTERVAL_MS      = 200;
+export const OBJECT_DETECTION_THRESHOLD = 0.18;
+export const GOAT_DETECTION_THRESHOLD   = 0.18;   // 18% threshold for responsive detection
+export const REQUIRED_STABLE_FRAMES     = 2;      // 2 frames (400ms) for fast 2-second scan
+export const SCAN_COOLDOWN_SECONDS      = 5;      // 5s cooldown
+export const DETECTION_INTERVAL_MS      = 200;    // ~5 FPS detection cadence
 
 // ── ImageNet classes → species mapping ───────────────────────────────────────
 //
@@ -54,6 +54,15 @@ const CLASS_MAP: Record<string, ClassMapping> = {
   'cashmere goat':  { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
   'nanny':          { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
   'billy':          { species: 'goat',  displayName: 'Goat',  emoji: '🐐' },
+  'kid':            { species: 'goat',  displayName: 'Goat (Kid)',  emoji: '🐐' },
+  'chamois':        { species: 'goat',  displayName: 'Goat (Chamois)', emoji: '🐐' },
+  'goral':          { species: 'goat',  displayName: 'Goat (Goral)', emoji: '🐐' },
+  'tahr':           { species: 'goat',  displayName: 'Goat (Tahr)', emoji: '🐐' },
+  'serow':          { species: 'goat',  displayName: 'Goat (Serow)', emoji: '🐐' },
+  'gazelle':        { species: 'goat',  displayName: 'Goat / Gazelle', emoji: '🐐' },
+  'impala':         { species: 'goat',  displayName: 'Goat / Impala', emoji: '🐐' },
+  'hartebeest':     { species: 'goat',  displayName: 'Goat / Antelope', emoji: '🐐' },
+  'antelope':       { species: 'goat',  displayName: 'Goat / Antelope', emoji: '🐐' },
 
   // ── SHEEP (n10588074, n02412080) ─────────────────────────────────────────
   'sheep':          { species: 'sheep', displayName: 'Sheep', emoji: '🐑' },
@@ -63,6 +72,7 @@ const CLASS_MAP: Record<string, ClassMapping> = {
   'lamb':           { species: 'sheep', displayName: 'Sheep (Lamb)', emoji: '🐑' },
   'bighorn':        { species: 'sheep', displayName: 'Sheep (Bighorn)', emoji: '🐑' },
   'merino':         { species: 'sheep', displayName: 'Sheep (Merino)', emoji: '🐑' },
+  'mouflon':        { species: 'sheep', displayName: 'Sheep (Mouflon)', emoji: '🐑' },
 
   // ── NON-TARGET (shown in "not a goat/sheep" message) ─────────────────────
   'dog':            { species: 'other', displayName: 'Dog',    emoji: '🐕' },
@@ -102,28 +112,43 @@ const CLASS_MAP: Record<string, ClassMapping> = {
 interface PartialMatch { substr: string; species: Species; displayName: string; emoji: string }
 const PARTIAL_MATCHES: PartialMatch[] = [
   // Goat substrings
-  { substr: 'goat',  species: 'goat',  displayName: 'Goat',   emoji: '🐐' },
-  { substr: 'capra', species: 'goat',  displayName: 'Goat',   emoji: '🐐' },
-  { substr: 'caprine', species: 'goat', displayName: 'Goat',  emoji: '🐐' },
+  { substr: 'goat',    species: 'goat',  displayName: 'Goat',            emoji: '🐐' },
+  { substr: 'capra',   species: 'goat',  displayName: 'Goat',            emoji: '🐐' },
+  { substr: 'caprine', species: 'goat',  displayName: 'Goat',            emoji: '🐐' },
+  { substr: 'ibex',    species: 'goat',  displayName: 'Goat (Ibex)',     emoji: '🐐' },
+  { substr: 'chamois', species: 'goat',  displayName: 'Goat (Chamois)',  emoji: '🐐' },
+  { substr: 'goral',   species: 'goat',  displayName: 'Goat (Goral)',    emoji: '🐐' },
+  { substr: 'tahr',    species: 'goat',  displayName: 'Goat (Tahr)',     emoji: '🐐' },
+  { substr: 'serow',   species: 'goat',  displayName: 'Goat (Serow)',    emoji: '🐐' },
+  { substr: 'bezoar',  species: 'goat',  displayName: 'Goat',            emoji: '🐐' },
+  { substr: 'gazelle', species: 'goat',  displayName: 'Goat / Gazelle',  emoji: '🐐' },
+  { substr: 'impala',  species: 'goat',  displayName: 'Goat / Antelope', emoji: '🐐' },
+  { substr: 'hartebeest', species: 'goat', displayName: 'Goat / Antelope', emoji: '🐐' },
+  { substr: 'antelope',species: 'goat',  displayName: 'Goat / Antelope', emoji: '🐐' },
   // Sheep substrings
-  { substr: 'sheep', species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
-  { substr: 'lamb',  species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
-  { substr: 'ewe',   species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
-  { substr: ' ram',  species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
-  { substr: 'ovis',  species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
-  { substr: 'merino',species: 'sheep', displayName: 'Sheep',  emoji: '🐑' },
+  { substr: 'sheep',   species: 'sheep', displayName: 'Sheep',           emoji: '🐑' },
+  { substr: 'lamb',    species: 'sheep', displayName: 'Sheep (Lamb)',    emoji: '🐑' },
+  { substr: 'ewe',     species: 'sheep', displayName: 'Sheep (Ewe)',     emoji: '🐑' },
+  { substr: 'ram',     species: 'sheep', displayName: 'Sheep (Ram)',     emoji: '🐑' },
+  { substr: 'tup',     species: 'sheep', displayName: 'Sheep',           emoji: '🐑' },
+  { substr: 'ovis',    species: 'sheep', displayName: 'Sheep',           emoji: '🐑' },
+  { substr: 'merino',  species: 'sheep', displayName: 'Sheep (Merino)',  emoji: '🐑' },
+  { substr: 'mouflon', species: 'sheep', displayName: 'Sheep (Mouflon)', emoji: '🐑' },
+  { substr: 'bighorn', species: 'sheep', displayName: 'Sheep (Bighorn)', emoji: '🐑' },
   // Non-target substrings
-  { substr: 'dog',   species: 'other', displayName: 'Dog',    emoji: '🐕' },
-  { substr: 'cat',   species: 'other', displayName: 'Cat',    emoji: '🐈' },
-  { substr: 'person',species: 'other', displayName: 'Person', emoji: '🧑' },
-  { substr: 'human', species: 'other', displayName: 'Person', emoji: '🧑' },
-  { substr: 'cow',   species: 'other', displayName: 'Cow',    emoji: '🐄' },
-  { substr: 'cattle',species: 'other', displayName: 'Cow',    emoji: '🐄' },
-  { substr: 'horse', species: 'other', displayName: 'Horse',  emoji: '🐴' },
-  { substr: 'bird',  species: 'other', displayName: 'Bird',   emoji: '🐦' },
-  { substr: 'chick', species: 'other', displayName: 'Chicken',emoji: '🐔' },
-  { substr: 'pig',   species: 'other', displayName: 'Pig',    emoji: '🐖' },
-  { substr: 'car',   species: 'other', displayName: 'Car',    emoji: '🚗' },
+  { substr: 'dog',     species: 'other', displayName: 'Dog',     emoji: '🐕' },
+  { substr: 'cat',     species: 'other', displayName: 'Cat',     emoji: '🐈' },
+  { substr: 'person',  species: 'other', displayName: 'Person',  emoji: '🧑' },
+  { substr: 'human',   species: 'other', displayName: 'Person',  emoji: '🧑' },
+  { substr: 'man',     species: 'other', displayName: 'Person',  emoji: '🧑' },
+  { substr: 'woman',   species: 'other', displayName: 'Person',  emoji: '🧑' },
+  { substr: 'cow',     species: 'other', displayName: 'Cow',     emoji: '🐄' },
+  { substr: 'cattle',  species: 'other', displayName: 'Cow',     emoji: '🐄' },
+  { substr: 'horse',   species: 'other', displayName: 'Horse',   emoji: '🐴' },
+  { substr: 'bird',    species: 'other', displayName: 'Bird',    emoji: '🐦' },
+  { substr: 'chick',   species: 'other', displayName: 'Chicken', emoji: '🐔' },
+  { substr: 'pig',     species: 'other', displayName: 'Pig',     emoji: '🐖' },
+  { substr: 'car',     species: 'other', displayName: 'Car',     emoji: '🚗' },
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────

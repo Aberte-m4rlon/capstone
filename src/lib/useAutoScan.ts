@@ -277,13 +277,26 @@ export function useAutoScan(options: {
       setState('stable');
       stateRef.current = 'stable';
 
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 250));
       if (!mountedRef.current || stateRef.current !== 'stable') return;
 
       const canvas = captureVideoFrame(video);
       await runScan(canvas, sp);
     }
   }, [videoRef, runScan]);
+
+  // ── Manual Instant Scan ───────────────────────────────────────────────────
+  const triggerManualScan = useCallback(async (customCanvas?: HTMLCanvasElement) => {
+    if (scanningRef.current) return;
+    let canvas = customCanvas;
+    if (!canvas) {
+      const video = videoRef.current;
+      if (!video || video.readyState < 2) return;
+      canvas = captureVideoFrame(video);
+    }
+    const sp = detectedSpecies || (detection?.detectedSpecies) || 'goat';
+    await runScan(canvas, sp);
+  }, [videoRef, detectedSpecies, detection, runScan]);
 
   // ── Start ─────────────────────────────────────────────────────────────────
   const startAutoScan = useCallback(async () => {
@@ -363,9 +376,11 @@ export function useAutoScan(options: {
     startAutoScan,
     stopAutoScan,
     rescan,
+    triggerManualScan,
   } satisfies AutoScanStatus & {
     startAutoScan: () => void;
     stopAutoScan: () => void;
     rescan: () => void;
+    triggerManualScan: (customCanvas?: HTMLCanvasElement) => Promise<void>;
   };
 }

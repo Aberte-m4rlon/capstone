@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Camera, AlertTriangle, CheckCircle, XCircle, RefreshCw,
   Loader2, Search, Info, WifiOff, ScanLine, History,
-  Save, Ban,
+  Save, Ban, Zap, Upload, ImageIcon,
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -22,6 +22,7 @@ import { useToast } from '../lib/toast';
 import { useAutoScan, type ScanState } from '../lib/useAutoScan';
 import { formatDate } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
+import { fileToCanvas } from '../lib/cameraML';
 import {
   GOAT_DETECTION_THRESHOLD,
   REQUIRED_STABLE_FRAMES,
@@ -93,6 +94,7 @@ export function CameraScreeningPage() {
 
   const videoRef  = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Auto-scan hook ────────────────────────────────────────────────────────
   const autoScan = useAutoScan({
@@ -116,6 +118,25 @@ export function CameraScreeningPage() {
       }
     },
   });
+
+  // ── File upload handler ───────────────────────────────────────────────────
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast('Please select a valid image file.', 'error');
+      return;
+    }
+    try {
+      toast('Processing image for screening...', 'info');
+      const canvas = await fileToCanvas(file);
+      await autoScan.triggerManualScan(canvas);
+    } catch {
+      toast('Could not read image file.', 'error');
+    } finally {
+      if (e.target) e.target.value = '';
+    }
+  }, [autoScan, toast]);
 
   // ── Camera management ─────────────────────────────────────────────────────
   const startCamera = useCallback(async () => {
@@ -338,16 +359,48 @@ export function CameraScreeningPage() {
               </div>
             )}
 
-            {/* Controls */}
+            {/* Action Buttons */}
             {permission === 'granted' && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={autoScan.rescan} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <RefreshCw size={14} /> Rescan
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* Instant Scan Button */}
+                <button
+                  onClick={() => autoScan.triggerManualScan()}
+                  disabled={autoScan.state === 'scanning'}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: autoScan.state === 'scanning' ? 'var(--surface)' : 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                    color: autoScan.state === 'scanning' ? 'var(--text-secondary)' : '#fff',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: autoScan.state === 'scanning' ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxShadow: autoScan.state === 'scanning' ? 'none' : '0 4px 14px rgba(255,59,48,0.35)',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <Zap size={16} /> Instant Scan (Scan Now)
                 </button>
-                <button onClick={() => { stopCamera(); setPermission('pending'); setTimeout(startCamera, 300); }}
-                  style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Camera size={14} /> Restart
-                </button>
+
+                {/* Secondary Controls */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => fileInputRef.current?.click()} style={{ flex: 1, padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    <Upload size={13} /> Upload Photo
+                  </button>
+                  <button onClick={autoScan.rescan} style={{ flex: 1, padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    <RefreshCw size={13} /> Rescan
+                  </button>
+                  <button onClick={() => { stopCamera(); setPermission('pending'); setTimeout(startCamera, 300); }}
+                    style={{ flex: 1, padding: '9px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    <Camera size={13} /> Restart
+                  </button>
+                </div>
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
               </div>
             )}
 
