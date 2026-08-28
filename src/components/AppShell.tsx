@@ -33,30 +33,32 @@ interface NavSection {
 
 const FARM_MANAGER_NAV: NavSection[] = [
   {
-    heading: 'Farm',
+    heading: 'Main',
     items: [
-      { to: '/dashboard',    label: 'Dashboard',        icon: 'LayoutDashboard' },
-      { to: '/animals',      label: 'Animals',          icon: 'PawPrint'        },
-      { to: '/health',       label: 'Early Illness Prediction', icon: 'HeartPulse' },
-      { to: '/breeding',     label: 'Breeding',         icon: 'Heart'           },
-      { to: '/weights',      label: 'Weight & Growth',  icon: 'Scale'           },
-      { to: '/vaccinations', label: 'Vaccinations',     icon: 'Syringe'         },
-      { to: '/feed',         label: 'Feed Management',  icon: 'Wheat'           },
-      { to: '/inventory',    label: 'Inventory',        icon: 'Package'         },
+      { to: '/dashboard',        label: 'Dashboard',            icon: 'LayoutDashboard' },
+      { to: '/animals',          label: 'Animals',              icon: 'PawPrint'        },
+      { to: '/health',           label: 'Health Monitoring',    icon: 'HeartPulse'      },
+      { to: '/camera-screening', label: 'AI Health Scanner',   icon: 'Camera'          },
+      { to: '/breeding',         label: 'Breeding',             icon: 'Heart'           },
+      { to: '/weights',          label: 'Weight & Growth',      icon: 'Scale'           },
+      { to: '/vaccinations',     label: 'Vaccinations',         icon: 'Syringe'         },
+      { to: '/feed',             label: 'Feed Management',      icon: 'Wheat'           },
+      { to: '/inventory',        label: 'Inventory',            icon: 'Package'         },
+      { to: '/analytics',        label: 'Analytics',            icon: 'TrendingUp'      },
+      { to: '/reports',          label: 'Reports',              icon: 'FileBarChart'    },
     ],
   },
   {
-    heading: 'Insights',
+    heading: 'Tools',
     items: [
-      { to: '/reports',          label: 'Reports & Analytics', icon: 'FileBarChart' },
-      { to: '/notifications',    label: 'Notifications',       icon: 'Bell'         },
-      { to: '/camera-screening', label: 'AI Health Scanner',   icon: 'Camera'       },
+      { to: '/daily-alerts',     label: 'Alerts',               icon: 'Bell'            },
+      { to: '/myai',             label: 'AI Cloud',             icon: 'Bot'             },
     ],
   },
   {
     heading: 'System',
     items: [
-      { to: '/settings', label: 'Settings', icon: 'Settings' },
+      { to: '/settings',         label: 'Settings',             icon: 'Settings'        },
     ],
   },
 ];
@@ -160,7 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const lowStock     = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock)).length;
 
   function getBadge(to: string): number {
-    if (to === '/notifications') return unreadNotifs;
+    if (to === '/notifications' || to === '/daily-alerts') return unreadNotifs;
     if (to === '/vaccinations')  return overdueVacc;
     if (to === '/inventory')     return lowStock;
     return 0;
