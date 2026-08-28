@@ -14,14 +14,15 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
+import { Check, X as XIcon, AlertTriangle, Info as InfoIcon } from 'lucide-react';
+
 // ── Icon per type ─────────────────────────────────────────────────────────────
 function ToastIcon({ type }: { type: ToastType }) {
-  const icons: Record<ToastType, string> = {
-    success: '✓',
-    error: '✕',
-    warning: '⚠',
-    info: 'ℹ',
-  };
+  const bg = type === 'success' ? '#16A34A'
+    : type === 'error' ? '#DC2626'
+    : type === 'warning' ? '#D97706'
+    : '#2563EB';
+
   return (
     <span style={{
       display: 'flex',
@@ -30,16 +31,14 @@ function ToastIcon({ type }: { type: ToastType }) {
       width: 22,
       height: 22,
       borderRadius: '50%',
-      fontSize: 12,
-      fontWeight: 900,
       flexShrink: 0,
-      background: type === 'success' ? '#16A34A'
-        : type === 'error' ? '#DC2626'
-        : type === 'warning' ? '#D97706'
-        : '#2563EB',
+      background: bg,
       color: '#fff',
     }}>
-      {icons[type]}
+      {type === 'success' && <Check size={13} strokeWidth={3} />}
+      {type === 'error' && <XIcon size={13} strokeWidth={3} />}
+      {type === 'warning' && <AlertTriangle size={13} strokeWidth={3} />}
+      {type === 'info' && <InfoIcon size={13} strokeWidth={3} />}
     </span>
   );
 }

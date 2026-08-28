@@ -337,7 +337,7 @@ export function CameraScreeningModal({
                         </button>
                       </div>
                       <div style={{ background: 'rgba(255,122,24,0.07)', border: '1px solid rgba(255,122,24,0.2)', borderRadius: 10, padding: '8px 14px', marginTop: 10, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                        ✓ Good lighting · ✓ Full body visible · ✓ Avoid motion blur
+                        Good lighting · Full body visible · Avoid motion blur
                       </div>
                       <button onClick={handleCapture} disabled={!cameraActive} style={{ width: '100%', marginTop: 12, padding: '14px', borderRadius: 12, border: 'none', background: cameraActive ? 'linear-gradient(135deg,#FF3B30,#FF7A18)' : 'var(--surface)', color: cameraActive ? '#fff' : 'var(--text-secondary)', fontSize: 15, fontWeight: 800, cursor: cameraActive ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: cameraActive ? '0 6px 20px rgba(255,59,48,0.35)' : 'none', transition: 'all 0.2s' }}>
                         <Camera size={18} /> Capture Photo
@@ -454,7 +454,9 @@ function ScanResultCard({
           <img src={capturedUrl} alt="Scanned" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 12, border: '1px solid var(--border)', background: '#000', marginBottom: 14 }} />
         )}
         <div style={{ background: 'rgba(239,68,68,0.08)', border: '2px solid rgba(239,68,68,0.4)', borderRadius: 14, padding: '22px 18px', textAlign: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>🚫</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+            <XCircle size={48} color="#EF4444" />
+          </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
             Hindi ito Kambing o Tupa!
           </div>
@@ -464,8 +466,8 @@ function ScanResultCard({
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
             {result.recommendation || 'Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
           </div>
-          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
-            ⚠️ Hindi maaaring i-save ang screening record na ito.
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
+            <AlertTriangle size={14} /> Hindi maaaring i-save ang screening record na ito.
           </div>
         </div>
 
@@ -531,8 +533,8 @@ function ScanResultCard({
       )}
 
       {result.multipleAnimals && (
-        <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#D97706' }}>
-          ⚠ Multiple animals detected. Results may be less accurate.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#D97706' }}>
+          <AlertTriangle size={15} style={{ flexShrink: 0 }} /> Multiple animals detected. Results may be less accurate.
         </div>
       )}
 
@@ -541,7 +543,9 @@ function ScanResultCard({
 
         {/* Status header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <div style={{ fontSize: 28 }}>{result.riskLevelEmoji}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 12, background: `${result.riskLevelColor}20`, border: `1px solid ${result.riskLevelColor}40`, flexShrink: 0 }}>
+            <Activity size={24} color={result.riskLevelColor} />
+          </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 16, fontWeight: 900, color: result.riskLevelColor }}>{result.riskLevelLabel}</span>
@@ -578,8 +582,9 @@ function ScanResultCard({
             <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Image Quality</div>
           </div>
         </div>
-        <div style={{ fontSize: 10, color: 'var(--text-secondary)', background: 'var(--surface)', borderRadius: 6, padding: '5px 8px', marginBottom: 12, lineHeight: 1.5 }}>
-          ℹ️ <strong>AI Confidence</strong> indicates how reliably the model recognized visual patterns — not the probability of disease.
+        <div style={{ fontSize: 10, color: 'var(--text-secondary)', background: 'var(--surface)', borderRadius: 6, padding: '6px 10px', marginBottom: 12, lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Info size={13} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+          <span><strong>AI Confidence</strong> indicates how reliably the model recognized visual patterns — not the probability of disease.</span>
         </div>
 
         {/* Detected indicators */}
@@ -609,8 +614,9 @@ function ScanResultCard({
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Combined with Farm Data</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {result.combinedFactors.map((f, i) => (
-                <div key={i} style={{ fontSize: 11, color: 'var(--text)', padding: '4px 8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 6 }}>
-                  ⚠ {f}
+                <div key={i} style={{ fontSize: 11, color: 'var(--text)', padding: '5px 8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={12} color="#D97706" style={{ flexShrink: 0 }} />
+                  <span>{f}</span>
                 </div>
               ))}
             </div>
@@ -648,7 +654,7 @@ function ScanResultCard({
           <RefreshCw size={14} /> Scan Again
         </button>
         <button onClick={onSave} disabled={saving} style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: saving ? 'var(--surface)' : 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: saving ? 'var(--text-secondary)' : '#fff', fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 6px 20px rgba(255,59,48,0.35)', transition: 'all 0.2s' }}>
-          {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</> : '💾 Save Screening'}
+          {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</> : <><CheckCircle size={15} /> Save Screening</>}
         </button>
       </div>
     </div>

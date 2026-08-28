@@ -1,0 +1,70 @@
+{
+  "scaler_mean": [
+    49.019444444444446,
+    38.50652777777778,
+    39.358333333333334,
+    81.75138888888888,
+    25.1875,
+    0.20430555555555557
+  ],
+  "scaler_std": [
+    26.47136103880784,
+    13.234430019599364,
+    0.8345407918929627,
+    17.906566866931154,
+    7.841988790762484,
+    0.8743065925331419
+  ],
+  "numeric_features": [
+    "age_months",
+    "weight_kg",
+    "temperature_c",
+    "heart_rate_bpm",
+    "respiratory_rate_bpm",
+    "weight_loss_kg_30d"
+  ],
+  "cat_feature_names": [
+    "appetite_normal",
+    "appetite_poor",
+    "appetite_reduced",
+    "activity_level_lethargic",
+    "activity_level_normal",
+    "activity_level_reduced"
+  ],
+  "all_features": [
+    "age_months",
+    "weight_kg",
+    "temperature_c",
+    "heart_rate_bpm",
+    "respiratory_rate_bpm",
+    "weight_loss_kg_30d",
+    "appetite_normal",
+    "appetite_poor",
+    "appetite_reduced",
+    "activity_level_lethargic",
+    "activity_level_normal",
+    "activity_level_reduced",
+    "cough",
+    "nasal_discharge",
+    "diarrhea",
+    "lameness"
+  ],
+  "ohe_categories": {
+    "appetite": [
+      "normal",
+      "poor",
+      "reduced"
+    ],
+    "activity_level": [
+      "lethargic",
+      "normal",
+      "reduced"
+    ]
+  },
+  "n_estimators": 200,
+  "n_features_in": 16,
+  "classes": [
+    0,
+    1
+  ]
+}

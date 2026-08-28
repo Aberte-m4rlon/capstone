@@ -230,7 +230,7 @@ export function PublicAnimalPage() {
           background: 'rgba(255,122,24,0.15)', color: '#FF7A18', letterSpacing: '0.5px',
           textTransform: 'uppercase',
         }}>
-          🔍 QR View
+          QR View
         </span>
       </nav>
 
@@ -391,7 +391,7 @@ export function PublicAnimalPage() {
             {/* Vet disclaimer */}
             <div style={{ background: T.warning, border: `1px solid ${T.warningBorder}`, borderRadius: 12, padding: '12px 14px' }}>
               <p style={{ fontSize: 12, color: T.warningText, margin: 0, lineHeight: 1.5 }}>
-                ⚠️ Health data shown here is for reference only. Always consult a licensed veterinarian (beterinaryo) for medical decisions.
+                [Paalala] Health data shown here is for reference only. Always consult a licensed veterinarian (beterinaryo) for medical decisions.
               </p>
             </div>
           </div>
@@ -427,13 +427,13 @@ export function PublicAnimalPage() {
 
             <div style={{ background: T.warning, border: `1px solid ${T.warningBorder}`, borderRadius: 12, padding: '12px 14px' }}>
               <p style={{ fontSize: 12, color: T.warningText, margin: 0, lineHeight: 1.5 }}>
-                ⚠️ These values reflect the last recorded health check. They do not replace a professional veterinary examination.
+                [Paalala] These values reflect the last recorded health check. They do not replace a professional veterinary examination.
               </p>
             </div>
 
             <div style={{ background: T.info, border: `1px solid ${T.infoBorder}`, borderRadius: 12, padding: '12px 14px' }}>
               <p style={{ fontSize: 12, color: T.infoText, margin: 0, lineHeight: 1.5 }}>
-                📋 Full health records, ML risk analysis, and trend charts are available in the AlpasFarm management system.
+                Full health records, ML risk analysis, and trend charts are available in the AlpasFarm management system.
               </p>
             </div>
           </div>

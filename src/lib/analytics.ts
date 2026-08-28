@@ -196,7 +196,7 @@ export function detectEarlyIllness(input: {
 
   if (pprScore >= 4) {
     conditions.push({
-      condition: '⚠️ Suspected PPR (Peste des Petits Ruminants)',
+      condition: 'Suspected PPR (Peste des Petits Ruminants)',
       severity: 'Critical',
       description: 'Multiple classic PPR symptoms detected: high fever, ocular/nasal discharge, diarrhea, and loss of appetite. PPR is a highly contagious and fatal viral disease in goats and sheep.',
       action: 'ISOLATE IMMEDIATELY. Report to local DA-BAI (Bureau of Animal Industry). Do NOT move animals. No cure — only prevention via vaccination.',

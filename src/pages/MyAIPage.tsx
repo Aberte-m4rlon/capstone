@@ -35,7 +35,7 @@ export function MyAIPage() {
         </h2>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 360 }}>
           The AI Cloud assistant is available on every page.
-          Look for the <strong style={{ color: '#FF7A18' }}>✨ AI Cloud</strong> button
+          Look for the <strong style={{ color: '#FF7A18' }}>AI Cloud</strong> button
           floating at the bottom-right of your screen.
         </p>
       </div>

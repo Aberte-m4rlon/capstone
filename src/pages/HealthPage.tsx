@@ -60,18 +60,17 @@ interface SymptomChip {
   id: string;
   label: string;
   tagalog: string;
-  icon: string;
 }
 
 const AVAILABLE_SYMPTOMS: SymptomChip[] = [
-  { id: 'cough', label: 'Cough', tagalog: 'Ubo', icon: '💨' },
-  { id: 'nasal_discharge', label: 'Nasal Discharge', tagalog: 'Sipon / Tulo ng Ilong', icon: '💧' },
-  { id: 'diarrhea', label: 'Diarrhea', tagalog: 'Pagtatae', icon: '💩' },
-  { id: 'lameness', label: 'Limping / Lameness', tagalog: 'Pilay / Sakit sa Paa', icon: '🦵' },
-  { id: 'pale_membrane', label: 'Pale Eyes / Gums', tagalog: 'Maputlang Mata (Anemia)', icon: '👁️' },
-  { id: 'bloat', label: 'Bloated Belly', tagalog: 'Kabag sa Tiyan', icon: '🎈' },
-  { id: 'rough_coat', label: 'Rough / Scruffy Coat', tagalog: 'Magaspang na Balhibo', icon: '🦔' },
-  { id: 'droopy_head', label: 'Droopy Head / Isolated', tagalog: 'Nakahandusay / Hiwalay', icon: '😔' },
+  { id: 'cough', label: 'Cough', tagalog: 'Ubo' },
+  { id: 'nasal_discharge', label: 'Nasal Discharge', tagalog: 'Sipon / Tulo ng Ilong' },
+  { id: 'diarrhea', label: 'Diarrhea', tagalog: 'Pagtatae' },
+  { id: 'lameness', label: 'Limping / Lameness', tagalog: 'Pilay / Sakit sa Paa' },
+  { id: 'pale_membrane', label: 'Pale Eyes / Gums', tagalog: 'Maputlang Mata (Anemia)' },
+  { id: 'bloat', label: 'Bloated Belly', tagalog: 'Kabag sa Tiyan' },
+  { id: 'rough_coat', label: 'Rough / Scruffy Coat', tagalog: 'Magaspang na Balhibo' },
+  { id: 'droopy_head', label: 'Droopy Head / Isolated', tagalog: 'Nakahandusay / Hiwalay' },
 ];
 
 export function HealthPage() {
@@ -387,8 +386,8 @@ export function HealthPage() {
       if (currentPrediction.isSignificantIncrease || currentPrediction.riskScore >= 65) {
         if (user) {
           const alertTitle = currentPrediction.isSignificantIncrease
-            ? `⚠️ Biglaang Pagtaas ng Risk (${selectedAnimal.name}): +${currentPrediction.riskDelta ?? 0}% risk jump`
-            : `🚨 ${selectedAnimal.name}: Mataas ang Risk ng Sakit (${currentPrediction.riskScore}%)`;
+            ? `Biglaang Pagtaas ng Risk (${selectedAnimal.name}): +${currentPrediction.riskDelta ?? 0}% risk jump`
+            : `${selectedAnimal.name}: Mataas ang Risk ng Sakit (${currentPrediction.riskScore}%)`;
 
           const alertDesc = currentPrediction.possibleConcerns.length > 0
             ? currentPrediction.possibleConcerns.map((c) => c.condition).join(', ')
@@ -475,7 +474,7 @@ export function HealthPage() {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Kabuuan ng mga Hayop</span>
-            <span style={{ fontSize: 20 }}>🐐</span>
+            <Activity size={20} color="var(--text-secondary)" />
           </div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6, color: 'var(--text)' }}>{stats.total}</div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Aktibong kambing at tupa sa farm</div>
@@ -483,7 +482,7 @@ export function HealthPage() {
 
         <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 16, padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>🚨 High Risk (Kritikal)</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>High Risk (Kritikal)</span>
             <ShieldAlert size={20} color="#DC2626" />
           </div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6, color: '#DC2626' }}>{stats.highRisk}</div>
@@ -492,7 +491,7 @@ export function HealthPage() {
 
         <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 16, padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#D97706' }}>⚠️ Moderate Risk (Bantayan)</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#D97706' }}>Moderate Risk (Bantayan)</span>
             <AlertTriangle size={20} color="#D97706" />
           </div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6, color: '#D97706' }}>{stats.modRisk}</div>
@@ -501,7 +500,7 @@ export function HealthPage() {
 
         <div style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: 16, padding: '16px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#16A34A' }}>✅ Malusog / Low Risk</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#16A34A' }}>Malusog / Low Risk</span>
             <CheckCircle2 size={20} color="#16A34A" />
           </div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6, color: '#16A34A' }}>{stats.lowRisk}</div>
@@ -515,7 +514,7 @@ export function HealthPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <ShieldAlert size={22} color="#DC2626" />
             <h3 style={{ fontSize: 16, fontWeight: 800, color: '#991B1B', margin: 0 }}>
-              ⚠️ Mga Hayop na Nangangailangan ng Agarang Atensyon ({significantAlerts.length})
+              Mga Hayop na Nangangailangan ng Agarang Atensyon ({significantAlerts.length})
             </h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 10 }}>
@@ -608,7 +607,7 @@ export function HealthPage() {
             <option value="All">Lahat ng Hayop</option>
             {activeAnimals.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.species === 'Sheep' ? '🐑' : '🐐'} {a.name} ({a.tag_id})
+                [{a.species || 'Goat'}] {a.name} ({a.tag_id})
               </option>
             ))}
           </select>
@@ -658,7 +657,9 @@ export function HealthPage() {
                     onClick={() => setExpandedRecordId(isExpanded ? null : r.id)}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontSize: 24 }}>{sp === 'Sheep' ? '🐑' : '🐐'}</span>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Activity size={18} color="var(--primary)" />
+                      </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{anName}</span>
@@ -686,7 +687,7 @@ export function HealthPage() {
                           color: isHigh ? '#DC2626' : isMod ? '#D97706' : '#16A34A',
                         }}
                       >
-                        {isHigh ? '🚨 High Risk' : isMod ? '⚠️ Moderate Risk' : '✅ Low Risk'} ({score}%)
+                        {isHigh ? 'High Risk' : isMod ? 'Moderate Risk' : 'Low Risk'} ({score}%)
                       </span>
                       {isExpanded ? <ChevronDown size={18} color="var(--text-secondary)" /> : <ChevronRight size={18} color="var(--text-secondary)" />}
                     </div>
@@ -698,7 +699,7 @@ export function HealthPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6 }}>
-                            📋 Mga Sinuring Datos (Clinical & History)
+                            Mga Sinuring Datos (Clinical & History)
                           </div>
                           <ul style={{ fontSize: 13, color: 'var(--text)', margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
                             {r.temperature && <li>Temperatura: <strong>{r.temperature}°C</strong></li>}
@@ -713,7 +714,7 @@ export function HealthPage() {
 
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6 }}>
-                            💡 Rekomendasyon ng AI Engine
+                            Rekomendasyon ng AI Engine
                           </div>
                           <p style={{ fontSize: 13, color: 'var(--text)', margin: 0, whiteSpace: 'pre-line', lineHeight: 1.5 }}>
                             {r.recommendation || 'Panatilihin ang maayos na pangangalaga at regular na pagsubaybay.'}
@@ -749,7 +750,7 @@ export function HealthPage() {
           setModalOpen(false);
           stopCameraStream();
         }}
-        title="🔬 Magsagawa ng Early Illness Prediction"
+        title="Magsagawa ng Early Illness Prediction"
         size="lg"
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -766,7 +767,7 @@ export function HealthPage() {
             >
               {activeAnimals.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.species === 'Sheep' ? '🐑 Tupa' : '🐐 Kambing'}: {a.name} ({a.tag_id}) — {a.health_status}
+                  {a.species || 'Goat'}: {a.name} ({a.tag_id}) — {a.health_status}
                 </option>
               ))}
             </select>
@@ -790,10 +791,10 @@ export function HealthPage() {
                 Awtomatikong Kinuha mula sa Database (Automated Context):
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, fontSize: 12, color: 'var(--text)' }}>
-                <div>🎂 Edad: <strong>{currentPrediction.contextSummary.ageMonths} buwan</strong></div>
-                <div>⚖️ Timbang: <strong>{selectedAnimal?.weight_kg ? `${selectedAnimal.weight_kg} kg` : 'Walang tala'}</strong> ({currentPrediction.contextSummary.weightTrend})</div>
-                <div>💉 Bakuna/Deworm: <strong>{currentPrediction.contextSummary.vaccinationStatus}</strong></div>
-                <div>🩺 Nakaraang Risk: <strong>{currentPrediction.previousRiskScore !== null ? `${currentPrediction.previousRiskScore}%` : 'Bago'}</strong></div>
+                <div>Edad: <strong>{currentPrediction.contextSummary.ageMonths} buwan</strong></div>
+                <div>Timbang: <strong>{selectedAnimal?.weight_kg ? `${selectedAnimal.weight_kg} kg` : 'Walang tala'}</strong> ({currentPrediction.contextSummary.weightTrend})</div>
+                <div>Bakuna/Deworm: <strong>{currentPrediction.contextSummary.vaccinationStatus}</strong></div>
+                <div>Nakaraang Risk: <strong>{currentPrediction.previousRiskScore !== null ? `${currentPrediction.previousRiskScore}%` : 'Bago'}</strong></div>
               </div>
             </div>
           )}
@@ -807,7 +808,7 @@ export function HealthPage() {
             {/* Temperature with quick presets */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                🌡️ Temperatura ng Katawan (°C):
+                Temperatura ng Katawan (°C):
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <input
@@ -825,7 +826,7 @@ export function HealthPage() {
                   style={{ background: obsTemp === '39.0' ? 'rgba(22,163,74,0.2)' : 'var(--surface)', fontSize: 12, borderRadius: 8 }}
                   onClick={() => setObsTemp(obsTemp === '39.0' ? '' : '39.0')}
                 >
-                  🟢 Normal (39.0°C)
+                  Normal (39.0°C)
                 </button>
                 <button
                   type="button"
@@ -833,7 +834,7 @@ export function HealthPage() {
                   style={{ background: obsTemp === '40.2' ? 'rgba(245,158,11,0.2)' : 'var(--surface)', fontSize: 12, borderRadius: 8 }}
                   onClick={() => setObsTemp(obsTemp === '40.2' ? '' : '40.2')}
                 >
-                  🟡 Warm (40.2°C)
+                  Warm (40.2°C)
                 </button>
                 <button
                   type="button"
@@ -841,7 +842,7 @@ export function HealthPage() {
                   style={{ background: obsTemp === '41.0' ? 'rgba(239,68,68,0.2)' : 'var(--surface)', fontSize: 12, borderRadius: 8 }}
                   onClick={() => setObsTemp(obsTemp === '41.0' ? '' : '41.0')}
                 >
-                  🔴 Lagnat/Fever (41.0°C)
+                  Lagnat/Fever (41.0°C)
                 </button>
               </div>
             </div>
@@ -849,7 +850,7 @@ export function HealthPage() {
             {/* Appetite Buttons */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                🌾 Gana sa Pagkain (Appetite):
+                Gana sa Pagkain (Appetite):
               </label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {(['Normal', 'Reduced', 'None'] as const).map((mode) => (
@@ -866,7 +867,7 @@ export function HealthPage() {
                     }}
                     onClick={() => setObsAppetite(obsAppetite === mode ? null : mode)}
                   >
-                    {mode === 'Normal' ? '🟢 Normal' : mode === 'Reduced' ? '🟡 Bawas ang Pagkain (Reduced)' : '🔴 Walang Gana (None)'}
+                    {mode === 'Normal' ? 'Normal' : mode === 'Reduced' ? 'Bawas ang Pagkain (Reduced)' : 'Walang Gana (None)'}
                   </button>
                 ))}
               </div>
@@ -875,7 +876,7 @@ export function HealthPage() {
             {/* Activity Level Buttons */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                🏃 Kilos at Sigla (Activity Level):
+                Kilos at Sigla (Activity Level):
               </label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {(['Normal', 'Low', 'Lethargic'] as const).map((mode) => (
@@ -892,7 +893,7 @@ export function HealthPage() {
                     }}
                     onClick={() => setObsActivity(obsActivity === mode ? null : mode)}
                   >
-                    {mode === 'Normal' ? '🟢 Masigla (Normal)' : mode === 'Low' ? '🟡 Mabagal (Sluggish)' : '🔴 Nakahiga/Matamlay (Lethargic)'}
+                    {mode === 'Normal' ? 'Masigla (Normal)' : mode === 'Low' ? 'Mabagal (Sluggish)' : 'Nakahiga/Matamlay (Lethargic)'}
                   </button>
                 ))}
               </div>
@@ -901,7 +902,7 @@ export function HealthPage() {
             {/* Visible Symptoms Chips */}
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                🔍 Mga Nakikitang Sintomas (Tap to Select Symptoms):
+                Mga Nakikitang Sintomas (Tap to Select Symptoms):
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {AVAILABLE_SYMPTOMS.map((s) => {
@@ -926,7 +927,7 @@ export function HealthPage() {
                       }}
                       onClick={() => toggleSymptom(s.id)}
                     >
-                      <span>{s.icon}</span>
+                      <Activity size={12} color={active ? '#C2410C' : 'var(--text-secondary)'} />
                       <span>{s.tagalog}</span>
                     </button>
                   );
@@ -1001,7 +1002,7 @@ export function HealthPage() {
                     onClick={captureAndScanCamera}
                     disabled={cameraScanning}
                   >
-                    📸 Kuhanan at I-screen Ngayon
+                    Kuhanan at I-screen Ngayon
                   </button>
                   <button
                     type="button"
@@ -1042,14 +1043,14 @@ export function HealthPage() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: cameraResult.goatDetected ? '#6D28D9' : '#DC2626' }}>
                     {cameraResult.goatDetected
-                      ? `🐐 ${cameraResult.species === 'sheep' ? 'Tupa (Sheep)' : 'Kambing (Goat)'} na-detect (${Math.round(cameraResult.goatDetectionConfidence * 100)}%)`
-                      : `🚫 Hindi kambing o tupa (${cameraResult.nonTargetClass ?? 'Unknown'})`}
+                      ? `${cameraResult.species === 'sheep' ? 'Tupa (Sheep)' : 'Kambing (Goat)'} na-detect (${Math.round(cameraResult.goatDetectionConfidence * 100)}%)`
+                      : `Hindi kambing o tupa (${cameraResult.nonTargetClass ?? 'Unknown'})`}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                     Visual Screening: {cameraResult.riskLevelLabel} · Confidence: {Math.round(cameraResult.confidence * 100)}%
                   </div>
                 </div>
-                <span style={{ fontSize: 18 }}>{cameraResult.riskLevelEmoji}</span>
+                <Activity size={18} color={cameraResult.goatDetected ? '#6D28D9' : '#DC2626'} />
               </div>
             )}
           </div>
@@ -1118,10 +1119,10 @@ export function HealthPage() {
                           }}
                         >
                           {currentPrediction.riskLevel === 'High Risk'
-                            ? '🚨 High Risk'
+                            ? 'High Risk'
                             : currentPrediction.riskLevel === 'Moderate Risk'
-                            ? '⚠️ Moderate Risk'
-                            : '✅ Low Risk'}{' '}
+                            ? 'Moderate Risk'
+                            : 'Low Risk'}{' '}
                           ({currentPrediction.riskScore}%)
                         </span>
                         <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -1150,7 +1151,7 @@ export function HealthPage() {
                             : '#166534',
                       }}
                     >
-                      ⚕️ {currentPrediction.veterinaryAttention}
+                      {currentPrediction.veterinaryAttention}
                     </div>
                   </div>
 
@@ -1158,7 +1159,7 @@ export function HealthPage() {
                   {currentPrediction.possibleConcerns.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                        ⚠️ Posibleng Karamdaman (Possible Health Concerns):
+                        Posibleng Karamdaman (Possible Health Concerns):
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {currentPrediction.possibleConcerns.map((c, i) => (
@@ -1186,7 +1187,7 @@ export function HealthPage() {
                   {currentPrediction.detectedIndicators.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                        🔍 Mga Nakitang Indikasyon (Detected Indicators):
+                        Mga Nakitang Indikasyon (Detected Indicators):
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {currentPrediction.detectedIndicators.map((ind, i) => (
@@ -1222,7 +1223,7 @@ export function HealthPage() {
                   {/* Recommendations */}
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
-                      💡 Inirerekomendang Susunod na Hakbang (Next Action):
+                      Inirerekomendang Susunod na Hakbang (Next Action):
                     </div>
                     <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text)', lineHeight: 1.5 }}>
                       {currentPrediction.recommendations.map((rec, i) => (
@@ -1232,7 +1233,7 @@ export function HealthPage() {
                   </div>
 
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 12, fontStyle: 'italic', borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 8 }}>
-                    🛡️ Paunawa: {currentPrediction.disclaimer}
+                    Paunawa: {currentPrediction.disclaimer}
                   </div>
                 </div>
               )}
@@ -1258,7 +1259,7 @@ export function HealthPage() {
               onClick={handleSavePrediction}
               disabled={saving || !currentPrediction || currentPrediction.status === 'INSUFFICIENT_EVIDENCE'}
             >
-              {saving ? 'Isinesave...' : '💾 I-save ang Prediction sa Health History'}
+              {saving ? 'Isinesave...' : 'I-save ang Prediction sa Health History'}
             </button>
           </div>
         </div>

@@ -1,7 +1,7 @@
 /**
  * FloatingAICloud — Global icon-only draggable AI assistant for AlpasFarm.
  *
- * BUTTON: Small 48×48 ✨ icon only — no text. Drag anywhere, snaps to nearest corner on release.
+ * BUTTON: Small 48×48 Sparkles icon only — no text. Drag anywhere, snaps to nearest corner on release.
  * CHAT: Full panel opens near the button. Mobile = bottom sheet.
  * AI: Routes through /api/ai/chat (Vercel serverless) — keeps API key server-side.
  */
@@ -231,7 +231,7 @@ export function FloatingAICloud() {
       ? `You are MyAI, the AI assistant for AlpasFarm.\nIMPORTANT:\n- Use the REAL farm data below. NEVER invent records.\n- READ-ONLY. Respond in the user's language. Be concise. Consult a vet for medical advice.\n\nFARM DATA:\n${ctx}`
       : `You are MyAI, the AI assistant for AlpasFarm — a Goat & Sheep Farm Management System. Be concise. Respond in the user's language.`;
     const historyMsgs = conv.messages
-      .filter((m) => m && m.content && !m.content.trim().startsWith('⚠️'))
+      .filter((m) => m && m.content && !m.content.trim().startsWith('[Alert]'))
       .slice(-8)
       .map((m) => ({ role: m.role, content: m.content.trim() }));
     const msgs = [{ role: 'system', content: sys }, ...historyMsgs, { role: 'user', content: msg }];
@@ -241,7 +241,7 @@ export function FloatingAICloud() {
     try {
       for await (const _ of streamChat(msgs, (t) => { full += t; setStreamText(full); }, ctrl.signal)) { /* callback */ }
     } catch (err: any) {
-      if (err?.name !== 'AbortError') { full = `⚠️ ${err?.message ?? 'AI temporarily unavailable. Please try again.'}`; setStreamText(full); checkStatus(); }
+      if (err?.name !== 'AbortError') { full = `${err?.message ?? 'AI temporarily unavailable. Please try again.'}`; setStreamText(full); checkStatus(); }
     }
     const aMsg: MyAIMessage = { id: crypto.randomUUID(), role: 'assistant', content: full || '(no response)', timestamp: Date.now() };
     setConversations((p) => p.map((c) => c.id === conv!.id ? { ...c, messages: [...c.messages, aMsg], updatedAt: Date.now() } : c));

@@ -252,7 +252,7 @@ export function AnimalProfilePage() {
         @media print{body{padding:0}.card{border-color:#000;page-break-inside:avoid}}
       </style></head><body>
         <div class="card">
-          <div class="brand">🐐 AlpasFarm</div>
+          <div class="brand">AlpasFarm</div>
           <img src="${dataUrl}" alt="QR Code" />
           <div class="name">${animal.name}</div>
           <div class="tag">${animal.tag_id}</div>
@@ -287,7 +287,7 @@ export function AnimalProfilePage() {
     { key: 'vaccination', label: 'Vaccination' },
     { key: 'feed', label: 'Feed' },
     { key: 'history', label: 'History' },
-    { key: 'camera', label: '📷 Camera Screening' },
+    { key: 'camera', label: 'Camera Screening' },
   ] as const;
 
   const scoreColor = riskColor(animal.health_risk_score);
@@ -704,7 +704,7 @@ export function AnimalProfilePage() {
                         <div style={{ marginBottom: 14, padding: '12px 14px', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', borderRadius: 12, display: 'flex', gap: 10 }}>
                           <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
                           <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', marginBottom: 3 }}>⚠️ Early Illness Detection — Latest Record</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', marginBottom: 3 }}>Early Illness Detection — Latest Record</div>
                             <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{conditions}</p>
                           </div>
                         </div>
@@ -951,7 +951,7 @@ export function AnimalProfilePage() {
                     border: '1px solid rgba(59,130,246,0.18)',
                     borderRadius: 8, fontSize: 11, color: '#3B82F6', lineHeight: 1.6,
                   }}>
-                    ℹ️ Camera screening is a preliminary assessment only. It does not replace professional veterinary diagnosis.
+                    Camera screening is a preliminary assessment only. It does not replace professional veterinary diagnosis.
                   </div>
                 </GlassCard>
               );

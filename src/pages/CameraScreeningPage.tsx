@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Camera, AlertTriangle, CheckCircle, XCircle, RefreshCw,
   Loader2, Search, Info, WifiOff, ScanLine, History,
-  Save, Ban, Zap, Upload, ImageIcon,
+  Save, Ban, Zap, Upload, ImageIcon, ShieldAlert, Activity, Check,
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -55,9 +55,7 @@ function predLabel(p: string) {
   return 'Low Confidence';
 }
 function predEmoji(p: string) {
-  if (p === 'possible_health_concern') return '🟠';
-  if (p === 'normal_appearance')       return '🟢';
-  return '⚠️';
+  return '';
 }
 
 // ── What-to-do recommendations ────────────────────────────────────────────────
@@ -200,7 +198,6 @@ export function CameraScreeningPage() {
   // ── Helpers ───────────────────────────────────────────────────────────────
   const activeAnimals = farmData.animals.filter(a => !a.archived);
   const det           = autoScan.detection;
-  const speciesEmoji  = autoScan.detectedSpecies === 'sheep' ? '🐑' : '🐐';
   const speciesLabel  = autoScan.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
 
   const borderColor = permission === 'granted' ? stateColor(autoScan.state) : 'var(--border)';
@@ -295,7 +292,7 @@ export function CameraScreeningPage() {
                   {/* ── OTHER OBJECT OVERLAY ── */}
                   {autoScan.state === 'other_detected' && (
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
-                      <div style={{ fontSize: 44 }}>{det?.detectedEmoji || '🚫'}</div>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><ShieldAlert size={44} color="#EF4444" /></div>
                       <div style={{ fontSize: 18, fontWeight: 900, color: '#EF4444' }}>
                         {det?.nonTargetClass ? `${det.nonTargetClass} Detected` : 'Object Detected'}
                       </div>
@@ -328,7 +325,7 @@ export function CameraScreeningPage() {
                     {autoScan.state === 'cooldown'  && <RefreshCw size={13} color="#3B82F6" />}
                     {autoScan.state === 'other_detected' && <Ban size={13} color="#EF4444" />}
                     {(autoScan.state === 'detecting' || autoScan.state === 'stable') && det?.detected && (
-                      <span style={{ fontSize: 15 }}>{speciesEmoji}</span>
+                      <Activity size={13} color="#FF7A18" />
                     )}
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {autoScan.message}
@@ -342,7 +339,9 @@ export function CameraScreeningPage() {
             {permission === 'granted' && (autoScan.state === 'detecting' || autoScan.state === 'stable') && (
               <div style={{ background: 'var(--glass-surface)', border: '1px solid var(--glass-border)', borderRadius: 10, padding: '10px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                  <span>{det?.detected ? `${speciesEmoji} ${speciesLabel} Detected` : 'Detection'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {det?.detected ? <><Activity size={12} color="#FF7A18" /> {speciesLabel} Detected</> : 'Detection'}
+                  </span>
                   <span>{det ? Math.round(det.confidence * 100) : 0}% · min {Math.round(GOAT_DETECTION_THRESHOLD * 100)}%</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 999, background: 'var(--surface)', overflow: 'hidden', marginBottom: 8 }}>
@@ -410,7 +409,7 @@ export function CameraScreeningPage() {
 
             {autoScan.usingFallback && permission === 'granted' && (
               <div style={{ padding: '8px 12px', borderRadius: 9, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', fontSize: 11, color: '#D97706', lineHeight: 1.5 }}>
-                ⚠ MobileNet unavailable — using fallback pixel analysis. Detection accuracy is reduced.
+                [Paalala] MobileNet unavailable — using fallback pixel analysis. Detection accuracy is reduced.
               </div>
             )}
           </div>
@@ -434,9 +433,9 @@ export function CameraScreeningPage() {
             {/* ── OTHER DETECTED panel ── */}
             {autoScan.state === 'other_detected' && (
               <div style={{ background: 'rgba(239,68,68,0.08)', border: '2px solid rgba(239,68,68,0.4)', borderRadius: 14, padding: '20px 18px', textAlign: 'center' }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>{det?.detectedEmoji || '🚫'}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><ShieldAlert size={40} color="#EF4444" /></div>
                 <div style={{ fontSize: 17, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
-                  🚫 Hindi ito Kambing o Tupa!
+                  Hindi ito Kambing o Tupa!
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
                   {det?.nonTargetClass ? `Na-detect: ${det.nonTargetClass}` : (autoScan.result?.nonTargetClass ? `Na-detect: ${autoScan.result.nonTargetClass}` : 'Hindi Awtorisadong Bagay / Hayop')}
@@ -446,7 +445,7 @@ export function CameraScreeningPage() {
                   Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.
                 </div>
                 <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
-                  ⚠️ Not a goat or sheep. Visual health screening will not execute.
+                  [Paalala] Not a goat or sheep. Visual health screening will not execute.
                 </div>
               </div>
             )}
@@ -456,19 +455,19 @@ export function CameraScreeningPage() {
               <div style={{ background: 'var(--glass-surface)', border: '1px solid var(--glass-border)', borderRadius: 14, padding: '28px 20px', textAlign: 'center' }}>
                 {autoScan.state === 'stable' ? (
                   <>
-                    <div style={{ fontSize: 40, marginBottom: 10 }}>{speciesEmoji}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Activity size={40} color="#FF7A18" /></div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: '#FF7A18', marginBottom: 6 }}>{speciesLabel} Detected!</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>Preparing automatic scan…</div>
                   </>
                 ) : det?.detected ? (
                   <>
-                    <div style={{ fontSize: 40, marginBottom: 10 }}>{speciesEmoji}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Activity size={40} color="#FF7A18" /></div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#FF7A18', marginBottom: 4 }}>{speciesLabel} Detected</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Stabilizing detection…</div>
                   </>
                 ) : (
                   <>
-                    <div style={{ fontSize: 36, marginBottom: 10, opacity: 0.6 }}>🐐🐑</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10, opacity: 0.6 }}><ScanLine size={36} color="var(--text-secondary)" /></div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Waiting for Goat or Sheep…</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                       Point the camera at a goat or sheep.<br />The system will detect and screen automatically.
@@ -484,7 +483,7 @@ export function CameraScreeningPage() {
                 <Loader2 size={34} color="#7C3AED" style={{ animation: 'spin 1s linear infinite', marginBottom: 14 }} />
                 <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Analyzing Health…</div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  {speciesEmoji} Running {speciesLabel.toLowerCase()} health screening
+                  Running {speciesLabel.toLowerCase()} health screening
                 </div>
               </div>
             )}
@@ -592,8 +591,9 @@ export function CameraScreeningPage() {
             )}
           </div>
 
-          <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 10, fontSize: 11, color: '#3B82F6', lineHeight: 1.6 }}>
-            ℹ️ Camera screening is a preliminary AI assessment and does not replace professional veterinary diagnosis.
+          <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 10, fontSize: 11, color: '#3B82F6', lineHeight: 1.6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Info size={14} style={{ flexShrink: 0 }} />
+            <span>Camera screening is a preliminary AI assessment and does not replace professional veterinary diagnosis.</span>
           </div>
         </div>
       )}
@@ -625,7 +625,7 @@ function ScanResultCard({ result, capturedUrl, species, saving, savedId, cooldow
           <img src={capturedUrl} alt="Screened Non-Target" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
         )}
         <div style={{ padding: '18px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🚫</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><ShieldAlert size={36} color="#EF4444" /></div>
           <div style={{ fontSize: 17, fontWeight: 900, color: '#EF4444', marginBottom: 4 }}>
             Hindi ito Kambing o Tupa!
           </div>
@@ -636,7 +636,7 @@ function ScanResultCard({ result, capturedUrl, species, saving, savedId, cooldow
             {result.recommendation || 'Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
           </div>
           <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 600 }}>
-            ⚠️ Hindi maaaring suriin ang kalusugan ng hindi kambing o tupa.
+            [Paalala] Hindi maaaring suriin ang kalusugan ng hindi kambing o tupa.
           </div>
         </div>
       </div>
@@ -647,7 +647,6 @@ function ScanResultCard({ result, capturedUrl, species, saving, savedId, cooldow
   const col  = result.riskLevelColor;
   const isHealthy = result.prediction === 'normal_appearance';
   const speciesLabel = species === 'sheep' ? 'SHEEP' : 'GOAT';
-  const speciesEmoji = species === 'sheep' ? '🐑' : '🐐';
   const actions = isHealthy ? HEALTHY_ACTIONS : ATTENTION_ACTIONS;
 
   return (
@@ -661,12 +660,12 @@ function ScanResultCard({ result, capturedUrl, species, saving, savedId, cooldow
 
         {/* Species badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 10, padding: '3px 12px', borderRadius: 999, background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
-          {speciesEmoji} {speciesLabel}
+          <Activity size={12} color="var(--accent-orange)" /> {speciesLabel}
         </div>
 
         {/* Status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <div style={{ fontSize: 26 }}>{result.riskLevelEmoji}</div>
+          <div style={{ display: 'flex', alignItems: 'center' }}><Activity size={24} color={col} /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 900, color: col }}>
               {isHealthy ? 'HEALTHY' : 'NEEDS ATTENTION'}
@@ -729,8 +728,8 @@ function ScanResultCard({ result, capturedUrl, species, saving, savedId, cooldow
 
         {/* Save / saved */}
         {savedId ? (
-          <div style={{ textAlign: 'center', fontSize: 13, color: '#16A34A', fontWeight: 700, padding: '8px' }}>
-            ✓ Saved to history
+          <div style={{ textAlign: 'center', fontSize: 13, color: '#16A34A', fontWeight: 700, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <Check size={15} /> Saved to history
           </div>
         ) : (
           <button onClick={onSave} disabled={saving}

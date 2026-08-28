@@ -541,7 +541,7 @@ export async function assessImageQuality(
   if (guidance.length === 0) {
     guidance.push('Image quality is good!');
   } else {
-    guidance.push('✓ Good lighting', '✓ Animal clearly visible', '✓ Full body in frame', '✓ Avoid motion blur');
+    guidance.push('Good lighting', 'Animal clearly visible', 'Full body in frame', 'Avoid motion blur');
   }
 
   return { score, passed: score >= MIN_QUALITY_SCORE && issues.length === 0, issues, guidance };
@@ -1070,7 +1070,7 @@ export async function runHealthScan(
           riskLevel: 'LOW',
           riskLevelLabel: 'Hindi ito Kambing o Tupa',
           riskLevelColor: '#EF4444',
-          riskLevelEmoji: '🚫',
+          riskLevelEmoji: '',
           confidence: serverResult.species_confidence || 0,
           confidencePercent: Math.round((serverResult.species_confidence || 0) * 100),
           indicators: [],
@@ -1298,10 +1298,10 @@ export async function runCameraScreening(
 
 function riskLevelMeta(level: RiskLevel): { label: string; color: string; emoji: string } {
   switch (level) {
-    case 'CRITICAL': return { label: 'Urgent Veterinary Review', color: '#EF4444', emoji: '🔴' };
-    case 'HIGH': return { label: 'High Health Risk', color: '#F97316', emoji: '🟠' };
-    case 'MODERATE': return { label: 'Possible Health Concern', color: '#F59E0B', emoji: '🟡' };
-    default: return { label: 'No Obvious Abnormality', color: '#16A34A', emoji: '🟢' };
+    case 'CRITICAL': return { label: 'Urgent Veterinary Review', color: '#EF4444', emoji: '' };
+    case 'HIGH': return { label: 'High Health Risk', color: '#F97316', emoji: '' };
+    case 'MODERATE': return { label: 'Possible Health Concern', color: '#F59E0B', emoji: '' };
+    default: return { label: 'No Obvious Abnormality', color: '#16A34A', emoji: '' };
   }
 }
 
@@ -1320,7 +1320,7 @@ function buildLowQualityResult(
     riskLevel: 'LOW',
     riskLevelLabel: 'Low Confidence',
     riskLevelColor: '#F59E0B',
-    riskLevelEmoji: '⚠️',
+    riskLevelEmoji: '',
     confidence: 0,
     confidencePercent: 0,
     indicators: [{
@@ -1366,7 +1366,7 @@ function buildNoAnimalResult(
     riskLevel: 'LOW',
     riskLevelLabel: 'Hindi ito Kambing o Tupa',
     riskLevelColor: '#EF4444',
-    riskLevelEmoji: '🚫',
+    riskLevelEmoji: '',
     confidence: detection.confidence,
     confidencePercent: Math.round(detection.confidence * 100),
     indicators: [],

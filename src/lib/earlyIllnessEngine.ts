@@ -492,7 +492,7 @@ export function predictEarlyIllness(params: {
 
   // 9. Generate Tailored Recommendations
   if (veterinaryAttention === 'Recommended — Urgent') {
-    recommendations.push('🚨 Contact a licensed veterinarian immediately for physical examination and diagnosis.');
+    recommendations.push('Contact a licensed veterinarian immediately for physical examination and diagnosis.');
     recommendations.push('Isolate the animal in a clean, quiet, and well-ventilated recovery pen to prevent transmission.');
     recommendations.push('Provide continuous access to clean fresh water with oral rehydration salts/electrolytes.');
     recommendations.push('Record temperature and vital signs every 6 to 12 hours.');

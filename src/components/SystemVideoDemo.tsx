@@ -1023,7 +1023,7 @@ const CURSOR_PATHS: Record<DemoChapter['screenType'], CursorWaypoint[]> = {
     { t: 1.0, x: 55, y: 70 },
   ],
   ai_assistant: [
-    { t: 0.0, x: 88, y: 88, label: '✨ AI Cloud' },
+    { t: 0.0, x: 88, y: 88, label: 'AI Cloud' },
     { t: 0.2, x: 88, y: 88, click: true },
     { t: 0.35, x: 50, y: 65, label: 'Type question' },
     { t: 0.5, x: 50, y: 65, click: true },
@@ -1350,8 +1350,8 @@ function AnimalProfileScreen({ progress }: { progress: number }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 14 }}>
       <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #FF3B30, #FF7A18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-            🐐
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #FF3B30, #FF7A18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <PawPrint size={20} color="#fff" />
           </div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>Boer Champion #042</div>
@@ -1370,7 +1370,7 @@ function AnimalProfileScreen({ progress }: { progress: number }) {
       <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: '#FF9F0A', marginBottom: 4 }}>
-            📱 QR FIELD TAG EMBEDDED
+            QR FIELD TAG EMBEDDED
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
             Direct URL: <span style={{ fontFamily: 'monospace', color: '#fff' }}>alpasfarm.ph/public/boer-042</span>
@@ -1441,7 +1441,7 @@ function BreedingScreen({ progress }: { progress: number }) {
   return (
     <div style={{ background: 'rgba(255,122,24,0.08)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,122,24,0.3)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18' }}>🐐 GESTATION COUNTDOWN (Doe #BELLA)</span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18' }}>GESTATION COUNTDOWN (Doe #BELLA)</span>
         <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>Day 115 / 150 (76%)</span>
       </div>
       <div style={{ height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.4)', overflow: 'hidden', marginBottom: 10 }}>
@@ -1512,7 +1512,7 @@ function AIAssistantScreen({ progress }: { progress: number }) {
         <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>AlpasFarm AI Smart Farm Assistant</span>
       </div>
       <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10, fontSize: 12, color: '#E2E8F0', marginBottom: 8 }}>
-        💬 <em>"Farmer Marlon, 3 does in Pen A are due for CDT boosters this Friday, and Feed conversion is up 14%."</em>
+        <em>"Farmer Marlon, 3 does in Pen A are due for CDT boosters this Friday, and Feed conversion is up 14%."</em>
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         <span className="badge badge-orange">Tagalog/English Ready</span>

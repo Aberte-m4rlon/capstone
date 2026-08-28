@@ -390,7 +390,7 @@ export function runMLHealthPrediction(
   if (topFactors.length > 0) explanation += `Key factors: ${topFactorNames}. `;
   explanation += `Veterinary rule score: ${vetScore}/100. `;
   explanation += `Combined assessment: ${combinedAssessment}. `;
-  explanation += `⚠️ This is a farm management support tool, not a veterinary diagnosis. Consult a veterinarian for confirmation.`;
+  explanation += `This is a farm management support tool, not a veterinary diagnosis. Consult a veterinarian for confirmation.`;
 
   const modelMeta: MLModelMeta = {
     version: model.version,

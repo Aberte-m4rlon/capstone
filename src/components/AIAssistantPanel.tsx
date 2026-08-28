@@ -10,7 +10,7 @@ interface Props { open: boolean; onClose: () => void; }
 // ── helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n: number, d = 1) => n.toFixed(d);
 const pct = (n: number) => `${Math.round(n * 100)}%`;
-const vet = '\n\n⚕️ Laging kumpirmahin ang mga desisyon sa kalusugan sa isang lisensiyadong beterinaryo.';
+const vet = '\n\n[Paalala] Laging kumpirmahin ang mga desisyon sa kalusugan sa isang lisensiyadong beterinaryo.';
 const bilingual = (en: string, tl: string) => tl;
 const GESTATION_DAYS = 150;
 
@@ -184,18 +184,18 @@ function answerFaq(q: string): { content: string; bullets?: string[] } | null {
 
   if (/early.*illness|illness.*detect|detect.*disease/.test(t)) return {
     content: 'Ang Early Illness Detection ay sumusuri ng 7 pattern ng sakit mula sa health check parameters na iyong nirerekord.',
-    bullets: ['1. Pneumonia / Respiratory Disease', '2. Anemia / Barber Pole Worm (sa pamamagitan ng FAMACHA score)', '3. Ruminal Bloat (bloat score + rumen sounds)', '4. High Fever / Systemic Infection', '5. Enterotoxemia / Gastrointestinal Infection', '6. Lameness / Foot Rot (gait assessment)', '7. ⚠️ PPR - Peste des Petits Ruminants'],
+    bullets: ['1. Pneumonia / Respiratory Disease', '2. Anemia / Barber Pole Worm (sa pamamagitan ng FAMACHA score)', '3. Ruminal Bloat (bloat score + rumen sounds)', '4. High Fever / Systemic Infection', '5. Enterotoxemia / Gastrointestinal Infection', '6. Lameness / Foot Rot (gait assessment)', '7. PPR - Peste des Petits Ruminants'],
   };
 
   if (/camera|scanner|scan|computer vision|visual health|litrato|larawan|goat detector|hindi kambing/.test(t)) return {
     content: 'Ang AI Livestock Health Scanner ay gumagamit ng MobileNetV2 Computer Vision at Google Cloud Run ML Server para sa mabilisang visual health screening ng mga kambing at tupa.',
     bullets: [
-      '⚡ 2-Second Live Auto-Scanning: Awtomatikong dine-detect ang hayop at ini-screen sa loob ng 2 segundo',
-      '🐐🐑 Multi-Species Support: Eksklusibong sinusuportahan ang Kambing (Goat) at Tupa (Sheep)',
-      '🚫 Non-Target Protection: Kapag hindi kambing o tupa (hal. aso, tao, pusa, bagay), may lalabas na Red Warning at hindi ito tatanggapin',
-      '🔬 Visual Indicator Analysis: Sinusuri ang postura, coat condition, mata/mukha, at mga palatandaan ng panghihina o sakit',
-      '💾 Direct Health History Integration: Maaaring i-save ang screening result diretso sa health log ng hayop',
-      '⚕️ Mahalaga: Ang camera screening ay preliminary assessment lamang at hindi pamalit sa pagsusuri ng lisensyadong beterinaryo',
+      '2-Second Live Auto-Scanning: Awtomatikong dine-detect ang hayop at ini-screen sa loob ng 2 segundo',
+      'Multi-Species Support: Eksklusibong sinusuportahan ang Kambing (Goat) at Tupa (Sheep)',
+      'Non-Target Protection: Kapag hindi kambing o tupa (hal. aso, tao, pusa, bagay), may lalabas na Red Warning at hindi ito tatanggapin',
+      'Visual Indicator Analysis: Sinusuri ang postura, coat condition, mata/mukha, at mga palatandaan ng panghihina o sakit',
+      'Direct Health History Integration: Maaaring i-save ang screening result diretso sa health log ng hayop',
+      'Mahalaga: Ang camera screening ay preliminary assessment lamang at hindi pamalit sa pagsusuri ng lisensyadong beterinaryo',
     ],
   };
 
@@ -205,18 +205,18 @@ function answerFaq(q: string): { content: string; bullets?: string[] } | null {
       'Ang AlpasFarm ay kumpletong sistema para sa pamamahala ng mga kambing at tupa na may AI-powered insights. Narito ang kaya nitong gawin:'
     ),
     bullets: [
-      '🐐 Pamamahala ng Hayop — magdagdag, mag-edit, i-archive ang hayop gamit ang QR code',
-      '📷 AI Livestock Health Scanner — 2-sec real-time camera & upload visual screening gamit ang Computer Vision',
-      '🏥 Pagmamanman ng Kalusugan — 15 clinical parameters + maagang pagtuklas ng sakit',
-      '⚖️ Timbang at Paglaki — subaybayan ang timbang, tantiyahin ang petsa ng pagiging handa sa merkado',
-      '💕 Breeding — pagsubaybay sa pagbubuntis, calculator ng petsa ng pagsilang',
-      '💉 Bakuna — pagsubaybay ng iskedyul na may overdue alerts',
-      '🌾 Pamamahala ng Feed — pagsubaybay ng konsumo + efficiency scoring',
-      '🥛 Produksyon ng Gatas — araw-araw na ani na may forecast sa loob ng 7 araw',
-      '📦 Imbentaryo — stock levels na may expiry alerts',
-      '🧠 8 ML & Statistical Models — Logistic Regression, Polynomial, Holt, Naive Bayes, K-Means++, OLS, Anomaly Detection, at MobileNetV2 Vision Scanner',
-      '📊 Analytics at Ulat — charts, trends, at downloadable na ulat',
-      '📋 Activity Log — buong kasaysayan na maaaring i-download bilang CSV',
+      'Pamamahala ng Hayop — magdagdag, mag-edit, i-archive ang hayop gamit ang QR code',
+      'AI Livestock Health Scanner — 2-sec real-time camera & upload visual screening gamit ang Computer Vision',
+      'Pagmamanman ng Kalusugan — 15 clinical parameters + maagang pagtuklas ng sakit',
+      'Timbang at Paglaki — subaybayan ang timbang, tantiyahin ang petsa ng pagiging handa sa merkado',
+      'Breeding — pagsubaybay sa pagbubuntis, calculator ng petsa ng pagsilang',
+      'Bakuna — pagsubaybay ng iskedyul na may overdue alerts',
+      'Pamamahala ng Feed — pagsubaybay ng konsumo + efficiency scoring',
+      'Produksyon ng Gatas — araw-araw na ani na may forecast sa loob ng 7 araw',
+      'Imbentaryo — stock levels na may expiry alerts',
+      '8 ML & Statistical Models — Logistic Regression, Polynomial, Holt, Naive Bayes, K-Means++, OLS, Anomaly Detection, at MobileNetV2 Vision Scanner',
+      'Analytics at Ulat — charts, trends, at downloadable na ulat',
+      'Activity Log — buong kasaysayan na maaaring i-download bilang CSV',
     ],
   };
 
@@ -297,7 +297,7 @@ function buildReply(
       bullets: pregnant.map((a) => {
         const mating = a.last_mating_date ? `Mating: ${formatDate(a.last_mating_date)} · ` : '';
         const expected = a.expected_kidding_date ? `${formatDate(a.expected_kidding_date)} (${daysUntil(a.expected_kidding_date)} araw ang layo)` : 'Hindi naitala ang inaasahang kidding date';
-        return `🐐 ${a.name}: ${mating}${expected}`;
+        return `${a.name}: ${mating}${expected}`;
       }),
     };
   }
@@ -336,7 +336,7 @@ function buildReply(
         bullets.push(`Probabilidad ng matagumpay na breeding: ${pct(breedP.prediction.probability)} — ${breedP.prediction.recommendation}`);
       }
       if (anomaly) {
-        const msg = anomaly.tempAnomaly?.isAnomaly ? `⚠️ ANOMALYA: ${anomaly.tempAnomaly.message}` : anomaly.hrAnomaly?.isAnomaly ? `⚠️ ANOMALYA: ${anomaly.hrAnomaly.message}` : null;
+        const msg = anomaly.tempAnomaly?.isAnomaly ? `[ANOMALYA] ${anomaly.tempAnomaly.message}` : anomaly.hrAnomaly?.isAnomaly ? `[ANOMALYA] ${anomaly.hrAnomaly.message}` : null;
         if (msg) bullets.push(msg);
       }
       if (lastHealth) {
@@ -445,13 +445,13 @@ function buildReply(
     const declining = farmData.weightRecords;
 
     const bullets: string[] = [];
-    if (atRisk.length > 0) bullets.push(`🔴 URGENT: ${atRisk.map(a=>a.name).join(', ')} kailangan ng agarang pagsusuri sa kalusugan`);
-    if (anomalies.length > 0) bullets.push(`⚡ Suriin: ${anomalies.map(a=>a.animal.name).join(', ')} may anomalous na vitals — mag-record ng health check`);
-    if (overdue.length > 0) bullets.push(`💉 Mag-schedule ng bakuna para sa: ${overdue.map(a=>a.name).slice(0,3).join(', ')}`);
-    if (kiddingSoon.length > 0) bullets.push(`🐣 Ihanda ang kidding pen para sa: ${kiddingSoon.map(a=>a.name).join(', ')} (darating sa loob ng 7 araw)`);
-    if (farmData.inventory.filter(i=>Number(i.quantity)<=Number(i.minimum_stock)).length > 0) bullets.push(`📦 Mag-restock ng mababang inventory bago maubos`);
-    if (ml.healthModel?.canPredict && ml.healthModel.accuracy < 0.7) bullets.push(`🧠 Magdagdag ng health records para mapabuti ang AI accuracy (kasalukuyang ${Math.round(ml.healthModel.accuracy*100)}%)`);
-    if (bullets.length === 0) bullets.push('✅ Ayos ang lahat! Walang agarang kailangang aksyon sa ngayon.');
+    if (atRisk.length > 0) bullets.push(`[URGENT] ${atRisk.map(a=>a.name).join(', ')} kailangan ng agarang pagsusuri sa kalusugan`);
+    if (anomalies.length > 0) bullets.push(`Suriin: ${anomalies.map(a=>a.animal.name).join(', ')} may anomalous na vitals — mag-record ng health check`);
+    if (overdue.length > 0) bullets.push(`Mag-schedule ng bakuna para sa: ${overdue.map(a=>a.name).slice(0,3).join(', ')}`);
+    if (kiddingSoon.length > 0) bullets.push(`Ihanda ang kidding pen para sa: ${kiddingSoon.map(a=>a.name).join(', ')} (darating sa loob ng 7 araw)`);
+    if (farmData.inventory.filter(i=>Number(i.quantity)<=Number(i.minimum_stock)).length > 0) bullets.push(`Mag-restock ng mababang inventory bago maubos`);
+    if (ml.healthModel?.canPredict && ml.healthModel.accuracy < 0.7) bullets.push(`Magdagdag ng health records para mapabuti ang AI accuracy (kasalukuyang ${Math.round(ml.healthModel.accuracy*100)}%)`);
+    if (bullets.length === 0) bullets.push('Ayos ang lahat! Walang agarang kailangang aksyon sa ngayon.');
 
     return { tag: 'briefing', content: 'Inirekomendang aksyon base sa iyong kasalukuyang farm data:', bullets };
   }
@@ -486,7 +486,7 @@ function buildReply(
       if (a.hrAnomaly?.isAnomaly) r.push(`${a.animal.name}: ${a.hrAnomaly.message} (severity: ${a.hrAnomaly.severity})`);
       return r;
     });
-    return { tag: 'alert', content: `⚡ ${anomalies.length} hayop ang nai-flag na may kakaibang vitals batay sa Z-score at IQR analysis:`, bullets };
+    return { tag: 'alert', content: `${anomalies.length} hayop ang nai-flag na may kakaibang vitals batay sa Z-score at IQR analysis:`, bullets };
   }
 
   // ── Health ──────────────────────────────────────────────────────────────────
@@ -511,10 +511,10 @@ function buildReply(
     const overdue = active.filter((a) => a.vaccination_status === 'Overdue');
     const due = active.filter((a) => a.vaccination_status === 'Due Soon');
     const bullets: string[] = [];
-    overdue.forEach((a) => bullets.push(`🔴 OVERDUE: ${a.name} (${a.tag_id})${a.next_vaccine_date ? ' — was due ' + formatDate(a.next_vaccine_date) : ''}`));
-    due.forEach((a) => bullets.push(`🟡 DUE SOON: ${a.name} (${a.tag_id})${a.next_vaccine_date ? ' — due ' + formatDate(a.next_vaccine_date) + ' (' + daysUntil(a.next_vaccine_date) + ' days)' : ''}`));
+    overdue.forEach((a) => bullets.push(`[OVERDUE] ${a.name} (${a.tag_id})${a.next_vaccine_date ? ' — was due ' + formatDate(a.next_vaccine_date) : ''}`));
+    due.forEach((a) => bullets.push(`[DUE SOON] ${a.name} (${a.tag_id})${a.next_vaccine_date ? ' — due ' + formatDate(a.next_vaccine_date) + ' (' + daysUntil(a.next_vaccine_date) + ' days)' : ''}`));
     const content = overdue.length + due.length === 0
-      ? `✅ Lahat ng ${active.length} aktibong hayop ay up to date na sa bakuna.`
+      ? `Lahat ng ${active.length} aktibong hayop ay up to date na sa bakuna.`
       : `Status ng bakuna: ${overdue.length} overdue, ${due.length} due soon mula sa ${active.length} aktibong hayop:`;
     return { tag: overdue.length > 0 ? 'alert' : 'insight', content, bullets: bullets.length > 0 ? bullets : undefined };
   }
@@ -526,10 +526,10 @@ function buildReply(
     const bullets: string[] = [];
     pregnant.forEach((a) => {
       const d = a.expected_kidding_date ? daysUntil(a.expected_kidding_date) : null;
-      bullets.push(`🤰 ${a.name} — Pregnant${d !== null ? ', kidding in ' + d + ' days (' + formatDate(a.expected_kidding_date) + ')' : ''}`);
+      bullets.push(`${a.name} — Pregnant${d !== null ? ', kidding in ' + d + ' days (' + formatDate(a.expected_kidding_date) + ')' : ''}`);
     });
     highProb.filter((b) => !pregnant.find((p) => p.id === b.animal.id)).slice(0, 4).forEach((b) => {
-      bullets.push(`🧠 ${b.animal.name} — Naïve Bayes predicts ${pct(b.prediction!.probability)} breeding success · ${b.prediction!.recommendation}`);
+      bullets.push(`${b.animal.name} — Naïve Bayes predicts ${pct(b.prediction!.probability)} breeding success · ${b.prediction!.recommendation}`);
     });
     return {
       tag: 'insight',
@@ -584,10 +584,10 @@ function buildReply(
     const low = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock));
     const expired = farmData.inventory.filter((i) => i.expiry_date && new Date(i.expiry_date) < new Date());
     const bullets: string[] = [];
-    expired.forEach((i) => bullets.push(`🔴 LAPAS NA PETSA: ${i.name} (${i.quantity} ${i.unit})`));
-    low.forEach((i) => bullets.push(`⚠️ MABANG STOCK: ${i.name} — ${i.quantity} ${i.unit} natira (min: ${i.minimum_stock})`));
+    expired.forEach((i) => bullets.push(`[LAPAS NA PETSA] ${i.name} (${i.quantity} ${i.unit})`));
+    low.forEach((i) => bullets.push(`[MABABANG STOCK] ${i.name} — ${i.quantity} ${i.unit} natira (min: ${i.minimum_stock})`));
     const content = low.length + expired.length === 0
-      ? `✅ Lahat ng ${farmData.inventory.length} inventory items ay nasa tamang stock at walang expired na item.`
+      ? `Lahat ng ${farmData.inventory.length} inventory items ay nasa tamang stock at walang expired na item.`
       : `Alert sa imbentaryo: ${expired.length} expired, ${low.length} mababang stock na item:`;
     return { tag: low.length > 0 || expired.length > 0 ? 'alert' : 'ok', content, bullets: bullets.length > 0 ? bullets : undefined };
   }
@@ -643,13 +643,13 @@ function buildReply(
   const low2 = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock));
   const pregnant2 = active.filter((a) => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 14);
   const bullets: string[] = [];
-  if (atRisk2.length > 0) bullets.push(`🔴 ${atRisk2.length} hayop ang nasa panganib: ${atRisk2.slice(0, 2).map(a => a.name).join(', ')}`);
-  if (anomalies.length > 0) bullets.push(`⚡ ${anomalies.length} kakaibang vital ang natukoy: ${anomalies.slice(0, 2).map(a => a.animal.name).join(', ')}`);
-  if (overdue2.length > 0) bullets.push(`💉 ${overdue2.length} overdue na bakuna`);
-  if (pregnant2.length > 0) bullets.push(`🐣 ${pregnant2.length} hayop ang magbubuntis sa loob ng 14 na araw`);
-  if (low2.length > 0) bullets.push(`📦 ${low2.length} inventory item ang mababa ang stock`);
-  if (ml.growthPredictions.filter(g => g.model).length > 0) bullets.push(`📈 ${ml.growthPredictions.filter(g => g.model).length} growth forecasts ang aktibo`);
-  if (ml.healthModel?.canPredict) bullets.push(`🧠 AI sa Kalusugan: ${Math.round(ml.healthModel.accuracy * 100)}% accuracy · ${ml.healthModel.trainingSamples} training samples`);
+  if (atRisk2.length > 0) bullets.push(`[URGENT] ${atRisk2.length} hayop ang nasa panganib: ${atRisk2.slice(0, 2).map(a => a.name).join(', ')}`);
+  if (anomalies.length > 0) bullets.push(`[ANOMALY] ${anomalies.length} kakaibang vital ang natukoy: ${anomalies.slice(0, 2).map(a => a.animal.name).join(', ')}`);
+  if (overdue2.length > 0) bullets.push(`[VACCINE] ${overdue2.length} overdue na bakuna`);
+  if (pregnant2.length > 0) bullets.push(`[BREEDING] ${pregnant2.length} hayop ang magbubuntis sa loob ng 14 na araw`);
+  if (low2.length > 0) bullets.push(`[INVENTORY] ${low2.length} inventory item ang mababa ang stock`);
+  if (ml.growthPredictions.filter(g => g.model).length > 0) bullets.push(`[GROWTH] ${ml.growthPredictions.filter(g => g.model).length} growth forecasts ang aktibo`);
+  if (ml.healthModel?.canPredict) bullets.push(`AI sa Kalusugan: ${Math.round(ml.healthModel.accuracy * 100)}% accuracy · ${ml.healthModel.trainingSamples} training samples`);
 
   const status = atRisk2.length > 0 || anomalies.length > 0 ? 'kailangan ng pansin' : overdue2.length > 0 || low2.length > 0 ? 'may ilang dapat bantayan' : 'ayos ang lahat';
   return {

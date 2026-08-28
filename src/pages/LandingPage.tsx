@@ -96,7 +96,7 @@ export function LandingPage() {
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
           }}>
-            🚀 Premium Farm Management Platform
+            Premium Farm Management Platform
           </div>
 
           <h1 style={{

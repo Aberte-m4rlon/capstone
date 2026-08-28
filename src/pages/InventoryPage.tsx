@@ -636,7 +636,7 @@ export function InventoryPage() {
         `}</style>
         {summary.totalSpent === 0 && allTx.filter(t => t.type === 'STOCK_IN').length === 0 && (
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 10 }}>
-            💡 Add a <strong>Unit Cost (₱)</strong> when adding or restocking inventory items to enable expense tracking.
+            [Tip] Add a <strong>Unit Cost (₱)</strong> when adding or restocking inventory items to enable expense tracking.
           </p>
         )}
       </div>

@@ -190,8 +190,8 @@ export function AdminPage() {
 
   // Role badge helper
   const roleBadgeStyle = (r: UserRole) => {
-    if (r === 'super_admin') return { bg: 'rgba(139,92,246,0.15)', color: '#7C3AED', label: '👑 Super Admin' };
-    if (r === 'system_admin') return { bg: 'rgba(217,45,32,0.12)', color: '#D92D20', label: '🛡 System Admin' };
+    if (r === 'super_admin') return { bg: 'rgba(139,92,246,0.15)', color: '#7C3AED', label: 'Super Admin' };
+    if (r === 'system_admin') return { bg: 'rgba(217,45,32,0.12)', color: '#D92D20', label: 'System Admin' };
     return { bg: 'rgba(255,106,42,0.12)', color: '#FF7A18', label: 'Farm Manager' };
   };
 
@@ -417,7 +417,7 @@ export function AdminPage() {
               Delete <strong>{confirmDelete.email}</strong>?
             </p>
             <p style={{ fontSize: 13, color: '#EF4444', marginBottom: 20 }}>
-              ⚠️ This will permanently delete the user and ALL their data ({confirmDelete.animal_count} animals, {confirmDelete.health_count} health records). Cannot be undone.
+              [Warning] This will permanently delete the user and ALL their data ({confirmDelete.animal_count} animals, {confirmDelete.health_count} health records). Cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>Cancel</button>

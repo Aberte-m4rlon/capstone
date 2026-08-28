@@ -186,7 +186,7 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
             ))}
           </div>
           <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            ⚠️ {p.modelMeta.disclaimer}
+            [Paalala] {p.modelMeta.disclaimer}
           </div>
         </details>
       )}

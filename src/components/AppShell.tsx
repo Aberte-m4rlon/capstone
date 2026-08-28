@@ -427,7 +427,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       color: isSuperAdmin ? '#7C3AED' : isAdmin ? '#D92D20' : '#FF7A18',
                       border: isSuperAdmin ? '1px solid rgba(139,92,246,0.30)' : isAdmin ? '1px solid rgba(217,45,32,0.25)' : '1px solid rgba(255,106,42,0.25)',
                     }}>
-                      {isSuperAdmin ? '👑 Super Administrator' : isAdmin ? 'System Administrator' : 'Farm Manager'}
+                      {isSuperAdmin ? 'Super Administrator' : isAdmin ? 'System Administrator' : 'Farm Manager'}
                     </span>
                   </div>
                   {isFarmManager && (

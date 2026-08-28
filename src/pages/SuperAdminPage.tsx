@@ -58,8 +58,8 @@ type Tab = 'dashboard' | 'users' | 'system';
 
 // ── Role badge colours ─────────────────────────────────────────────────────────
 function roleBadge(role: UserRole) {
-  if (role === 'super_admin') return { bg: 'rgba(139,92,246,0.15)', color: '#7C3AED', border: 'rgba(139,92,246,0.35)', label: '👑 Super Admin' };
-  if (role === 'system_admin') return { bg: 'rgba(217,45,32,0.12)', color: '#D92D20', border: 'rgba(217,45,32,0.25)', label: '🛡 System Admin' };
+  if (role === 'super_admin') return { bg: 'rgba(139,92,246,0.15)', color: '#7C3AED', border: 'rgba(139,92,246,0.35)', label: 'Super Admin' };
+  if (role === 'system_admin') return { bg: 'rgba(217,45,32,0.12)', color: '#D92D20', border: 'rgba(217,45,32,0.25)', label: 'System Admin' };
   return { bg: 'rgba(255,106,42,0.12)', color: '#FF7A18', border: 'rgba(255,106,42,0.25)', label: 'Farm Manager' };
 }
 
@@ -354,7 +354,7 @@ export function SuperAdminPage() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--glass-surface)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid var(--glass-border)', borderRadius: 999, padding: 5, width: 'fit-content', flexWrap: 'wrap' }}>
         {(['dashboard', 'users', 'system'] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={tabStyle(t)}>
-            {t === 'dashboard' ? '📊 Dashboard' : t === 'users' ? '👥 User Management' : '⚙️ System'}
+            {t === 'dashboard' ? 'Dashboard' : t === 'users' ? 'User Management' : 'System'}
           </button>
         ))}
       </div>
@@ -630,7 +630,7 @@ export function SuperAdminPage() {
             )}
             {!mlCanPredict && (
               <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
-                ⚠️ The ML model requires at least 5 health records to train. Add more health check records in the farm to activate ML predictions.
+                [Paalala] The ML model requires at least 5 health records to train. Add more health check records in the farm to activate ML predictions.
               </div>
             )}
           </div>
@@ -677,7 +677,7 @@ export function SuperAdminPage() {
           <div style={{ background: 'var(--card)', borderRadius: 20, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.4)', border: '1px solid var(--border)' }}>
             <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 8, color: '#EF4444', display: 'flex', alignItems: 'center', gap: 8 }}><Trash2 size={18} /> Delete User</h3>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 6 }}>Delete <strong>{confirmDeleteUser.email}</strong>?</p>
-            <p style={{ fontSize: 13, color: '#EF4444', marginBottom: 20 }}>⚠️ Permanently deletes the user and ALL their farm data. Cannot be undone.</p>
+            <p style={{ fontSize: 13, color: '#EF4444', marginBottom: 20 }}>[Warning] Permanently deletes the user and ALL their farm data. Cannot be undone.</p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={() => setConfirmDeleteUser(null)}>Cancel</button>
               <button className="btn btn-danger" onClick={handleDeleteUser}><Trash2 size={14} /> Delete</button>

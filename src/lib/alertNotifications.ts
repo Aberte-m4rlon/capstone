@@ -43,7 +43,7 @@ export async function sendPushNotifications(alerts: DailyAlert[]): Promise<void>
  */
 export function generateAlertSummary(alerts: DailyAlert[], farmName: string = 'AlpasFarm'): string {
   if (alerts.length === 0) {
-    return `AlpasFarm Daily Summary\n\n✓ No alerts today. Your farm is running smoothly!`;
+    return `AlpasFarm Daily Summary\n\nNo alerts today. Your farm is running smoothly!`;
   }
 
   const critical = alerts.filter((a) => a.priority === 'Critical');
@@ -56,7 +56,7 @@ export function generateAlertSummary(alerts: DailyAlert[], farmName: string = 'A
   summary += `\n${'='.repeat(50)}\n`;
 
   if (critical.length > 0) {
-    summary += `\n🚨 CRITICAL (${critical.length}):\n`;
+    summary += `\n[CRITICAL] (${critical.length}):\n`;
     critical.forEach((alert, i) => {
       summary += `${i + 1}. [${alert.type}] ${alert.title}\n`;
       summary += `   ${alert.description}\n`;
@@ -65,7 +65,7 @@ export function generateAlertSummary(alerts: DailyAlert[], farmName: string = 'A
   }
 
   if (warnings.length > 0) {
-    summary += `⚠️  WARNINGS (${warnings.length}):\n`;
+    summary += `[WARNINGS] (${warnings.length}):\n`;
     warnings.forEach((alert, i) => {
       summary += `${i + 1}. [${alert.type}] ${alert.title}\n`;
       summary += `   ${alert.description}\n`;
@@ -74,7 +74,7 @@ export function generateAlertSummary(alerts: DailyAlert[], farmName: string = 'A
   }
 
   if (normal.length > 0) {
-    summary += `ℹ️  REMINDERS (${normal.length}):\n`;
+    summary += `[REMINDERS] (${normal.length}):\n`;
     normal.forEach((alert, i) => {
       summary += `${i + 1}. [${alert.type}] ${alert.title}\n`;
       summary += `   Due: ${alert.dueLabel}\n\n`;

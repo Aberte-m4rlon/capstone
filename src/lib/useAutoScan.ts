@@ -87,7 +87,7 @@ function buildMessage(
     case 'loading':        return 'Loading AI detection model…';
     case 'other_detected': {
       const obj = det?.nonTargetClass ?? 'Bagay / Ibang Hayop';
-      return `🚫 Hindi ito kambing o tupa (${obj}) — Please point at a goat or sheep.`;
+      return `Hindi ito kambing o tupa (${obj}) — Please point at a goat or sheep.`;
     }
     case 'detecting':
       if (!det || (!det.detected && !det.otherDetected)) {

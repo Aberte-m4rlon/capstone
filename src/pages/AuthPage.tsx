@@ -563,7 +563,9 @@ export function AuthPage() {
                         <span>Strength: <strong style={{ color: pwStr.color }}>{pwStr.label}</strong></span>
                         <div style={{ display: 'flex', gap: 8 }}>
                           {[['8+ chars', pwStr.checks.length], ['Upper', pwStr.checks.upper], ['Number', pwStr.checks.number]].map(([l, ok]) => (
-                            <span key={l as string} style={{ color: ok ? '#16A34A' : 'var(--text-secondary)' }}>{ok ? '✓' : '○'} {l}</span>
+                            <span key={l as string} style={{ color: ok ? '#16A34A' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                              {ok ? <CheckCircle2 size={11} color="#16A34A" /> : <span style={{ opacity: 0.5 }}>-</span>} {l}
+                            </span>
                           ))}
                         </div>
                       </div>
@@ -638,7 +640,7 @@ export function AuthPage() {
 
                 {/* Role note — transparency */}
                 <div style={{ padding: '10px 13px', borderRadius: 10, background: 'rgba(255,122,24,0.08)', border: '1px solid rgba(255,122,24,0.20)', marginBottom: 18, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  🌾 New accounts receive <strong style={{ color: '#FF7A18' }}>Farm Manager</strong> access by default. Contact a system administrator for elevated permissions.
+                  New accounts receive <strong style={{ color: '#FF7A18' }}>Farm Manager</strong> access by default. Contact a system administrator for elevated permissions.
                 </div>
 
                 <button type="submit" disabled={loading} style={{ width: '100%', padding: '13px', background: loading ? 'rgba(255,106,42,0.5)' : 'linear-gradient(135deg,#FF3B30,#FF7A18)', border: '1px solid rgba(255,255,255,0.20)', borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 800, boxShadow: loading ? 'none' : 'inset 0 1.5px 1px rgba(255,255,255,0.25), 0 10px 28px rgba(255,59,48,0.38)', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxSizing: 'border-box' }}>

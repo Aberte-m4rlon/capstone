@@ -102,16 +102,16 @@ export const SYSTEM_PROMPT = `You are MyAI, the intelligent assistant for AlpasF
 Your purpose is to help farm managers understand, manage, and analyze information within their AlpasFarm system.
 
 ALPASFARM SYSTEM CAPABILITIES & MODULES:
-1. 🐐 Animals & Profiles: Complete herd tracking for Goats (kambing) and Sheep (tupa) with QR tags, vitals (temperature, heart rate), health status, and breeding status.
-2. 📷 AI Livestock Health Scanner: Real-time 2-second computer vision screening powered by MobileNetV2 and Cloud Run ML Server. Supports goats and sheep, visual symptom indicator detection, and automatically rejects non-target objects/animals (dogs, cats, humans, objects).
-3. 🏥 Health & Illness Monitoring: 15 clinical parameters, FAMACHA scoring (for anemia/barber pole worm), bloat scoring (0-3), rumen motility, and early pattern detection for 7 conditions (PPR, pneumonia, bloat, fever, foot rot, enterotoxemia, anemia).
-4. ⚖️ Weight & Growth Forecasting: Polynomial regression for weight trajectories and market-ready dates.
-5. 💕 Breeding & Reproduction: Gestation calculators (150-day gestation), mating records, expected kidding dates, and Naive Bayes breeding success probability.
-6. 💉 Vaccination & Deworming: Preventive health schedules with overdue and due-soon alerts.
-7. 🌾 Feed Management & FCR: Feed intake tracking, cost computation, and Ordinary Least Squares (OLS) feed-to-gain modeling.
-8. 🥛 Dairy & Milk Yield: Daily milk logging and 7-day yield forecasting via Holt's Exponential Smoothing.
-9. 📦 Farm Inventory: Feed and medicine stock levels with minimum stock and expiry date tracking.
-10. 🧠 8 ML & Statistical Models: Logistic Regression Health Risk, Polynomial Growth Forecast, Holt Smoothing Milk Forecast, Naive Bayes Breeding Success, K-Means++ Herd Clustering, OLS Feed Efficiency, Statistical Anomaly Detection (Z-Score & IQR), and MobileNetV2 Vision Health Scanner.
+1. Animals & Profiles: Complete herd tracking for Goats (kambing) and Sheep (tupa) with QR tags, vitals (temperature, heart rate), health status, and breeding status.
+2. AI Livestock Health Scanner: Real-time 2-second computer vision screening powered by MobileNetV2 and Cloud Run ML Server. Supports goats and sheep, visual symptom indicator detection, and automatically rejects non-target objects/animals (dogs, cats, humans, objects).
+3. Health & Illness Monitoring: 15 clinical parameters, FAMACHA scoring (for anemia/barber pole worm), bloat scoring (0-3), rumen motility, and early pattern detection for 7 conditions (PPR, pneumonia, bloat, fever, foot rot, enterotoxemia, anemia).
+4. Weight & Growth Forecasting: Polynomial regression for weight trajectories and market-ready dates.
+5. Breeding & Reproduction: Gestation calculators (150-day gestation), mating records, expected kidding dates, and Naive Bayes breeding success probability.
+6. Vaccination & Deworming: Preventive health schedules with overdue and due-soon alerts.
+7. Feed Management & FCR: Feed intake tracking, cost computation, and Ordinary Least Squares (OLS) feed-to-gain modeling.
+8. Dairy & Milk Yield: Daily milk logging and 7-day yield forecasting via Holt's Exponential Smoothing.
+9. Farm Inventory: Feed and medicine stock levels with minimum stock and expiry date tracking.
+10. 8 ML & Statistical Models: Logistic Regression Health Risk, Polynomial Growth Forecast, Holt Smoothing Milk Forecast, Naive Bayes Breeding Success, K-Means++ Herd Clustering, OLS Feed Efficiency, Statistical Anomaly Detection (Z-Score & IQR), and MobileNetV2 Vision Health Scanner.
 
 IMPORTANT RULES:
 - You have access to REAL farm data provided to you in this conversation. Use it to answer questions accurately.
@@ -235,7 +235,7 @@ export function buildFarmContext(
       if (Number(i.quantity) <= Number(i.minimum_stock)) flags.push('LOW_STOCK');
       if (i.expiry_date && i.expiry_date < today) flags.push('EXPIRED');
       lines.push(
-        `  ${i.name} | ${i.category} | ${i.quantity}${i.unit} min:${i.minimum_stock}${flags.length ? ' | ⚠️' + flags.join(',') : ''}`,
+        `  ${i.name} | ${i.category} | ${i.quantity}${i.unit} min:${i.minimum_stock}${flags.length ? ' | [ALERT] ' + flags.join(',') : ''}`,
       );
     });
   }
@@ -289,7 +289,7 @@ export function buildFarmContext(
         `\n[CAMERA SCREENINGS] ${screenings.length} total, ${concerns.length} possible concerns:`,
       );
       lines.push(
-        '⚠️ IMPORTANT: Camera screenings are PRELIMINARY ML assessments only, NOT veterinary diagnoses.',
+        'IMPORTANT: Camera screenings are PRELIMINARY ML assessments only, NOT veterinary diagnoses.',
       );
       screenings.slice(0, 15).forEach((s: any) => {
         const aname = nm2[s.animal_id] ?? '?';

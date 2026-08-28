@@ -612,7 +612,7 @@ export function VaccinationsPage() {
                               flexShrink: 0,
                             }}
                           >
-                            {aSpecies === 'Sheep' ? '🐑' : '🐐'}
+                            <Syringe size={14} color="#FF7A18" />
                           </div>
                           <div>
                             <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: '13px' }}>{aName}</div>
