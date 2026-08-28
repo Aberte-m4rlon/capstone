@@ -13,6 +13,7 @@ if _orig_eval_type:
 
 import time
 import logging
+import threading
 from io import BytesIO
 from PIL import Image
 
@@ -41,12 +42,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Startup Model Preloading
+# Background model loading — non-blocking so Cloud Run health check passes immediately
+def _load_model_background():
+    try:
+        loader = ModelLoader()
+        loader.load_model()
+        logger.info("ML model loaded successfully in background thread.")
+    except Exception as e:
+        logger.error(f"Background model loading failed: {e}")
+
 @app.on_event("startup")
 async def startup_event():
-    loader = ModelLoader()
-    loader.load_model()
-    logger.info("ML server startup completed.")
+    logger.info("FastAPI server starting — launching background model loader...")
+    thread = threading.Thread(target=_load_model_background, daemon=True)
+    thread.start()
+    logger.info("ML server startup completed (model loading in background).")
 
 # API Key Validation Helper
 def verify_api_key(x_api_key: str = Header(None)):
