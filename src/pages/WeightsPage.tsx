@@ -1,11 +1,16 @@
 import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
-import { useToast } from '../lib/toast';
-import { Modal, ConfirmDialog } from '../components/Modal';
+import { useToast } from '../components/ui/Toast';
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
+import { Button } from '../components/ui/Button';
+import { Input, Select, FormField } from '../components/ui/Input';
+import { Card, CardContent } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
 import { FilterToolbar, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
-import { Plus, Pencil, Trash2, TrendingUp, Brain } from 'lucide-react';
+import { Plus, Pencil, Trash2, Brain } from 'lucide-react';
 import { calculateGrowth, formatDate, daysBetween } from '../lib/analytics';
 import { useGrowthPrediction } from '../lib/mlHooks';
 import { Line } from 'react-chartjs-2';
@@ -20,7 +25,7 @@ const emptyForm = {
 
 export function WeightsPage() {
   const farmData = useFarmData();
-  const toast = useToast();
+  const { toast } = useToast();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<WeightRecord | null>(null);
@@ -48,7 +53,12 @@ export function WeightsPage() {
 
   const openEdit = (r: WeightRecord) => {
     setEditing(r);
-    setForm({ animal_id: r.animal_id, record_date: r.record_date, weight_kg: String(r.weight_kg), notes: r.notes ?? '' });
+    setForm({
+      animal_id: r.animal_id,
+      record_date: r.record_date,
+      weight_kg: String(r.weight_kg),
+      notes: r.notes ?? '',
+    });
     setErrors({});
     setModalOpen(true);
   };
@@ -66,26 +76,29 @@ export function WeightsPage() {
     if (!validate()) return;
     setSaving(true);
 
-    // Calculate previous weight, change, daily gain
     const animalWeights = farmData.weightRecords
       .filter((r) => r.animal_id === form.animal_id && (!editing || r.id !== editing.id))
-      .sort((a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime());
+      .sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime());
 
-    const previousWeight = animalWeights.length > 0 ? Number(animalWeights[animalWeights.length - 1].weight_kg) : null;
-    const currentWeight = Number(form.weight_kg);
-    const weightChange = previousWeight !== null ? +(currentWeight - previousWeight).toFixed(2) : null;
+    const prev = animalWeights[0] ?? null;
+    let prevWeight: number | null = null;
+    let weightChange: number | null = null;
     let dailyGain: number | null = null;
-    if (previousWeight !== null && animalWeights.length > 0) {
-      const prev = animalWeights[animalWeights.length - 1];
+
+    if (prev) {
+      prevWeight = prev.weight_kg;
+      weightChange = Number(form.weight_kg) - prev.weight_kg;
       const days = daysBetween(prev.record_date, form.record_date);
-      if (days > 0) dailyGain = +((currentWeight - previousWeight) / days).toFixed(4);
+      if (days > 0) {
+        dailyGain = Math.round((weightChange / days) * 1000) / 1000;
+      }
     }
 
     const payload = {
       animal_id: form.animal_id,
       record_date: form.record_date,
-      weight_kg: currentWeight,
-      previous_weight_kg: previousWeight,
+      weight_kg: Number(form.weight_kg),
+      previous_weight_kg: prevWeight,
       weight_change_kg: weightChange,
       daily_gain_kg: dailyGain,
       notes: form.notes.trim() || null,
@@ -99,17 +112,18 @@ export function WeightsPage() {
       } else {
         const { error } = await supabase.from('weight_records').insert(payload);
         if (error) throw error;
-        toast('Weight record saved. Growth calculated.', 'success');
+        toast('Weight record created.', 'success');
       }
 
-      // Update animal's current weight
-      await supabase.from('animals').update({ weight_kg: currentWeight }).eq('id', form.animal_id);
+      await supabase
+        .from('animals')
+        .update({ weight_kg: Number(form.weight_kg) })
+        .eq('id', form.animal_id);
 
       setModalOpen(false);
       farmData.refresh();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unable to save record.';
-      toast(msg, 'error');
+    } catch {
+      toast('Unable to save weight record. Please try again.', 'danger');
     } finally {
       setSaving(false);
     }
@@ -124,134 +138,260 @@ export function WeightsPage() {
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Unable to delete record.', 'error');
+      toast('Unable to delete weight record. Please try again.', 'danger');
     }
   };
 
-  const animalName = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Unknown';
+  const animalName = (id: string) => {
+    const a = farmData.animals.find((x) => x.id === id);
+    return a ? `${a.name} (${a.tag_id})` : 'Unknown';
+  };
 
-  // Growth summary per animal
   const growthSummaries = useMemo(() => {
-    return activeAnimals.map((a) => {
-      const records = farmData.weightRecords.filter((w) => w.animal_id === a.id);
-      const growth = calculateGrowth(records, farmData.settings?.target_weight_kg ?? 40);
-      return { animal: a, growth };
-    }).filter((x) => x.growth.currentWeight > 0);
+    return activeAnimals
+      .map((a) => {
+        const weights = farmData.weightRecords.filter((w) => w.animal_id === a.id);
+        return { animal: a, growth: calculateGrowth(weights, farmData.settings?.target_weight_kg ?? 40) };
+      })
+      .filter((x) => x.growth.currentWeight !== null);
   }, [activeAnimals, farmData.weightRecords, farmData.settings]);
 
-  // Chart data for selected animal
   const chartData = useMemo(() => {
-    const records = fAnimal !== 'All'
-      ? farmData.weightRecords.filter((w) => w.animal_id === fAnimal).sort((a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime())
-      : [];
+    if (fAnimal === 'All') return { labels: [], datasets: [] };
+    const records = farmData.weightRecords
+      .filter((r) => r.animal_id === fAnimal)
+      .sort((a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime());
+
     return {
       labels: records.map((r) => formatDate(r.record_date)),
-      datasets: [{
-        label: 'Weight (kg)', data: records.map((r) => Number(r.weight_kg)),
-        borderColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.3, pointRadius: 3,
-      }],
+      datasets: [
+        {
+          label: 'Weight (kg)',
+          data: records.map((r) => Number(r.weight_kg)),
+          borderColor: '#FF7A18',
+          backgroundColor: 'rgba(255,122,24,0.08)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: '#FF7A18',
+        },
+      ],
     };
   }, [farmData.weightRecords, fAnimal]);
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Weight & Growth Tracking</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+          <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', letterSpacing: '-0.02em' }}>
+            Weight & Growth Tracking
+          </h1>
+          <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
             {filtered.length} weight records · Daily gain and growth trends auto-calculated
           </p>
         </div>
-        <button className="btn btn-primary" onClick={openAdd} disabled={activeAnimals.length === 0}>
-          <Plus size={16} /> Record Weight
-        </button>
+        <Button variant="primary" onClick={openAdd} disabled={activeAnimals.length === 0} leftIcon={<Plus size={16} />}>
+          Record Weight
+        </Button>
       </div>
 
-      {/* Growth summaries */}
-      <div className="card section-gap">
-        <div className="card-title" style={{ marginBottom: 14 }}>Growth Summary</div>
-        {growthSummaries.length === 0 ? (
-          <div className="empty-state"><div className="es-icon"><Icons.Scale size={24} /></div><h4>No weight data yet</h4><p>Record weigh-ins to see growth predictions.</p></div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Animal</th><th>Current</th><th>Previous</th><th>Change</th><th>Daily Gain</th><th>Trend</th><th>Days to Target</th></tr></thead>
-              <tbody>
-                {growthSummaries.map(({ animal, growth }) => (
-                  <tr key={animal.id}>
-                    <td style={{ fontWeight: 600 }}>{animal.name}</td>
-                    <td>{growth.currentWeight} kg</td>
-                    <td>{growth.previousWeight !== null ? `${growth.previousWeight} kg` : '—'}</td>
-                    <td style={{ color: growth.weightChange !== null && growth.weightChange > 0 ? 'var(--healthy)' : growth.weightChange !== null && growth.weightChange < 0 ? 'var(--critical)' : 'inherit' }}>
-                      {growth.weightChange !== null ? `${growth.weightChange > 0 ? '+' : ''}${growth.weightChange} kg` : '—'}
-                    </td>
-                    <td>{growth.dailyGain !== null ? `${growth.dailyGain} kg/day` : '—'}</td>
-                    <td><span className={`badge badge-${growth.trend === 'Good' ? 'green' : growth.trend === 'Declining' ? 'red' : growth.trend === 'Slow' ? 'yellow' : 'gray'}`}>{growth.trend}</span></td>
-                    <td>{growth.daysToTarget !== null ? `${growth.daysToTarget} days` : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Growth Summary Card */}
+      <Card variant="default">
+        <CardContent>
+          <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)', marginBottom: 14 }}>
+            Growth Summary
           </div>
-        )}
-      </div>
+          {growthSummaries.length === 0 ? (
+            <EmptyState
+              icon={<Icons.Scale size={32} />}
+              title="No weight data yet"
+              description="Record weigh-ins to see growth predictions."
+            />
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Animal</th>
+                    <th>Current</th>
+                    <th>Previous</th>
+                    <th>Change</th>
+                    <th>Daily Gain</th>
+                    <th>Trend</th>
+                    <th>Days to Target</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {growthSummaries.map(({ animal, growth }) => (
+                    <tr key={animal.id}>
+                      <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>{animal.name}</td>
+                      <td>{growth.currentWeight} kg</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                        {growth.previousWeight !== null ? `${growth.previousWeight} kg` : '—'}
+                      </td>
+                      <td
+                        style={{
+                          fontWeight: 600,
+                          color:
+                            growth.weightChange !== null && growth.weightChange > 0
+                              ? 'var(--color-success, #16A34A)'
+                              : growth.weightChange !== null && growth.weightChange < 0
+                              ? 'var(--color-danger, #EF4444)'
+                              : 'inherit',
+                        }}
+                      >
+                        {growth.weightChange !== null
+                          ? `${growth.weightChange > 0 ? '+' : ''}${growth.weightChange} kg`
+                          : '—'}
+                      </td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                        {growth.dailyGain !== null ? `${growth.dailyGain} kg/day` : '—'}
+                      </td>
+                      <td>
+                        <Badge
+                          variant={
+                            growth.trend === 'Good'
+                              ? 'success'
+                              : growth.trend === 'Declining'
+                              ? 'danger'
+                              : growth.trend === 'Slow'
+                              ? 'warning'
+                              : 'default'
+                          }
+                          size="sm"
+                        >
+                          {growth.trend}
+                        </Badge>
+                      </td>
+                      <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>
+                        {growth.daysToTarget !== null ? `${growth.daysToTarget} days` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
+      {/* Chart */}
       {fAnimal !== 'All' && chartData.labels.length > 0 && (
-        <div className="card section-gap">
-          <div className="card-title" style={{ marginBottom: 14 }}>Weight Chart — {animalName(fAnimal)}</div>
-          <Line data={chartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
-        </div>
+        <Card variant="default">
+          <CardContent>
+            <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)', marginBottom: 14 }}>
+              Weight Chart — {animalName(fAnimal)}
+            </div>
+            <Line data={chartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+          </CardContent>
+        </Card>
       )}
 
       {/* ML Growth Prediction */}
       {mlGrowth && (
-        <div className="card section-gap" style={{ borderLeft: '3px solid #FF7A18' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <Brain size={18} color="#FF7A18" />
-            <span style={{ fontWeight: 700, fontSize: 14 }}>ML Growth Prediction — Polynomial Regression</span>
-            <span className="badge" style={{ background: 'rgba(255, 122, 24, 0.15)', color: '#FF9F0A', border: '1px solid rgba(255, 122, 24, 0.25)' }}>R² = {mlGrowth.rSquared.toFixed(3)}</span>
-            <span className="badge" style={{ background: 'rgba(255, 159, 10, 0.15)', color: '#FFB340', border: '1px solid rgba(255, 159, 10, 0.25)' }}>{mlGrowth.confidence}% confidence</span>
-          </div>
-          <div className="grid-4">
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Projected Daily Gain</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: mlGrowth.projectedDailyGain > 0 ? 'var(--healthy)' : 'var(--critical)' }}>{mlGrowth.projectedDailyGain} kg/day</div>
+        <Card variant="default" style={{ borderLeft: '4px solid var(--color-primary, #FF6A2A)' }}>
+          <CardContent>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+              <Brain size={18} color="#FF6A2A" />
+              <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)' }}>
+                ML Growth Prediction — Polynomial Regression
+              </span>
+              <Badge variant="warning" size="sm">
+                R² = {mlGrowth.rSquared.toFixed(3)}
+              </Badge>
+              <Badge variant="primary" size="sm">
+                {mlGrowth.confidence}% confidence
+              </Badge>
             </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>30-Day Projection</div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>{mlGrowth.projectedWeights[Math.min(4, mlGrowth.projectedWeights.length - 1)]?.weight ?? '—'} kg</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  Projected Daily Gain
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.projectedDailyGain > 0 ? 'var(--color-success, #16A34A)' : 'var(--color-danger, #EF4444)' }}>
+                  {mlGrowth.projectedDailyGain} kg/day
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  30-Day Projection
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
+                  {mlGrowth.projectedWeights[Math.min(4, mlGrowth.projectedWeights.length - 1)]?.weight ?? '—'} kg
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  Market Ready Date
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: 700, paddingTop: 4, color: 'var(--color-primary, #FF6A2A)' }}>
+                  {mlGrowth.marketReadyDate ?? 'Already at target'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  Model Fit (R²)
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.rSquared >= 0.7 ? 'var(--color-success, #16A34A)' : mlGrowth.rSquared >= 0.4 ? 'var(--color-warning, #F59E0B)' : 'var(--color-danger, #EF4444)' }}>
+                  {mlGrowth.rSquared.toFixed(3)}
+                </div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Market Ready Date</div>
-              <div style={{ fontSize: 16, fontWeight: 700, paddingTop: 4 }}>{mlGrowth.marketReadyDate ?? 'Already at target'}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Model Fit (R²)</div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: mlGrowth.rSquared >= 0.7 ? 'var(--healthy)' : mlGrowth.rSquared >= 0.4 ? 'var(--warning)' : 'var(--critical)' }}>{mlGrowth.rSquared.toFixed(3)}</div>
-            </div>
-          </div>
-          {mlGrowth.projectedWeights.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text-secondary)' }}>Projected Growth Curve with Confidence Interval</div>
-              <Line
-                data={{
-                  labels: mlGrowth.projectedWeights.map((p) => p.date),
-                  datasets: [
-                    { label: 'Projected Weight', data: mlGrowth.projectedWeights.map((p) => p.weight), borderColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.1)', fill: false, tension: 0.3, pointRadius: 2 },
-                    { label: 'Upper Bound', data: mlGrowth.projectedWeights.map((p) => p.upper), borderColor: 'rgba(59,130,246,0.3)', borderDash: [5, 5], fill: false, tension: 0.3, pointRadius: 0 },
-                    { label: 'Lower Bound', data: mlGrowth.projectedWeights.map((p) => p.lower), borderColor: 'rgba(59,130,246,0.3)', borderDash: [5, 5], fill: false, tension: 0.3, pointRadius: 0 },
-                  ],
-                }}
-                options={{ responsive: true, plugins: { legend: { display: true, labels: { font: { size: 10 } } } }, scales: { y: { beginAtZero: true } } }}
-              />
-            </div>
-          )}
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
-            This model fits a polynomial curve to your weight history and projects forward 90 days. The dashed lines show the confidence interval based on historical variance.
-          </p>
-        </div>
+            {mlGrowth.projectedWeights.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary, #475569)' }}>
+                  Projected Growth Curve with Confidence Interval
+                </div>
+                <Line
+                  data={{
+                    labels: mlGrowth.projectedWeights.map((p) => p.date),
+                    datasets: [
+                      {
+                        label: 'Projected Weight',
+                        data: mlGrowth.projectedWeights.map((p) => p.weight),
+                        borderColor: '#FF6A2A',
+                        backgroundColor: 'rgba(255,106,42,0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 2,
+                      },
+                      {
+                        label: 'Upper Bound',
+                        data: mlGrowth.projectedWeights.map((p) => p.upper),
+                        borderColor: 'rgba(255,106,42,0.3)',
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                      },
+                      {
+                        label: 'Lower Bound',
+                        data: mlGrowth.projectedWeights.map((p) => p.lower),
+                        borderColor: 'rgba(255,106,42,0.3)',
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 0,
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: { legend: { display: true, labels: { font: { size: 10 } } } },
+                    scales: { y: { beginAtZero: true } },
+                  }}
+                />
+              </div>
+            )}
+            <p style={{ fontSize: '12px', color: 'var(--color-text-muted, #64748B)', marginTop: 8, margin: 0 }}>
+              This model fits a polynomial curve to your weight history and projects forward 90 days. The dashed lines show the confidence interval based on historical variance.
+            </p>
+          </CardContent>
+        </Card>
       )}
 
+      {/* Filter */}
       <FilterToolbar>
         <FilterSelect
           value={fAnimal}
@@ -265,56 +405,149 @@ export function WeightsPage() {
         />
       </FilterToolbar>
 
-      <div className="card">
-        {filtered.length === 0 ? (
-          <div className="empty-state"><div className="es-icon"><Icons.Scale size={24} /></div><h4>No weight records</h4><p>Record a weigh-in to start tracking growth.</p></div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Date</th><th>Animal</th><th>Weight</th><th>Previous</th><th>Change</th><th>Daily Gain</th><th>Actions</th></tr></thead>
-              <tbody>
-                {filtered.map((w) => (
-                  <tr key={w.id}>
-                    <td>{formatDate(w.record_date)}</td>
-                    <td style={{ fontWeight: 600 }}>{animalName(w.animal_id)}</td>
-                    <td>{w.weight_kg} kg</td>
-                    <td>{w.previous_weight_kg !== null ? `${w.previous_weight_kg} kg` : '—'}</td>
-                    <td>{w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}</td>
-                    <td>{w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}</td>
-                    <td><div className="row-actions">
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(w)}><Pencil size={15} /></button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(w)}><Trash2 size={15} /></button>
-                    </div></td>
+      {/* Table */}
+      <Card variant="default" padding="none">
+        <CardContent>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 32 }}>
+              <EmptyState
+                icon={<Icons.Scale size={32} />}
+                title="No weight records"
+                description="Record a weigh-in to start tracking growth."
+                actionLabel="Record Weight"
+                onAction={openAdd}
+              />
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Animal</th>
+                    <th>Weight</th>
+                    <th>Previous</th>
+                    <th>Change</th>
+                    <th>Daily Gain</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {filtered.map((w) => (
+                    <tr key={w.id}>
+                      <td>{formatDate(w.record_date)}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                        {animalName(w.animal_id)}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{w.weight_kg} kg</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                        {w.previous_weight_kg !== null ? `${w.previous_weight_kg} kg` : '—'}
+                      </td>
+                      <td
+                        style={{
+                          fontWeight: 600,
+                          color:
+                            w.weight_change_kg !== null && w.weight_change_kg > 0
+                              ? 'var(--color-success, #16A34A)'
+                              : w.weight_change_kg !== null && w.weight_change_kg < 0
+                              ? 'var(--color-danger, #EF4444)'
+                              : 'inherit',
+                        }}
+                      >
+                        {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
+                      </td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                        {w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}
+                      </td>
+                      <td>
+                        <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(w)}>
+                            <Pencil size={15} />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(w)}>
+                            <Trash2 size={15} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Weight Record' : 'Record Weight'}
-        footer={<><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Record'}</button></>}
-      >
-        <div className="form-group"><label className="form-label">Animal <span className="req">*</span></label>
-          <select className="form-select" value={form.animal_id} onChange={(e) => setForm({ ...form, animal_id: e.target.value })}>
-            <option value="">Select animal...</option>
-            {activeAnimals.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.tag_id})</option>)}
-          </select>
-          {errors.animal_id && <div className="form-error">{errors.animal_id}</div>}</div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Date <span className="req">*</span></label>
-            <input className="form-input" type="date" value={form.record_date} onChange={(e) => setForm({ ...form, record_date: e.target.value })} /></div>
-          <div className="form-group"><label className="form-label">Weight (kg) <span className="req">*</span></label>
-            <input className="form-input" type="number" step="0.1" value={form.weight_kg} onChange={(e) => setForm({ ...form, weight_kg: e.target.value })} placeholder="35.5" />
-            {errors.weight_kg && <div className="form-error">{errors.weight_kg}</div>}</div>
-        </div>
-        <div className="form-group"><label className="form-label">Notes</label>
-          <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+      {/* Modal */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
+        <ModalHeader
+          title={editing ? 'Edit Weight Record' : 'Record Weight'}
+          onClose={() => setModalOpen(false)}
+        />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <FormField label="Animal" required error={errors.animal_id}>
+              <Select
+                value={form.animal_id}
+                onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
+                options={[
+                  { value: '', label: 'Select animal...' },
+                  ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
+                ]}
+              />
+            </FormField>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Date" required>
+                <Input
+                  type="date"
+                  value={form.record_date}
+                  onChange={(e) => setForm({ ...form, record_date: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label="Weight (kg)" required error={errors.weight_kg}>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={form.weight_kg}
+                  onChange={(e) => setForm({ ...form, weight_kg: e.target.value })}
+                  placeholder="35.5"
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Notes">
+              <textarea
+                className="form-textarea"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Weight observation notes..."
+                style={{ minHeight: 80 }}
+              />
+            </FormField>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
+            {editing ? 'Save Changes' : 'Save Record'}
+          </Button>
+        </ModalFooter>
       </Modal>
 
-      <ConfirmDialog open={!!confirmDelete} title="Delete Weight Record" message="Are you sure you want to delete this weight record?" confirmLabel="Delete" onConfirm={handleDelete} onCancel={() => setConfirmDelete(null)} />
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete Weight Record"
+        message="Are you sure you want to delete this weight record? This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

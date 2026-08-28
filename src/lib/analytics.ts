@@ -674,6 +674,9 @@ export interface FeedEfficiency {
   totalFeedKg: number;
   totalCost: number;
   weightGain: number | null;
+  weightGainKg: number;
+  fcr: number | null;
+  efficiencyRating: 'High' | 'Moderate' | 'Low' | 'Insufficient Data';
 }
 
 export function calculateFeedEfficiency(
@@ -688,20 +691,33 @@ export function calculateFeedEfficiency(
     const sorted = [...weightRecords].sort(
       (a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime(),
     );
-    weightGain = Number(sorted[sorted.length - 1].weight_kg) - Number(sorted[0].weight_kg);
+    weightGain = Number((Number(sorted[sorted.length - 1].weight_kg) - Number(sorted[0].weight_kg)).toFixed(2));
   }
 
+  const fcr = (weightGain !== null && weightGain > 0 && totalFeedKg > 0)
+    ? Number((totalFeedKg / weightGain).toFixed(2))
+    : null;
+
+  let efficiencyRating: 'High' | 'Moderate' | 'Low' | 'Insufficient Data' = 'Insufficient Data';
   let score = 50;
-  if (weightGain !== null && totalFeedKg > 0) {
-    const feedConversionRatio = totalFeedKg / Math.max(weightGain, 0.1);
-    // Lower FCR = better. Typical good FCR for goats ~ 5-8
-    if (feedConversionRatio < 5) score = 95;
-    else if (feedConversionRatio < 7) score = 85;
-    else if (feedConversionRatio < 10) score = 70;
-    else if (feedConversionRatio < 15) score = 55;
-    else score = 40;
+
+  if (fcr !== null) {
+    if (fcr < 5) {
+      score = 95;
+      efficiencyRating = 'High';
+    } else if (fcr < 8) {
+      score = 80;
+      efficiencyRating = 'High';
+    } else if (fcr < 12) {
+      score = 65;
+      efficiencyRating = 'Moderate';
+    } else {
+      score = 40;
+      efficiencyRating = 'Low';
+    }
   } else if (weightGain !== null && weightGain > 0) {
     score = 70;
+    efficiencyRating = 'Moderate';
   }
 
   let label: string;
@@ -710,7 +726,16 @@ export function calculateFeedEfficiency(
   else if (score >= 40) label = 'Monitor feed efficiency';
   else label = 'Poor efficiency — review feed plan';
 
-  return { score, label, totalFeedKg, totalCost, weightGain };
+  return {
+    score,
+    label,
+    totalFeedKg,
+    totalCost,
+    weightGain,
+    weightGainKg: weightGain ?? 0,
+    fcr,
+    efficiencyRating,
+  };
 }
 
 export interface MilkForecast {

@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
-import { useToast } from '../lib/toast';
+import { useToast } from '../components/ui/Toast';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { QrCode, ScanLine, Camera, CameraOff, Keyboard, PawPrint, AlertCircle, CheckCircle } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input, FormField } from '../components/ui/Input';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 const CONTAINER_ID = 'qr-scanner-container';
 
@@ -203,7 +207,7 @@ export function ScannerPage() {
       toast(`Found: ${animal.name} (${animal.tag_id})`, 'success');
       navigate(`/animals/${animal.id}`);
     } else {
-      toast('No animal found with that tag ID or name.', 'error');
+      toast('No animal found with that tag ID or name.', 'danger');
     }
   };
 
@@ -211,38 +215,42 @@ export function ScannerPage() {
 
   return (
     <div>
-      <div className="card section-gap" style={{ maxWidth: 540, margin: '0 auto' }}>
+      <Card variant="glass" padding="lg" style={{ maxWidth: 540, margin: '0 auto' }}>
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{
-            width: 64, height: 64, borderRadius: 16, background: '#D1FAE5',
+            width: 64, height: 64, borderRadius: 16, background: 'rgba(5, 150, 105, 0.12)',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
           }}>
             <ScanLine size={32} color="#059669" />
           </div>
           <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>QR Code Scanner</h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)' }}>
             Scan an animal's QR tag to instantly open its profile.
           </p>
         </div>
 
         {/* Mode toggle */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: 'var(--bg)', borderRadius: 10, padding: 4 }}>
-          <button
-            className={`btn btn-sm ${mode === 'camera' ? 'btn-primary' : 'btn-ghost'}`}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: 'var(--color-surface-elevated, rgba(0,0,0,0.06))', borderRadius: 10, padding: 4 }}>
+          <Button
+            variant={mode === 'camera' ? 'primary' : 'ghost'}
+            size="sm"
             style={{ flex: 1 }}
             onClick={() => switchMode('camera')}
+            leftIcon={<Camera size={15} />}
           >
-            <Camera size={15} /> Camera
-          </button>
-          <button
-            className={`btn btn-sm ${mode === 'manual' ? 'btn-primary' : 'btn-ghost'}`}
+            Camera
+          </Button>
+          <Button
+            variant={mode === 'manual' ? 'primary' : 'ghost'}
+            size="sm"
             style={{ flex: 1 }}
             onClick={() => switchMode('manual')}
+            leftIcon={<Keyboard size={15} />}
           >
-            <Keyboard size={15} /> Manual Entry
-          </button>
+            Manual Entry
+          </Button>
         </div>
 
         {/* ── CAMERA MODE ── */}
@@ -251,54 +259,53 @@ export function ScannerPage() {
             {/* Success flash */}
             {lastResult && (
               <div style={{
-                background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: 10,
+                background: 'rgba(5, 150, 105, 0.12)', border: '1px solid rgba(5, 150, 105, 0.3)', borderRadius: 10,
                 padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10,
               }}>
                 <CheckCircle size={20} color="#059669" />
-                <span style={{ fontWeight: 700, color: '#065F46' }}>Found: {lastResult} — navigating…</span>
+                <span style={{ fontWeight: 700, color: '#059669' }}>Found: {lastResult} — navigating…</span>
               </div>
             )}
 
             {/* Error state */}
             {scanState === 'error' && (
               <div style={{
-                background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10,
+                background: 'rgba(239, 68, 68, 0.10)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 10,
                 padding: '14px 16px', marginBottom: 14,
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <AlertCircle size={20} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
                   <div>
-                    <p style={{ fontWeight: 700, color: '#991B1B', marginBottom: 4 }}>Scanner Error</p>
-                    <p style={{ fontSize: 12, color: '#7F1D1D', whiteSpace: 'pre-line' }}>{errorMsg}</p>
+                    <p style={{ fontWeight: 700, color: '#EF4444', marginBottom: 4 }}>Scanner Error</p>
+                    <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', whiteSpace: 'pre-line' }}>{errorMsg}</p>
                   </div>
                 </div>
-                <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={startScanner}>
-                  <Camera size={14} /> Try Again
-                </button>
+                <Button variant="primary" size="sm" style={{ marginTop: 12 }} onClick={startScanner} leftIcon={<Camera size={14} />}>
+                  Try Again
+                </Button>
               </div>
             )}
 
             {/* Idle state — show start button */}
             {scanState === 'idle' && !lastResult && (
               <div style={{
-                border: '2px dashed var(--border)', borderRadius: 14, padding: '36px 20px',
-                textAlign: 'center', background: 'var(--bg)', marginBottom: 12,
+                border: '2px dashed var(--border-light, rgba(255,255,255,0.15))', borderRadius: 14, padding: '36px 20px',
+                textAlign: 'center', background: 'var(--color-surface-elevated, rgba(0,0,0,0.03))', marginBottom: 12,
               }}>
-                <QrCode size={52} color="var(--text-secondary)" style={{ margin: '0 auto 12px', display: 'block' }} />
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>
+                <QrCode size={52} color="var(--color-text-secondary, #475569)" style={{ margin: '0 auto 12px', display: 'block' }} />
+                <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)', marginBottom: 18 }}>
                   Press Start and point your camera at the animal's QR code tag.
                 </p>
-                <button className="btn btn-primary" onClick={startScanner}>
-                  <Camera size={16} /> Start Camera
-                </button>
+                <Button variant="primary" onClick={startScanner} leftIcon={<Camera size={16} />}>
+                  Start Camera
+                </Button>
               </div>
             )}
 
             {/* Starting state */}
             {scanState === 'starting' && (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-secondary)', fontSize: 13 }}>
-                <div className="spinner" style={{ margin: '0 auto 12px' }} />
-                Starting camera…
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-text-secondary, #475569)', fontSize: 13 }}>
+                <LoadingSpinner text="Starting camera…" />
               </div>
             )}
 
@@ -320,12 +327,12 @@ export function ScannerPage() {
             {/* Scanning controls */}
             {scanState === 'scanning' && (
               <div style={{ textAlign: 'center', marginTop: 14 }}>
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>
+                <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 10 }}>
                   Scanning… point camera at a QR code.
                 </p>
-                <button className="btn btn-secondary btn-sm" onClick={stopScanner}>
-                  <CameraOff size={14} /> Stop Camera
-                </button>
+                <Button variant="secondary" size="sm" onClick={stopScanner} leftIcon={<CameraOff size={14} />}>
+                  Stop Camera
+                </Button>
               </div>
             )}
           </div>
@@ -334,53 +341,52 @@ export function ScannerPage() {
         {/* ── MANUAL MODE ── */}
         {mode === 'manual' && (
           <div>
-            <div className="form-group">
-              <label className="form-label">Tag ID or Animal Name</label>
-              <input
-                className="form-input"
+            <FormField label="Tag ID or Animal Name" hint="Enter the tag ID printed on the ear tag or QR label. Press Enter or tap Find.">
+              <Input
                 placeholder="e.g. GOAT-001 or Bella"
                 value={manualTag}
                 onChange={(e) => setManualTag(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleManualSearch()}
                 autoFocus
               />
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6 }}>
-                Enter the tag ID printed on the ear tag or QR label. Press Enter or tap Find.
-              </p>
-            </div>
-            <button
-              className="btn btn-primary"
+            </FormField>
+            <Button
+              variant="primary"
               onClick={handleManualSearch}
               disabled={!manualTag.trim()}
+              leftIcon={<PawPrint size={16} />}
+              style={{ marginTop: 12 }}
             >
-              <PawPrint size={16} /> Find Animal
-            </button>
+              Find Animal
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Quick access list */}
-      <div className="card section-gap" style={{ maxWidth: 540, margin: '16px auto 0' }}>
+      <Card variant="glass" padding="md" style={{ maxWidth: 540, margin: '16px auto 0' }}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
           All Animals — Quick Access
         </div>
         {activeAnimals.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No animals registered yet.</p>
+          <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)' }}>No animals registered yet.</p>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {activeAnimals.map((a) => (
-              <button
+              <Button
                 key={a.id}
-                className="btn btn-secondary btn-sm"
+                variant="secondary"
+                size="sm"
                 onClick={() => navigate(`/animals/${a.id}`)}
+                leftIcon={<PawPrint size={13} />}
               >
-                <PawPrint size={13} /> {a.name}
+                {a.name}
                 <span style={{ opacity: 0.6, fontSize: 11, marginLeft: 4 }}>({a.tag_id})</span>
-              </button>
+              </Button>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

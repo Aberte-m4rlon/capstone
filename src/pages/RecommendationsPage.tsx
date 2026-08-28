@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
 import { generateRecommendations } from '../lib/recommendations';
 import { FilterToolbar, FilterPill } from '../components/FilterToolbar';
-import { Icons } from '../lib/icons';
+import { Activity, Lightbulb, AlertTriangle, Clock, CheckCircle, ChevronRight } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 export function RecommendationsPage() {
   const farmData = useFarmData();
@@ -26,28 +30,38 @@ export function RecommendationsPage() {
     return recommendations.filter((r) => r.category.toLowerCase().includes(categoryFilter.toLowerCase()));
   }, [recommendations, categoryFilter]);
 
-  if (farmData.loading) return <div className="loading-center"><div className="spinner" /></div>;
+  if (farmData.loading) return <LoadingSpinner fullScreen text="Analyzing recommendations..." />;
 
-  const severityIcon = (color: string) => {
+  const getSeverityBadgeVariant = (color: string): 'danger' | 'warning' | 'success' | 'info' | 'neutral' => {
     switch (color) {
-      case 'red': return <Icons.AlertTriangle size={16} color="#FF3B30" />;
-      case 'orange': return <Icons.AlertTriangle size={16} color="#FF7A18" />;
-      case 'yellow': return <Icons.Clock size={16} color="#FF9F0A" />;
-      case 'green': return <Icons.CheckCircle size={16} color="#FFB340" />;
-      default: return <Icons.Lightbulb size={16} color="#FF7A18" />;
+      case 'red': return 'danger';
+      case 'orange': return 'warning';
+      case 'yellow': return 'warning';
+      case 'green': return 'success';
+      default: return 'info';
+    }
+  };
+
+  const getSeverityIcon = (color: string) => {
+    switch (color) {
+      case 'red': return <AlertTriangle size={16} color="#FF3B30" />;
+      case 'orange': return <AlertTriangle size={16} color="#FF7A18" />;
+      case 'yellow': return <Clock size={16} color="#FF9F0A" />;
+      case 'green': return <CheckCircle size={16} color="#FFB340" />;
+      default: return <Lightbulb size={16} color="#FF7A18" />;
     }
   };
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>Smart Farm Assistant</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+        <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
           Recommendations are automatically generated from your farm data — not hardcoded.
         </p>
       </div>
 
-      {/* Reusable Liquid Glass Category Filter Toolbar */}
+      {/* Filter Toolbar */}
       <FilterToolbar>
         {categories.map((cat) => (
           <FilterPill
@@ -61,62 +75,113 @@ export function RecommendationsPage() {
       </FilterToolbar>
 
       {/* Today's Priorities */}
-      <div className="card section-gap">
-        <div className="card-header">
-          <div className="card-title">Today's Priorities</div>
-          <Icons.Activity size={20} color="#FF7A18" />
+      <Card variant="glass" padding="none" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>Today's Priorities</div>
+          <Activity size={20} color="#FF7A18" />
         </div>
         {priorities.length === 0 ? (
-          <div className="empty-state">
-            <div className="es-icon"><Icons.CheckCircle size={24} /></div>
-            <h4>All clear!</h4>
-            <p>No urgent priorities right now. Your farm is in great shape.</p>
-          </div>
+          <EmptyState
+            icon={<CheckCircle size={32} color="#FFB340" />}
+            title="All clear!"
+            description="No urgent priorities right now. Your farm is in great shape."
+          />
         ) : (
-          priorities.map((p, i) => (
-            <div key={p.id} className="priority-item" onClick={() => navigate(p.link)}>
-              <div className={`priority-num ${p.severity}`}>{i + 1}</div>
-              <div className="priority-content">
-                <div className="priority-title">{p.title}</div>
-                <div className="priority-desc">{p.description}</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {priorities.map((p, i) => (
+              <div
+                key={p.id}
+                onClick={() => navigate(p.link)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '14px 20px',
+                  borderBottom: i < priorities.length - 1 ? '1px solid var(--border-light, rgba(255,255,255,0.04))' : 'none',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface-elevated, rgba(255,255,255,0.04))')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  background: p.severity === 'urgent' || p.severity === 'critical' ? 'rgba(255,59,48,0.15)' : 'rgba(255,159,10,0.15)',
+                  color: p.severity === 'urgent' || p.severity === 'critical' ? '#FF3B30' : '#FF9F0A',
+                  flexShrink: 0,
+                }}>
+                  {i + 1}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: 'inherit' }}>{p.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>{p.description}</div>
+                </div>
+                <ChevronRight size={16} color="var(--color-text-secondary, #475569)" />
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
-      </div>
+      </Card>
 
       {/* All Recommendations */}
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">All Recommendations</div>
-          <Icons.Lightbulb size={20} color="#F59E0B" />
+      <Card variant="glass" padding="none">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>All Recommendations</div>
+          <Lightbulb size={20} color="#FF9F0A" />
         </div>
         {filteredRecs.length === 0 ? (
-          <div className="empty-state">
-            <div className="es-icon"><Icons.CheckCircle size={24} /></div>
-            <h4>No recommendations for this category</h4>
-            <p>Everything looks good on your farm right now.</p>
-          </div>
+          <EmptyState
+            icon={<CheckCircle size={32} color="#FFB340" />}
+            title="No recommendations for this category"
+            description="Everything looks good on your farm right now."
+          />
         ) : (
-          filteredRecs.map((rec, i) => (
-            <div key={i} className="rec-card" onClick={() => rec.link && navigate(rec.link)}>
-              <div className={`rec-dot ${rec.severity_color}`}></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {severityIcon(rec.severity_color)}
-                  <div className="rec-title">{rec.title}</div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {filteredRecs.map((rec, i) => (
+              <div
+                key={i}
+                onClick={() => rec.link && navigate(rec.link)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 14,
+                  padding: '16px 20px',
+                  borderBottom: i < filteredRecs.length - 1 ? '1px solid var(--border-light, rgba(255,255,255,0.04))' : 'none',
+                  cursor: rec.link ? 'pointer' : 'default',
+                  transition: 'background 0.15s ease',
+                }}
+                onMouseEnter={(e) => { if (rec.link) e.currentTarget.style.background = 'var(--color-surface-elevated, rgba(255,255,255,0.04))'; }}
+                onMouseLeave={(e) => { if (rec.link) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <div style={{ paddingTop: 2 }}>
+                  {getSeverityIcon(rec.severity_color)}
                 </div>
-                {rec.description && <div className="rec-desc" style={{ marginTop: 4 }}>{rec.description}</div>}
-                <div style={{ marginTop: 4 }}>
-                  <span className={`badge badge-${rec.severity_color === 'red' ? 'red' : rec.severity_color === 'orange' ? 'orange' : rec.severity_color === 'yellow' ? 'yellow' : rec.severity_color === 'green' ? 'green' : 'blue'}`}>
-                    {rec.category}
-                  </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{rec.title}</span>
+                    <Badge variant={getSeverityBadgeVariant(rec.severity_color)} size="sm">
+                      {rec.category}
+                    </Badge>
+                  </div>
+                  {rec.description && (
+                    <div style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)', marginTop: 4, lineHeight: 1.4 }}>
+                      {rec.description}
+                    </div>
+                  )}
                 </div>
+                {rec.link && <ChevronRight size={16} color="var(--color-text-secondary, #475569)" style={{ marginTop: 4 }} />}
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

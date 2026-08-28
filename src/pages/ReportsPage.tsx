@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
-import { Icons } from '../lib/icons';
 import { FilterToolbar, FilterSelect, FilterSearch, FilterDateRange } from '../components/FilterToolbar';
-import { inventoryStatus, formatDate, calculateGrowth, vaccinationStatusFromDue } from '../lib/analytics';
-import { Printer, FileBarChart } from 'lucide-react';
+import { inventoryStatus } from '../lib/analytics';
+import { Printer, FileBarChart, Download } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
 
 type ReportType = 'health' | 'breeding' | 'weight' | 'vaccination' | 'inventory' | 'feed' | 'milk' | 'performance';
 
@@ -93,7 +95,7 @@ export function ReportsPage() {
       default:
         return [];
     }
-  }, [reportType, dateFrom, dateTo, search, farmData]);
+  }, [reportType, dateFrom, dateTo, search, farmData, activeAnimals]);
 
   const handlePrint = () => {
     window.print();
@@ -117,18 +119,28 @@ export function ReportsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800 }}>Reports</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>Generate and export farm reports</p>
+          <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>Generate and export farm reports</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={handleExportCSV} disabled={reportData.length === 0}>
-            <Icons.Download size={16} /> Export CSV
-          </button>
-          <button className="btn btn-primary" onClick={handlePrint} disabled={reportData.length === 0}>
-            <Printer size={16} /> Print
-          </button>
+          <Button
+            variant="secondary"
+            onClick={handleExportCSV}
+            disabled={reportData.length === 0}
+            leftIcon={<Download size={16} />}
+          >
+            Export CSV
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handlePrint}
+            disabled={reportData.length === 0}
+            leftIcon={<Printer size={16} />}
+          >
+            Print
+          </Button>
         </div>
       </div>
 
@@ -153,32 +165,36 @@ export function ReportsPage() {
         />
       </FilterToolbar>
 
-      <div className="card">
-        <div className="card-header">
+      <Card variant="glass" padding="none">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
           <div>
-            <div className="card-title">{REPORT_LABELS[reportType]}</div>
-            <div className="card-subtitle">{reportData.length} records</div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>{REPORT_LABELS[reportType]}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>{reportData.length} records</div>
           </div>
-          <FileBarChart size={20} color="var(--text-secondary)" />
+          <FileBarChart size={20} color="var(--color-text-secondary, #475569)" />
         </div>
         {reportData.length === 0 ? (
-          <div className="empty-state">
-            <div className="es-icon"><Icons.FileBarChart size={24} /></div>
-            <h4>No data for this report</h4>
-            <p>Try adjusting filters or add records.</p>
-          </div>
+          <EmptyState
+            icon={<FileBarChart size={32} />}
+            title="No data for this report"
+            description="Try adjusting filters or add records."
+          />
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
               <thead>
-                <tr>{headers.map((h) => <th key={h}>{h.charAt(0).toUpperCase() + h.slice(1)}</th>)}</tr>
+                <tr style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))', color: 'var(--color-text-secondary, #475569)' }}>
+                  {headers.map((h) => (
+                    <th key={h} style={{ padding: '12px 16px', fontWeight: 600 }}>{h.charAt(0).toUpperCase() + h.slice(1)}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 {reportData.map((row, i) => (
-                  <tr key={i}>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.04))' }}>
                     {headers.map((h) => {
                       const val = (row as Record<string, unknown>)[h];
-                      return <td key={h}>{val === null || val === undefined ? '—' : String(val)}</td>;
+                      return <td key={h} style={{ padding: '12px 16px' }}>{val === null || val === undefined ? '—' : String(val)}</td>;
                     })}
                   </tr>
                 ))}
@@ -186,7 +202,7 @@ export function ReportsPage() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

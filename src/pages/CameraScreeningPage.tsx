@@ -18,7 +18,7 @@ import {
 import { useAllScreenings, saveScreeningResult } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
 import { useAuth } from '../lib/auth';
-import { useToast } from '../lib/toast';
+import { useToast } from '../components/ui/Toast';
 import { useAutoScan, type ScanState } from '../lib/useAutoScan';
 import { formatDate } from '../lib/analytics';
 import { supabase } from '../lib/supabase';

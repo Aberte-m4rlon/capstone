@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PawPrint, AlertCircle, HeartPulse, Scale, Heart, Syringe, FileText, ArrowLeft, Sparkles, ExternalLink } from 'lucide-react';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PublicAnimal {
@@ -168,15 +169,7 @@ export function PublicAnimalPage() {
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
-    return (
-      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.bg }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 40, height: 40, border: `3px solid ${T.border}`, borderTopColor: '#FF7A18', borderRadius: '50%', margin: '0 auto 14px', animation: 'spin 0.8s linear infinite' }} />
-          <p style={{ color: T.textSec, fontSize: 13 }}>Loading animal profile…</p>
-        </div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    );
+    return <LoadingSpinner fullScreen text="Loading animal profile…" />;
   }
 
   // ── Error ────────────────────────────────────────────────────────────────────

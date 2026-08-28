@@ -1,8 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
-import { useToast } from '../lib/toast';
-import { Modal, ConfirmDialog } from '../components/Modal';
+import { useToast } from '../components/ui/Toast';
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
+import { Button } from '../components/ui/Button';
+import { Input, Select, FormField } from '../components/ui/Input';
+import { Card, CardContent } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
 import { FilterToolbar, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
@@ -20,7 +25,7 @@ const emptyForm = {
 
 export function BreedingPage() {
   const farmData = useFarmData();
-  const toast = useToast();
+  const { toast } = useToast();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BreedingRecord | null>(null);
@@ -49,8 +54,11 @@ export function BreedingPage() {
   const openEdit = (r: BreedingRecord) => {
     setEditing(r);
     setForm({
-      animal_id: r.animal_id, partner_id: r.partner_id ?? '', mating_date: r.mating_date,
-      status: r.status, notes: r.notes ?? '',
+      animal_id: r.animal_id,
+      partner_id: r.partner_id ?? '',
+      mating_date: r.mating_date,
+      status: r.status,
+      notes: r.notes ?? '',
     });
     setErrors({});
     setModalOpen(true);
@@ -68,14 +76,16 @@ export function BreedingPage() {
     if (!validate()) return;
     setSaving(true);
 
-    const gestation = farmData.settings?.gestation_days ?? 150;
-    const expectedKidding = calculateKiddingDate(form.mating_date, gestation);
+    const kiddingDate =
+      form.status === 'Pregnant'
+        ? calculateKiddingDate(form.mating_date, farmData.settings?.gestation_days ?? 150)
+        : null;
 
     const payload = {
       animal_id: form.animal_id,
       partner_id: form.partner_id || null,
       mating_date: form.mating_date,
-      expected_kidding_date: expectedKidding,
+      expected_kidding_date: kiddingDate,
       status: form.status,
       notes: form.notes.trim() || null,
     };
@@ -88,39 +98,30 @@ export function BreedingPage() {
       } else {
         const { error } = await supabase.from('breeding_records').insert(payload);
         if (error) throw error;
-        toast('Breeding record saved. Expected kidding date calculated.', 'success');
-      }
+        toast('Breeding record created.', 'success');
 
-      // Update animal breeding status
-      const animal = farmData.animals.find((a) => a.id === form.animal_id);
-      if (animal) {
-        await supabase.from('animals').update({
-          breeding_status: form.status === 'Kidded' ? 'Open' : form.status === 'Pregnant' ? 'Pregnant' : form.status === 'Failed' ? 'Open' : 'Monitor',
-          last_mating_date: form.mating_date,
-          expected_kidding_date: form.status === 'Pregnant' ? expectedKidding : null,
-        }).eq('id', form.animal_id);
-
-        // Create kidding reminders
-        if (form.status === 'Pregnant') {
-          const daysToKidding = daysUntil(expectedKidding);
-          if (daysToKidding > 0 && daysToKidding <= 30) {
-            await createNotification(
-              animal.user_id,
-              'Breeding',
-              `${animal.name} — Kidding due in ${daysToKidding} days`,
-              `Expected kidding date: ${expectedKidding}`,
-              daysToKidding <= 7 ? 'Critical' : 'Warning',
-              `/animals/${animal.id}`,
-            );
-          }
+        if (kiddingDate && form.status === 'Pregnant') {
+          const female = farmData.animals.find((a) => a.id === form.animal_id);
+          await createNotification(
+            female?.user_id ?? '',
+            'Breeding',
+            `Expected Kidding: ${female?.name ?? 'Animal'}`,
+            `${female?.name ?? 'Animal'} is expected to give birth around ${formatDate(kiddingDate)}.`,
+            'Normal',
+            '/breeding',
+          );
         }
       }
 
+      await supabase
+        .from('animals')
+        .update({ breeding_status: form.status })
+        .eq('id', form.animal_id);
+
       setModalOpen(false);
       farmData.refresh();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unable to save record.';
-      toast(msg, 'error');
+    } catch {
+      toast('Unable to save breeding record. Please try again.', 'danger');
     } finally {
       setSaving(false);
     }
@@ -135,59 +136,96 @@ export function BreedingPage() {
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Unable to delete record.', 'error');
+      toast('Unable to delete breeding record. Please try again.', 'danger');
     }
   };
 
-  const animalName = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Unknown';
+  const animalName = (id: string) => {
+    const a = farmData.animals.find((x) => x.id === id);
+    return a ? `${a.name} (${a.tag_id})` : 'Unknown';
+  };
 
-  // Breeding readiness assessments
   const readinessAssessments = useMemo(() => {
     if (!farmData.settings) return [];
-    return females.map((f) => {
-      const lastMating = farmData.breedingRecords
-        .filter((b) => b.animal_id === f.id)
-        .sort((a, b) => new Date(b.mating_date).getTime() - new Date(a.mating_date).getTime())[0] ?? null;
-      return { animal: f, assessment: assessBreedingReadiness(f, farmData.settings!, lastMating) };
-    }).filter((x) => x.assessment.recommendation !== 'Not Ready' || x.animal.breeding_status !== 'Pregnant');
+    return females
+      .map((f) => {
+        const lastMating = farmData.breedingRecords
+          .filter((b) => b.animal_id === f.id)
+          .sort((a, b) => new Date(b.mating_date).getTime() - new Date(a.mating_date).getTime())[0] ?? null;
+        return { animal: f, assessment: assessBreedingReadiness(f, farmData.settings!, lastMating) };
+      })
+      .filter((x) => x.assessment.recommendation !== 'Not Ready' || x.animal.breeding_status !== 'Pregnant');
   }, [females, farmData.breedingRecords, farmData.settings]);
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Breeding Management</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+          <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', letterSpacing: '-0.02em' }}>
+            Breeding Management
+          </h1>
+          <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
             {filtered.length} breeding records · 150-day gestation auto-calculated
           </p>
         </div>
-        <button className="btn btn-primary" onClick={openAdd} disabled={females.length === 0}>
-          <Plus size={16} /> Add Breeding Record
-        </button>
+        <Button variant="primary" onClick={openAdd} disabled={females.length === 0} leftIcon={<Plus size={16} />}>
+          Add Breeding Record
+        </Button>
       </div>
 
       {/* Breeding Readiness Overview */}
-      <div className="card section-gap">
-        <div className="card-title" style={{ marginBottom: 14 }}>Breeding Readiness</div>
-        {readinessAssessments.length === 0 ? (
-          <div className="empty-state"><div className="es-icon"><Icons.Heart size={24} /></div><h4>No females to assess</h4><p>Add female animals to see breeding recommendations.</p></div>
-        ) : (
-          <div className="grid-auto">
-            {readinessAssessments.map(({ animal, assessment }) => (
-              <div key={animal.id} style={{ padding: 14, borderRadius: 12, background: 'var(--bg)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>{animal.name}</span>
-                  <span className={`badge badge-${assessment.recommendation === 'Ready' ? 'green' : assessment.recommendation === 'Monitor' ? 'yellow' : 'gray'}`}>
-                    {assessment.recommendation}
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{assessment.reasons.join(' · ')}</div>
-              </div>
-            ))}
+      <Card variant="default">
+        <CardContent>
+          <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)', marginBottom: 14 }}>
+            Breeding Readiness
           </div>
-        )}
-      </div>
+          {readinessAssessments.length === 0 ? (
+            <EmptyState
+              icon={<Icons.Heart size={28} />}
+              title="No females to assess"
+              description="Add female animals to see breeding recommendations."
+            />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+              {readinessAssessments.map(({ animal, assessment }) => (
+                <div
+                  key={animal.id}
+                  style={{
+                    padding: 14,
+                    borderRadius: 'var(--radius-md, 14px)',
+                    background: 'var(--color-surface-elevated, #F8FAFC)',
+                    border: '1px solid var(--color-border, #E2E8F0)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary, #0F172A)' }}>
+                      {animal.name}
+                    </span>
+                    <Badge
+                      variant={
+                        assessment.recommendation === 'Ready'
+                          ? 'success'
+                          : assessment.recommendation === 'Monitor'
+                          ? 'warning'
+                          : 'default'
+                      }
+                      size="sm"
+                    >
+                      {assessment.recommendation}
+                    </Badge>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)' }}>
+                    {assessment.reasons.join(' · ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
+      {/* Filter Toolbar */}
       <FilterToolbar>
         <FilterSelect
           value={fStatus}
@@ -205,80 +243,194 @@ export function BreedingPage() {
         />
       </FilterToolbar>
 
-      <div className="card">
-        {filtered.length === 0 ? (
-          <div className="empty-state"><div className="es-icon"><Icons.Heart size={24} /></div><h4>No breeding records</h4><p>Add a mating record to track pregnancy and kidding dates.</p></div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Female</th><th>Partner</th><th>Mating Date</th><th>Expected Kidding</th><th>Days Until</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>
-                {filtered.map((b) => {
-                  const days = b.expected_kidding_date ? daysUntil(b.expected_kidding_date) : null;
-                  return (
-                    <tr key={b.id}>
-                      <td style={{ fontWeight: 600 }}>{animalName(b.animal_id)}</td>
-                      <td>{b.partner_id ? animalName(b.partner_id) : '—'}</td>
-                      <td>{formatDate(b.mating_date)}</td>
-                      <td>{formatDate(b.expected_kidding_date)}</td>
-                      <td>{days !== null && days >= 0 ? `${days} days` : '—'}</td>
-                      <td><span className={`badge badge-${b.status === 'Pregnant' ? 'blue' : b.status === 'Kidded' ? 'green' : b.status === 'Failed' ? 'red' : 'gray'}`}>{b.status}</span></td>
-                      <td><div className="row-actions">
-                        <button className="btn btn-ghost btn-sm" onClick={() => openEdit(b)}><Pencil size={15} /></button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(b)}><Trash2 size={15} /></button>
-                      </div></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {/* Records Table */}
+      <Card variant="default" padding="none">
+        <CardContent>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 32 }}>
+              <EmptyState
+                icon={<Icons.Heart size={32} />}
+                title="No breeding records"
+                description="Add a mating record to track pregnancy and kidding dates."
+                actionLabel="Add Breeding Record"
+                onAction={openAdd}
+              />
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Female</th>
+                    <th>Partner</th>
+                    <th>Mating Date</th>
+                    <th>Expected Kidding</th>
+                    <th>Days Until</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((b) => {
+                    const days = b.expected_kidding_date ? daysUntil(b.expected_kidding_date) : null;
+                    return (
+                      <tr key={b.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                          {animalName(b.animal_id)}
+                        </td>
+                        <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                          {b.partner_id ? animalName(b.partner_id) : '—'}
+                        </td>
+                        <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{formatDate(b.mating_date)}</td>
+                        <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                          {formatDate(b.expected_kidding_date)}
+                        </td>
+                        <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>
+                          {days !== null && days >= 0 ? `${days} days` : '—'}
+                        </td>
+                        <td>
+                          <Badge
+                            variant={
+                              b.status === 'Pregnant'
+                                ? 'primary'
+                                : b.status === 'Kidded'
+                                ? 'success'
+                                : b.status === 'Failed'
+                                ? 'danger'
+                                : 'default'
+                            }
+                            size="sm"
+                          >
+                            {b.status}
+                          </Badge>
+                        </td>
+                        <td>
+                          <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(b)}>
+                              <Pencil size={15} />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(b)}>
+                              <Trash2 size={15} />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal */}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
+        <ModalHeader
+          title={editing ? 'Edit Breeding Record' : 'Add Breeding Record'}
+          onClose={() => setModalOpen(false)}
+        />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <FormField label="Female Animal" required error={errors.animal_id}>
+              <Select
+                value={form.animal_id}
+                onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
+                options={[
+                  { value: '', label: 'Select female...' },
+                  ...females.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
+                ]}
+              />
+            </FormField>
+
+            <FormField label="Partner (Sire)">
+              <Select
+                value={form.partner_id}
+                onChange={(e) => setForm({ ...form, partner_id: e.target.value })}
+                options={[
+                  { value: '', label: 'Select male (optional)...' },
+                  ...males.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
+                ]}
+              />
+            </FormField>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Mating Date" required error={errors.mating_date}>
+                <Input
+                  type="date"
+                  value={form.mating_date}
+                  onChange={(e) => setForm({ ...form, mating_date: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label="Status">
+                <Select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  options={[
+                    { value: 'Planned', label: 'Planned' },
+                    { value: 'Pregnant', label: 'Pregnant' },
+                    { value: 'Kidded', label: 'Kidded' },
+                    { value: 'Failed', label: 'Failed' },
+                    { value: 'Monitor', label: 'Monitor' },
+                  ]}
+                />
+              </FormField>
+            </div>
+
+            {form.mating_date && form.status === 'Pregnant' && (
+              <div
+                style={{
+                  background: 'rgba(255,106,42,0.1)',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md, 14px)',
+                  color: 'var(--color-primary, #FF6A2A)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                Expected kidding date:{' '}
+                {formatDate(
+                  calculateKiddingDate(form.mating_date, farmData.settings?.gestation_days ?? 150)
+                )}
+                <br />
+                <span style={{ fontSize: '11px', opacity: 0.85 }}>
+                  Calculated using {farmData.settings?.gestation_days ?? 150} days gestation.
+                </span>
+              </div>
+            )}
+
+            <FormField label="Notes">
+              <textarea
+                className="form-textarea"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Breeding observations..."
+                style={{ minHeight: 80 }}
+              />
+            </FormField>
           </div>
-        )}
-      </div>
-
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Breeding Record' : 'Add Breeding Record'}
-        footer={<><button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Record'}</button></>}
-      >
-        <div className="form-group"><label className="form-label">Female Animal <span className="req">*</span></label>
-          <select className="form-select" value={form.animal_id} onChange={(e) => setForm({ ...form, animal_id: e.target.value })}>
-            <option value="">Select female...</option>
-            {females.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.tag_id})</option>)}
-          </select>
-          {errors.animal_id && <div className="form-error">{errors.animal_id}</div>}</div>
-
-        <div className="form-group"><label className="form-label">Partner (Sire)</label>
-          <select className="form-select" value={form.partner_id} onChange={(e) => setForm({ ...form, partner_id: e.target.value })}>
-            <option value="">Select male (optional)...</option>
-            {males.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.tag_id})</option>)}
-          </select></div>
-
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Mating Date <span className="req">*</span></label>
-            <input className="form-input" type="date" value={form.mating_date} onChange={(e) => setForm({ ...form, mating_date: e.target.value })} />
-            {errors.mating_date && <div className="form-error">{errors.mating_date}</div>}</div>
-          <div className="form-group"><label className="form-label">Status</label>
-            <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="Planned">Planned</option>
-              <option value="Pregnant">Pregnant</option>
-              <option value="Kidded">Kidded</option>
-              <option value="Failed">Failed</option>
-              <option value="Monitor">Monitor</option>
-            </select></div>
-        </div>
-
-        {form.mating_date && form.status === 'Pregnant' && (
-          <div className="form-hint" style={{ background: 'var(--primary-light)', padding: '10px 14px', borderRadius: 8, color: 'var(--primary-dark)' }}>
-            Expected kidding date: {formatDate(calculateKiddingDate(form.mating_date, farmData.settings?.gestation_days ?? 150))}
-            <br />Calculated using {farmData.settings?.gestation_days ?? 150} days gestation.
-          </div>
-        )}
-
-        <div className="form-group"><label className="form-label">Notes</label>
-          <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
+            {editing ? 'Save Changes' : 'Save Record'}
+          </Button>
+        </ModalFooter>
       </Modal>
 
-      <ConfirmDialog open={!!confirmDelete} title="Delete Breeding Record" message="Are you sure you want to delete this breeding record?" confirmLabel="Delete" onConfirm={handleDelete} onCancel={() => setConfirmDelete(null)} />
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete Breeding Record"
+        message="Are you sure you want to delete this breeding record? This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

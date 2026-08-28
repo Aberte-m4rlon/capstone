@@ -3,16 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useToast } from '../lib/toast';
-import { Modal, ConfirmDialog } from '../components/Modal';
+import { useToast } from '../components/ui/Toast';
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
+import { Button } from '../components/ui/Button';
+import { Input, Select, FormField } from '../components/ui/Input';
+import { Card, CardContent } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
+import { AnimalHealthBadge } from '../components/domain/animals/AnimalHealthBadge';
 import { ComboBox } from '../components/ComboBox';
 import { FilterToolbar, FilterSearch, FilterSelect, FilterToggle } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
-import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode } from 'lucide-react';
-import { formatDate, ageLabel } from '../lib/analytics';
+import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode, Download, Printer } from 'lucide-react';
+import { ageLabel } from '../lib/analytics';
 import { getBreedsForSpecies, COLOR_MARKINGS } from '../lib/farmDefaults';
 import QRCode from 'qrcode';
-import type { Animal, HealthStatus, Species, Sex } from '../types';
+import type { Animal, Species, Sex } from '../types';
 
 const emptyForm = {
   tag_id: '',
@@ -26,13 +31,12 @@ const emptyForm = {
   notes: '',
 };
 
-// Use the current app origin in dev/local environment so QR scans open the local app.
 const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://capstone-delta-jet.vercel.app';
 
 export function AnimalsPage() {
   const farmData = useFarmData();
   const { user } = useAuth();
-  const toast = useToast();
+  const { toast } = useToast();
   const navigate = useNavigate();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,7 +56,7 @@ export function AnimalsPage() {
 
   const filtered = useMemo(() => {
     return farmData.animals
-      .filter((a) => fArchived ? a.archived : !a.archived)
+      .filter((a) => (fArchived ? a.archived : !a.archived))
       .filter((a) => fSpecies === 'All' || a.species === fSpecies)
       .filter((a) => fSex === 'All' || a.sex === fSex)
       .filter((a) => fHealth === 'All' || a.health_status === fHealth)
@@ -61,7 +65,7 @@ export function AnimalsPage() {
           !search ||
           a.name.toLowerCase().includes(search.toLowerCase()) ||
           a.tag_id.toLowerCase().includes(search.toLowerCase()) ||
-          (a.breed ?? '').toLowerCase().includes(search.toLowerCase()),
+          (a.breed ?? '').toLowerCase().includes(search.toLowerCase())
       );
   }, [farmData.animals, fSpecies, fSex, fHealth, fArchived, search]);
 
@@ -131,7 +135,7 @@ export function AnimalsPage() {
       farmData.refresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unable to save. Please try again.';
-      toast(msg, 'error');
+      toast(msg, 'danger');
     } finally {
       setSaving(false);
     }
@@ -144,7 +148,7 @@ export function AnimalsPage() {
       toast(a.archived ? 'Animal restored successfully.' : 'Animal archived successfully.', 'success');
       farmData.refresh();
     } catch {
-      toast('Unable to update animal. Please try again.', 'error');
+      toast('Unable to update animal. Please try again.', 'danger');
     }
   };
 
@@ -157,7 +161,7 @@ export function AnimalsPage() {
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Unable to delete animal. Please try again.', 'error');
+      toast('Unable to delete animal. Please try again.', 'danger');
     }
   };
 
@@ -176,7 +180,7 @@ export function AnimalsPage() {
       link.click();
       toast('QR code downloaded.', 'success');
     } catch {
-      toast('Unable to generate QR code.', 'error');
+      toast('Unable to generate QR code.', 'danger');
     }
   };
 
@@ -200,26 +204,33 @@ export function AnimalsPage() {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Animals</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-            {filtered.length} {filtered.length === 1 ? 'animal' : 'animals'} {fArchived ? 'archived' : 'active'}
+          <h1
+            style={{
+              margin: 0,
+              fontSize: '26px',
+              fontWeight: 800,
+              color: 'var(--color-text-primary, #0F172A)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Animals
+          </h1>
+          <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
+            {filtered.length} {filtered.length === 1 ? 'animal' : 'animals'} {fArchived ? 'archived' : 'registered'}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={openAdd}>
-          <Plus size={16} /> Add Animal
-        </button>
+        <Button variant="primary" onClick={openAdd} leftIcon={<Plus size={16} />}>
+          Add Animal
+        </Button>
       </div>
 
-      {/* Reusable One-Row Liquid Glass Filter Toolbar */}
+      {/* Filter Toolbar */}
       <FilterToolbar>
-        <FilterSearch
-          value={search}
-          onChange={setSearch}
-          placeholder="Search name or ID..."
-        />
+        <FilterSearch value={search} onChange={setSearch} placeholder="Search name or ID..." />
         <FilterSelect
           value={fSpecies}
           onChange={setFSpecies}
@@ -260,221 +271,251 @@ export function AnimalsPage() {
         />
       </FilterToolbar>
 
-      {/* Table */}
-      <div className="card">
-        {filtered.length === 0 ? (
-          <div className="empty-state">
-            <div className="es-icon"><Icons.PawPrint size={24} /></div>
-            <h4>{fArchived ? 'No archived animals' : 'No animals yet'}</h4>
-            <p>{fArchived ? 'Archived animals will appear here.' : 'Add your first animal to get started.'}</p>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Tag ID</th>
-                  <th>Species</th>
-                  <th>Breed</th>
-                  <th>Sex</th>
-                  <th>Age</th>
-                  <th>Weight</th>
-                  <th>Health</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((a) => (
-                  <tr key={a.id}>
-                    <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => navigate(`/animals/${a.id}`)}>
-                      {a.name}
-                    </td>
-                    <td>{a.tag_id}</td>
-                    <td>{a.species}</td>
-                    <td>{a.breed ?? '—'}</td>
-                    <td>{a.sex}</td>
-                    <td>{ageLabel(a.date_of_birth)}</td>
-                    <td>{a.weight_kg ? `${a.weight_kg} kg` : '—'}</td>
-                    <td>
-                      <span className={`badge badge-${a.health_status === 'Healthy' ? 'green' : a.health_status === 'Monitor' ? 'blue' : a.health_status === 'At Risk' ? 'orange' : 'red'}`}>
-                        {a.health_status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="row-actions">
-                        <button className="btn btn-ghost btn-sm" title="View" onClick={() => navigate(`/animals/${a.id}`)}>
-                          <Eye size={15} />
-                        </button>
-                        <button className="btn btn-ghost btn-sm" title="Edit" onClick={() => openEdit(a)}>
-                          <Pencil size={15} />
-                        </button>
-                        <button className="btn btn-ghost btn-sm" title="QR Code" onClick={() => generateQR(a)}>
-                          <QrCode size={15} />
-                        </button>
-                        <button className="btn btn-ghost btn-sm" title={a.archived ? 'Restore' : 'Archive'} onClick={() => handleArchive(a)}>
-                          {a.archived ? <RotateCcw size={15} /> : <Archive size={15} />}
-                        </button>
-                        <button className="btn btn-ghost btn-sm" title="Delete" onClick={() => setConfirmDelete(a)}>
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+      {/* Table Card */}
+      <Card variant="default" padding="none">
+        <CardContent>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 32 }}>
+              <EmptyState
+                icon={<Icons.PawPrint size={36} />}
+                title={fArchived ? 'No archived animals' : 'No animals found'}
+                description={fArchived ? 'Archived animals will appear here.' : 'Add your first animal to begin tracking.'}
+                actionLabel={fArchived ? undefined : 'Add Animal'}
+                onAction={fArchived ? undefined : openAdd}
+              />
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Tag ID</th>
+                    <th>Species</th>
+                    <th>Breed</th>
+                    <th>Sex</th>
+                    <th>Age</th>
+                    <th>Weight</th>
+                    <th>Health</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {filtered.map((a) => (
+                    <tr key={a.id}>
+                      <td
+                        style={{
+                          fontWeight: 700,
+                          color: 'var(--color-text-primary, #0F172A)',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => navigate(`/animals/${a.id}`)}
+                      >
+                        {a.name}
+                      </td>
+                      <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>{a.tag_id}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.species}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.breed ?? '—'}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.sex}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{ageLabel(a.date_of_birth)}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                        {a.weight_kg ? `${a.weight_kg} kg` : '—'}
+                      </td>
+                      <td>
+                        <AnimalHealthBadge status={a.health_status} size="sm" />
+                      </td>
+                      <td>
+                        <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="View Profile"
+                            onClick={() => navigate(`/animals/${a.id}`)}
+                          >
+                            <Eye size={15} />
+                          </Button>
+                          <Button variant="ghost" size="sm" title="Edit" onClick={() => openEdit(a)}>
+                            <Pencil size={15} />
+                          </Button>
+                          <Button variant="ghost" size="sm" title="QR Code" onClick={() => generateQR(a)}>
+                            <QrCode size={15} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title={a.archived ? 'Restore' : 'Archive'}
+                            onClick={() => handleArchive(a)}
+                          >
+                            {a.archived ? <RotateCcw size={15} /> : <Archive size={15} />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Delete"
+                            onClick={() => setConfirmDelete(a)}
+                          >
+                            <Trash2 size={15} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Add/Edit Modal */}
+      {/* Add / Edit Modal */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? 'Edit Animal' : 'Add Animal'}
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : editing ? 'Save Changes' : 'Add Animal'}
-            </button>
-          </>
-        }
+        size="md"
+        role="dialog"
       >
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">Animal ID (Tag) <span className="req">*</span></label>
-            <input
-              className="form-input"
-              value={form.tag_id}
-              onChange={(e) => setForm({ ...form, tag_id: e.target.value })}
-              placeholder="GOAT-001"
-            />
-            {errors.tag_id && <div className="form-error">{errors.tag_id}</div>}
+        <ModalHeader
+          title={editing ? 'Edit Animal' : 'Add Animal'}
+          onClose={() => setModalOpen(false)}
+        />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Animal ID (Tag)" required error={errors.tag_id}>
+                <Input
+                  value={form.tag_id}
+                  onChange={(e) => setForm({ ...form, tag_id: e.target.value })}
+                  placeholder="GOAT-001"
+                />
+              </FormField>
+              <FormField label="Name" required error={errors.name}>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Bella"
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+              <FormField label="Species" required>
+                <Select
+                  value={form.species}
+                  onChange={(e) => setForm({ ...form, species: e.target.value as Species })}
+                  options={[
+                    { value: 'Goat', label: 'Goat' },
+                    { value: 'Sheep', label: 'Sheep' },
+                  ]}
+                />
+              </FormField>
+              <FormField label="Sex" required>
+                <Select
+                  value={form.sex}
+                  onChange={(e) => setForm({ ...form, sex: e.target.value as Sex })}
+                  options={[
+                    { value: 'Female', label: 'Female' },
+                    { value: 'Male', label: 'Male' },
+                  ]}
+                />
+              </FormField>
+              <FormField label="Breed">
+                <ComboBox
+                  value={form.breed}
+                  onChange={(v) => setForm({ ...form, breed: v })}
+                  options={getBreedsForSpecies(form.species)}
+                  placeholder="Select or type breed..."
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Date of Birth">
+                <Input
+                  type="date"
+                  value={form.date_of_birth}
+                  onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
+                />
+              </FormField>
+              <FormField label="Weight (kg)" error={errors.weight_kg}>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={form.weight_kg}
+                  onChange={(e) => setForm({ ...form, weight_kg: e.target.value })}
+                  placeholder="35.5"
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Color / Markings">
+              <ComboBox
+                value={form.color_markings}
+                onChange={(v) => setForm({ ...form, color_markings: v })}
+                options={COLOR_MARKINGS}
+                placeholder="Search or type color/markings..."
+              />
+            </FormField>
+
+            <FormField label="Notes">
+              <textarea
+                className="form-textarea"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Additional animal health or history notes..."
+                style={{ minHeight: 80 }}
+              />
+            </FormField>
           </div>
-          <div className="form-group">
-            <label className="form-label">Name <span className="req">*</span></label>
-            <input
-              className="form-input"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Bella"
-            />
-            {errors.name && <div className="form-error">{errors.name}</div>}
-          </div>
-        </div>
-        <div className="form-row-3">
-          <div className="form-group">
-            <label className="form-label">Species <span className="req">*</span></label>
-            <select
-              className="form-select"
-              value={form.species}
-              onChange={(e) => setForm({ ...form, species: e.target.value as Species })}
-            >
-              <option value="Goat">Goat</option>
-              <option value="Sheep">Sheep</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Sex <span className="req">*</span></label>
-            <select
-              className="form-select"
-              value={form.sex}
-              onChange={(e) => setForm({ ...form, sex: e.target.value as Sex })}
-            >
-              <option value="Female">Female</option>
-              <option value="Male">Male</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Breed</label>
-            <ComboBox
-              value={form.breed}
-              onChange={(v) => setForm({ ...form, breed: v })}
-              options={getBreedsForSpecies(form.species)}
-              placeholder="Search or type breed..."
-            />
-          </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">Date of Birth</label>
-            <input
-              className="form-input"
-              type="date"
-              value={form.date_of_birth}
-              onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Weight (kg)</label>
-            <input
-              className="form-input"
-              type="number"
-              step="0.1"
-              value={form.weight_kg}
-              onChange={(e) => setForm({ ...form, weight_kg: e.target.value })}
-              placeholder="35.5"
-            />
-            {errors.weight_kg && <div className="form-error">{errors.weight_kg}</div>}
-          </div>
-        </div>
-        <div className="form-group">
-          <label className="form-label">Color / Markings</label>
-          <ComboBox
-            value={form.color_markings}
-            onChange={(v) => setForm({ ...form, color_markings: v })}
-            options={COLOR_MARKINGS}
-            placeholder="Search or type color/markings..."
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Notes</label>
-          <textarea
-            className="form-textarea"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            placeholder="Additional notes..."
-          />
-        </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
+            {editing ? 'Save Changes' : 'Add Animal'}
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* QR Modal */}
-      <Modal
-        open={!!qrAnimal}
-        onClose={() => setQrAnimal(null)}
-        title={`QR Code — ${qrAnimal?.name ?? ''}`}
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setQrAnimal(null)}>Close</button>
-            <button className="btn btn-secondary" onClick={downloadQR}>
-              <Icons.Download size={15} /> Download
-            </button>
-            <button className="btn btn-primary" onClick={printQR}>
-              <Icons.Printer size={15} /> Print
-            </button>
-          </>
-        }
-      >
-        <div className="qr-display">
-          <QRCodeCanvas value={`${APP_URL}/public/${qrAnimal?.id}`} size={240} />
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontWeight: 700, fontSize: 16 }}>{qrAnimal?.name}</p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{qrAnimal?.tag_id}</p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 6 }}>
-              Scan with any QR reader or Google Lens to view public profile
-            </p>
+      <Modal open={!!qrAnimal} onClose={() => setQrAnimal(null)} size="sm">
+        <ModalHeader title={`QR Code — ${qrAnimal?.name ?? ''}`} onClose={() => setQrAnimal(null)} />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: 8 }}>
+            <QRCodeCanvas value={`${APP_URL}/public/${qrAnimal?.id}`} size={240} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontWeight: 800, fontSize: '17px', color: 'var(--color-text-primary, #0F172A)' }}>
+                {qrAnimal?.name}
+              </div>
+              <div style={{ color: 'var(--color-primary, #FF6A2A)', fontSize: '13px', fontWeight: 600 }}>
+                {qrAnimal?.tag_id}
+              </div>
+              <p style={{ color: 'var(--color-text-muted, #64748B)', fontSize: '12px', marginTop: 6, margin: 0 }}>
+                Scan with any QR camera or mobile scanner to view animal public health record.
+              </p>
+            </div>
           </div>
-        </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setQrAnimal(null)}>
+            Close
+          </Button>
+          <Button variant="secondary" onClick={downloadQR} leftIcon={<Download size={15} />}>
+            Download
+          </Button>
+          <Button variant="primary" onClick={printQR} leftIcon={<Printer size={15} />}>
+            Print
+          </Button>
+        </ModalFooter>
       </Modal>
 
-      {/* Delete Confirm */}
+      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!confirmDelete}
         title="Delete Animal"
-        message={`Are you sure you want to delete ${confirmDelete?.name}? This will also delete all related health, weight, breeding, and vaccination records. This cannot be undone.`}
+        message={`Are you sure you want to delete ${confirmDelete?.name}? This will also remove related health, weight, breeding, and vaccination records. This action cannot be undone.`}
         confirmLabel="Delete"
+        danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}
       />
@@ -489,5 +530,5 @@ function QRCodeCanvas({ value, size }: { value: string; size: number }) {
       QRCode.toCanvas(ref.current, value, { width: size, margin: 2 });
     }
   }, [value, size]);
-  return <canvas ref={ref} />;
+  return <canvas ref={ref} style={{ borderRadius: 'var(--radius-md, 14px)' }} />;
 }

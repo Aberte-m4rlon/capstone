@@ -2,8 +2,12 @@ import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useToast } from '../lib/toast';
-import { Modal, ConfirmDialog } from '../components/Modal';
+import { useToast } from '../components/ui/Toast';
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
+import { Button } from '../components/ui/Button';
+import { FormField, Input, Select } from '../components/ui/Input';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Badge } from '../components/ui/Badge';
 import { FilterToolbar, FilterSearch, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2, History, TrendingDown, TrendingUp, PackageX, Package } from 'lucide-react';
@@ -751,275 +755,459 @@ export function InventoryPage() {
       </div>
 
       {/* ── Add/Edit Modal ── */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)}
-        title={editing ? 'Edit Inventory Item' : 'Add Inventory Item'}
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
-          </>
-        }
-      >
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">Name <span className="req">*</span></label>
-            <input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Rice Bran" />
-            {errors.name && <div className="form-error">{errors.name}</div>}
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
+        <ModalHeader
+          title={editing ? 'Edit Inventory Item' : 'Add Inventory Item'}
+          onClose={() => setModalOpen(false)}
+        />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Name" required error={errors.name}>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Rice Bran"
+                />
+              </FormField>
+
+              <FormField label="Category">
+                <Select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value as InventoryCategory })}
+                  options={[
+                    { value: 'Feed', label: 'Feed' },
+                    { value: 'Medicine', label: 'Medicine' },
+                    { value: 'Vaccines', label: 'Vaccines' },
+                    { value: 'Supplies', label: 'Supplies' },
+                    { value: 'Equipment', label: 'Equipment' },
+                    { value: 'Other', label: 'Other' },
+                  ]}
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+              <FormField label="Quantity" required error={errors.quantity}>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.quantity}
+                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label="Unit">
+                <Input
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  placeholder="kg"
+                />
+              </FormField>
+
+              <FormField label="Minimum Stock">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.minimum_stock}
+                  onChange={(e) => setForm({ ...form, minimum_stock: e.target.value })}
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Purchase Date">
+                <Input
+                  type="date"
+                  value={form.purchase_date}
+                  onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label="Expiry Date">
+                <Input
+                  type="date"
+                  value={form.expiry_date}
+                  onChange={(e) => setForm({ ...form, expiry_date: e.target.value })}
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Supplier">
+                <Input
+                  value={form.supplier}
+                  onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label="Unit Cost (₱)">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.cost}
+                  onChange={(e) => setForm({ ...form, cost: e.target.value })}
+                  placeholder="per unit/kg/pcs"
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Notes">
+              <textarea
+                className="form-textarea"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                style={{ minHeight: 80 }}
+              />
+            </FormField>
           </div>
-          <div className="form-group">
-            <label className="form-label">Category</label>
-            <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as InventoryCategory })}>
-              <option>Feed</option><option>Medicine</option><option>Vaccines</option>
-              <option>Supplies</option><option>Equipment</option><option>Other</option>
-            </select>
-          </div>
-        </div>
-        <div className="form-row-3">
-          <div className="form-group">
-            <label className="form-label">Quantity <span className="req">*</span></label>
-            <input className="form-input" type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-            {errors.quantity && <div className="form-error">{errors.quantity}</div>}
-          </div>
-          <div className="form-group">
-            <label className="form-label">Unit</label>
-            <input className="form-input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Minimum Stock</label>
-            <input className="form-input" type="number" step="0.01" value={form.minimum_stock} onChange={(e) => setForm({ ...form, minimum_stock: e.target.value })} />
-          </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">Purchase Date</label>
-            <input className="form-input" type="date" value={form.purchase_date} onChange={(e) => setForm({ ...form, purchase_date: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Expiry Date</label>
-            <input className="form-input" type="date" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} />
-          </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">Supplier</label>
-            <input className="form-input" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Unit Cost (₱)</label>
-            <input className="form-input" type="number" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} placeholder="per unit/kg/pcs" />
-          </div>
-        </div>
-        <div className="form-group">
-          <label className="form-label">Notes</label>
-          <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-        </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
+            {editing ? 'Save Changes' : 'Save Item'}
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* ── Use/Consume Modal ── */}
-      <Modal open={consumeOpen} onClose={() => setConsumeOpen(false)} title="Record Inventory Usage"
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setConsumeOpen(false)}>Cancel</button>
-            <button className="btn btn-danger" onClick={handleConsumeStock} disabled={consumeSaving}>
-              <TrendingDown size={14} /> {consumeSaving ? 'Saving...' : 'Record Usage'}
-            </button>
-          </>
-        }
-      >
-        {consumeItem && (
-          <div>
-            <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border)', marginBottom: 14, fontSize: 13 }}>
-              <div style={{ fontWeight: 700, color: 'var(--text)' }}>{consumeItem.name}</div>
-              <div style={{ color: 'var(--text-secondary)', marginTop: 3 }}>
-                Available: <strong style={{ color: Number(consumeItem.quantity) <= Number(consumeItem.minimum_stock) ? '#F59E0B' : '#16A34A' }}>
-                  {consumeItem.quantity} {consumeItem.unit}
-                </strong>
+      <Modal open={consumeOpen} onClose={() => setConsumeOpen(false)} size="md">
+        <ModalHeader title="Record Inventory Usage" onClose={() => setConsumeOpen(false)} />
+        <ModalBody>
+          {consumeItem && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md, 14px)',
+                  background: 'var(--color-surface-elevated, #F8FAFC)',
+                  border: '1px solid var(--color-border, #E2E8F0)',
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                  {consumeItem.name}
+                </div>
+                <div style={{ color: 'var(--color-text-secondary, #475569)', marginTop: 3 }}>
+                  Available:{' '}
+                  <strong
+                    style={{
+                      color:
+                        Number(consumeItem.quantity) <= Number(consumeItem.minimum_stock)
+                          ? '#F59E0B'
+                          : '#16A34A',
+                    }}
+                  >
+                    {consumeItem.quantity} {consumeItem.unit}
+                  </strong>
+                </div>
               </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Quantity Used <span className="req">*</span></label>
-                <input className="form-input" type="number" step="0.01" min="0.01" value={consumeQty}
-                  onChange={(e) => setConsumeQty(e.target.value)} placeholder={`Max ${consumeItem.quantity}`} />
-                {consumeQty && Number(consumeQty) > Number(consumeItem.quantity) && (
-                  <div className="form-error">Exceeds available stock ({consumeItem.quantity} {consumeItem.unit})</div>
-                )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                <FormField label="Quantity Used" required error={consumeQty && Number(consumeQty) > Number(consumeItem.quantity) ? `Exceeds available stock (${consumeItem.quantity} ${consumeItem.unit})` : undefined}>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={consumeQty}
+                    onChange={(e) => setConsumeQty(e.target.value)}
+                    placeholder={`Max ${consumeItem.quantity}`}
+                  />
+                </FormField>
+
+                <FormField label="Date">
+                  <Input
+                    type="date"
+                    value={consumeDate}
+                    onChange={(e) => setConsumeDate(e.target.value)}
+                  />
+                </FormField>
               </div>
-              <div className="form-group">
-                <label className="form-label">Date</label>
-                <input className="form-input" type="date" value={consumeDate} onChange={(e) => setConsumeDate(e.target.value)} />
-              </div>
+
+              <FormField label="Reason / Usage Description">
+                <textarea
+                  className="form-textarea"
+                  value={consumeReason}
+                  onChange={(e) => setConsumeReason(e.target.value)}
+                  placeholder="Daily feeding, medicine administration, etc."
+                  style={{ minHeight: 80 }}
+                />
+              </FormField>
             </div>
-            <div className="form-group">
-              <label className="form-label">Reason / Usage Description</label>
-              <textarea className="form-textarea" value={consumeReason}
-                onChange={(e) => setConsumeReason(e.target.value)}
-                placeholder="Daily feeding, medicine administration, etc." />
-            </div>
-          </div>
-        )}
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setConsumeOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleConsumeStock}
+            loading={consumeSaving}
+            leftIcon={<TrendingDown size={14} />}
+          >
+            Record Usage
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* ── Stock-In Modal ── */}
-      <Modal open={stockInOpen} onClose={() => setStockInOpen(false)} title="Add Stock"
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setStockInOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleStockIn} disabled={stockInSaving}>
-              <TrendingUp size={14} /> {stockInSaving ? 'Saving...' : 'Add Stock'}
-            </button>
-          </>
-        }
-      >
-        {stockInItem && (
-          <div>
-            <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border)', marginBottom: 14, fontSize: 13 }}>
-              <div style={{ fontWeight: 700, color: 'var(--text)' }}>{stockInItem.name}</div>
-              <div style={{ color: 'var(--text-secondary)', marginTop: 3 }}>
-                Current stock: <strong>{stockInItem.quantity} {stockInItem.unit}</strong>
+      <Modal open={stockInOpen} onClose={() => setStockInOpen(false)} size="md">
+        <ModalHeader title="Add Stock" onClose={() => setStockInOpen(false)} />
+        <ModalBody>
+          {stockInItem && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md, 14px)',
+                  background: 'var(--color-surface-elevated, #F8FAFC)',
+                  border: '1px solid var(--color-border, #E2E8F0)',
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                  {stockInItem.name}
+                </div>
+                <div style={{ color: 'var(--color-text-secondary, #475569)', marginTop: 3 }}>
+                  Current stock: <strong>{stockInItem.quantity} {stockInItem.unit}</strong>
+                </div>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                <FormField label="Quantity Added" required>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={stockInQty}
+                    onChange={(e) => setStockInQty(e.target.value)}
+                  />
+                </FormField>
+
+                <FormField label="Total Purchase Cost (₱)">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={stockInCost}
+                    onChange={(e) => setStockInCost(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </FormField>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                <FormField label="Supplier">
+                  <Input
+                    value={stockInSupplier}
+                    onChange={(e) => setStockInSupplier(e.target.value)}
+                  />
+                </FormField>
+
+                <FormField label="Date Received">
+                  <Input
+                    type="date"
+                    value={stockInDate}
+                    onChange={(e) => setStockInDate(e.target.value)}
+                  />
+                </FormField>
+              </div>
+
+              <FormField label="Notes">
+                <textarea
+                  className="form-textarea"
+                  value={stockInNotes}
+                  onChange={(e) => setStockInNotes(e.target.value)}
+                  placeholder="Receipt number, batch, etc."
+                  style={{ minHeight: 80 }}
+                />
+              </FormField>
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Quantity Added <span className="req">*</span></label>
-                <input className="form-input" type="number" step="0.01" min="0.01" value={stockInQty}
-                  onChange={(e) => setStockInQty(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Total Purchase Cost (₱)</label>
-                <input className="form-input" type="number" step="0.01" value={stockInCost}
-                  onChange={(e) => setStockInCost(e.target.value)} placeholder="Optional" />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Supplier</label>
-                <input className="form-input" value={stockInSupplier} onChange={(e) => setStockInSupplier(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Date Received</label>
-                <input className="form-input" type="date" value={stockInDate} onChange={(e) => setStockInDate(e.target.value)} />
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Notes</label>
-              <textarea className="form-textarea" value={stockInNotes} onChange={(e) => setStockInNotes(e.target.value)} placeholder="Receipt number, batch, etc." />
-            </div>
-          </div>
-        )}
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setStockInOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleStockIn}
+            loading={stockInSaving}
+            leftIcon={<TrendingUp size={14} />}
+          >
+            Add Stock
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* ── Remove Modal ── */}
-      <Modal open={removeOpen} onClose={() => setRemoveOpen(false)} title="Remove Stock"
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setRemoveOpen(false)}>Cancel</button>
-            <button className="btn btn-danger" onClick={handleRemove} disabled={removeSaving}>
-              <PackageX size={14} /> {removeSaving ? 'Saving...' : 'Confirm Removal'}
-            </button>
-          </>
-        }
-      >
-        {removeItem && (
-          <div>
-            <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border)', marginBottom: 14, fontSize: 13 }}>
-              <div style={{ fontWeight: 700, color: 'var(--text)' }}>{removeItem.name}</div>
-              <div style={{ color: 'var(--text-secondary)', marginTop: 3 }}>
-                Available: <strong>{removeItem.quantity} {removeItem.unit}</strong>
+      <Modal open={removeOpen} onClose={() => setRemoveOpen(false)} size="md">
+        <ModalHeader title="Remove Stock" onClose={() => setRemoveOpen(false)} />
+        <ModalBody>
+          {removeItem && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md, 14px)',
+                  background: 'var(--color-surface-elevated, #F8FAFC)',
+                  border: '1px solid var(--color-border, #E2E8F0)',
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                  {removeItem.name}
+                </div>
+                <div style={{ color: 'var(--color-text-secondary, #475569)', marginTop: 3 }}>
+                  Available: <strong>{removeItem.quantity} {removeItem.unit}</strong>
+                </div>
               </div>
+
+              <FormField label="Quantity to Remove" required>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={removeQty}
+                  onChange={(e) => setRemoveQty(e.target.value)}
+                />
+              </FormField>
+
+              <FormField label="Reason" required>
+                <Select
+                  value={removeReason}
+                  onChange={(e) => setRemoveReason(e.target.value)}
+                  options={[
+                    { value: '', label: 'Select reason...' },
+                    { value: 'Spoiled', label: 'Spoiled' },
+                    { value: 'Expired', label: 'Expired' },
+                    { value: 'Damaged', label: 'Damaged' },
+                    { value: 'Lost', label: 'Lost' },
+                    { value: 'Incorrect stock count', label: 'Incorrect stock count' },
+                    { value: 'Other', label: 'Other' },
+                  ]}
+                />
+              </FormField>
+
+              <FormField label="Notes">
+                <textarea
+                  className="form-textarea"
+                  value={removeNotes}
+                  onChange={(e) => setRemoveNotes(e.target.value)}
+                  placeholder="Additional details..."
+                  style={{ minHeight: 80 }}
+                />
+              </FormField>
             </div>
-            <div className="form-group">
-              <label className="form-label">Quantity to Remove <span className="req">*</span></label>
-              <input className="form-input" type="number" step="0.01" min="0.01" value={removeQty}
-                onChange={(e) => setRemoveQty(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Reason <span className="req">*</span></label>
-              <select className="form-select" value={removeReason} onChange={(e) => setRemoveReason(e.target.value)}>
-                <option value="">Select reason...</option>
-                <option value="Spoiled">Spoiled</option>
-                <option value="Expired">Expired</option>
-                <option value="Damaged">Damaged</option>
-                <option value="Lost">Lost</option>
-                <option value="Incorrect stock count">Incorrect stock count</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Notes</label>
-              <textarea className="form-textarea" value={removeNotes} onChange={(e) => setRemoveNotes(e.target.value)} placeholder="Additional details..." />
-            </div>
-          </div>
-        )}
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setRemoveOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleRemove}
+            loading={removeSaving}
+            leftIcon={<PackageX size={14} />}
+          >
+            Confirm Removal
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* ── History Modal ── */}
-      <Modal open={historyOpen} onClose={() => setHistoryOpen(false)} size="xl"
-        title={historyItem ? `Stock History — ${historyItem.name}` : 'Stock History'}
-        footer={<button className="btn btn-secondary" onClick={() => setHistoryOpen(false)}>Close</button>}
-      >
-        {historyItem && (
-          <div>
-            {/* Item summary */}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-              {(() => {
-                const tots = itemTotals(historyItem.id, allTx);
-                return [
-                  { label: 'Current Stock', value: `${historyItem.quantity} ${historyItem.unit}`, color: '#FF7A18' },
-                  { label: 'Total Added', value: `+${tots.totalAdded} ${historyItem.unit}`, color: '#16A34A' },
-                  { label: 'Total Consumed', value: `−${tots.totalConsumed} ${historyItem.unit}`, color: '#EF4444' },
-                  { label: 'Total Removed', value: `−${tots.totalRemoved} ${historyItem.unit}`, color: '#F59E0B' },
-                ].map((s) => (
-                  <div key={s.label} style={{ flex: '1 1 100px', padding: '10px 14px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border)', textAlign: 'center' }}>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{s.label}</div>
-                  </div>
-                ));
-              })()}
-            </div>
+      <Modal open={historyOpen} onClose={() => setHistoryOpen(false)} size="xl">
+        <ModalHeader
+          title={historyItem ? `Stock History — ${historyItem.name}` : 'Stock History'}
+          onClose={() => setHistoryOpen(false)}
+        />
+        <ModalBody>
+          {historyItem && (
+            <div>
+              {/* Item summary */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                {(() => {
+                  const tots = itemTotals(historyItem.id, allTx);
+                  return [
+                    { label: 'Current Stock', value: `${historyItem.quantity} ${historyItem.unit}`, color: '#FF7A18' },
+                    { label: 'Total Added', value: `+${tots.totalAdded} ${historyItem.unit}`, color: '#16A34A' },
+                    { label: 'Total Consumed', value: `−${tots.totalConsumed} ${historyItem.unit}`, color: '#EF4444' },
+                    { label: 'Total Removed', value: `−${tots.totalRemoved} ${historyItem.unit}`, color: '#F59E0B' },
+                  ].map((s) => (
+                    <div
+                      key={s.label}
+                      style={{
+                        flex: '1 1 100px',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-md, 14px)',
+                        background: 'var(--color-surface-elevated, #F8FAFC)',
+                        border: '1px solid var(--color-border, #E2E8F0)',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <div style={{ fontSize: 16, fontWeight: 800, color: s.color }}>{s.value}</div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>{s.label}</div>
+                    </div>
+                  ));
+                })()}
+              </div>
 
-            {/* Transaction list */}
-            {historyTx.length === 0 ? (
-              <div className="empty-state" style={{ minHeight: 120 }}>
-                <h4>No transaction history</h4>
-                <p>Stock movements will appear here after recording usage, additions, or removals.</p>
-              </div>
-            ) : (
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Date</th><th>Type</th><th>Qty</th><th>Before</th><th>After</th><th>Reason</th><th>Notes</th></tr>
-                  </thead>
-                  <tbody>
-                    {historyTx.map((t) => (
-                      <tr key={t.id}>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                          {new Date(t.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </td>
-                        <td>
-                          <span style={{
-                            fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-                            background: txSign(t.type) === '+' ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.10)',
-                            color: txColor(t.type),
-                          }}>
-                            {txLabel(t.type)}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: 700, color: txColor(t.type) }}>
-                          {txSign(t.type)}{t.quantity} {t.unit}
-                        </td>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t.previous_stock} {t.unit}</td>
-                        <td style={{ fontSize: 12, fontWeight: 600 }}>{t.new_stock} {t.unit}</td>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 160 }}>{t.reason ?? '—'}</td>
-                        <td style={{ fontSize: 11, color: 'var(--text-secondary)', maxWidth: 160 }}>{t.notes ?? '—'}</td>
+              {/* Transaction list */}
+              {historyTx.length === 0 ? (
+                <EmptyState
+                  icon={<History size={32} />}
+                  title="No transaction history"
+                  description="Stock movements will appear here after recording usage, additions, or removals."
+                />
+              ) : (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Qty</th>
+                        <th>Before</th>
+                        <th>After</th>
+                        <th>Reason</th>
+                        <th>Notes</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+                    </thead>
+                    <tbody>
+                      {historyTx.map((t) => (
+                        <tr key={t.id}>
+                          <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', whiteSpace: 'nowrap' }}>
+                            {new Date(t.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </td>
+                          <td>
+                            <Badge variant={txSign(t.type) === '+' ? 'success' : 'danger'} size="sm">
+                              {txLabel(t.type)}
+                            </Badge>
+                          </td>
+                          <td style={{ fontWeight: 700, color: txColor(t.type) }}>
+                            {txSign(t.type)}{t.quantity} {t.unit}
+                          </td>
+                          <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{t.previous_stock} {t.unit}</td>
+                          <td style={{ fontSize: 12, fontWeight: 600 }}>{t.new_stock} {t.unit}</td>
+                          <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', maxWidth: 160 }}>{t.reason ?? '—'}</td>
+                          <td style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)', maxWidth: 160 }}>{t.notes ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setHistoryOpen(false)}>
+            Close
+          </Button>
+        </ModalFooter>
       </Modal>
 
       <ConfirmDialog
@@ -1027,6 +1215,7 @@ export function InventoryPage() {
         title="Delete Inventory Item"
         message={`Are you sure you want to delete ${confirmDelete?.name}? All related stock history will also be deleted.`}
         confirmLabel="Delete"
+        danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}
       />

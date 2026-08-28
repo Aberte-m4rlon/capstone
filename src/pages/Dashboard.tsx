@@ -5,11 +5,14 @@ import { generateRecommendations } from '../lib/recommendations';
 import {
   inventoryStatus,
   daysUntil,
-  calculateGrowth,
   formatDate,
 } from '../lib/analytics';
 import { Icons } from '../lib/icons';
-import { Plus, Brain, TrendingUp, AlertCircle, Layers, Zap } from 'lucide-react';
+import {
+  Plus, Brain, TrendingUp, AlertCircle, Layers,
+  HeartPulse, PawPrint, Scale, Baby, Package, AlertTriangle,
+  Lightbulb, Activity, CheckCircle2, ChevronRight,
+} from 'lucide-react';
 import { useMLInsights } from '../lib/mlHooks';
 import { Line, Doughnut } from 'react-chartjs-2';
 import {
@@ -23,6 +26,12 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { Card, CardHeader, CardContent } from '../components/ui/Card';
+import { StatCard } from '../components/ui/StatCard';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 ChartJS.register(
   CategoryScale,
@@ -32,7 +41,7 @@ ChartJS.register(
   ArcElement,
   Filler,
   Tooltip,
-  Legend,
+  Legend
 );
 
 export function Dashboard() {
@@ -58,7 +67,7 @@ export function Dashboard() {
       return s.status === 'Expiring Soon' || s.status === 'Expired';
     }).length;
     const vaccDue = activeAnimals.filter(
-      (a) => a.vaccination_status === 'Due Soon' || a.vaccination_status === 'Overdue',
+      (a) => a.vaccination_status === 'Due Soon' || a.vaccination_status === 'Overdue'
     ).length;
     const newThisMonth = activeAnimals.filter((a) => {
       const d = new Date(a.created_at);
@@ -71,7 +80,7 @@ export function Dashboard() {
 
   const { recommendations, priorities } = useMemo(
     () => generateRecommendations(animals, healthRecords, weightRecords, vaccinations, inventory, breedingRecords, settings ?? undefined),
-    [animals, healthRecords, weightRecords, vaccinations, inventory, breedingRecords, settings],
+    [animals, healthRecords, weightRecords, vaccinations, inventory, breedingRecords, settings]
   );
 
   // Health trend chart (last 30 days)
@@ -131,683 +140,663 @@ export function Dashboard() {
 
   if (farmData.loading) {
     return (
-      <div className="loading-center">
-        <div className="spinner" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+        <LoadingSpinner size="lg" text="Loading farm dashboard..." />
       </div>
     );
   }
 
   const kpiCards = [
-    { label: 'Total Animals', value: stats.total, delta: `+${stats.newThisMonth} this month`, icon: 'PawPrint' as const, color: 'red' as const, deltaUp: true },
-    { label: 'Healthy Animals', value: stats.healthy, delta: stats.total > 0 ? `${((stats.healthy / stats.total) * 100).toFixed(1)}%` : '—', icon: 'HeartPulse' as const, color: 'orange' as const, deltaUp: true },
-    { label: 'Health Alerts', value: stats.atRisk, delta: stats.atRisk > 0 ? 'Requires attention' : 'All clear', icon: 'AlertTriangle' as const, color: 'red' as const, deltaUp: stats.atRisk === 0 },
-    { label: 'Breeding', value: stats.pregnant, delta: activeAnimals.filter((a) => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 30).length + ' due soon', icon: 'Baby' as const, color: 'orange' as const, deltaUp: true },
-    { label: 'Inventory Items', value: stats.invCount, delta: stats.expiringSoon > 0 ? `${stats.expiringSoon} expiring soon` : 'All stocked', icon: 'Package' as const, color: 'gray' as const, deltaUp: stats.expiringSoon === 0 },
-    { label: 'Average Weight', value: `${stats.avgWeight} kg`, delta: 'Across active animals', icon: 'Scale' as const, color: 'purple' as const, deltaUp: true },
+    {
+      title: 'Total Animals',
+      value: stats.total,
+      change: `+${stats.newThisMonth} this month`,
+      changeType: 'positive' as const,
+      icon: <PawPrint size={22} />,
+      statusColor: 'var(--color-primary, #FF6A2A)',
+      onClick: () => navigate('/animals'),
+    },
+    {
+      title: 'Healthy Animals',
+      value: stats.healthy,
+      change: stats.total > 0 ? `${((stats.healthy / stats.total) * 100).toFixed(1)}% of herd` : 'All clear',
+      changeType: 'positive' as const,
+      icon: <HeartPulse size={22} />,
+      statusColor: 'var(--color-success, #10B981)',
+      onClick: () => navigate('/health'),
+    },
+    {
+      title: 'Health Alerts',
+      value: stats.atRisk,
+      change: stats.atRisk > 0 ? 'Requires attention' : 'No urgent risks',
+      changeType: stats.atRisk > 0 ? ('negative' as const) : ('positive' as const),
+      icon: <AlertTriangle size={22} />,
+      statusColor: stats.atRisk > 0 ? 'var(--color-danger, #EF4444)' : 'var(--color-warning, #F59E0B)',
+      onClick: () => navigate('/health'),
+    },
+    {
+      title: 'Breeding & Pregnant',
+      value: stats.pregnant,
+      change: `${activeAnimals.filter((a) => a.breeding_status === 'Pregnant' && a.expected_kidding_date && daysUntil(a.expected_kidding_date) <= 30).length} due soon`,
+      changeType: 'neutral' as const,
+      icon: <Baby size={22} />,
+      statusColor: 'var(--color-warning, #F59E0B)',
+      onClick: () => navigate('/breeding'),
+    },
+    {
+      title: 'Inventory Stock',
+      value: stats.invCount,
+      change: stats.expiringSoon > 0 ? `${stats.expiringSoon} items expiring` : 'Stock optimal',
+      changeType: stats.expiringSoon > 0 ? ('warning' as const) : ('positive' as const),
+      icon: <Package size={22} />,
+      statusColor: 'var(--color-info, #3B82F6)',
+      onClick: () => navigate('/inventory'),
+    },
+    {
+      title: 'Average Weight',
+      value: `${stats.avgWeight} kg`,
+      change: 'Active herd average',
+      changeType: 'neutral' as const,
+      icon: <Scale size={22} />,
+      statusColor: 'var(--color-purple, #8B5CF6)',
+      onClick: () => navigate('/weights'),
+    },
   ];
 
   return (
-    <div style={{ paddingBottom: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24 }}>
       {/* Greeting Header */}
-      <div className="dashboard-greeting">
-        <h1 className="dashboard-title">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: '28px',
+            fontWeight: 800,
+            color: 'var(--color-text-primary, #0F172A)',
+            letterSpacing: '-0.02em',
+          }}
+        >
           {greeting}, Farmer
         </h1>
-        <p className="dashboard-subtitle">
-          Here's what's happening on your farm today.
+        <p style={{ margin: 0, fontSize: '14.5px', color: 'var(--color-text-secondary, #475569)' }}>
+          Here is your live herd summary, ML predictions, and operational tasks for today.
         </p>
       </div>
 
-      {/* Quick Actions */}
-      <div className="quick-actions quick-actions-grid">
+      {/* Quick Actions Row */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+          gap: 10,
+        }}
+      >
         {[
           { label: 'Add Animal', to: '/animals', icon: 'PawPrint' as const },
           { label: 'Health Check', to: '/health', icon: 'HeartPulse' as const },
           { label: 'Record Weight', to: '/weights', icon: 'Scale' as const },
           { label: 'Breeding Record', to: '/breeding', icon: 'Heart' as const },
-          { label: 'Add Vaccination', to: '/vaccinations', icon: 'Syringe' as const },
+          { label: 'Add Vaccine', to: '/vaccinations', icon: 'Syringe' as const },
           { label: 'Add Inventory', to: '/inventory', icon: 'Package' as const },
           { label: 'Record Feed', to: '/feed', icon: 'Wheat' as const },
         ].map((a) => {
           const Icon = Icons[a.icon];
           return (
-            <button
+            <Button
               key={a.label}
+              variant="secondary"
+              size="sm"
               onClick={() => navigate(a.to)}
-              className="quick-action quick-action-btn"
+              leftIcon={<Plus size={14} />}
+              style={{
+                justifyContent: 'flex-start',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md, 14px)',
+                fontWeight: 600,
+                fontSize: '13px',
+              }}
             >
-              <Plus size={16} className="qa-plus-icon" />
-              <Icon size={16} className="qa-icon" />
-              <span>{a.label}</span>
-            </button>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {a.label}
+              </span>
+            </Button>
           );
         })}
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="kpi-grid stats-grid">
-        {kpiCards.map((kpi) => {
-          const Icon = Icons[kpi.icon];
-          return (
-            <div
-              key={kpi.label}
-              className="kpi-card stat-card"
-            >
-              <div className="kpi-top">
-                <div className={`kpi-icon stat-card-icon ${kpi.color}`}>
-                  <Icon size={20} />
+      {/* KPI Stats Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 16,
+        }}
+      >
+        {kpiCards.map((kpi) => (
+          <StatCard
+            key={kpi.title}
+            title={kpi.title}
+            value={kpi.value}
+            change={kpi.change}
+            changeType={kpi.changeType}
+            icon={kpi.icon}
+            statusColor={kpi.statusColor}
+            onClick={kpi.onClick}
+          />
+        ))}
+      </div>
+
+      {/* Charts Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gap: 20,
+        }}
+      >
+        {/* Health Activity Chart */}
+        <Card variant="default" padding="lg">
+          <CardHeader
+            title="Health Check Activity"
+            subtitle="Records logged in the last 30 days"
+            action={
+              <Button variant="ghost" size="sm" onClick={() => navigate('/health')}>
+                View Logs
+              </Button>
+            }
+          />
+          <CardContent>
+            {healthTrendData.counts.every((c) => c === 0) ? (
+              <EmptyState
+                icon={<HeartPulse size={36} />}
+                title="No health checks recorded"
+                description="Start logging daily health checks to visualize herd trends."
+                actionLabel="Log Health Check"
+                onAction={() => navigate('/health')}
+              />
+            ) : (
+              <div style={{ height: 260 }}>
+                <Line
+                  data={{
+                    labels: healthTrendData.labels,
+                    datasets: [
+                      {
+                        label: 'Health Checks',
+                        data: healthTrendData.counts,
+                        borderColor: '#FF6A2A',
+                        backgroundColor: 'rgba(255, 106, 42, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#FF6A2A',
+                        pointBorderColor: '#FFFFFF',
+                        pointBorderWidth: 2,
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        grid: { color: 'rgba(148, 163, 184, 0.12)' },
+                      },
+                      x: { grid: { display: false } },
+                    },
+                  }}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Health Status Distribution */}
+        <Card variant="default" padding="lg">
+          <CardHeader
+            title="Health Status Distribution"
+            subtitle="Current active herd breakdown"
+          />
+          <CardContent>
+            {activeAnimals.length === 0 ? (
+              <EmptyState
+                icon={<PawPrint size={36} />}
+                title="No animals registered"
+                description="Add your first goat or sheep to view distribution data."
+                actionLabel="Add Animal"
+                onAction={() => navigate('/animals')}
+              />
+            ) : (
+              <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '100%', maxWidth: 280 }}>
+                  <Doughnut
+                    data={{
+                      labels: ['Healthy', 'Monitor', 'At Risk', 'Critical'],
+                      datasets: [
+                        {
+                          data: [
+                            healthDistData.healthy,
+                            healthDistData.monitor,
+                            healthDistData.atRisk,
+                            healthDistData.critical,
+                          ],
+                          backgroundColor: ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'],
+                          borderWidth: 0,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: true,
+                      plugins: {
+                        legend: {
+                          position: 'bottom',
+                          labels: {
+                            font: { size: 12, weight: 600 },
+                            color: 'var(--color-text-secondary, #475569)',
+                            padding: 12,
+                          },
+                        },
+                      },
+                    }}
+                  />
                 </div>
               </div>
-              <div className="kpi-value stat-card-value">
-                {kpi.value}
-              </div>
-              <div className="kpi-label stat-card-label">
-                {kpi.label}
-              </div>
-              <div className={`kpi-delta ${kpi.deltaUp ? 'up' : 'down'}`}>
-                {kpi.delta}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Charts Row */}
-      <div className="dashboard-grid-2">
-        <div className="glass-card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">
-                Health Check Activity
-              </div>
-              <div className="card-subtitle">
-                Records logged in the last 30 days
-              </div>
-            </div>
-          </div>
-          {healthTrendData.counts.every((c) => c === 0) ? (
-            <div style={{
-              textAlign: 'center',
-              padding: 40,
-              color: 'var(--text-secondary)',
-            }}>
-              <Icons.HeartPulse size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-              <div style={{ fontSize: 14, fontWeight: 600 }}>No health records yet</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Start recording health checks to see trends</div>
-            </div>
-          ) : (
-            <Line
-              data={{
-                labels: healthTrendData.labels,
-                datasets: [
-                  {
-                    label: 'Health Records',
-                    data: healthTrendData.counts,
-                    borderColor: '#FF7A18',
-                    backgroundColor: 'rgba(255, 122, 24, 0.12)',
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 3,
-                    pointBackgroundColor: '#FF7A18',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                  y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
-                  x: { grid: { display: false } },
-                },
-              }}
-            />
-          )}
-        </div>
-
-        <div className="glass-card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">
-                Health Status Distribution
-              </div>
-              <div className="card-subtitle">
-                Current health of active animals
-              </div>
-            </div>
-          </div>
-          {activeAnimals.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: 40,
-              color: 'var(--text-secondary)',
-            }}>
-              <Icons.PawPrint size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-              <div style={{ fontSize: 14, fontWeight: 600 }}>No animals yet</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Add your first animal to see health distribution</div>
-            </div>
-          ) : (
-            <div style={{ maxWidth: 300, margin: '0 auto' }}>
-              <Doughnut
-                data={{
-                  labels: ['Healthy', 'Monitor', 'At Risk', 'Critical'],
-                  datasets: [
-                    {
-                      data: [healthDistData.healthy, healthDistData.monitor, healthDistData.atRisk, healthDistData.critical],
-                      backgroundColor: ['#FFB340', '#FF9F0A', '#FF7A18', '#FF3B30'],
-                      borderWidth: 0,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: true,
-                  plugins: {
-                    legend: {
-                      position: 'bottom',
-                      labels: {
-                        font: { size: 12, weight: 600 },
-                        color: 'var(--text-secondary)',
-                        padding: 16,
-                      },
-                    },
-                  },
-                }}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Weight Trend */}
-      <div className="glass-card section-gap">
-        <div className="card-header">
-          <div>
-            <div className="card-title">
-              Average Weight Trend
-            </div>
-            <div className="card-subtitle">
-              Average weight across herd in the last 30 days
-            </div>
-          </div>
-        </div>
-        {weightTrendData.avgWeights.every((w) => w === 0) ? (
-          <div style={{
-            textAlign: 'center',
-            padding: 40,
-            color: 'var(--text-secondary)',
-          }}>
-            <Icons.Scale size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-            <div style={{ fontSize: 14, fontWeight: 600 }}>No weight records yet</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>Log weight measurements to see herd trends</div>
-          </div>
-        ) : (
-          <Line
-            data={{
-              labels: weightTrendData.labels,
-              datasets: [
-                {
-                  label: 'Avg Weight (kg)',
-                  data: weightTrendData.avgWeights,
-                  borderColor: '#FF7A18',
-                  backgroundColor: 'rgba(255, 122, 24, 0.12)',
-                  fill: true,
-                  tension: 0.3,
-                  pointRadius: 3,
-                  pointBackgroundColor: '#FF7A18',
-                  pointBorderColor: '#fff',
-                  pointBorderWidth: 2,
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: true,
-              plugins: { legend: { display: false } },
-              scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
-                x: { grid: { display: false } },
-              },
-            }}
-          />
-        )}
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* ML Insights Panel */}
-      <div className="glass-card section-gap">
-        <div className="card-header">
-          <div>
-            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Brain size={18} color="var(--accent)" />
-              ML-Powered Insights
+      <Card variant="elevated" padding="lg">
+        <CardHeader
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Brain size={20} color="var(--color-primary, #FF6A2A)" />
+              <span>Machine Learning Insights</span>
             </div>
-            <div className="card-subtitle">
-              Real machine learning models trained on your farm data — {mlInsights.totalInsights} active insights
+          }
+          subtitle={`Predictive models trained on your farm records — ${mlInsights.totalInsights} active insights`}
+          action={
+            <Badge variant="primary" size="sm">
+              {mlInsights.totalInsights} Active Models
+            </Badge>
+          }
+        />
+        <CardContent>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 14,
+            }}
+          >
+            {/* Health Risk Model */}
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: 'var(--radius-md, 14px)',
+                background: 'var(--color-surface-hover, rgba(148, 163, 184, 0.08))',
+                border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Brain size={16} color="var(--color-primary, #FF6A2A)" />
+                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-text-primary, #0F172A)' }}>
+                  Health Risk AI
+                </span>
+              </div>
+              {mlInsights.healthModel?.canPredict ? (
+                <>
+                  <div
+                    style={{
+                      fontSize: '26px',
+                      fontWeight: 800,
+                      color:
+                        mlInsights.healthModel.accuracy >= 0.7
+                          ? 'var(--color-success, #10B981)'
+                          : 'var(--color-warning, #F59E0B)',
+                      marginBottom: 4,
+                    }}
+                  >
+                    {Math.round(mlInsights.healthModel.accuracy * 100)}%
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted, #64748B)' }}>
+                    Model accuracy · {mlInsights.healthModel.trainingSamples} samples
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize: '12.5px', color: 'var(--color-text-muted, #64748B)' }}>
+                  Awaiting more records
+                </div>
+              )}
             </div>
-          </div>
-          <div style={{
-            background: 'rgba(255, 122, 24, 0.15)',
-            border: '1px solid rgba(255, 122, 24, 0.3)',
-            borderRadius: 8,
-            padding: '6px 12px',
-            fontSize: 12,
-            fontWeight: 700,
-            color: '#FF9F0A',
-          }}>
-            {mlInsights.totalInsights} insights
-          </div>
-        </div>
 
-        <div className="ml-insights-grid">
-          {/* Health Risk Model */}
-          <div style={{
-            padding: 16,
-            borderRadius: 16,
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.10)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Brain size={16} color="var(--accent)" />
-              <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>Health Risk AI</span>
-            </div>
-            {mlInsights.healthModel?.canPredict ? (
-              <>
-                <div style={{
-                  fontSize: 26,
-                  fontWeight: 900,
-                  color: mlInsights.healthModel.accuracy >= 0.7 ? '#FFB340' : mlInsights.healthModel.accuracy >= 0.5 ? '#FF7A18' : '#FF3B30',
+            {/* Anomaly Detection */}
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: 'var(--radius-md, 14px)',
+                background: 'var(--color-surface-hover, rgba(148, 163, 184, 0.08))',
+                border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <AlertCircle size={16} color="var(--color-danger, #EF4444)" />
+                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-text-primary, #0F172A)' }}>
+                  Vitals Anomalies
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: '26px',
+                  fontWeight: 800,
+                  color:
+                    mlInsights.anomalies.length > 0
+                      ? 'var(--color-danger, #EF4444)'
+                      : 'var(--color-success, #10B981)',
                   marginBottom: 4,
-                }}>
-                  {Math.round(mlInsights.healthModel.accuracy * 100)}%
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  Model accuracy · {mlInsights.healthModel.trainingSamples} samples
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                  Logistic regression
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Needs more health records</div>
-            )}
-          </div>
-
-          {/* Anomaly Detection */}
-          <div style={{
-            padding: 16,
-            borderRadius: 16,
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.10)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <AlertCircle size={16} color="#FF3B30" />
-              <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>Anomaly Detection</span>
-            </div>
-            <div style={{
-              fontSize: 26,
-              fontWeight: 900,
-              color: mlInsights.anomalies.length > 0 ? '#FF3B30' : '#FFB340',
-              marginBottom: 4,
-            }}>
-              {mlInsights.anomalies.length}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>
-              {mlInsights.anomalies.length === 0 ? 'No anomalies detected' : 'unusual readings'}
-            </div>
-            {mlInsights.anomalies.length > 0 && (
-              <div style={{ fontSize: 10, color: '#FF3B30' }}>
-                {mlInsights.anomalies.slice(0, 1).map((a) => (
-                  <div key={a.animal.id}>{a.animal.name}</div>
-                ))}
+                }}
+              >
+                {mlInsights.anomalies.length}
               </div>
-            )}
-          </div>
+              <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted, #64748B)' }}>
+                {mlInsights.anomalies.length === 0 ? 'No irregular readings' : 'Readings flagged'}
+              </div>
+            </div>
 
-          {/* Growth Predictions */}
-          <div style={{
-            padding: 16,
-            borderRadius: 16,
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.10)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <TrendingUp size={16} color="#FF7A18" />
-              <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>Growth Forecasts</span>
-            </div>
-            <div style={{
-              fontSize: 26,
-              fontWeight: 900,
-              color: '#FF7A18',
-              marginBottom: 4,
-            }}>
-              {mlInsights.growthPredictions.filter((g) => g.model).length}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-              polynomial models active
-            </div>
-          </div>
-
-          {/* Animal Clustering */}
-          <div style={{
-            padding: 16,
-            borderRadius: 16,
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02))',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255, 255, 255, 0.10)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Layers size={16} color="#FF9F0A" />
-              <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>Animal Clusters</span>
-            </div>
-            {mlInsights.clusters ? (
-              <>
-                <div style={{
-                  fontSize: 26,
-                  fontWeight: 900,
-                  color: '#FFB340',
+            {/* Growth Forecasts */}
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: 'var(--radius-md, 14px)',
+                background: 'var(--color-surface-hover, rgba(148, 163, 184, 0.08))',
+                border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <TrendingUp size={16} color="var(--color-info, #3B82F6)" />
+                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-text-primary, #0F172A)' }}>
+                  Growth Forecasts
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: '26px',
+                  fontWeight: 800,
+                  color: 'var(--color-info, #3B82F6)',
                   marginBottom: 4,
-                }}>
-                  {mlInsights.clusters.k}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                  K-means clusters
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Needs 3+ animals</div>
-            )}
-          </div>
-        </div>
-      </div>
+                }}
+              >
+                {mlInsights.growthPredictions.filter((g) => g.model).length}
+              </div>
+              <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted, #64748B)' }}>
+                Polynomial models active
+              </div>
+            </div>
 
-      {/* Recommendations + Priorities */}
-      <div className="dashboard-grid-2 section-gap">
-        <div className="glass-card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">
-                Smart Farm Assistant
+            {/* Animal Clustering */}
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: 'var(--radius-md, 14px)',
+                background: 'var(--color-surface-hover, rgba(148, 163, 184, 0.08))',
+                border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Layers size={16} color="var(--color-purple, #8B5CF6)" />
+                <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--color-text-primary, #0F172A)' }}>
+                  Herd Clusters
+                </span>
               </div>
-              <div className="card-subtitle">
-                Auto-generated from your farm data
+              <div
+                style={{
+                  fontSize: '26px',
+                  fontWeight: 800,
+                  color: 'var(--color-purple, #8B5CF6)',
+                  marginBottom: 4,
+                }}
+              >
+                {mlInsights.clusters ? mlInsights.clusters.k : 0}
+              </div>
+              <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted, #64748B)' }}>
+                K-means cluster groups
               </div>
             </div>
-            <Icons.Lightbulb size={18} color="var(--accent)" />
           </div>
-          {recommendations.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: 24,
-              color: 'var(--text-secondary)',
-            }}>
-              <Icons.CheckCircle size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
-              <div style={{ fontSize: 13, fontWeight: 600 }}>All clear!</div>
-              <div style={{ fontSize: 11, marginTop: 4 }}>No urgent recommendations right now.</div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {recommendations.slice(0, 6).map((rec, i) => {
-                const colorMap = { red: '#FF3B30', orange: '#FF7A18', yellow: '#FF9F0A', blue: '#FFB340' };
-                return (
+        </CardContent>
+      </Card>
+
+      {/* Recommendations & Priorities Row */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gap: 20,
+        }}
+      >
+        {/* Smart Recommendations */}
+        <Card variant="default" padding="lg">
+          <CardHeader
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Lightbulb size={18} color="var(--color-primary, #FF6A2A)" />
+                <span>Smart Recommendations</span>
+              </div>
+            }
+            subtitle="Auto-generated suggestions from farm telemetry"
+          />
+          <CardContent>
+            {recommendations.length === 0 ? (
+              <EmptyState
+                icon={<CheckCircle2 size={32} />}
+                title="All clear"
+                description="No urgent farm recommendations at this moment."
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {recommendations.slice(0, 5).map((rec, i) => (
                   <div
                     key={i}
                     onClick={() => rec.link && navigate(rec.link)}
                     style={{
-                      padding: 14,
-                      borderRadius: 14,
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))',
-                      backdropFilter: 'blur(16px)',
-                      WebkitBackdropFilter: 'blur(16px)',
-                      border: '1px solid rgba(255, 255, 255, 0.10)',
-                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 15px rgba(0, 0, 0, 0.10)',
-                      cursor: 'pointer',
+                      padding: '12px 14px',
+                      borderRadius: 'var(--radius-md, 14px)',
+                      background: 'var(--color-surface-hover, rgba(148, 163, 184, 0.08))',
+                      border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
+                      cursor: rec.link ? 'pointer' : 'default',
                       display: 'flex',
                       gap: 12,
                       alignItems: 'flex-start',
-                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255, 122, 24, 0.45)';
-                      (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04))';
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255, 255, 255, 0.10)';
-                      (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))';
-                      (e.currentTarget as HTMLDivElement).style.transform = 'none';
+                      transition: 'all 0.15s ease',
                     }}
                   >
-                    <div style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: colorMap[rec.severity_color as keyof typeof colorMap] || '#FF7A18',
-                      boxShadow: `0 0 8px ${colorMap[rec.severity_color as keyof typeof colorMap] || '#FF7A18'}`,
-                      marginTop: 5,
-                      flexShrink: 0,
-                    }} />
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background:
+                          rec.severity_color === 'red'
+                            ? 'var(--color-danger, #EF4444)'
+                            : rec.severity_color === 'orange'
+                            ? 'var(--color-warning, #F59E0B)'
+                            : 'var(--color-primary, #FF6A2A)',
+                        marginTop: 6,
+                        flexShrink: 0,
+                      }}
+                    />
                     <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: 'var(--text)',
-                        marginBottom: 2,
-                      }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
                         {rec.title}
                       </div>
                       {rec.description && (
-                        <div style={{
-                          fontSize: 11,
-                          color: 'var(--text-secondary)',
-                          lineHeight: 1.4,
-                        }}>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', marginTop: 2, lineHeight: 1.4 }}>
                           {rec.description}
                         </div>
                       )}
                     </div>
+                    {rec.link && <ChevronRight size={16} color="var(--color-text-muted, #94A3B8)" />}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div className="glass-card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">
-                Today's Priorities
+        {/* Today's Priorities */}
+        <Card variant="default" padding="lg">
+          <CardHeader
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Activity size={18} color="var(--color-primary, #FF6A2A)" />
+                <span>Today's Priorities</span>
               </div>
-              <div className="card-subtitle">
-                Ranked by urgency
-              </div>
-            </div>
-            <Icons.Activity size={18} color="var(--accent)" />
-          </div>
-          {priorities.length === 0 ? (
-            <div style={{
-              textAlign: 'center',
-              padding: 24,
-              color: 'var(--text-secondary)',
-            }}>
-              <Icons.CheckCircle size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Nothing urgent</div>
-              <div style={{ fontSize: 11, marginTop: 4 }}>No priority tasks for today.</div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {priorities.slice(0, 6).map((p, i) => {
-                const severityColor = p.severity === 'urgent' ? '#FF3B30' : p.severity === 'attention' ? '#FF7A18' : p.severity === 'upcoming' ? '#FF9F0A' : '#FFB340';
-                return (
+            }
+            subtitle="Ranked operations by time and impact"
+          />
+          <CardContent>
+            {priorities.length === 0 ? (
+              <EmptyState
+                icon={<CheckCircle2 size={32} />}
+                title="Nothing urgent"
+                description="All operational tasks and reminders are up to date."
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {priorities.slice(0, 5).map((p, i) => (
                   <div
                     key={p.id}
-                    onClick={() => navigate(p.link)}
+                    onClick={() => p.link && navigate(p.link)}
                     style={{
-                      padding: 14,
-                      borderRadius: 14,
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))',
-                      backdropFilter: 'blur(16px)',
-                      WebkitBackdropFilter: 'blur(16px)',
-                      border: '1px solid rgba(255, 255, 255, 0.10)',
-                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 15px rgba(0, 0, 0, 0.10)',
-                      cursor: 'pointer',
+                      padding: '12px 14px',
+                      borderRadius: 'var(--radius-md, 14px)',
+                      background: 'var(--color-surface-hover, rgba(148, 163, 184, 0.08))',
+                      border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
+                      cursor: p.link ? 'pointer' : 'default',
                       display: 'flex',
                       gap: 12,
                       alignItems: 'flex-start',
-                      transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255, 75, 43, 0.4)';
-                      (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04))';
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255, 255, 255, 0.10)';
-                      (e.currentTarget as HTMLDivElement).style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02))';
-                      (e.currentTarget as HTMLDivElement).style.transform = 'none';
+                      transition: 'all 0.15s ease',
                     }}
                   >
-                    <div style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 8,
-                      background: severityColor + '25',
-                      border: `1px solid ${severityColor}40`,
-                      boxShadow: `inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px ${severityColor}30`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: severityColor,
-                      fontSize: 12,
-                      fontWeight: 800,
-                      flexShrink: 0,
-                    }}>
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 'var(--radius-xs, 6px)',
+                        background: 'rgba(255, 106, 42, 0.12)',
+                        color: 'var(--color-primary, #FF6A2A)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        flexShrink: 0,
+                      }}
+                    >
                       {i + 1}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: 'var(--text)',
-                        marginBottom: 2,
-                      }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
                         {p.title}
                       </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: 'var(--text-secondary)',
-                        lineHeight: 1.4,
-                      }}>
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', marginTop: 2, lineHeight: 1.4 }}>
                         {p.description}
                       </div>
                     </div>
+                    {p.link && <ChevronRight size={16} color="var(--color-text-muted, #94A3B8)" />}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Recent Animals Table */}
-      <div className="glass-card">
-        <div className="card-header">
-          <div>
-            <div className="card-title">
-              Recent Animals
-            </div>
-            <div className="card-subtitle">
-              Latest additions to your farm
-            </div>
-          </div>
-          <button
-            onClick={() => navigate('/animals')}
-            className="btn-secondary btn-sm"
-          >
-            View all
-          </button>
-        </div>
-        {activeAnimals.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            padding: 40,
-            color: 'var(--text-secondary)',
-          }}>
-            <Icons.PawPrint size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
-            <div style={{ fontSize: 14, fontWeight: 600 }}>No animals yet</div>
-            <div style={{ fontSize: 12, marginTop: 4 }}>Add your first animal to get started</div>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Tag ID</th>
-                  <th>Species</th>
-                  <th>Sex</th>
-                  <th>Weight</th>
-                  <th>Health</th>
-                  <th>Added</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeAnimals.slice(0, 6).map((a) => (
-                  <tr
-                    key={a.id}
-                    onClick={() => navigate(`/animals/${a.id}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td style={{ fontWeight: 600, color: 'var(--text)' }}>
-                      {a.name}
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {a.tag_id}
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {a.species}
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {a.sex}
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {a.weight_kg ? `${a.weight_kg} kg` : '—'}
-                    </td>
-                    <td>
-                      <span className={`badge badge-${a.health_status === 'Healthy'
-                          ? 'green'
-                          : a.health_status === 'Monitor'
-                            ? 'blue'
-                            : a.health_status === 'At Risk'
-                              ? 'orange'
-                              : 'red'
-                        }`}>
-                        {a.health_status}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {formatDate(a.created_at)}
-                    </td>
+      {/* Recent Animals Section */}
+      <Card variant="default" padding="lg">
+        <CardHeader
+          title="Recent Animals"
+          subtitle="Latest herd additions and status overview"
+          action={
+            <Button variant="secondary" size="sm" onClick={() => navigate('/animals')}>
+              View All
+            </Button>
+          }
+        />
+        <CardContent>
+          {activeAnimals.length === 0 ? (
+            <EmptyState
+              icon={<PawPrint size={36} />}
+              title="No animals found"
+              description="Register animals to start tracking individual records."
+              actionLabel="Add Animal"
+              onAction={() => navigate('/animals')}
+            />
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Tag ID</th>
+                    <th>Species</th>
+                    <th>Sex</th>
+                    <th>Weight</th>
+                    <th>Health</th>
+                    <th>Date Added</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {activeAnimals.slice(0, 6).map((a) => (
+                    <tr
+                      key={a.id}
+                      onClick={() => navigate(`/animals/${a.id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                        {a.name}
+                      </td>
+                      <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>
+                        {a.tag_id}
+                      </td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.species}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.sex}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                        {a.weight_kg ? `${a.weight_kg} kg` : '—'}
+                      </td>
+                      <td>
+                        <Badge
+                          variant={
+                            a.health_status === 'Healthy'
+                              ? 'success'
+                              : a.health_status === 'Monitor'
+                              ? 'info'
+                              : a.health_status === 'At Risk'
+                              ? 'warning'
+                              : 'danger'
+                          }
+                          size="sm"
+                          dot
+                        >
+                          {a.health_status}
+                        </Badge>
+                      </td>
+                      <td style={{ color: 'var(--color-text-muted, #64748B)' }}>
+                        {formatDate(a.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

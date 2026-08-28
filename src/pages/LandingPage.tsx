@@ -1,8 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { Icons } from '../lib/icons';
-import { TrendingUp, BarChart3, AlertCircle, Zap, Smartphone, Lightbulb, Sun, Moon, Heart, Syringe, Package, ScanLine, Calendar, Scale, HeartPulse } from 'lucide-react';
+import {
+  TrendingUp, BarChart3, AlertCircle, Zap, Smartphone, Lightbulb, Sun, Moon,
+  Heart, Syringe, Package, ScanLine, Calendar, Scale, HeartPulse, PawPrint, ArrowRight
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Button } from '../components/ui/Button';
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -50,7 +53,7 @@ export function LandingPage() {
             justifyContent: 'center',
             boxShadow: '0 8px 24px rgba(255, 75, 43, 0.3)'
           }}>
-            <Icons.PawPrint size={22} color="#fff" />
+            <PawPrint size={22} color="#fff" />
           </div>
           AlpasFarm
         </div>
@@ -59,16 +62,16 @@ export function LandingPage() {
             className="topbar-icon-btn"
             onClick={() => setDarkMode(!darkMode)}
             style={{ width: 44, height: 44 }}
+            aria-label="Toggle theme"
           >
             {darkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-          <button 
-            className="btn btn-primary"
+          <Button 
+            variant="primary"
             onClick={() => navigate('/login')}
-            style={{ padding: '10px 24px' }}
           >
             Sign In
-          </button>
+          </Button>
         </div>
       </nav>
 
@@ -114,7 +117,7 @@ export function LandingPage() {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}>
-              for Goats & Sheep
+              for Goats &amp; Sheep
             </span>
           </h1>
 
@@ -131,20 +134,21 @@ export function LandingPage() {
           </p>
 
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button 
-              className="btn btn-primary"
+            <Button 
+              variant="primary"
+              size="lg"
               onClick={() => navigate('/login')}
-              style={{ padding: '13px 32px', fontSize: 15, fontWeight: 700 }}
+              rightIcon={<ArrowRight size={18} />}
             >
               Get Started Free
-            </button>
-            <button 
-              className="btn btn-secondary"
+            </Button>
+            <Button 
+              variant="secondary"
+              size="lg"
               onClick={() => document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })}
-              style={{ padding: '13px 28px', fontSize: 15, fontWeight: 700 }}
             >
               Learn More
-            </button>
+            </Button>
           </div>
         </div>
       </section>
@@ -187,7 +191,7 @@ export function LandingPage() {
                 marginBottom: 16,
                 boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
               }}>
-                <Icons.PawPrint size={28} color="var(--accent)" />
+                <PawPrint size={28} color="var(--accent)" />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
                 Animal Profiles
@@ -259,7 +263,7 @@ export function LandingPage() {
                 <Heart size={28} color="var(--info)" />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
-                Breeding & Kidding
+                Breeding &amp; Kidding
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                 Track mating, pregnancy, and kidding dates. Get alerts when animals are due.
@@ -328,7 +332,7 @@ export function LandingPage() {
                 <Package size={28} color="var(--warning)" />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
-                Inventory & Supplies
+                Inventory &amp; Supplies
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                 Track feed, medicines, vaccines. Get alerts for low stock and expiry dates.
@@ -374,7 +378,7 @@ export function LandingPage() {
                 <Calendar size={28} color="var(--critical)" />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
-                Daily Alerts & Reminders
+                Daily Alerts &amp; Reminders
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                 Prioritized task reminders, push notifications, and SMS/email summaries for farm work.
@@ -541,13 +545,14 @@ export function LandingPage() {
         }}>
           Start managing your farm smarter today. Sign up and get your free account.
         </p>
-        <button
-          className="btn btn-primary"
+        <Button
+          variant="primary"
+          size="lg"
           onClick={() => navigate('/login')}
-          style={{ padding: '13px 40px', fontSize: 15, fontWeight: 700 }}
+          rightIcon={<ArrowRight size={18} />}
         >
-          Get Started Now →
-        </button>
+          Get Started Now
+        </Button>
       </section>
 
       {/* Footer */}
@@ -563,10 +568,10 @@ export function LandingPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontWeight: 800 }}>
-            <Icons.PawPrint size={18} />
+            <PawPrint size={18} />
             AlpasFarm
           </div>
-          <p>© 2026 AlpasFarm. Premium Smart Farm Management for Goats & Sheep.</p>
+          <p>© 2026 AlpasFarm. Premium Smart Farm Management for Goats &amp; Sheep.</p>
         </div>
       </footer>
     </div>

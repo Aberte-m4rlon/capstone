@@ -17,13 +17,20 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '../lib/auth';
-import { useToast } from '../lib/toast';
+import { useToast } from '../components/ui/Toast';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, PawPrint, ShieldAlert, ShieldCheck, RefreshCw, Trash2,
   CheckCircle, Mail, HeartPulse, Crown, UserCog, Database,
   Activity, AlertTriangle, X, LayoutDashboard, Brain,
 } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { StatCard } from '../components/ui/StatCard';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
+import { FormField, Select } from '../components/ui/Input';
 import { FilterToolbar, FilterSearch } from '../components/FilterToolbar';
 import { formatDate } from '../lib/analytics';
 import { type UserRole, ALL_ROLES, getRoleLabel, SUPER_ADMIN_EMAILS_FALLBACK } from '../lib/auth';
@@ -210,7 +217,7 @@ export function SuperAdminPage() {
       const msg = err instanceof Error ? err.message : 'Failed to load users.';
       console.error('[SuperAdmin] loadUsers error:', err);
       setLoadError(msg);
-      toast(msg, 'error');
+      toast(msg, 'danger');
     } finally {
       setLoading(false);
     }
@@ -222,12 +229,12 @@ export function SuperAdminPage() {
     if (editRoleUser.role === 'super_admin' && newRole !== 'super_admin') {
       const superAdminCount = users.filter(u => u.role === 'super_admin').length;
       if (superAdminCount <= 1) {
-        toast('Cannot remove the last Super Administrator. Promote another user first.', 'error');
+        toast('Cannot remove the last Super Administrator. Promote another user first.', 'danger');
         return;
       }
     }
     if (editRoleUser.id === user?.id && newRole !== 'super_admin') {
-      toast('You cannot change your own Super Admin role.', 'error');
+      toast('You cannot change your own Super Admin role.', 'danger');
       return;
     }
     setSavingRole(true);
@@ -241,7 +248,7 @@ export function SuperAdminPage() {
       setEditRoleUser(null);
       loadUsers();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to update role.', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to update role.', 'danger');
     } finally {
       setSavingRole(false);
     }
@@ -249,11 +256,11 @@ export function SuperAdminPage() {
 
   // ── Toggle active ─────────────────────────────────────────────────────────
   const toggleActive = async (u: UserRow) => {
-    if (u.id === user?.id) { toast('You cannot deactivate your own account.', 'error'); return; }
+    if (u.id === user?.id) { toast('You cannot deactivate your own account.', 'danger'); return; }
     if (u.role === 'super_admin' && u.is_active) {
       const activeSupers = users.filter(x => x.role === 'super_admin' && x.is_active).length;
       if (activeSupers <= 1) {
-        toast('Cannot deactivate the last active Super Administrator.', 'error');
+        toast('Cannot deactivate the last active Super Administrator.', 'danger');
         return;
       }
     }
@@ -266,17 +273,17 @@ export function SuperAdminPage() {
       toast(`Account ${!u.is_active ? 'activated' : 'deactivated'}.`, 'success');
       loadUsers();
     } catch (err) {
-      toast('Failed to update account status.', 'error');
+      toast('Failed to update account status.', 'danger');
     }
   };
 
   // ── Delete user ───────────────────────────────────────────────────────────
   const handleDeleteUser = async () => {
     if (!confirmDeleteUser) return;
-    if (confirmDeleteUser.id === user?.id) { toast('You cannot delete your own account.', 'error'); return; }
+    if (confirmDeleteUser.id === user?.id) { toast('You cannot delete your own account.', 'danger'); return; }
     if (confirmDeleteUser.role === 'super_admin') {
       const superCount = users.filter(u => u.role === 'super_admin').length;
-      if (superCount <= 1) { toast('Cannot delete the last Super Administrator.', 'error'); return; }
+      if (superCount <= 1) { toast('Cannot delete the last Super Administrator.', 'danger'); return; }
     }
     try {
       const { error } = await svcClient.auth.admin.deleteUser(confirmDeleteUser.id);
@@ -287,7 +294,7 @@ export function SuperAdminPage() {
       setConfirmDeleteUser(null);
       loadUsers();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to delete user.', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to delete user.', 'danger');
     }
   };
 
@@ -297,7 +304,7 @@ export function SuperAdminPage() {
       if (error) throw error;
       toast(`Password reset sent to ${email}.`, 'success');
     } catch {
-      toast('Failed to send reset email.', 'error');
+      toast('Failed to send reset email.', 'danger');
     }
   };
 
@@ -327,16 +334,16 @@ export function SuperAdminPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)', margin: 0 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-primary, #0f172a)', margin: 0 }}>
             <Crown size={22} color="#7C3AED" /> Super Admin Panel
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-            Full system control — <strong style={{ color: 'var(--text)' }}>{user?.email}</strong>
+          <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
+            Full system control — <strong style={{ color: 'var(--color-text-primary, #0f172a)' }}>{user?.email}</strong>
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={loadUsers} disabled={loading}>
-          <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} /> Refresh
-        </button>
+        <Button variant="secondary" onClick={loadUsers} loading={loading} leftIcon={<RefreshCw size={14} />}>
+          Refresh
+        </Button>
       </div>
 
       {/* Error banner */}
@@ -345,7 +352,7 @@ export function SuperAdminPage() {
           <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, color: '#EF4444' }}>Data load error</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{loadError}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{loadError}</div>
           </div>
         </div>
       )}
@@ -362,25 +369,17 @@ export function SuperAdminPage() {
       {/* ── DASHBOARD TAB ── */}
       {tab === 'dashboard' && (
         <>
-          <div className="kpi-grid section-gap">
-            {[
-              { icon: <Users size={18} />, color: 'blue', value: stats.totalUsers, label: 'Total Users' },
-              { icon: <Crown size={18} />, color: 'red', value: stats.superAdmins, label: 'Super Admins' },
-              { icon: <ShieldCheck size={18} />, color: 'orange', value: stats.sysAdmins, label: 'System Admins' },
-              { icon: <CheckCircle size={18} />, color: 'green', value: stats.farmManagers, label: 'Farm Managers' },
-              { icon: <PawPrint size={18} />, color: 'blue', value: stats.totalAnimals, label: 'Total Animals' },
-              { icon: <HeartPulse size={18} />, color: 'orange', value: stats.totalHealth, label: 'Health Records' },
-            ].map((s, i) => (
-              <div key={i} className="kpi-card">
-                <div className="kpi-top"><div className={`kpi-icon ${s.color}`}>{s.icon}</div></div>
-                <div className="kpi-value">{loading ? '—' : s.value}</div>
-                <div className="kpi-label">{s.label}</div>
-              </div>
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+            <StatCard icon={<Users size={18} />} accentColor="blue" value={loading ? '—' : stats.totalUsers} label="Total Users" />
+            <StatCard icon={<Crown size={18} />} accentColor="red" value={loading ? '—' : stats.superAdmins} label="Super Admins" />
+            <StatCard icon={<ShieldCheck size={18} />} accentColor="orange" value={loading ? '—' : stats.sysAdmins} label="System Admins" />
+            <StatCard icon={<CheckCircle size={18} />} accentColor="green" value={loading ? '—' : stats.farmManagers} label="Farm Managers" />
+            <StatCard icon={<PawPrint size={18} />} accentColor="blue" value={loading ? '—' : stats.totalAnimals} label="Total Animals" />
+            <StatCard icon={<HeartPulse size={18} />} accentColor="orange" value={loading ? '—' : stats.totalHealth} label="Health Records" />
           </div>
 
           {/* Role distribution */}
-          <div className="card section-gap">
+          <Card variant="glass" padding="lg" style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <UserCog size={16} color="#7C3AED" /> Role Distribution
             </div>
@@ -399,19 +398,21 @@ export function SuperAdminPage() {
                 );
               })}
             </div>
-          </div>
+          </Card>
 
           {/* Recent users */}
-          <div className="card">
-            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Card variant="glass" padding="none">
+            <div style={{ fontWeight: 800, fontSize: 15, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border-light)' }}>
               <Users size={16} color="#7C3AED" /> All Registered Users
             </div>
-            {loading ? <div className="loading-center"><div className="spinner" /></div> : users.length === 0 ? (
-              <div className="empty-state">
-                <div className="es-icon"><Users size={24} /></div>
-                <h4>No users found</h4>
-                <p>Check that the profiles table exists and VITE_SUPABASE_SERVICE_KEY is set in Vercel.</p>
-              </div>
+            {loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
+            ) : users.length === 0 ? (
+              <EmptyState
+                icon={<Users size={32} />}
+                title="No users found"
+                description="Check that the profiles table exists and VITE_SUPABASE_SERVICE_KEY is set in Vercel."
+              />
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
@@ -423,10 +424,14 @@ export function SuperAdminPage() {
                         <tr key={u.id}>
                           <td style={{ fontWeight: 600, fontSize: 13 }}>{u.email}</td>
                           <td><span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 999, background: b.bg, border: `1px solid ${b.border}`, color: b.color, fontSize: 11, fontWeight: 700 }}>{b.label}</span></td>
-                          <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: u.is_active ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.10)', color: u.is_active ? '#16A34A' : '#EF4444' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />{u.is_active ? 'Active' : 'Inactive'}</span></td>
-                          <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.farm_name ?? '—'}</td>
-                          <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.created_at ? formatDate(u.created_at) : '—'}</td>
-                          <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
+                          <td>
+                            <Badge variant={u.is_active ? 'success' : 'danger'} size="sm">
+                              {u.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                          <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.farm_name ?? '—'}</td>
+                          <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.created_at ? formatDate(u.created_at) : '—'}</td>
+                          <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
                         </tr>
                       );
                     })}
@@ -434,7 +439,7 @@ export function SuperAdminPage() {
                 </table>
               </div>
             )}
-          </div>
+          </Card>
         </>
       )}
 
@@ -442,7 +447,7 @@ export function SuperAdminPage() {
       {tab === 'users' && (
         <>
           <FilterToolbar rightAction={
-            <span style={{ fontSize: 12, color: 'var(--filter-secondary)', fontWeight: 600 }}>{filtered.length} / {users.length} users</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{filtered.length} / {users.length} users</span>
           }>
             <FilterSearch placeholder="Search email, name, farm..." value={search} onChange={setSearch} minWidth={220} />
             <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
@@ -454,9 +459,11 @@ export function SuperAdminPage() {
             </select>
           </FilterToolbar>
 
-          <div className="card">
-            {loading ? <div className="loading-center"><div className="spinner" /></div> : filtered.length === 0 ? (
-              <div className="empty-state"><div className="es-icon"><Users size={24} /></div><h4>No users found</h4><p>Try a different filter.</p></div>
+          <Card variant="glass" padding="none">
+            {loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
+            ) : filtered.length === 0 ? (
+              <EmptyState icon={<Users size={32} />} title="No users found" description="Try a different filter." />
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
@@ -473,31 +480,43 @@ export function SuperAdminPage() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <div>
                                   <div style={{ fontWeight: 600, fontSize: 13 }}>{u.full_name || u.email}</div>
-                                  {u.full_name && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{u.email}</div>}
-                                  {isMe && <span className="badge badge-blue" style={{ fontSize: 10 }}>You</span>}
+                                  {u.full_name && <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)' }}>{u.email}</div>}
+                                  {isMe && <Badge variant="primary" size="sm">You</Badge>}
                                 </div>
                               </div>
                             </td>
                             <td><span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 999, background: b.bg, border: `1px solid ${b.border}`, color: b.color, fontSize: 11, fontWeight: 700 }}>{b.label}</span></td>
-                            <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: u.is_active ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.10)', color: u.is_active ? '#16A34A' : '#EF4444', border: u.is_active ? '1px solid rgba(22,163,74,0.25)' : '1px solid rgba(239,68,68,0.25)' }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor' }} />{u.is_active ? 'Active' : 'Inactive'}</span></td>
-                            <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.farm_name ?? '—'}</td>
+                            <td>
+                              <Badge variant={u.is_active ? 'success' : 'danger'} size="sm">
+                                {u.is_active ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </td>
+                            <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.farm_name ?? '—'}</td>
                             <td style={{ textAlign: 'center', fontWeight: u.animal_count > 0 ? 700 : 400 }}>{u.animal_count}</td>
-                            <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.created_at ? formatDate(u.created_at) : '—'}</td>
-                            <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
+                            <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.created_at ? formatDate(u.created_at) : '—'}</td>
+                            <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
                             <td onClick={e => e.stopPropagation()}>
                               <div className="row-actions">
-                                <button className="btn btn-ghost btn-sm" title="Change role" onClick={() => { setEditRoleUser(u); setNewRole(u.role); }}><UserCog size={13} /></button>
-                                <button className="btn btn-ghost btn-sm" title={u.is_active ? 'Deactivate' : 'Activate'} onClick={() => toggleActive(u)} style={{ color: u.is_active ? '#F59E0B' : '#16A34A' }}>{u.is_active ? <X size={13} /> : <CheckCircle size={13} />}</button>
-                                <button className="btn btn-ghost btn-sm" title="Send password reset" onClick={() => sendReset(u.email)}><Mail size={13} /></button>
+                                <Button variant="ghost" size="sm" title="Change role" onClick={() => { setEditRoleUser(u); setNewRole(u.role); }}>
+                                  <UserCog size={13} />
+                                </Button>
+                                <Button variant="ghost" size="sm" title={u.is_active ? 'Deactivate' : 'Activate'} onClick={() => toggleActive(u)} style={{ color: u.is_active ? '#F59E0B' : '#16A34A' }}>
+                                  {u.is_active ? <X size={13} /> : <CheckCircle size={13} />}
+                                </Button>
+                                <Button variant="ghost" size="sm" title="Send password reset" onClick={() => sendReset(u.email)}>
+                                  <Mail size={13} />
+                                </Button>
                                 {!isMe && u.role !== 'super_admin' && (
-                                  <button className="btn btn-ghost btn-sm" title="Delete" onClick={() => setConfirmDeleteUser(u)} style={{ color: '#EF4444' }}><Trash2 size={13} /></button>
+                                  <Button variant="ghost" size="sm" title="Delete" onClick={() => setConfirmDeleteUser(u)} style={{ color: '#EF4444' }}>
+                                    <Trash2 size={13} />
+                                  </Button>
                                 )}
                               </div>
                             </td>
                           </tr>
                           {isExp && (
                             <tr key={`${u.id}-exp`}>
-                              <td colSpan={8} style={{ background: 'var(--bg)', padding: '12px 20px' }}>
+                              <td colSpan={8} style={{ background: 'var(--color-surface-elevated, rgba(255,255,255,0.03))', padding: '12px 20px' }}>
                                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 12 }}>
                                   <span><strong>ID:</strong> <code style={{ fontSize: 11, opacity: 0.7 }}>{u.id.slice(0, 20)}…</code></span>
                                   <span><strong>Health Records:</strong> {u.health_count}</span>
@@ -513,14 +532,14 @@ export function SuperAdminPage() {
                 </table>
               </div>
             )}
-          </div>
+          </Card>
         </>
       )}
 
       {/* ── SYSTEM TAB ── */}
       {tab === 'system' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="card">
+          <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Activity size={16} color="#7C3AED" /> System Health
             </div>
@@ -537,9 +556,9 @@ export function SuperAdminPage() {
                 </span>
               </div>
             ))}
-          </div>
+          </Card>
 
-          <div className="card">
+          <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <ShieldCheck size={16} color="#7C3AED" /> Role Hierarchy
             </div>
@@ -552,13 +571,13 @@ export function SuperAdminPage() {
               return (
                 <div key={r} style={{ padding: '12px 16px', borderRadius: 12, background: b.bg, border: `1px solid ${b.border}`, marginBottom: 8 }}>
                   <div style={{ fontWeight: 700, color: b.color, fontSize: 13, marginBottom: 4 }}>{b.label}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{desc}</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{desc}</div>
                 </div>
               );
             })}
-          </div>
+          </Card>
 
-          <div className="card">
+          <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Database size={16} color="#7C3AED" /> Database Info
             </div>
@@ -567,29 +586,22 @@ export function SuperAdminPage() {
               <span><strong>User table:</strong> public.profiles</span>
               <span><strong>Total profiles:</strong> {loading ? '…' : users.length}</span>
             </div>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 12, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 12, lineHeight: 1.6 }}>
               Make sure <code>VITE_SUPABASE_SERVICE_KEY</code> is set in Vercel environment variables for
               auth.admin APIs (delete user, list users). The profiles table works with the anon key.
             </p>
-          </div>
+          </Card>
 
           {/* ML Model Status */}
-          <div className="card">
+          <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Brain size={16} color="#7C3AED" /> ML Health Risk Model
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700,
-                background: mlCanPredict ? 'rgba(22,163,74,0.12)' : 'rgba(245,158,11,0.12)',
-                color: mlCanPredict ? '#16A34A' : '#F59E0B',
-                border: mlCanPredict ? '1px solid rgba(22,163,74,0.25)' : '1px solid rgba(245,158,11,0.25)',
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
+              <Badge variant={mlCanPredict ? 'success' : 'warning'} size="sm">
                 {mlCanPredict ? 'Active' : 'Insufficient Data'}
-              </span>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              </Badge>
+              <span style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>
                 AlpasFarm Health Risk Model v{mlModel?.version ?? '2.0'}
               </span>
             </div>
@@ -602,9 +614,9 @@ export function SuperAdminPage() {
                 { label: 'Recall', value: mlCanPredict ? `${(mlRecall * 100).toFixed(1)}%` : '—' },
                 { label: 'F1 Score', value: mlCanPredict ? `${(mlF1 * 100).toFixed(1)}%` : '—' },
               ].map((m) => (
-                <div key={m.label} style={{ padding: '8px 12px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{m.value}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{m.label}</div>
+                <div key={m.label} style={{ padding: '8px 12px', borderRadius: 10, background: 'var(--color-surface-elevated, rgba(255,255,255,0.03))', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary, #0f172a)' }}>{m.value}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)' }}>{m.label}</div>
                 </div>
               ))}
             </div>
@@ -615,76 +627,74 @@ export function SuperAdminPage() {
                 { label: 'High Risk (ML)', value: String(mlSummary.mlHigh) },
                 { label: 'Critical (ML)', value: String(mlSummary.mlCritical) },
               ].map((m) => (
-                <div key={m.label} style={{ padding: '8px 12px', borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border-light)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{m.value}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{m.label}</div>
+                <div key={m.label} style={{ padding: '8px 12px', borderRadius: 10, background: 'var(--color-surface-elevated, rgba(255,255,255,0.03))', border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary, #0f172a)' }}>{m.value}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)' }}>{m.label}</div>
                 </div>
               ))}
             </div>
             {mlModel && (
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', lineHeight: 1.6 }}>
                 <strong>Label:</strong> Binary — health_record.risk_score ≥ 50 → at-risk (1), else healthy (0)<br />
                 <strong>Trained:</strong> {new Date(mlModel.trainedAt).toLocaleString()}<br />
                 <strong>Note:</strong> Labels are derived from the veterinary rule engine. The model generalizes those rules using statistical learning. Not a validated veterinary diagnostic tool.
               </div>
             )}
             {!mlCanPredict && (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
-                [Paalala] The ML model requires at least 5 health records to train. Add more health check records in the farm to activate ML predictions.
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 8 }}>
+                Reminder: The ML model requires at least 5 health records to train. Add more health check records in the farm to activate ML predictions.
               </div>
             )}
-          </div>
+          </Card>
         </div>
       )}
 
       {/* ── Role change modal ── */}
       {editRoleUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'var(--card)', borderRadius: 20, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.4)', border: '1px solid var(--border)' }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <UserCog size={18} color="#7C3AED" /> Change Role
-            </h3>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>{editRoleUser.email}</p>
-            <div className="form-group">
+        <Modal open={!!editRoleUser} onClose={() => setEditRoleUser(null)} size="md">
+          <ModalHeader
+            title="Change Role"
+            subtitle={editRoleUser.email}
+            icon={<UserCog size={18} color="#7C3AED" />}
+          />
+          <ModalBody>
+            <div style={{ marginBottom: 16 }}>
               <label className="form-label">Current Role</label>
-              <div style={{ fontSize: 13, fontWeight: 700, color: roleBadge(editRoleUser.role).color, marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: roleBadge(editRoleUser.role).color }}>
                 {roleBadge(editRoleUser.role).label}
               </div>
-              <label className="form-label">New Role <span className="req">*</span></label>
-              <select className="form-select" value={newRole} onChange={e => setNewRole(e.target.value as UserRole)}>
-                {ALL_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-              </select>
             </div>
+            <FormField label="New Role" required>
+              <Select value={newRole} onChange={e => setNewRole(e.target.value as UserRole)}>
+                {ALL_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+              </Select>
+            </FormField>
             {newRole === 'super_admin' && (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.25)', marginBottom: 16, fontSize: 12, color: 'var(--text-secondary)', display: 'flex', gap: 8 }}>
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.25)', marginTop: 12, fontSize: 12, color: 'var(--color-text-secondary, #475569)', display: 'flex', gap: 8 }}>
                 <AlertTriangle size={14} color="#7C3AED" style={{ flexShrink: 0, marginTop: 1 }} />
                 Super Admin has full system access. Only grant this to trusted users.
               </div>
             )}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setEditRoleUser(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleRoleChange} disabled={savingRole || newRole === editRoleUser.role}>
-                {savingRole ? 'Saving…' : 'Confirm Change'}
-              </button>
-            </div>
-          </div>
-        </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="secondary" onClick={() => setEditRoleUser(null)}>Cancel</Button>
+            <Button variant="primary" onClick={handleRoleChange} loading={savingRole} disabled={savingRole || newRole === editRoleUser.role}>
+              Confirm Change
+            </Button>
+          </ModalFooter>
+        </Modal>
       )}
 
       {/* ── Delete confirm ── */}
-      {confirmDeleteUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'var(--card)', borderRadius: 20, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 24px 64px rgba(0,0,0,0.4)', border: '1px solid var(--border)' }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 8, color: '#EF4444', display: 'flex', alignItems: 'center', gap: 8 }}><Trash2 size={18} /> Delete User</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 6 }}>Delete <strong>{confirmDeleteUser.email}</strong>?</p>
-            <p style={{ fontSize: 13, color: '#EF4444', marginBottom: 20 }}>[Warning] Permanently deletes the user and ALL their farm data. Cannot be undone.</p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setConfirmDeleteUser(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={handleDeleteUser}><Trash2 size={14} /> Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!confirmDeleteUser}
+        title="Delete User"
+        message={`Are you sure you want to delete ${confirmDeleteUser?.email}? This permanently deletes the user and ALL their farm data. This cannot be undone.`}
+        confirmLabel="Delete User"
+        danger
+        onConfirm={handleDeleteUser}
+        onCancel={() => setConfirmDeleteUser(null)}
+      />
     </div>
   );
 }

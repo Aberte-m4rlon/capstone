@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { useToast } from '../lib/toast';
-import { Icons } from '../lib/icons';
+import { useToast } from '../components/ui/Toast';
 import { Camera, KeyRound, Eye, EyeOff, User } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input, FormField } from '../components/ui/Input';
 
 export function SettingsPage() {
   const farmData = useFarmData();
@@ -50,8 +52,8 @@ export function SettingsPage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (file.size > 2 * 1024 * 1024) { toast('Image must be under 2 MB.', 'error'); return; }
-    if (!file.type.startsWith('image/')) { toast('Please select an image file.', 'error'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast('Image must be under 2 MB.', 'danger'); return; }
+    if (!file.type.startsWith('image/')) { toast('Please select an image file.', 'danger'); return; }
 
     setUploadingAvatar(true);
     try {
@@ -73,7 +75,7 @@ export function SettingsPage() {
       toast('Profile photo updated successfully.', 'success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed.';
-      toast(`Upload failed: ${msg}. Make sure the "avatars" storage bucket is created in Supabase.`, 'error');
+      toast(`Upload failed: ${msg}. Make sure the "avatars" storage bucket is created in Supabase.`, 'danger');
     } finally {
       setUploadingAvatar(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -125,38 +127,35 @@ export function SettingsPage() {
       toast('Settings saved successfully.', 'success');
       farmData.refresh();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Unable to save settings.', 'error');
+      toast(err instanceof Error ? err.message : 'Unable to save settings.', 'danger');
     } finally {
       setSaving(false);
     }
   };
 
   const numField = (label: string, key: keyof typeof form, hint?: string) => (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      <input
-        className="form-input"
+    <FormField label={label} hint={hint}>
+      <Input
         type="number"
         value={form[key]}
         onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })}
       />
-      {hint && <div className="form-hint">{hint}</div>}
-    </div>
+    </FormField>
   );
 
   return (
-    <div>
+    <div style={{ maxWidth: 860, margin: '0 auto', width: '100%' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>Settings</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+        <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
           Configure your profile and farm preferences.
         </p>
       </div>
 
       {/* ── Profile Section ── */}
-      <div className="card section-gap">
-        <div className="card-title" style={{ marginBottom: 16 }}>
-          <User size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+      <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <User size={16} color="var(--color-brand-primary, #FF7A18)" />
           Profile
         </div>
 
@@ -165,11 +164,11 @@ export function SettingsPage() {
           <div style={{ position: 'relative' }}>
             <div style={{
               width: 80, height: 80, borderRadius: '50%',
-              background: avatarUrl ? 'transparent' : 'linear-gradient(135deg, #B91C1C, #991B1B)',
+              background: avatarUrl ? 'transparent' : 'linear-gradient(135deg, #FF7A18, #FF4B26)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 28, fontWeight: 800, color: '#fff',
               overflow: 'hidden', flexShrink: 0,
-              border: '3px solid var(--border)',
+              border: '3px solid var(--border-light, rgba(255,255,255,0.15))',
             }}>
               {avatarUrl
                 ? <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -181,7 +180,7 @@ export function SettingsPage() {
               style={{
                 position: 'absolute', bottom: 0, right: 0,
                 width: 26, height: 26, borderRadius: '50%',
-                background: 'var(--primary)', color: '#fff', border: '2px solid var(--card)',
+                background: 'var(--color-brand-primary, #FF7A18)', color: '#fff', border: '2px solid var(--color-surface, #fff)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', fontSize: 12,
               }}
@@ -193,30 +192,30 @@ export function SettingsPage() {
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{user?.email}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Farmer · AlpasFarm</div>
-            <button
-              className="btn btn-secondary btn-sm"
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>Farmer · AlpasFarm</div>
+            <Button
+              variant="secondary"
+              size="sm"
               style={{ marginTop: 8 }}
               onClick={() => fileRef.current?.click()}
-              disabled={uploadingAvatar}
+              loading={uploadingAvatar}
+              leftIcon={<Camera size={13} />}
             >
-              <Camera size={13} /> {uploadingAvatar ? 'Uploading…' : 'Change Photo'}
-            </button>
+              Change Photo
+            </Button>
           </div>
         </div>
 
         {/* Change Password */}
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+        <div style={{ borderTop: '1px solid var(--border-light, rgba(255,255,255,0.08))', paddingTop: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <KeyRound size={15} color="var(--text-secondary)" />
+            <KeyRound size={15} color="var(--color-text-secondary, #475569)" />
             <span style={{ fontWeight: 700, fontSize: 14 }}>Change Password</span>
           </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">New Password</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+            <FormField label="New Password">
               <div style={{ position: 'relative' }}>
-                <input
-                  className="form-input"
+                <Input
                   type={showPw ? 'text' : 'password'}
                   placeholder="At least 6 characters"
                   value={pwForm.newPw}
@@ -226,81 +225,86 @@ export function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setShowPw(s => !s)}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary, #475569)' }}
                 >
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Confirm New Password</label>
-              <input
-                className="form-input"
+            </FormField>
+            <FormField label="Confirm New Password">
+              <Input
                 type={showPw ? 'text' : 'password'}
                 placeholder="Repeat new password"
                 value={pwForm.confirm}
                 onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
               />
-            </div>
+            </FormField>
           </div>
           {pwError && (
-            <div style={{ background: '#FEE2E2', color: '#991B1B', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: 12 }}>
+            <div style={{ background: 'rgba(239, 68, 68, 0.10)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: 12, marginTop: 8 }}>
               {pwError}
             </div>
           )}
-          <button className="btn btn-primary btn-sm" onClick={handleChangePassword} disabled={savingPw || !pwForm.newPw}>
-            <KeyRound size={13} /> {savingPw ? 'Changing…' : 'Change Password'}
-          </button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleChangePassword}
+            loading={savingPw}
+            disabled={savingPw || !pwForm.newPw}
+            leftIcon={<KeyRound size={13} />}
+            style={{ marginTop: 10 }}
+          >
+            Change Password
+          </Button>
         </div>
-      </div>
+      </Card>
 
-      <div className="card section-gap">
-        <div className="card-title" style={{ marginBottom: 14 }}>Farm Information</div>
-        <div className="form-group">
-          <label className="form-label">Farm Name</label>
-          <input className="form-input" value={form.farm_name} onChange={(e) => setForm({ ...form, farm_name: e.target.value })} />
-        </div>
-      </div>
+      <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 14 }}>Farm Information</div>
+        <FormField label="Farm Name">
+          <Input value={form.farm_name} onChange={(e) => setForm({ ...form, farm_name: e.target.value })} />
+        </FormField>
+      </Card>
 
-      <div className="card section-gap">
-        <div className="card-title" style={{ marginBottom: 4 }}>Health Risk Thresholds</div>
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>
+      <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Health Risk Thresholds</div>
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14 }}>
           These thresholds are used by the Smart Health Risk Prediction to determine alert levels.
         </p>
-        <div className="form-row">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
           {numField('Critical Temperature (°C)', 'temp_critical', 'Above this triggers a critical alert')}
           {numField('High Heart Rate (BPM)', 'heart_rate_high', 'Above this triggers a heart rate warning')}
         </div>
-      </div>
+      </Card>
 
-      <div className="card section-gap">
-        <div className="card-title" style={{ marginBottom: 4 }}>Breeding Settings</div>
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>
+      <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Breeding Settings</div>
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14 }}>
           Used for kidding date calculation and breeding readiness assessment.
         </p>
-        <div className="form-row-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
           {numField('Gestation Days', 'gestation_days', 'Default: 150 days for goats')}
           {numField('Min Breeding Age (months)', 'breeding_min_age_months')}
           {numField('Min Breeding Weight (kg)', 'breeding_min_weight_kg')}
         </div>
-      </div>
+      </Card>
 
-      <div className="card section-gap">
-        <div className="card-title" style={{ marginBottom: 4 }}>Growth & Inventory</div>
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>
+      <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Growth & Inventory</div>
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14 }}>
           Used for market-ready predictions and inventory alerts.
         </p>
-        <div className="form-row-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
           {numField('Target Weight (kg)', 'target_weight_kg', 'For market-ready date estimation')}
           {numField('Expiry Warning (days)', 'expiry_warning_days', 'Items expiring within this many days alert')}
           {numField('Vaccine Due (days)', 'vaccine_due_days', 'Vaccinations due within this many days alert')}
         </div>
-      </div>
+      </Card>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Settings'}
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 30 }}>
+        <Button variant="primary" onClick={handleSave} loading={saving}>
+          Save Settings
+        </Button>
       </div>
     </div>
   );

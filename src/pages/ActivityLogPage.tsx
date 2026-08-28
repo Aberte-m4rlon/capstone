@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { formatDate } from '../lib/analytics';
-import { Icons } from '../lib/icons';
 import { FilterToolbar, FilterSearch, FilterSelect, FilterDateRange, FilterResetButton } from '../components/FilterToolbar';
-import { Download, Printer, Filter } from 'lucide-react';
+import { Download, Printer, Activity, PawPrint, HeartPulse, Scale, Heart, Syringe, Wheat, Milk, Package, type LucideIcon } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 // ── Activity entry types ──────────────────────────────────────────────────────
 
@@ -39,15 +42,15 @@ const CATEGORY_COLORS: Record<ActivityCategory, string> = {
   Inventory:   '#D92D20',
 };
 
-const CATEGORY_ICONS: Record<ActivityCategory, string> = {
-  Animal:      'PawPrint',
-  Health:      'HeartPulse',
-  Weight:      'Scale',
-  Breeding:    'Heart',
-  Vaccination: 'Syringe',
-  Feed:        'Wheat',
-  Milk:        'Milk',
-  Inventory:   'Package',
+const CATEGORY_ICON_COMPONENTS: Record<ActivityCategory, LucideIcon> = {
+  Animal:      PawPrint,
+  Health:      HeartPulse,
+  Weight:      Scale,
+  Breeding:    Heart,
+  Vaccination: Syringe,
+  Feed:        Wheat,
+  Milk:        Milk,
+  Inventory:   Package,
 };
 
 export function ActivityLogPage() {
@@ -57,8 +60,6 @@ export function ActivityLogPage() {
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
 
   // ── Build activity log from all records ─────────────────────────────────────
   const allActivities = useMemo((): ActivityEntry[] => {
@@ -262,7 +263,7 @@ export function ActivityLogPage() {
   };
 
   if (farmData.loading) {
-    return <div className="loading-center"><div className="spinner" /></div>;
+    return <LoadingSpinner fullScreen text="Loading activity log..." />;
   }
 
   const CATEGORIES: ActivityCategory[] = ['Animal', 'Health', 'Weight', 'Breeding', 'Vaccination', 'Feed', 'Milk', 'Inventory'];
@@ -271,44 +272,57 @@ export function ActivityLogPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800 }}>Activity Log</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+          <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
             {filtered.length} of {allActivities.length} activities · All farm actions in one place
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={handleDownloadCSV}>
-            <Download size={15} /> Download CSV
-          </button>
-          <button className="btn btn-primary" onClick={handlePrint}>
-            <Printer size={15} /> Print
-          </button>
+          <Button
+            variant="secondary"
+            onClick={handleDownloadCSV}
+            leftIcon={<Download size={16} />}
+          >
+            Download CSV
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handlePrint}
+            leftIcon={<Printer size={16} />}
+          >
+            Print
+          </Button>
         </div>
       </div>
 
       {/* Summary cards */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         {CATEGORIES.map((cat) => {
-          const Icon = Icons[CATEGORY_ICONS[cat] as keyof typeof Icons] ?? Icons.Activity;
+          const IconComp = CATEGORY_ICON_COMPONENTS[cat] ?? Activity;
+          const isSelected = filterCategory === cat;
           return (
             <div
               key={cat}
-              onClick={() => setFilterCategory(filterCategory === cat ? 'All' : cat)}
+              onClick={() => setFilterCategory(isSelected ? 'All' : cat)}
               style={{
-                padding: '8px 14px', borderRadius: 10, cursor: 'pointer',
-                background: filterCategory === cat ? `${CATEGORY_COLORS[cat]}15` : 'var(--card)',
-                border: `1.5px solid ${filterCategory === cat ? CATEGORY_COLORS[cat] : 'var(--border)'}`,
-                display: 'flex', alignItems: 'center', gap: 6,
-                transition: 'all 0.15s',
+                padding: '8px 14px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                background: isSelected ? `${CATEGORY_COLORS[cat]}20` : 'var(--color-surface-glass, rgba(255,255,255,0.04))',
+                border: `1.5px solid ${isSelected ? CATEGORY_COLORS[cat] : 'var(--border-light, rgba(255,255,255,0.08))'}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
               }}
             >
-              <Icon size={14} color={CATEGORY_COLORS[cat]} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: filterCategory === cat ? CATEGORY_COLORS[cat] : 'var(--text)' }}>
+              <IconComp size={14} color={CATEGORY_COLORS[cat]} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: isSelected ? CATEGORY_COLORS[cat] : 'inherit' }}>
                 {cat}
               </span>
-              <span style={{ fontSize: 11, background: 'var(--bg)', borderRadius: 20, padding: '1px 6px', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: 11, background: 'var(--color-surface-elevated, rgba(0,0,0,0.06))', borderRadius: 20, padding: '1px 6px', color: 'var(--color-text-secondary, #475569)' }}>
                 {categoryCounts[cat] ?? 0}
               </span>
             </div>
@@ -353,46 +367,52 @@ export function ActivityLogPage() {
       </FilterToolbar>
 
       {/* Activity table */}
-      <div className="card">
+      <Card variant="glass" padding="none">
         {filtered.length === 0 ? (
-          <div className="empty-state">
-            <div className="es-icon"><Icons.Activity size={24} /></div>
-            <h4>No activities found</h4>
-            <p>Try adjusting your filters or add some farm records.</p>
-          </div>
+          <EmptyState
+            icon={<Activity size={32} />}
+            title="No activities found"
+            description="Try adjusting your filters or add some farm records."
+          />
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
               <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Category</th>
-                  <th>Action</th>
-                  <th>Animal</th>
-                  <th>Description</th>
+                <tr style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))', color: 'var(--color-text-secondary, #475569)' }}>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Date</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Category</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Action</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Animal</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Description</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((e) => {
-                  const Icon = Icons[e.icon as keyof typeof Icons] ?? Icons.Activity;
+                  const IconComp = CATEGORY_ICON_COMPONENTS[e.category] ?? Activity;
                   return (
-                    <tr key={e.id}>
-                      <td style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontSize: 12 }}>
+                    <tr key={e.id} style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.04))' }}>
+                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary, #475569)', fontSize: 12 }}>
                         {formatDate(e.date)}
                       </td>
-                      <td>
+                      <td style={{ padding: '12px 16px' }}>
                         <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 5,
-                          background: `${e.color}15`, color: e.color,
-                          padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          background: `${e.color}15`,
+                          color: e.color,
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: 700,
                         }}>
-                          <Icon size={11} />
+                          <IconComp size={11} />
                           {e.category}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 600, fontSize: 13 }}>{e.action}</td>
-                      <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{e.animal ?? '—'}</td>
-                      <td style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 340 }}>{e.description}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 13 }}>{e.action}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{e.animal ?? '—'}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--color-text-secondary, #475569)', maxWidth: 340 }}>{e.description}</td>
                     </tr>
                   );
                 })}
@@ -400,7 +420,7 @@ export function ActivityLogPage() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

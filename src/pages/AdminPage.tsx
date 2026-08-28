@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '../lib/auth';
-import { useToast } from '../lib/toast';
+import { useToast } from '../components/ui/Toast';
 import { useNavigate } from 'react-router-dom';
 import { Users, PawPrint, ShieldAlert, RefreshCw, Trash2, BarChart3, CheckCircle, Mail, ChevronDown, ChevronRight, HeartPulse, Syringe, AlertTriangle } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { StatCard } from '../components/ui/StatCard';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
+import { ConfirmDialog } from '../components/ui/Modal';
 import { FilterToolbar, FilterSearch } from '../components/FilterToolbar';
 import { formatDate } from '../lib/analytics';
 import { type UserRole, SUPER_ADMIN_EMAILS_FALLBACK } from '../lib/auth';
@@ -113,7 +119,7 @@ export function AdminPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load users.';
       setLoadError(msg);
-      toast(msg, 'error');
+      toast(msg, 'danger');
     } finally {
       setLoading(false);
     }
@@ -128,7 +134,7 @@ export function AdminPage() {
       setConfirmDelete(null);
       loadUsers();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to delete user.', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to delete user.', 'danger');
     }
   };
 
@@ -138,7 +144,7 @@ export function AdminPage() {
       if (error) throw error;
       toast(`Password reset email sent to ${email}.`, 'success');
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to send reset email.', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to send reset email.', 'danger');
     }
   };
 
@@ -166,7 +172,7 @@ export function AdminPage() {
         },
       }));
     } catch (err) {
-      toast('Failed to load farm details.', 'error');
+      toast('Failed to load farm details.', 'danger');
     } finally {
       setLoadingDetail(null);
     }
@@ -202,13 +208,13 @@ export function AdminPage() {
           <h1 style={{ fontSize: 22, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ShieldAlert size={22} color="#B91C1C" /> Admin Panel
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+          <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
             Manage registered users — logged in as <strong>{user?.email}</strong>
           </p>
         </div>
-        <button className="btn btn-secondary" onClick={loadUsers} disabled={loading}>
-          <RefreshCw size={15} /> Refresh
-        </button>
+        <Button variant="secondary" onClick={loadUsers} loading={loading} leftIcon={<RefreshCw size={15} />}>
+          Refresh
+        </Button>
       </div>
 
       {/* Error banner */}
@@ -217,8 +223,8 @@ export function AdminPage() {
           <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, color: '#EF4444', marginBottom: 2 }}>Failed to load users</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{loadError}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{loadError}</div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)', marginTop: 4 }}>
               Make sure <code>VITE_SUPABASE_SERVICE_KEY</code> is set correctly and matches project <code>bsotlxbvanpwengftfli</code>.
             </div>
           </div>
@@ -226,26 +232,41 @@ export function AdminPage() {
       )}
 
       {/* Stats */}
-      <div className="kpi-grid section-gap">
-        {[
-          { icon: <Users size={20}/>, color: 'red', value: stats.totalUsers, label: 'Total Users', sub: 'Registered accounts' },
-          { icon: <PawPrint size={20}/>, color: 'green', value: stats.totalAnimals, label: 'Total Animals', sub: 'Across all farms' },
-          { icon: <BarChart3 size={20}/>, color: 'blue', value: stats.totalHealth, label: 'Health Records', sub: 'System-wide' },
-          { icon: <CheckCircle size={20}/>, color: 'orange', value: stats.activeFarms, label: 'Active Farms', sub: 'With animals registered' },
-        ].map((s, i) => (
-          <div key={i} className="kpi-card">
-            <div className="kpi-top"><div className={`kpi-icon ${s.color}`}>{s.icon}</div></div>
-            <div className="kpi-value">{s.value}</div>
-            <div className="kpi-label">{s.label}</div>
-            <div className="kpi-delta up">{s.sub}</div>
-          </div>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 20 }}>
+        <StatCard
+          icon={<Users size={20} />}
+          accentColor="red"
+          value={stats.totalUsers}
+          label="Total Users"
+          subtext="Registered accounts"
+        />
+        <StatCard
+          icon={<PawPrint size={20} />}
+          accentColor="green"
+          value={stats.totalAnimals}
+          label="Total Animals"
+          subtext="Across all farms"
+        />
+        <StatCard
+          icon={<BarChart3 size={20} />}
+          accentColor="blue"
+          value={stats.totalHealth}
+          label="Health Records"
+          subtext="System-wide"
+        />
+        <StatCard
+          icon={<CheckCircle size={20} />}
+          accentColor="orange"
+          value={stats.activeFarms}
+          label="Active Farms"
+          subtext="With animals registered"
+        />
       </div>
 
       {/* Search Filter Toolbar */}
       <FilterToolbar
         rightAction={
-          <span style={{ fontSize: 12, color: 'var(--filter-secondary)', fontWeight: 600 }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>
             {filtered.length} of {users.length} users
           </span>
         }
@@ -259,15 +280,15 @@ export function AdminPage() {
       </FilterToolbar>
 
       {/* Table */}
-      <div className="card">
+      <Card variant="glass" padding="none">
         {loading ? (
-          <div className="loading-center"><div className="spinner" /></div>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
         ) : filtered.length === 0 ? (
-          <div className="empty-state">
-            <div className="es-icon"><Users size={24} /></div>
-            <h4>No users found</h4>
-            <p>{search ? 'Try a different search.' : 'No registered users yet.'}</p>
-          </div>
+          <EmptyState
+            icon={<Users size={32} />}
+            title="No users found"
+            description={search ? 'Try a different search.' : 'No registered users yet.'}
+          />
         ) : (
           <div className="table-wrap">
             <table className="data-table">
@@ -298,7 +319,7 @@ export function AdminPage() {
                           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             {u.email}
-                            {isMe && <span className="badge badge-red" style={{ fontSize: 10 }}>You</span>}
+                            {isMe && <Badge variant="danger" size="sm">You</Badge>}
                           </span>
                         </td>
                         <td>
@@ -306,16 +327,20 @@ export function AdminPage() {
                             {rb.label}
                           </span>
                         </td>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.farm_name ?? '—'}</td>
+                        <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.farm_name ?? '—'}</td>
                         <td style={{ textAlign: 'center', fontWeight: u.animal_count > 0 ? 700 : 400 }}>{u.animal_count}</td>
                         <td style={{ textAlign: 'center' }}>{u.health_count}</td>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{formatDate(u.created_at)}</td>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
+                        <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{formatDate(u.created_at)}</td>
+                        <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
                         <td onClick={e => e.stopPropagation()}>
                           <div className="row-actions">
-                            <button className="btn btn-ghost btn-sm" title="Send password reset" onClick={() => sendPasswordReset(u.email)}><Mail size={14} /></button>
+                            <Button variant="ghost" size="sm" title="Send password reset" onClick={() => sendPasswordReset(u.email)}>
+                              <Mail size={14} />
+                            </Button>
                             {!isMe && !isAdminUser && (
-                              <button className="btn btn-ghost btn-sm" title="Delete user" onClick={() => setConfirmDelete(u)} style={{ color: '#EF4444' }}><Trash2 size={14} /></button>
+                              <Button variant="ghost" size="sm" title="Delete user" onClick={() => setConfirmDelete(u)} style={{ color: '#EF4444' }}>
+                                <Trash2 size={14} />
+                              </Button>
                             )}
                           </div>
                         </td>
@@ -323,7 +348,7 @@ export function AdminPage() {
                       {/* ── Expanded farm detail row ── */}
                       {isExpanded && (
                         <tr key={`${u.id}-detail`}>
-                          <td colSpan={8} style={{ background: 'var(--bg)', padding: '12px 20px' }}>
+                          <td colSpan={8} style={{ background: 'var(--color-surface-elevated, rgba(255,255,255,0.03))', padding: '12px 20px' }}>
                             {loadingDetail === u.id ? (
                               <div style={{ textAlign: 'center', padding: 16 }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
                             ) : detail ? (
@@ -331,7 +356,7 @@ export function AdminPage() {
                                 {/* Farm Settings */}
                                 {detail.settings && (
                                   <div>
-                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6 }}>Farm Settings</div>
+                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6 }}>Farm Settings</div>
                                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12 }}>
                                       <span><strong>Farm:</strong> {detail.settings.farm_name}</span>
                                       <span><strong>Target Weight:</strong> {detail.settings.target_weight_kg} kg</span>
@@ -343,7 +368,7 @@ export function AdminPage() {
                                 {/* Animals */}
                                 {detail.animals.length > 0 && (
                                   <div>
-                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                                       <PawPrint size={12} /> Animals ({detail.animals.filter((a: any) => !a.archived).length} active)
                                     </div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -363,15 +388,17 @@ export function AdminPage() {
                                 {/* Recent Health Records */}
                                 {detail.healthRecords.length > 0 && (
                                   <div>
-                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                                       <HeartPulse size={12} /> Recent Health Records
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                       {detail.healthRecords.slice(0, 5).map((r: any) => (
                                         <div key={r.id} style={{ fontSize: 11, display: 'flex', gap: 10, alignItems: 'center' }}>
-                                          <span style={{ color: 'var(--text-secondary)' }}>{formatDate(r.record_date)}</span>
+                                          <span style={{ color: 'var(--color-text-secondary, #475569)' }}>{formatDate(r.record_date)}</span>
                                           <span style={{ fontWeight: 600 }}>{animalName(r.animal_id)}</span>
-                                          <span className={`badge badge-${r.risk_level === 'Low' ? 'green' : r.risk_level === 'Moderate' ? 'yellow' : r.risk_level === 'High' ? 'orange' : 'red'}`} style={{ fontSize: 10 }}>{r.risk_level} ({r.risk_score})</span>
+                                          <Badge variant={r.risk_level === 'Low' ? 'success' : r.risk_level === 'Moderate' ? 'warning' : 'danger'} size="sm">
+                                            {r.risk_level} ({r.risk_score})
+                                          </Badge>
                                           {r.detected_conditions && <span style={{ color: '#EF4444', fontSize: 10 }}>{r.detected_conditions}</span>}
                                         </div>
                                       ))}
@@ -381,7 +408,7 @@ export function AdminPage() {
                                 {/* Vaccinations */}
                                 {detail.vaccinations.length > 0 && (
                                   <div>
-                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                                       <Syringe size={12} /> Recent Vaccinations
                                     </div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -393,7 +420,7 @@ export function AdminPage() {
                                     </div>
                                   </div>
                                 )}
-                                {detail.animals.length === 0 && <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>No farm data recorded yet.</p>}
+                                {detail.animals.length === 0 && <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>No farm data recorded yet.</p>}
                               </div>
                             ) : null}
                           </td>
@@ -406,26 +433,18 @@ export function AdminPage() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Delete confirm */}
-      {confirmDelete && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'var(--card)', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: '#EF4444' }}>Delete User</h3>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 6 }}>
-              Delete <strong>{confirmDelete.email}</strong>?
-            </p>
-            <p style={{ fontSize: 13, color: '#EF4444', marginBottom: 20 }}>
-              [Warning] This will permanently delete the user and ALL their data ({confirmDelete.animal_count} animals, {confirmDelete.health_count} health records). Cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={handleDelete}><Trash2 size={14} /> Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete User"
+        message={`Are you sure you want to delete ${confirmDelete?.email}? This will permanently delete the user and ALL their data (${confirmDelete?.animal_count} animals, ${confirmDelete?.health_count} health records). This cannot be undone.`}
+        confirmLabel="Delete User"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

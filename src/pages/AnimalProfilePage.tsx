@@ -2,10 +2,12 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
-import { useToast } from '../lib/toast';
+import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../lib/auth';
 import { Icons } from '../lib/icons';
-import { Modal, ConfirmDialog } from '../components/Modal';
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
+import { Button } from '../components/ui/Button';
+import { Input, Select, FormField } from '../components/ui/Input';
 import {
   calculateGrowth,
   ageLabel,
@@ -1026,52 +1028,79 @@ export function AnimalProfilePage() {
       `}</style>
 
       {/* ── QR Modal ── */}
-      <Modal open={qrOpen} onClose={() => setQrOpen(false)} title={`QR Code — ${animal.name}`}
-        footer={<>
-          <button className="btn btn-secondary" onClick={() => setQrOpen(false)}>Close</button>
-          <button className="btn btn-secondary" onClick={downloadQR}><Download size={15} /> Download</button>
-          <button className="btn btn-primary" onClick={printQR}><Printer size={15} /> Print</button>
-        </>}
-      >
-        <div className="qr-display">
-          <QRCanvas value={`https://capstone-delta-jet.vercel.app/public/${animal.id}`} size={240} />
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontWeight: 700, fontSize: 16 }}>{animal.name}</p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{animal.tag_id}</p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 6 }}>Scan to view public profile</p>
+      <Modal open={qrOpen} onClose={() => setQrOpen(false)} size="sm">
+        <ModalHeader title={`QR Code — ${animal.name}`} onClose={() => setQrOpen(false)} />
+        <ModalBody>
+          <div className="qr-display" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <QRCanvas value={`https://capstone-delta-jet.vercel.app/public/${animal.id}`} size={240} />
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontWeight: 800, fontSize: 16, margin: '0 0 2px' }}>{animal.name}</p>
+              <p style={{ color: 'var(--color-primary, #FF6A2A)', fontSize: 13, fontWeight: 600, margin: 0 }}>{animal.tag_id}</p>
+              <p style={{ color: 'var(--color-text-secondary, #64748B)', fontSize: 12, marginTop: 6 }}>Scan to view public animal profile</p>
+            </div>
           </div>
-        </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setQrOpen(false)}>Close</Button>
+          <Button variant="secondary" onClick={downloadQR} leftIcon={<Download size={15} />}>Download</Button>
+          <Button variant="primary" onClick={printQR} leftIcon={<Printer size={15} />}>Print</Button>
+        </ModalFooter>
       </Modal>
 
       {/* ── Edit Modal ── */}
-      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Animal"
-        footer={<>
-          <button className="btn btn-secondary" onClick={() => setEditOpen(false)}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSaveEdit} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
-        </>}
-      >
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Tag ID <span className="req">*</span></label>
-            <input className="form-input" value={editForm.tag_id} onChange={(e) => setEditForm({ ...editForm, tag_id: e.target.value })} /></div>
-          <div className="form-group"><label className="form-label">Name <span className="req">*</span></label>
-            <input className="form-input" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
-        </div>
-        <div className="form-row-3">
-          <div className="form-group"><label className="form-label">Species</label>
-            <select className="form-select" value={editForm.species} onChange={(e) => setEditForm({ ...editForm, species: e.target.value as Species })}><option>Goat</option><option>Sheep</option></select></div>
-          <div className="form-group"><label className="form-label">Sex</label>
-            <select className="form-select" value={editForm.sex} onChange={(e) => setEditForm({ ...editForm, sex: e.target.value as Sex })}><option>Female</option><option>Male</option></select></div>
-          <div className="form-group"><label className="form-label">Breed</label>
-            <input className="form-input" value={editForm.breed} onChange={(e) => setEditForm({ ...editForm, breed: e.target.value })} /></div>
-        </div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Date of Birth</label>
-            <input className="form-input" type="date" value={editForm.date_of_birth} onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })} /></div>
-          <div className="form-group"><label className="form-label">Weight (kg)</label>
-            <input className="form-input" type="number" step="0.1" value={editForm.weight_kg} onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })} /></div>
-        </div>
-        <div className="form-group"><label className="form-label">Notes</label>
-          <textarea className="form-textarea" value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} /></div>
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} size="md">
+        <ModalHeader title="Edit Animal" onClose={() => setEditOpen(false)} />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Tag ID" required>
+                <Input value={editForm.tag_id} onChange={(e) => setEditForm({ ...editForm, tag_id: e.target.value })} />
+              </FormField>
+              <FormField label="Name" required>
+                <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+              </FormField>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+              <FormField label="Species">
+                <Select
+                  value={editForm.species}
+                  onChange={(e) => setEditForm({ ...editForm, species: e.target.value as Species })}
+                  options={[{ value: 'Goat', label: 'Goat' }, { value: 'Sheep', label: 'Sheep' }]}
+                />
+              </FormField>
+              <FormField label="Sex">
+                <Select
+                  value={editForm.sex}
+                  onChange={(e) => setEditForm({ ...editForm, sex: e.target.value as Sex })}
+                  options={[{ value: 'Female', label: 'Female' }, { value: 'Male', label: 'Male' }]}
+                />
+              </FormField>
+              <FormField label="Breed">
+                <Input value={editForm.breed} onChange={(e) => setEditForm({ ...editForm, breed: e.target.value })} />
+              </FormField>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Date of Birth">
+                <Input type="date" value={editForm.date_of_birth} onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })} />
+              </FormField>
+              <FormField label="Weight (kg)">
+                <Input type="number" step="0.1" value={editForm.weight_kg} onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })} />
+              </FormField>
+            </div>
+            <FormField label="Notes">
+              <textarea
+                className="form-textarea"
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                style={{ minHeight: 80 }}
+              />
+            </FormField>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
+          <Button variant="primary" onClick={handleSaveEdit} loading={saving}>Save Changes</Button>
+        </ModalFooter>
       </Modal>
 
       {/* ── Confirm Delete ── */}
@@ -1080,6 +1109,7 @@ export function AnimalProfilePage() {
         title="Delete Animal"
         message={`Are you sure you want to delete ${animal.name}? All related records will also be deleted.`}
         confirmLabel="Delete"
+        danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}
       />

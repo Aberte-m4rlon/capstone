@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
-import { useToast } from '../lib/toast';
-import { Modal, ConfirmDialog } from '../components/Modal';
+import { useToast } from '../components/ui/Toast';
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
+import { Button } from '../components/ui/Button';
+import { FormField, Input, Select } from '../components/ui/Input';
 import { ComboBox } from '../components/ComboBox';
 import { FilterToolbar, FilterSearch, FilterPill } from '../components/FilterToolbar';
 import {
@@ -727,97 +729,82 @@ export function VaccinationsPage() {
       </div>
 
       {/* ── Add / Edit Modal ───────────────────────────────────────── */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? 'Edit Vaccination Record' : 'Record New Vaccination'}
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>
-              Cancel
-            </button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Saving...' : editing ? 'Update Record' : 'Save Vaccination'}
-            </button>
-          </>
-        }
-      >
-        <div className="form-group">
-          <label className="form-label">
-            Target Animal <span className="req">*</span>
-          </label>
-          <select
-            className="form-select"
-            value={form.animal_id}
-            onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
-          >
-            <option value="">Select animal...</option>
-            {activeAnimals.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} ({a.tag_id}) — {a.species} • {a.breed ?? 'Standard'}
-              </option>
-            ))}
-          </select>
-          {errors.animal_id && <div className="form-error">{errors.animal_id}</div>}
-        </div>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
+        <ModalHeader
+          title={editing ? 'Edit Vaccination Record' : 'Record New Vaccination'}
+          onClose={() => setModalOpen(false)}
+        />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <FormField label="Target Animal" required error={errors.animal_id}>
+              <Select
+                value={form.animal_id}
+                onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
+                options={[
+                  { value: '', label: 'Select animal...' },
+                  ...activeAnimals.map((a) => ({
+                    value: a.id,
+                    label: `${a.name} (${a.tag_id}) — ${a.species} • ${a.breed ?? 'Standard'}`,
+                  })),
+                ]}
+              />
+            </FormField>
 
-        <div className="form-group">
-          <label className="form-label">
-            Vaccine Name <span className="req">*</span>
-          </label>
-          <ComboBox
-            value={form.vaccine_name}
-            onChange={(v) => setForm({ ...form, vaccine_name: v })}
-            options={GOAT_SHEEP_VACCINES}
-            placeholder="Search or type vaccine name (e.g. CDT, Dewormer)..."
-          />
-          {errors.vaccine_name && <div className="form-error">{errors.vaccine_name}</div>}
-        </div>
+            <FormField label="Vaccine Name" required error={errors.vaccine_name}>
+              <ComboBox
+                value={form.vaccine_name}
+                onChange={(v) => setForm({ ...form, vaccine_name: v })}
+                options={GOAT_SHEEP_VACCINES}
+                placeholder="Search or type vaccine name (e.g. CDT, Dewormer)..."
+              />
+            </FormField>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">
-              Date Given <span className="req">*</span>
-            </label>
-            <input
-              className="form-input"
-              type="date"
-              value={form.date_given}
-              onChange={(e) => setForm({ ...form, date_given: e.target.value })}
-            />
-            {errors.date_given && <div className="form-error">{errors.date_given}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Date Given" required error={errors.date_given}>
+                <Input
+                  type="date"
+                  value={form.date_given}
+                  onChange={(e) => setForm({ ...form, date_given: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label="Next Booster Due Date">
+                <Input
+                  type="date"
+                  value={form.next_due_date}
+                  onChange={(e) => setForm({ ...form, next_due_date: e.target.value })}
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Administering Veterinarian / Personnel">
+              <ComboBox
+                value={form.veterinarian}
+                onChange={(v) => setForm({ ...form, veterinarian: v })}
+                options={COMMON_VETS}
+                placeholder="Search or type veterinarian name..."
+              />
+            </FormField>
+
+            <FormField label="Clinical Notes & Dosage">
+              <textarea
+                className="form-textarea"
+                placeholder="e.g. 2ml subcutaneous injection in neck. No immediate adverse reaction."
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                style={{ minHeight: 80 }}
+              />
+            </FormField>
           </div>
-
-          <div className="form-group">
-            <label className="form-label">Next Booster Due Date</label>
-            <input
-              className="form-input"
-              type="date"
-              value={form.next_due_date}
-              onChange={(e) => setForm({ ...form, next_due_date: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">Administering Veterinarian / Personnel</label>
-          <ComboBox
-            value={form.veterinarian}
-            onChange={(v) => setForm({ ...form, veterinarian: v })}
-            options={COMMON_VETS}
-            placeholder="Search or type veterinarian name..."
-          />
-        </div>
-
-        <div className="form-group" style={{ marginBottom: 0 }}>
-          <label className="form-label">Clinical Notes & Dosage</label>
-          <textarea
-            className="form-textarea"
-            placeholder="e.g. 2ml subcutaneous injection in neck. No immediate adverse reaction."
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
-        </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
+            {editing ? 'Update Record' : 'Save Vaccination'}
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {/* ── Confirm Deletion Dialog ────────────────────────────────── */}
@@ -826,6 +813,7 @@ export function VaccinationsPage() {
         title="Delete Vaccination Record"
         message="Are you sure you want to delete this vaccination record? This action cannot be undone."
         confirmLabel="Delete Record"
+        danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}
       />

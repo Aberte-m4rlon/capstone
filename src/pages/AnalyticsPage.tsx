@@ -1,10 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
-import { inventoryStatus, formatDate, calculateGrowth } from '../lib/analytics';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
-import { Icons } from '../lib/icons';
-import { Brain, AlertCircle, Layers } from 'lucide-react';
+import { Activity, AlertCircle, Layers, CheckCircle } from 'lucide-react';
 import { useAnomalyDetection, useAnimalClusters } from '../lib/mlHooks';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { EmptyState } from '../components/ui/EmptyState';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { FilterToolbar, FilterPill } from '../components/FilterToolbar';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -17,7 +20,6 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import type { Animal } from '../types';
 
 ChartJS.register(
   CategoryScale,
@@ -149,49 +151,46 @@ export function AnalyticsPage() {
     }).filter(Boolean) as { name: string; feed: number; cost: number; gain: number }[];
   }, [activeAnimals, farmData.feedRecords, farmData.weightRecords]);
 
-  if (farmData.loading) return <div className="loading-center"><div className="spinner" /></div>;
+  if (farmData.loading) return <LoadingSpinner fullScreen text="Loading analytics..." />;
 
   const hasData = activeAnimals.length > 0;
 
   return (
-    <div className="analytics-page">
-      <div className="analytics-header">
-        <div className="analytics-header-info">
-          <h1 className="analytics-title">Analytics</h1>
-          <p className="analytics-subtitle">Farm performance insights from real data</p>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Analytics</h1>
+          <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
+            Farm performance insights from real data
+          </p>
         </div>
-        <div className="analytics-filter-wrapper">
-          <div className="analytics-filter" role="tablist" aria-label="Time range filters">
-            {RANGES.map((r) => (
-              <button
-                key={r.key}
-                role="tab"
-                aria-selected={range === r.key}
-                className={`analytics-filter-btn ${range === r.key ? 'active' : ''}`}
-                onClick={() => setRange(r.key)}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <FilterToolbar>
+          {RANGES.map((r) => (
+            <FilterPill
+              key={r.key}
+              active={range === r.key}
+              onClick={() => setRange(r.key)}
+              label={r.label}
+            />
+          ))}
+        </FilterToolbar>
       </div>
 
       {!hasData ? (
-        <div className="card liquid-glass">
-          <div className="empty-state">
-            <div className="es-icon"><Icons.Activity size={26} /></div>
-            <h4>No data to analyze yet</h4>
-            <p>Add animals and records to see analytics.</p>
-          </div>
-        </div>
+        <Card variant="glass" padding="none">
+          <EmptyState
+            icon={<Activity size={32} />}
+            title="No data to analyze yet"
+            description="Add animals and records to see analytics."
+          />
+        </Card>
       ) : (
         <>
-          <div className="grid-2 section-gap">
-            <div className="card liquid-glass">
-              <div className="analytics-card-title">Health Check Activity</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
+            <Card variant="glass" padding="md">
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Health Check Activity</div>
               {healthTrend.counts.every((c) => c === 0) ? (
-                <div className="empty-state"><p>No health records in this period.</p></div>
+                <EmptyState title="No health records" description="No health checks recorded in this period." />
               ) : (
                 <Line 
                   data={{ 
@@ -209,15 +208,16 @@ export function AnalyticsPage() {
                     responsive: true, 
                     plugins: { legend: { display: false } },
                     scales: {
-                      x: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--text-secondary)' } },
-                      y: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--text-secondary)' } }
+                      x: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--color-text-secondary, #475569)' } },
+                      y: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--color-text-secondary, #475569)' } }
                     }
                   }} 
                 />
               )}
-            </div>
-            <div className="card liquid-glass">
-              <div className="analytics-card-title">Health Status Distribution</div>
+            </Card>
+
+            <Card variant="glass" padding="md">
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Health Status Distribution</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
@@ -235,21 +235,21 @@ export function AnalyticsPage() {
                         position: 'bottom', 
                         labels: { 
                           font: { size: 11, weight: 'bold' },
-                          color: 'var(--text-secondary)'
+                          color: 'var(--color-text-secondary, #475569)'
                         } 
                       } 
                     } 
                   }} 
                 />
               </div>
-            </div>
+            </Card>
           </div>
 
-          <div className="grid-2 section-gap">
-            <div className="card liquid-glass">
-              <div className="analytics-card-title">Weight Growth Trend</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
+            <Card variant="glass" padding="md">
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Weight Growth Trend</div>
               {weightTrend.avgWeights.every((w) => w === 0) ? (
-                <div className="empty-state"><p>No weight records in this period.</p></div>
+                <EmptyState title="No weight records" description="No weight records in this period." />
               ) : (
                 <Line 
                   data={{ 
@@ -267,15 +267,16 @@ export function AnalyticsPage() {
                     responsive: true, 
                     plugins: { legend: { display: false } },
                     scales: {
-                      x: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--text-secondary)' } },
-                      y: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--text-secondary)' } }
+                      x: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--color-text-secondary, #475569)' } },
+                      y: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--color-text-secondary, #475569)' } }
                     }
                   }} 
                 />
               )}
-            </div>
-            <div className="card liquid-glass">
-              <div className="analytics-card-title">Species Distribution</div>
+            </Card>
+
+            <Card variant="glass" padding="md">
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Species Distribution</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
@@ -293,19 +294,19 @@ export function AnalyticsPage() {
                         position: 'bottom', 
                         labels: { 
                           font: { size: 11, weight: 'bold' },
-                          color: 'var(--text-secondary)'
+                          color: 'var(--color-text-secondary, #475569)'
                         } 
                       } 
                     } 
                   }} 
                 />
               </div>
-            </div>
+            </Card>
           </div>
 
-          <div className="grid-2 section-gap">
-            <div className="card liquid-glass">
-              <div className="analytics-card-title">Breeding Overview</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
+            <Card variant="glass" padding="md">
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Breeding Overview</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
@@ -323,16 +324,17 @@ export function AnalyticsPage() {
                         position: 'bottom', 
                         labels: { 
                           font: { size: 11, weight: 'bold' },
-                          color: 'var(--text-secondary)'
+                          color: 'var(--color-text-secondary, #475569)'
                         } 
                       } 
                     } 
                   }} 
                 />
               </div>
-            </div>
-            <div className="card liquid-glass">
-              <div className="analytics-card-title">Vaccination Compliance</div>
+            </Card>
+
+            <Card variant="glass" padding="md">
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Vaccination Compliance</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
@@ -350,20 +352,20 @@ export function AnalyticsPage() {
                         position: 'bottom', 
                         labels: { 
                           font: { size: 11, weight: 'bold' },
-                          color: 'var(--text-secondary)'
+                          color: 'var(--color-text-secondary, #475569)'
                         } 
                       } 
                     } 
                   }} 
                 />
               </div>
-            </div>
+            </Card>
           </div>
 
-          <div className="card liquid-glass section-gap">
-            <div className="analytics-card-title">Inventory by Category</div>
+          <Card variant="glass" padding="md" style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Inventory by Category</div>
             {invByCategory.every((c) => c === 0) ? (
-              <div className="empty-state"><p>No inventory items.</p></div>
+              <EmptyState title="No inventory items" description="Add inventory items to see distribution." />
             ) : (
               <Bar 
                 data={{ 
@@ -379,17 +381,17 @@ export function AnalyticsPage() {
                   responsive: true, 
                   plugins: { legend: { display: false } },
                   scales: {
-                    x: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--text-secondary)' } },
-                    y: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--text-secondary)' } }
+                    x: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--color-text-secondary, #475569)' } },
+                    y: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--color-text-secondary, #475569)' } }
                   }
                 }} 
               />
             )}
-          </div>
+          </Card>
 
           {feedEfficiencyData.length > 0 && (
-            <div className="card liquid-glass section-gap">
-              <div className="analytics-card-title">Feed Consumption by Animal</div>
+            <Card variant="glass" padding="md" style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Feed Consumption by Animal</div>
               <Bar 
                 data={{ 
                   labels: feedEfficiencyData.map((d) => d.name), 
@@ -404,40 +406,40 @@ export function AnalyticsPage() {
                   responsive: true, 
                   plugins: { legend: { display: false } },
                   scales: {
-                    x: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--text-secondary)' } },
-                    y: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--text-secondary)' } }
+                    x: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--color-text-secondary, #475569)' } },
+                    y: { grid: { color: 'rgba(150, 170, 190, 0.10)' }, ticks: { color: 'var(--color-text-secondary, #475569)' } }
                   }
                 }} 
               />
-            </div>
+            </Card>
           )}
 
           {/* ML Anomaly Detection */}
-          <div className="card liquid-glass section-gap" style={{ marginTop: 24, borderLeft: '4px solid #FF3B30' }}>
+          <Card variant="glass" padding="md" style={{ marginBottom: 16, borderLeft: '4px solid #FF3B30' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
               <AlertCircle size={20} color="#FF3B30" />
-              <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>ML Anomaly Detection — Z-Score + IQR</span>
-              <span className="badge" style={{ background: anomalies.length > 0 ? 'rgba(255,59,48,0.2)' : 'rgba(255,159,10,0.2)', color: anomalies.length > 0 ? '#FF3B30' : '#FFB340', border: '1px solid rgba(255,255,255,0.15)' }}>
+              <span style={{ fontWeight: 800, fontSize: 15 }}>ML Anomaly Detection — Z-Score + IQR</span>
+              <Badge variant={anomalies.length > 0 ? 'danger' : 'warning'}>
                 {anomalies.length} {anomalies.length === 1 ? 'anomaly' : 'anomalies'} detected
-              </span>
+              </Badge>
             </div>
             {anomalies.length === 0 ? (
-              <div className="empty-state">
-                <div className="es-icon"><Icons.CheckCircle size={26} color="#FFB340" /></div>
-                <h4>No anomalies detected</h4>
-                <p>All vitals are within expected ranges based on historical data.</p>
-              </div>
+              <EmptyState
+                icon={<CheckCircle size={28} color="#FFB340" />}
+                title="No anomalies detected"
+                description="All vitals are within expected ranges based on historical data."
+              />
             ) : (
-              <div className="table-wrap">
-                <table className="data-table">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                   <thead>
-                    <tr>
-                      <th>Animal</th>
-                      <th>Metric</th>
-                      <th>Value</th>
-                      <th>Z-Score</th>
-                      <th>Severity</th>
-                      <th>Assessment</th>
+                    <tr style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))', color: 'var(--color-text-secondary, #475569)' }}>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Animal</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Metric</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Value</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Z-Score</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Severity</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Assessment</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -454,13 +456,17 @@ export function AnalyticsPage() {
                       });
 
                       return anomalyRows.map((row, i) => (
-                        <tr key={`${row.animal}-${row.anomaly.metric}-${i}`}>
-                          <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.animal}</td>
-                          <td>{row.anomaly.metric === 'temperature' ? 'Temperature' : 'Heart Rate'}</td>
-                          <td>{row.anomaly.metric === 'temperature' ? (row.anomaly.zScore > 0 ? 'High' : 'Low') : (row.anomaly.zScore > 0 ? 'High' : 'Low')}</td>
-                          <td style={{ fontWeight: 800, color: Math.abs(row.anomaly.zScore) > 3 ? 'var(--critical)' : 'var(--warning)' }}>{row.anomaly.zScore.toFixed(2)}</td>
-                          <td><span className={`badge badge-${row.anomaly.severity === 'severe' ? 'red' : row.anomaly.severity === 'moderate' ? 'orange' : 'yellow'}`}>{row.anomaly.severity}</span></td>
-                          <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{row.anomaly.message}</td>
+                        <tr key={`${row.animal}-${row.anomaly.metric}-${i}`} style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.04))' }}>
+                          <td style={{ padding: '10px 8px', fontWeight: 700 }}>{row.animal}</td>
+                          <td style={{ padding: '10px 8px' }}>{row.anomaly.metric === 'temperature' ? 'Temperature' : 'Heart Rate'}</td>
+                          <td style={{ padding: '10px 8px' }}>{row.anomaly.metric === 'temperature' ? (row.anomaly.zScore > 0 ? 'High' : 'Low') : (row.anomaly.zScore > 0 ? 'High' : 'Low')}</td>
+                          <td style={{ padding: '10px 8px', fontWeight: 800, color: Math.abs(row.anomaly.zScore) > 3 ? '#FF3B30' : '#FF9F0A' }}>{row.anomaly.zScore.toFixed(2)}</td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <Badge variant={row.anomaly.severity === 'severe' ? 'danger' : row.anomaly.severity === 'moderate' ? 'warning' : 'neutral'} size="sm">
+                              {row.anomaly.severity}
+                            </Badge>
+                          </td>
+                          <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{row.anomaly.message}</td>
                         </tr>
                       ));
                     })()}
@@ -468,37 +474,37 @@ export function AnalyticsPage() {
                 </table>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* ML K-Means Clustering */}
           {clusters && (
-            <div className="card liquid-glass section-gap" style={{ borderLeft: '4px solid #FF7A18' }}>
+            <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #FF7A18', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                 <Layers size={20} color="#FF7A18" />
-                <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>ML Animal Clustering — K-Means</span>
-                <span className="badge" style={{ background: 'rgba(255,159,10,0.2)', color: '#FFB340', border: '1px solid rgba(255,159,10,0.3)' }}>{clusters.k} clusters · {clusters.converged ? 'converged' : 'max iterations'}</span>
+                <span style={{ fontWeight: 800, fontSize: 15 }}>ML Animal Clustering — K-Means</span>
+                <Badge variant="warning">{clusters.k} clusters · {clusters.converged ? 'converged' : 'max iterations'}</Badge>
               </div>
-              <div className="grid-auto">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                 {clusters.clusterLabels.map((label, c) => {
                   const animalsInCluster = clusters.assignments.filter((a) => a.cluster === c);
                   return (
-                    <div key={c} style={{ padding: 16, borderRadius: 16, background: 'var(--surface)', border: '1px solid var(--border-glass)' }}>
-                      <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-primary)' }}>
+                    <div key={c} style={{ padding: 16, borderRadius: 14, background: 'var(--color-surface-elevated, rgba(0,0,0,0.04))', border: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
+                      <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ width: 10, height: 10, borderRadius: '50%', background: ['#FFB340', '#FF7A18', '#FF9F0A', '#FF3B30'][c % 4] }} />
                         {label}
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>{animalsInCluster.length} {animalsInCluster.length === 1 ? 'animal' : 'animals'}</div>
-                      <div style={{ fontSize: 12, marginTop: 8, color: 'var(--text-primary)', wordBreak: 'break-word', lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{animalsInCluster.length} {animalsInCluster.length === 1 ? 'animal' : 'animals'}</div>
+                      <div style={{ fontSize: 12, marginTop: 8, wordBreak: 'break-word', lineHeight: 1.4 }}>
                         {animalsInCluster.map((a) => a.name).join(', ')}
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 12, lineHeight: 1.5 }}>
+              <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 14, lineHeight: 1.5 }}>
                 K-means clustering groups animals by similarity in weight, age, health risk, and species. Animals in the same cluster share similar characteristics and may need similar management strategies.
               </p>
-            </div>
+            </Card>
           )}
         </>
       )}

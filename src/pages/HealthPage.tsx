@@ -17,8 +17,8 @@ import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
-import { useToast } from '../lib/toast';
-import { Modal, ConfirmDialog } from '../components/Modal';
+import { useToast } from '../components/ui/Toast';
+import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
 import {
   HeartPulse,
   Sparkles,
@@ -1051,9 +1051,16 @@ export function HealthPage() {
           setModalOpen(false);
           stopCameraStream();
         }}
-        title="Run Early Illness Prediction"
         size="lg"
       >
+        <ModalHeader
+          title="Run Early Illness Prediction"
+          onClose={() => {
+            setModalOpen(false);
+            stopCameraStream();
+          }}
+        />
+        <ModalBody>
         <div className="modal-inner-flow">
           {/* STEP 1: Animal Selector */}
           <div>
@@ -1456,6 +1463,7 @@ export function HealthPage() {
             </button>
           </div>
         </div>
+        </ModalBody>
       </Modal>
 
       {/* ── CONFIRM DELETE DIALOG ── */}
