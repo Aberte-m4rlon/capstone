@@ -53,6 +53,15 @@ export function FloatingAICloud() {
     };
   }, [checkStatus, retryCount]);
 
+  // Listen for global open event from sidebar AI Cloud launcher
+  useEffect(() => {
+    const handleOpen = () => setOpen(true);
+    window.addEventListener('alpas:open-ai-cloud', handleOpen);
+    return () => {
+      window.removeEventListener('alpas:open-ai-cloud', handleOpen);
+    };
+  }, []);
+
   // Persist Conversations
   useEffect(() => {
     saveConversations(conversations);

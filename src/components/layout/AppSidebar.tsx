@@ -1,74 +1,21 @@
-import { NavLink } from 'react-router-dom';
-import { Icons, type IconName } from '../../lib/icons';
-import { X } from 'lucide-react';
-
-export interface NavItem {
-  to: string;
-  label: string;
-  icon: IconName;
-}
-
-export interface NavSection {
-  heading: string;
-  items: NavItem[];
-}
-
-export const FARM_MANAGER_NAV: NavSection[] = [
-  {
-    heading: 'Main',
-    items: [
-      { to: '/dashboard',        label: 'Dashboard',            icon: 'LayoutDashboard' },
-      { to: '/animals',          label: 'Animals',              icon: 'PawPrint'        },
-      { to: '/health',           label: 'Health Monitoring',    icon: 'HeartPulse'      },
-      { to: '/camera-screening', label: 'AI Health Scanner',   icon: 'Camera'          },
-      { to: '/breeding',         label: 'Breeding',             icon: 'Heart'           },
-      { to: '/weights',          label: 'Weight & Growth',      icon: 'Scale'           },
-      { to: '/vaccinations',     label: 'Vaccinations',         icon: 'Syringe'         },
-      { to: '/feed',             label: 'Feed Management',      icon: 'Wheat'           },
-      { to: '/inventory',        label: 'Inventory',            icon: 'Package'         },
-      { to: '/analytics',        label: 'Analytics',            icon: 'TrendingUp'      },
-      { to: '/reports',          label: 'Reports',              icon: 'FileBarChart'    },
-    ],
-  },
-  {
-    heading: 'Tools & Intelligence',
-    items: [
-      { to: '/recommendations',  label: 'Recommendations',     icon: 'Lightbulb'       },
-      { to: '/daily-alerts',     label: 'Daily Alerts',         icon: 'Bell'            },
-      { to: '/notifications',    label: 'Notifications',        icon: 'ClipboardList'   },
-      { to: '/scanner',          label: 'QR Scanner',           icon: 'QrCode'          },
-      { to: '/activity-log',     label: 'Activity Log',         icon: 'Activity'        },
-      { to: '/myai',             label: 'AI Cloud',             icon: 'Bot'             },
-    ],
-  },
-  {
-    heading: 'System',
-    items: [
-      { to: '/settings',         label: 'Settings',             icon: 'Settings'        },
-    ],
-  },
-];
-
-export const ADMIN_NAV: NavSection[] = [
-  {
-    heading: 'Administration',
-    items: [
-      { to: '/admin',            label: 'Admin Panel',          icon: 'ShieldAlert'     },
-    ],
-  },
-  ...FARM_MANAGER_NAV,
-];
-
-export const SUPER_ADMIN_NAV: NavSection[] = [
-  {
-    heading: 'Administration',
-    items: [
-      { to: '/super-admin',      label: 'Super Admin',          icon: 'Crown'           },
-      { to: '/admin',            label: 'Admin Panel',          icon: 'ShieldAlert'     },
-    ],
-  },
-  ...FARM_MANAGER_NAV,
-];
+import {
+  Home,
+  HeartPulse,
+  Heart,
+  Package,
+  Syringe,
+  Camera,
+  BarChart3,
+  Bell,
+  Settings as SettingsIcon,
+  Crown,
+  ShieldAlert,
+  X,
+} from 'lucide-react';
+import { AlpasLogo } from './AlpasLogo';
+import { GoatIcon } from './GoatIcon';
+import { SidebarItem } from './SidebarItem';
+import { AICloudLauncher } from './AICloudLauncher';
 
 export interface AppSidebarProps {
   role: string | null;
@@ -76,6 +23,7 @@ export interface AppSidebarProps {
   open?: boolean;
   onClose?: () => void;
   isMobile?: boolean;
+  onOpenAICloud?: () => void;
 }
 
 export function AppSidebar({
@@ -84,63 +32,96 @@ export function AppSidebar({
   open = false,
   onClose,
   isMobile = false,
+  onOpenAICloud,
 }: AppSidebarProps) {
-  const isSuperAdmin  = role === 'super_admin';
-  const isAdmin       = role === 'system_admin';
+  const isSuperAdmin = role === 'super_admin';
+  const isAdmin = role === 'system_admin';
 
-  const navSections: NavSection[] = isSuperAdmin
-    ? SUPER_ADMIN_NAV
-    : isAdmin
-      ? ADMIN_NAV
-      : FARM_MANAGER_NAV;
+  // Base 10 navigation items strictly matching the visual reference order
+  const farmNavItems = [
+    { to: '/dashboard', label: 'Dashboard', icon: <Home size={22} strokeWidth={2} /> },
+    { to: '/health', label: 'Health Monitoring', icon: <HeartPulse size={22} strokeWidth={2} /> },
+    { to: '/animals', label: 'Mga Hayop', icon: <GoatIcon size={22} strokeWidth={2} /> },
+    { to: '/breeding', label: 'Breeding', icon: <Heart size={22} strokeWidth={2} /> },
+    { to: '/inventory', label: 'Inventory', icon: <Package size={22} strokeWidth={2} /> },
+    { to: '/vaccinations', label: 'Vaccine', icon: <Syringe size={22} strokeWidth={2} /> },
+    { to: '/camera-screening', label: 'AI Scanner', icon: <Camera size={22} strokeWidth={2} /> },
+    { to: '/reports', label: 'Reports', icon: <BarChart3 size={22} strokeWidth={2} /> },
+    { to: '/daily-alerts', label: 'Alerts', icon: <Bell size={22} strokeWidth={2} />, isAlerts: true },
+    { to: '/settings', label: 'Settings', icon: <SettingsIcon size={22} strokeWidth={2} /> },
+  ];
 
-  const roleSubtitle = isSuperAdmin
-    ? 'System Administration'
+  // Role-specific admin items if user is Super Admin or Admin
+  const adminNavItems = isSuperAdmin
+    ? [
+        { to: '/super-admin', label: 'Super Admin', icon: <Crown size={22} strokeWidth={2} /> },
+        { to: '/admin', label: 'Admin Panel', icon: <ShieldAlert size={22} strokeWidth={2} /> },
+      ]
     : isAdmin
-      ? 'Admin Panel'
-      : 'Farm Management';
+    ? [
+        { to: '/admin', label: 'Admin Panel', icon: <ShieldAlert size={22} strokeWidth={2} /> },
+      ]
+    : [];
 
   return (
-    <aside className={`sidebar ${open ? 'open' : ''}`}>
-      <div className="sidebar-inner">
-        {/* Brand Header */}
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">A</div>
-          <div className="sidebar-logo-text">
-            <h1>AlpasFarm</h1>
-            <span>{roleSubtitle}</span>
-          </div>
+    <aside className={`alpas-sidebar ${isMobile ? 'mobile-drawer' : 'desktop-sidebar'} ${open ? 'open' : ''}`}>
+      <div className="alpas-sidebar-inner">
+        {/* ── Top: Brand Logo & Tagline ── */}
+        <div className="alpas-sidebar-header">
+          <AlpasLogo collapsed={false} />
           {isMobile && onClose && (
-            <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">
-              <X size={20} />
+            <button
+              type="button"
+              className="alpas-sidebar-close-btn"
+              onClick={onClose}
+              aria-label="Close navigation drawer"
+            >
+              <X size={18} />
             </button>
           )}
         </div>
 
-        {/* Navigation Sections */}
-        <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {navSections.map((section) => (
-            <div key={section.heading} className="nav-section">
-              <div className="nav-label">{section.heading}</div>
-              {section.items.map((item) => {
-                const Icon = Icons[item.icon];
-                const badge = getBadge(item.to);
-                return (
-                  <NavLink
+        {/* ── Center: Rounded Glassmorphism Navigation Container ── */}
+        <div className="alpas-nav-pill-container">
+          <nav className="alpas-nav-list" aria-label="Main Navigation">
+            {/* Admin Items (if admin / super admin) */}
+            {adminNavItems.length > 0 && (
+              <div className="alpas-nav-group admin-group">
+                {adminNavItems.map((item) => (
+                  <SidebarItem
                     key={item.to}
                     to={item.to}
+                    label={item.label}
+                    icon={item.icon}
+                    badge={getBadge(item.to)}
                     onClick={onClose}
-                    className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-                  >
-                    <Icon className="nav-icon" size={17} />
-                    <span>{item.label}</span>
-                    {badge > 0 && <span className="nav-badge">{badge}</span>}
-                  </NavLink>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
+                  />
+                ))}
+                <div className="alpas-nav-divider" />
+              </div>
+            )}
+
+            {/* The 10 Primary Farm Navigation Items */}
+            {farmNavItems.map((item) => {
+              const badgeCount = item.isAlerts ? getBadge('/daily-alerts') || getBadge('/notifications') : getBadge(item.to);
+              return (
+                <SidebarItem
+                  key={item.to}
+                  to={item.to}
+                  label={item.label}
+                  icon={item.icon}
+                  badge={badgeCount}
+                  onClick={onClose}
+                />
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* ── Bottom: Separated Floating AI Cloud Card ── */}
+        <div className="alpas-sidebar-footer">
+          <AICloudLauncher onClick={onOpenAICloud} />
+        </div>
       </div>
     </aside>
   );

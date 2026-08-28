@@ -6,9 +6,10 @@ export interface MobileSidebarProps {
   onClose: () => void;
   role: string | null;
   getBadge: (to: string) => number;
+  onOpenAICloud?: () => void;
 }
 
-export function MobileSidebar({ open, onClose, role, getBadge }: MobileSidebarProps) {
+export function MobileSidebar({ open, onClose, role, getBadge, onOpenAICloud }: MobileSidebarProps) {
   // Lock scroll when mobile drawer is open
   useEffect(() => {
     if (!open) return;
@@ -42,6 +43,11 @@ export function MobileSidebar({ open, onClose, role, getBadge }: MobileSidebarPr
         open={open}
         onClose={onClose}
         isMobile={true}
+        onOpenAICloud={() => {
+          onClose();
+          if (onOpenAICloud) onOpenAICloud();
+          else window.dispatchEvent(new CustomEvent('alpas:open-ai-cloud'));
+        }}
       />
     </>
   );
