@@ -84,6 +84,9 @@ function detect(q: string) {
   // Cluster
   if (/cluster|group|segment|katulad|similar|grupo|grouped/.test(t)) return { intent: 'cluster', animal };
 
+  // Camera Screening / Visual Health Scanner
+  if (/camera|scanner|scan|larawan|litrato|photo|computer vision|visual health|hindi kambing|non-target|goat detector/.test(t)) return { intent: 'camera_screening', animal };
+
   // Health risk
   if (/health.*risk|at risk|critical|sick|illness|sakit|risk score|logistic|may sakit|malaki ang risk/.test(t)) return { intent: 'health', animal };
 
@@ -184,12 +187,37 @@ function answerFaq(q: string): { content: string; bullets?: string[] } | null {
     bullets: ['1. Pneumonia / Respiratory Disease', '2. Anemia / Barber Pole Worm (sa pamamagitan ng FAMACHA score)', '3. Ruminal Bloat (bloat score + rumen sounds)', '4. High Fever / Systemic Infection', '5. Enterotoxemia / Gastrointestinal Infection', '6. Lameness / Foot Rot (gait assessment)', '7. ⚠️ PPR - Peste des Petits Ruminants'],
   };
 
+  if (/camera|scanner|scan|computer vision|visual health|litrato|larawan|goat detector|hindi kambing/.test(t)) return {
+    content: 'Ang AI Livestock Health Scanner ay gumagamit ng MobileNetV2 Computer Vision at Google Cloud Run ML Server para sa mabilisang visual health screening ng mga kambing at tupa.',
+    bullets: [
+      '⚡ 2-Second Live Auto-Scanning: Awtomatikong dine-detect ang hayop at ini-screen sa loob ng 2 segundo',
+      '🐐🐑 Multi-Species Support: Eksklusibong sinusuportahan ang Kambing (Goat) at Tupa (Sheep)',
+      '🚫 Non-Target Protection: Kapag hindi kambing o tupa (hal. aso, tao, pusa, bagay), may lalabas na Red Warning at hindi ito tatanggapin',
+      '🔬 Visual Indicator Analysis: Sinusuri ang postura, coat condition, mata/mukha, at mga palatandaan ng panghihina o sakit',
+      '💾 Direct Health History Integration: Maaaring i-save ang screening result diretso sa health log ng hayop',
+      '⚕️ Mahalaga: Ang camera screening ay preliminary assessment lamang at hindi pamalit sa pagsusuri ng lisensyadong beterinaryo',
+    ],
+  };
+
   if (/feature|function|what.*can|what.*do|capability|ano.*kaya/.test(t)) return {
     content: bilingual(
       'AlpasFarm is a complete goat and sheep farm management system with AI-powered insights. Here\'s what it can do:',
       'Ang AlpasFarm ay kumpletong sistema para sa pamamahala ng mga kambing at tupa na may AI-powered insights. Narito ang kaya nitong gawin:'
     ),
-    bullets: ['🐐 Pamamahala ng Hayop — magdagdag, mag-edit, i-archive ang hayop gamit ang QR code', '🏥 Pagmamanman ng Kalusugan — 15 clinical parameters + maagang pagtuklas ng sakit', '⚖️ Timbang at Paglaki — subaybayan ang timbang, tantiyahin ang petsa ng pagiging handa sa merkado', '💕 Breeding — pagsubaybay sa pagbubuntis, calculator ng petsa ng pagsilang', '💉 Bakuna — pagsubaybay ng iskedyul na may overdue alerts', '🌾 Pamamahala ng Feed — pagsubaybay ng konsumo + efficiency scoring', '🥛 Produksyon ng Gatas — araw-araw na ani na may forecast sa loob ng 7 araw', '📦 Imbentaryo — stock levels na may expiry alerts', '🧠 7 ML Models — tumatakbo sa browser gamit ang iyong sariling data', '📊 Analytics at Ulat — charts, trends, at downloadable na ulat', '📋 Activity Log — buong kasaysayan na maaaring i-download bilang CSV'],
+    bullets: [
+      '🐐 Pamamahala ng Hayop — magdagdag, mag-edit, i-archive ang hayop gamit ang QR code',
+      '📷 AI Livestock Health Scanner — 2-sec real-time camera & upload visual screening gamit ang Computer Vision',
+      '🏥 Pagmamanman ng Kalusugan — 15 clinical parameters + maagang pagtuklas ng sakit',
+      '⚖️ Timbang at Paglaki — subaybayan ang timbang, tantiyahin ang petsa ng pagiging handa sa merkado',
+      '💕 Breeding — pagsubaybay sa pagbubuntis, calculator ng petsa ng pagsilang',
+      '💉 Bakuna — pagsubaybay ng iskedyul na may overdue alerts',
+      '🌾 Pamamahala ng Feed — pagsubaybay ng konsumo + efficiency scoring',
+      '🥛 Produksyon ng Gatas — araw-araw na ani na may forecast sa loob ng 7 araw',
+      '📦 Imbentaryo — stock levels na may expiry alerts',
+      '🧠 8 ML & Statistical Models — Logistic Regression, Polynomial, Holt, Naive Bayes, K-Means++, OLS, Anomaly Detection, at MobileNetV2 Vision Scanner',
+      '📊 Analytics at Ulat — charts, trends, at downloadable na ulat',
+      '📋 Activity Log — buong kasaysayan na maaaring i-download bilang CSV',
+    ],
   };
 
   if (/more intelligent|smarter|improve.*ai|mas matalino|gawing mas matalino|100%/.test(t)) return {
@@ -197,7 +225,7 @@ function answerFaq(q: string): { content: string; bullets?: string[] } | null {
       'The AI becomes more accurate and helpful as you add more farm records and use the system consistently.',
       'Mas nagiging tumpak at kapaki-pakinabang ang AI habang nagdadagdag ka ng mas maraming rekord sa farm at regular mo itong ginagamit.'
     ),
-    bullets: ['Magdagdag ng higit pang health checks para mapabuti ang health risk prediction', 'I-record ang timbang at feed data para mapabuti ang growth at feed-efficiency models', 'Gamitin ang milk records para sa mas mahusay na milk yield forecasting', 'I-log ang breeding/mating events para matantiya ng assistant ang eksaktong kidding dates', 'Mas maraming data = mas mahusay na AI recommendations at alerts'],
+    bullets: ['Mag-upload o mag-scan gamit ang AI Health Scanner para sa visual checks', 'Magdagdag ng health checks para mapabuti ang health risk prediction', 'I-record ang timbang at feed data para mapabuti ang growth at feed-efficiency models', 'Gamitin ang milk records para sa mas mahusay na milk yield forecasting', 'I-log ang breeding/mating events para matantiya ng assistant ang eksaktong kidding dates', 'Mas maraming data = mas mahusay na AI recommendations at alerts'],
   };
 
   return null;
@@ -234,6 +262,12 @@ function buildReply(
       ),
       bullets: ['Subukan: "Paano gumagana ang anomaly detection?"', 'Subukan: "Ano ang FAMACHA?"', 'Subukan: "Paano gumagana ang breeding prediction?"', 'Subukan: "Ano ang lahat ng features ng system na ito?"'],
     };
+  }
+
+  // ── Camera Health Screening ───────────────────────────────────────────────────
+  if (intent === 'camera_screening') {
+    const faq = answerFaq('camera');
+    if (faq) return { ...faq, tag: 'insight' };
   }
 
   if (intent === 'pregnancy_date') {

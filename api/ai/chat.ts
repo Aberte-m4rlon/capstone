@@ -15,7 +15,8 @@ import * as https from 'https';
 
 const GROQ_HOST  = 'api.groq.com';
 const GROQ_PATH  = '/openai/v1/chat/completions';
-const MODEL      = process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b';
+const PRIMARY_MODEL = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
+const FALLBACK_MODEL = 'llama-3.1-8b-instant';
 
 interface Message { role: string; content: string; }
 
@@ -58,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   // ── Safe request ID for log correlation (no PII) ──────────────────────────
   const rid = Math.random().toString(36).slice(2, 8);
-  console.log(`[AlpasFarm AI] [${rid}] POST /api/ai/chat — provider:groq model:${MODEL}`);
+  console.log(`[AlpasFarm AI] [${rid}] POST /api/ai/chat — provider:groq primary:${PRIMARY_MODEL}`);
 
   // ── Environment variable check ────────────────────────────────────────────
   const apiKey = process.env.GROQ_API_KEY;
@@ -91,20 +92,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   console.log(`[AlpasFarm AI] [${rid}] Sending ${messages.length} message(s) to Groq`);
 
-  // ── Call Groq (non-streaming for server-side reliability) ─────────────────
-  const payload = JSON.stringify({
-    model: MODEL,
-    messages: messages.slice(-20),   // last 20 turns max
-    stream: false,
-    temperature: 0.7,
-    max_tokens: 1024,
-  });
-
-  let groqStatus: number;
-  let groqText: string;
-
-  try {
-    ({ status: groqStatus, text: groqText } = await httpsPost(
+  // ── Call Groq with primary model and automatic fallback ───────────────────
+  async function callGroqWithModel(modelName: string) {
+    const payload = JSON.stringify({
+      model: modelName,
+      messages: messages.slice(-20),   // last 20 turns max
+      stream: false,
+      temperature: 0.7,
+      max_tokens: 1024,
+    });
+    return httpsPost(
       GROQ_HOST,
       GROQ_PATH,
       {
@@ -113,7 +110,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         'Content-Length': Buffer.byteLength(payload),
       },
       payload,
-    ));
+    );
+  }
+
+  let groqStatus: number;
+  let groqText: string;
+
+  try {
+    ({ status: groqStatus, text: groqText } = await callGroqWithModel(PRIMARY_MODEL));
+    if ((groqStatus === 400 || groqStatus === 404) && PRIMARY_MODEL !== FALLBACK_MODEL) {
+      console.warn(`[AlpasFarm AI] [${rid}] Primary model ${PRIMARY_MODEL} returned ${groqStatus}, retrying with fallback ${FALLBACK_MODEL}...`);
+      ({ status: groqStatus, text: groqText } = await callGroqWithModel(FALLBACK_MODEL));
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[AlpasFarm AI] [${rid}] Network error calling Groq: ${msg}`);
