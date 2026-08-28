@@ -1,21 +1,28 @@
-# Python 3.14 typing._eval_type Compatibility Monkey-patch (for Pydantic)
-import typing
-_orig_eval_type = getattr(typing, "_eval_type", None)
-if _orig_eval_type:
-    def _patched_eval_type(t, globalns=None, localns=None, type_params=None, *args, **kwargs):
-        kwargs.pop("prefer_fwd_module", None)
-        try:
-            return _orig_eval_type(t, globalns, localns, type_params, *args, **kwargs)
-        except TypeError:
-            # Fallback if arguments differ
-            return _orig_eval_type(t, globalns, localns, type_params)
-    typing._eval_type = _patched_eval_type
+# ── main.py ── AlpasFarm ML Inference Server ──────────────────────────────────
+# NOTE: The Python 3.14 monkey-patch is NOT applied here because the Docker
+#       image uses Python 3.10-slim. The patch would break _eval_type on 3.10.
+#       It is only needed when running locally with Python 3.14+.
 
+import os
+import sys
 import time
 import logging
 import threading
 from io import BytesIO
 from PIL import Image
+
+# Apply monkey-patch ONLY on Python 3.14+
+if sys.version_info >= (3, 14):
+    import typing
+    _orig_eval_type = getattr(typing, "_eval_type", None)
+    if _orig_eval_type:
+        def _patched_eval_type(t, globalns=None, localns=None, type_params=None, *args, **kwargs):
+            kwargs.pop("prefer_fwd_module", None)
+            try:
+                return _orig_eval_type(t, globalns, localns, type_params, *args, **kwargs)
+            except TypeError:
+                return _orig_eval_type(t, globalns, localns)
+        typing._eval_type = _patched_eval_type
 
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
