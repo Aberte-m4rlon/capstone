@@ -86,8 +86,8 @@ function buildMessage(
     case 'idle':           return 'Camera not started.';
     case 'loading':        return 'Loading AI detection model…';
     case 'other_detected': {
-      const obj = det?.nonTargetClass ?? 'Object';
-      return `${obj} detected — this is not a goat or sheep.`;
+      const obj = det?.nonTargetClass ?? 'Bagay / Ibang Hayop';
+      return `🚫 Hindi ito kambing o tupa (${obj}) — Please point at a goat or sheep.`;
     }
     case 'detecting':
       if (!det || (!det.detected && !det.otherDetected)) {
@@ -142,7 +142,7 @@ export function useAutoScan(options: {
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
-  // ── Stop detection loop ──────────────────────────────────────────────────
+  // ── Stop timers ───────────────────────────────────────────────────────────
   const stopDetection = useCallback(() => {
     if (detectionTimer.current) {
       clearInterval(detectionTimer.current);
@@ -150,32 +150,43 @@ export function useAutoScan(options: {
     }
   }, []);
 
-  // ── Cooldown ─────────────────────────────────────────────────────────────
+  const stopCooldown = useCallback(() => {
+    if (cooldownTimer.current) {
+      clearInterval(cooldownTimer.current);
+      cooldownTimer.current = null;
+    }
+  }, []);
+
+  // ── Cooldown between scans ────────────────────────────────────────────────
   const startCooldown = useCallback(() => {
-    if (!mountedRef.current) return;
+    stopDetection();
+    stopCooldown();
+    resetStableFrameCount();
+
     setState('cooldown');
     stateRef.current = 'cooldown';
-    let rem = SCAN_COOLDOWN_SECONDS;
-    setCooldownRemaining(rem);
-    resetStableFrameCount();
-    setDetectedSpecies(null);
+    setCooldownRemaining(SCAN_COOLDOWN_SECONDS);
 
+    let remaining = SCAN_COOLDOWN_SECONDS;
     cooldownTimer.current = setInterval(() => {
-      rem--;
-      if (!mountedRef.current) { clearInterval(cooldownTimer.current!); return; }
-      setCooldownRemaining(rem);
-      if (rem <= 0) {
-        clearInterval(cooldownTimer.current!);
-        cooldownTimer.current = null;
+      remaining--;
+      setCooldownRemaining(remaining);
+      if (remaining <= 0) {
+        stopCooldown();
         if (mountedRef.current) {
           setState('detecting');
           stateRef.current = 'detecting';
+          setResult(null);
+          setCapturedUrl(null);
+          setCapturedCanvas(null);
+          setDetectedSpecies(null);
+          detectionTimer.current = setInterval(detectionTick, DETECTION_INTERVAL_MS);
         }
       }
     }, 1000);
-  }, []);
+  }, [stopDetection, stopCooldown]);
 
-  // ── Health scan ──────────────────────────────────────────────────────────
+  // ── Run health scan on canvas ─────────────────────────────────────────────
   const runScan = useCallback(async (
     canvas: HTMLCanvasElement,
     species: 'goat' | 'sheep',
@@ -201,6 +212,19 @@ export function useAutoScan(options: {
 
       if (!mountedRef.current) { scanningRef.current = false; return; }
       setResult(scanResult);
+
+      if (!scanResult.goatDetected) {
+        setState('other_detected');
+        stateRef.current = 'other_detected';
+        // Auto-cooldown after 5s to allow retrying
+        setTimeout(() => {
+          if (mountedRef.current && stateRef.current === 'other_detected') {
+            startCooldown();
+          }
+        }, 5000);
+        return;
+      }
+
       setState('result');
       stateRef.current = 'result';
       onResult?.(scanResult, canvas, species);

@@ -447,6 +447,35 @@ function ScanResultCard({
   onRetake: () => void;
   animalName: string;
 }) {
+  if (!result.goatDetected) {
+    return (
+      <div>
+        {capturedUrl && (
+          <img src={capturedUrl} alt="Scanned" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 12, border: '1px solid var(--border)', background: '#000', marginBottom: 14 }} />
+        )}
+        <div style={{ background: 'rgba(239,68,68,0.08)', border: '2px solid rgba(239,68,68,0.4)', borderRadius: 14, padding: '22px 18px', textAlign: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>🚫</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
+            Hindi ito Kambing o Tupa!
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+            {result.nonTargetClass ? `Na-detect: ${result.nonTargetClass}` : 'Non-Target Object / Animal'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+            {result.recommendation || 'Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
+          </div>
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
+            ⚠️ Hindi maaaring i-save ang screening record na ito.
+          </div>
+        </div>
+
+        <button onClick={onRetake} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 4px 14px rgba(255,59,48,0.3)' }}>
+          <RefreshCw size={14} /> Subukang Muli (Try Again)
+        </button>
+      </div>
+    );
+  }
+
   const finalScore = result.combinedRiskScore ?? result.riskScore;
 
   return (
@@ -456,12 +485,6 @@ function ScanResultCard({
         <img src={capturedUrl} alt="Scanned" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 12, border: '1px solid var(--border)', background: '#000', marginBottom: 14 }} />
       )}
 
-      {/* Goat detection warning */}
-      {!result.goatDetected && (
-        <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#D97706', fontWeight: 600 }}>
-          ⚠ {result.recommendation}
-        </div>
-      )}
       {result.multipleAnimals && (
         <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#D97706' }}>
           ⚠ Multiple animals detected. Results may be less accurate.

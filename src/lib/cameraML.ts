@@ -138,6 +138,8 @@ export interface ScanResult {
   goatDetected: boolean;
   goatDetectionConfidence: number;
   multipleAnimals: boolean;
+  nonTargetClass?: string | null;
+  species?: 'goat' | 'sheep' | 'other' | 'unknown' | string | null;
 
   // Risk scoring
   riskScore: number;         // 0–100, transparent additive scoring
@@ -1043,6 +1045,47 @@ export async function runHealthScan(
     if (resp.ok) {
       const serverResult = await resp.json();
 
+      const isGoatOrSheep = serverResult.species === 'goat' || serverResult.species === 'sheep';
+
+      // ── If scanned object is NOT a goat or sheep ───────────────────────────
+      if (!isGoatOrSheep) {
+        const nonTargetName = serverResult.non_target_class || 'Bagay / Ibang Hayop';
+        return {
+          goatDetected: false,
+          goatDetectionConfidence: serverResult.species_confidence || 0,
+          multipleAnimals: false,
+          nonTargetClass: nonTargetName,
+          species: serverResult.species || 'other',
+          riskScore: 0,
+          riskLevel: 'LOW',
+          riskLevelLabel: 'Hindi ito Kambing o Tupa',
+          riskLevelColor: '#EF4444',
+          riskLevelEmoji: '🚫',
+          confidence: serverResult.species_confidence || 0,
+          confidencePercent: Math.round((serverResult.species_confidence || 0) * 100),
+          indicators: [],
+          primaryIndicators: [],
+          combinedRiskScore: null,
+          combinedFactors: [],
+          recommendation: `Hindi ito kambing o tupa (${nonTargetName}). Ang AI Health Screening ay para lamang sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.`,
+          recommendedActions: [
+            'Itapat ang camera sa kambing o tupa lamang',
+            'Tiyaking buong katawan o mukha ng hayop ang nasa frame',
+            'Mag-upload ng malinaw na litrato ng kambing o tupa',
+          ],
+          explanation: `Na-detect ng AI ang "${nonTargetName}". Eksklusibo lamang ang sistemang ito sa kalusugan ng kambing at tupa.`,
+          modelVersion: serverResult.model_version || MODEL_VERSION,
+          scanType,
+          timestamp,
+          qualityReport: serverResult.quality_report || { score: 100, passed: true, issues: [], guidance: [] },
+          disclaimer: 'Hindi maaring isagawa ang health screening dahil hindi ito kambing o tupa.',
+          isReliable: false,
+          prediction: 'low_confidence',
+          label: 'Hindi ito Kambing o Tupa',
+          labelColor: '#EF4444',
+        };
+      }
+
       // Parse indicators returned by the server
       const indicators = serverResult.predictions || [];
       const { riskScore, riskLevel, combinedRiskScore, combinedFactors } =
@@ -1075,9 +1118,11 @@ export async function runHealthScan(
         finalScore >= 21 ? 'possible_health_concern' : 'normal_appearance';
 
       return {
-        goatDetected: serverResult.species === 'goat' || serverResult.species === 'sheep',
+        goatDetected: true,
         goatDetectionConfidence: serverResult.species_confidence,
-        multipleAnimals: !!serverResult.quality_report.issues.includes('multiple_animals'),
+        multipleAnimals: !!serverResult.quality_report?.issues?.includes('multiple_animals'),
+        nonTargetClass: null,
+        species: serverResult.species,
         riskScore,
         riskLevel,
         riskLevelLabel: riskMeta.label,
@@ -1303,29 +1348,35 @@ function buildNoAnimalResult(
     goatDetected: false,
     goatDetectionConfidence: detection.confidence,
     multipleAnimals: detection.multipleDetected,
+    nonTargetClass: 'Hindi Kambing o Tupa',
+    species: 'other',
     riskScore: 0,
     riskLevel: 'LOW',
-    riskLevelLabel: 'No Animal Detected',
-    riskLevelColor: '#94A3B8',
-    riskLevelEmoji: '❓',
+    riskLevelLabel: 'Hindi ito Kambing o Tupa',
+    riskLevelColor: '#EF4444',
+    riskLevelEmoji: '🚫',
     confidence: detection.confidence,
     confidencePercent: Math.round(detection.confidence * 100),
     indicators: [],
     primaryIndicators: [],
     combinedRiskScore: null,
     combinedFactors: [],
-    recommendation: detection.message,
-    recommendedActions: ['Position the goat or sheep clearly in the camera frame', 'Ensure the full body is visible', 'Use good lighting'],
-    explanation: detection.message,
+    recommendation: 'Hindi ito kambing o tupa. Ang AI Health Screening ay para lamang sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.',
+    recommendedActions: [
+      'Itapat ang camera sa kambing o tupa lamang',
+      'Tiyaking buong katawan o mukha ng hayop ang nasa frame',
+      'Mag-upload ng malinaw na litrato ng kambing o tupa',
+    ],
+    explanation: 'Walang nakitang kambing o tupa sa imahe. Hindi maaring isagawa ang health screening.',
     modelVersion: MODEL_VERSION,
     scanType,
     timestamp,
     qualityReport,
-    disclaimer: 'No animal was detected in the image. Please retry with the animal clearly visible.',
+    disclaimer: 'Hindi maaring isagawa ang health screening dahil hindi ito kambing o tupa.',
     isReliable: false,
     prediction: 'low_confidence',
-    label: 'No Animal Detected',
-    labelColor: '#94A3B8',
+    label: 'Hindi ito Kambing o Tupa',
+    labelColor: '#EF4444',
   };
 }
 

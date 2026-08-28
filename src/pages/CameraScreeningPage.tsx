@@ -178,6 +178,10 @@ export function CameraScreeningPage() {
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!autoScan.result || !user) return;
+    if (!autoScan.result.goatDetected) {
+      toast('Hindi maaring i-save ang screening dahil hindi ito kambing o tupa.', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const animalId = selectedAnimalId || 'unlinked';
@@ -429,17 +433,20 @@ export function CameraScreeningPage() {
 
             {/* ── OTHER DETECTED panel ── */}
             {autoScan.state === 'other_detected' && (
-              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 14, padding: '20px 18px', textAlign: 'center' }}>
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '2px solid rgba(239,68,68,0.4)', borderRadius: 14, padding: '20px 18px', textAlign: 'center' }}>
                 <div style={{ fontSize: 40, marginBottom: 10 }}>{det?.detectedEmoji || '🚫'}</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
-                  {det?.nonTargetClass ? `${det.nonTargetClass} Detected` : 'Non-Target Detected'}
+                <div style={{ fontSize: 17, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
+                  🚫 Hindi ito Kambing o Tupa!
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
-                  This is not a goat or sheep.
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+                  {det?.nonTargetClass ? `Na-detect: ${det.nonTargetClass}` : (autoScan.result?.nonTargetClass ? `Na-detect: ${autoScan.result.nonTargetClass}` : 'Hindi Awtorisadong Bagay / Hayop')}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Health screening is only performed for goats and sheep.<br />
-                  Please point the camera at a goat or sheep to begin scanning.
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
+                  Ang AI Health Screening ay para lamang sa mga <strong>kambing at tupa</strong>.<br />
+                  Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.
+                </div>
+                <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
+                  ⚠️ Not a goat or sheep. Visual health screening will not execute.
                 </div>
               </div>
             )}
@@ -611,6 +618,31 @@ function ScanResultCard({ result, capturedUrl, species, saving, savedId, cooldow
   cooldownRemaining: number | null;
   onSave: () => void;
 }) {
+  if (!result.goatDetected) {
+    return (
+      <div style={{ background: 'var(--glass-surface)', backdropFilter: 'var(--glass-blur)', border: '2px solid rgba(239,68,68,0.4)', borderRadius: 14, overflow: 'hidden' }}>
+        {capturedUrl && (
+          <img src={capturedUrl} alt="Screened Non-Target" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+        )}
+        <div style={{ padding: '18px 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🚫</div>
+          <div style={{ fontSize: 17, fontWeight: 900, color: '#EF4444', marginBottom: 4 }}>
+            Hindi ito Kambing o Tupa!
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+            {result.nonTargetClass ? `Na-detect: ${result.nonTargetClass}` : 'Non-target object detected'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+            {result.recommendation || 'Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
+          </div>
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 600 }}>
+            ⚠️ Hindi maaaring suriin ang kalusugan ng hindi kambing o tupa.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const finalScore = result.combinedRiskScore ?? result.riskScore;
   const col  = result.riskLevelColor;
   const isHealthy = result.prediction === 'normal_appearance';
