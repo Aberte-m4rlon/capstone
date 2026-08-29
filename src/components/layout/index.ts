@@ -6,4 +6,5 @@ export * from './AlpasLogo';
 export * from './GoatIcon';
 export * from './SidebarItem';
 export * from './AICloudLauncher';
+export * from './navigationConfig';
 

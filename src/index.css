@@ -515,7 +515,7 @@ select:-webkit-autofill:focus {
   border-radius: var(--sidebar-radius);
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s ease;
   position: relative;
   background: transparent;
   border: 1px solid transparent;
@@ -527,18 +527,20 @@ select:-webkit-autofill:focus {
 .alpas-nav-item:hover {
   background: var(--sidebar-item-hover-bg);
   color: var(--color-primary);
-  transform: translateX(2px);
+  transform: translateX(3px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .alpas-nav-item:hover .alpas-nav-icon {
   color: var(--color-primary);
+  transform: scale(1.05);
 }
 
 /* Active State (Orange → Red gradient with soft shadow) */
 .alpas-nav-item.active {
-  background: linear-gradient(135deg, #FF7A00 0%, #FF3D5A 100%) !important;
+  background: linear-gradient(135deg, #FF6A00 0%, #FF3B5C 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 6px 16px rgba(255, 122, 0, 0.32) !important;
+  box-shadow: 0 10px 25px rgba(255, 80, 50, 0.28) !important;
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
   font-weight: 700;
   transform: none !important;

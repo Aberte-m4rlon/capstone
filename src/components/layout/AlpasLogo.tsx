@@ -68,7 +68,8 @@ export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasL
               color: 'var(--color-text-primary, #0F172A)',
             }}
           >
-            <span style={{ color: '#FF7A00' }}>ALPAS</span>FARM
+            <span style={{ color: '#FF7A00' }}>ALPAS</span>
+            <span style={{ color: 'var(--color-text-primary, #0F172A)' }}>FARM</span>
           </span>
           <span
             style={{
