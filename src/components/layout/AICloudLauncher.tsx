@@ -1,4 +1,4 @@
-import { Bot } from 'lucide-react';
+import { Bot, Sparkles } from 'lucide-react';
 
 interface AICloudLauncherProps {
   onClick?: () => void;
@@ -9,7 +9,7 @@ interface AICloudLauncherProps {
 
 export function AICloudLauncher({
   onClick,
-  statusColor = '#22C55E',
+  statusColor = '#10B981',
   className = '',
   compact = false,
 }: AICloudLauncherProps) {
@@ -32,72 +32,85 @@ export function AICloudLauncher({
       style={{
         position: 'relative',
         display: 'flex',
-        flexDirection: 'column',
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        width: compact ? 64 : 84,
-        height: compact ? 64 : 76,
-        padding: compact ? '8px' : '10px 8px 8px',
-        borderRadius: '20px',
-        background: 'var(--sidebar-card-bg, rgba(255, 255, 255, 0.88))',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid var(--sidebar-card-border, rgba(226, 232, 240, 0.8))',
-        boxShadow: 'var(--sidebar-card-shadow, 0 8px 24px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04))',
+        justifyContent: 'space-between',
+        gap: 10,
+        width: '100%',
+        padding: '10px 12px',
+        borderRadius: '14px',
+        background: 'var(--sidebar-card-bg, rgba(255, 255, 255, 0.04))',
+        border: '1px solid var(--sidebar-card-border, rgba(255, 255, 255, 0.1))',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
         cursor: 'pointer',
-        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-        color: 'var(--color-text-primary, #1F2937)',
+        transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+        color: 'var(--color-text-primary, #0F172A)',
         outline: 'none',
+        userSelect: 'none',
       }}
     >
-      {/* Online Status Dot */}
-      <span
-        style={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: statusColor,
-          boxShadow: `0 0 8px ${statusColor}`,
-          border: '1.5px solid var(--sidebar-card-bg, #FFFFFF)',
-        }}
-      />
-
-      {/* Robot AI Icon Container */}
-      <div
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: '12px',
-          background: 'rgba(59, 130, 246, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#3B82F6',
-          transition: 'transform 0.2s ease',
-        }}
-      >
-        <Bot size={20} strokeWidth={2.2} />
-      </div>
-
-      {/* Label */}
-      {!compact && (
-        <span
+      {/* Left: Icon & Brand Info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <div
           style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '-0.01em',
-            color: 'var(--color-text-primary, #1F2937)',
-            lineHeight: 1,
-            whiteSpace: 'nowrap',
+            width: 34,
+            height: 34,
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2))',
+            border: '1px solid rgba(59, 130, 246, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#3B82F6',
+            flexShrink: 0,
           }}
         >
-          AI Cloud
-        </span>
-      )}
+          <Bot size={18} strokeWidth={2.2} />
+        </div>
+
+        {!compact && (
+          <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--color-text-primary, #0F172A)',
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              AI Cloud
+            </span>
+            <span
+              style={{
+                fontSize: '10.5px',
+                fontWeight: 600,
+                color: 'var(--color-text-secondary, #64748B)',
+                lineHeight: 1.1,
+                marginTop: 2,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Assistant Ready
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Right: Online Status Pulse */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: statusColor,
+            boxShadow: `0 0 8px ${statusColor}`,
+          }}
+        />
+        <Sparkles size={14} color="#3B82F6" style={{ opacity: 0.8 }} />
+      </div>
     </button>
   );
 }
+

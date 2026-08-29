@@ -11,32 +11,34 @@ export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasL
       className={`alpas-brand-logo ${className}`}
       style={{
         display: 'flex',
-        flexDirection: collapsed ? 'column' : 'row',
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: collapsed ? 4 : 10,
+        gap: 12,
         textDecoration: 'none',
         cursor: onClick ? 'pointer' : 'default',
         userSelect: 'none',
+        width: '100%',
+        padding: '0 4px',
       }}
     >
       {/* Brand Emblem */}
       <div
         style={{
-          width: 38,
-          height: 38,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #FF6A00 0%, #FF3D71 100%)',
+          width: 40,
+          height: 40,
+          borderRadius: '12px',
+          background: 'linear-gradient(135deg, #FF7A00 0%, #FF3D5A 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#FFFFFF',
           flexShrink: 0,
-          boxShadow: '0 4px 14px rgba(255, 106, 0, 0.35)',
+          boxShadow: '0 4px 14px rgba(255, 122, 0, 0.35)',
         }}
       >
         <svg
-          width="22"
-          height="22"
+          width="24"
+          height="24"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -56,26 +58,28 @@ export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasL
 
       {/* Brand Typography */}
       {!collapsed && (
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left', flex: 1 }}>
           <span
             style={{
-              fontSize: '15px',
+              fontSize: '17px',
               fontWeight: 900,
               letterSpacing: '-0.02em',
-              lineHeight: 1.1,
+              lineHeight: 1.15,
               color: 'var(--color-text-primary, #0F172A)',
             }}
           >
-            <span style={{ color: '#FF6A00' }}>ALPAS</span>FARM
+            <span style={{ color: '#FF7A00' }}>ALPAS</span>FARM
           </span>
           <span
             style={{
-              fontSize: '9.5px',
+              fontSize: '11px',
               fontWeight: 600,
-              letterSpacing: '0.02em',
+              letterSpacing: '0.01em',
               color: 'var(--color-text-secondary, #64748B)',
               marginTop: 2,
               whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             Smart Farm, Healthy Herd
