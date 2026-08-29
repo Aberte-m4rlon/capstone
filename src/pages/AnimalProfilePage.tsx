@@ -17,7 +17,7 @@ import {
 } from '../lib/analytics';
 import { assessBreedingReadiness } from '../lib/analytics';
 import { Line } from 'react-chartjs-2';
-import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera, Sparkles } from 'lucide-react';
+import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera, Sparkles, Tag, CheckCircle2 } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 import { useAnimalMLPrediction, useAnimalRiskHistory } from '../lib/useMLHealth';
@@ -1053,9 +1053,50 @@ export function AnimalProfilePage() {
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Tag ID" required>
-                <Input value={editForm.tag_id} onChange={(e) => setEditForm({ ...editForm, tag_id: e.target.value })} />
-              </FormField>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                  Animal ID (Tag)
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '9px 14px',
+                    borderRadius: 'var(--radius-md, 12px)',
+                    background: 'var(--color-surface-elevated, rgba(255, 255, 255, 0.06))',
+                    border: '1.5px solid var(--color-border, rgba(255, 255, 255, 0.15))',
+                    minHeight: 44,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Tag size={16} color="#FF6A00" />
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
+                      {editForm.tag_id}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#10B981',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      padding: '3px 8px',
+                      borderRadius: 999,
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                    }}
+                  >
+                    <CheckCircle2 size={12} color="#10B981" />
+                    Registered ID
+                  </span>
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748B)', marginTop: -2 }}>
+                  Animal ID is permanent and cannot be manually changed.
+                </span>
+              </div>
               <FormField label="Name" required>
                 <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
               </FormField>

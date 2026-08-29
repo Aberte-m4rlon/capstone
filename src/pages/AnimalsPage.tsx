@@ -13,9 +13,10 @@ import { AnimalHealthBadge } from '../components/domain/animals/AnimalHealthBadg
 import { ComboBox } from '../components/ComboBox';
 import { FilterToolbar, FilterSearch, FilterSelect, FilterToggle } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
-import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode, Download, Printer } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode, Download, Printer, CheckCircle2, Sparkles, Tag } from 'lucide-react';
 import { ageLabel } from '../lib/analytics';
 import { getBreedsForSpecies, COLOR_MARKINGS } from '../lib/farmDefaults';
+import { generateNextAnimalId, fetchNextUniqueAnimalId, insertAnimalWithUniqueRetry } from '../lib/animalId';
 import QRCode from 'qrcode';
 import type { Animal, Species, Sex } from '../types';
 
@@ -70,10 +71,36 @@ export function AnimalsPage() {
   }, [farmData.animals, fSpecies, fSex, fHealth, fArchived, search]);
 
   const openAdd = () => {
+    const nextId = generateNextAnimalId('Goat', farmData.animals);
     setEditing(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      species: 'Goat',
+      tag_id: nextId,
+    });
     setErrors({});
     setModalOpen(true);
+
+    // Verify against database for newest sequential index
+    fetchNextUniqueAnimalId('Goat', user?.id).then((freshId) => {
+      setForm((prev) => (prev.species === 'Goat' ? { ...prev, tag_id: freshId } : prev));
+    }).catch(() => {});
+  };
+
+  const handleSpeciesChange = (newSpecies: Species) => {
+    if (!editing) {
+      const nextId = generateNextAnimalId(newSpecies, farmData.animals);
+      setForm((prev) => ({
+        ...prev,
+        species: newSpecies,
+        tag_id: nextId,
+      }));
+      fetchNextUniqueAnimalId(newSpecies, user?.id).then((freshId) => {
+        setForm((prev) => (prev.species === newSpecies ? { ...prev, tag_id: freshId } : prev));
+      }).catch(() => {});
+    } else {
+      setForm((prev) => ({ ...prev, species: newSpecies }));
+    }
   };
 
   const openEdit = (a: Animal) => {
@@ -127,9 +154,24 @@ export function AnimalsPage() {
         if (error) throw error;
         toast('Animal successfully updated.', 'success');
       } else {
-        const { error } = await supabase.from('animals').insert(payload);
-        if (error) throw error;
-        toast('Animal successfully added.', 'success');
+        const result = await insertAnimalWithUniqueRetry(
+          {
+            ...payload,
+            user_id: user.id,
+          },
+          {
+            onAutoIncrement: (newId) => {
+              setForm((prev) => ({ ...prev, tag_id: newId }));
+            },
+          }
+        );
+
+        if (result.error) throw result.error;
+        if (result.hadConflict) {
+          toast(`Animal ID conflict resolved. Saved with unique ID: ${result.finalTagId}`, 'success');
+        } else {
+          toast(`Animal ${result.finalTagId} successfully added.`, 'success');
+        }
       }
       setModalOpen(false);
       farmData.refresh();
@@ -381,18 +423,55 @@ export function AnimalsPage() {
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Animal ID (Tag)" required error={errors.tag_id}>
-                <Input
-                  value={form.tag_id}
-                  onChange={(e) => setForm({ ...form, tag_id: e.target.value })}
-                  placeholder="GOAT-001"
-                />
-              </FormField>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                  Animal ID (Tag)
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '9px 14px',
+                    borderRadius: 'var(--radius-md, 12px)',
+                    background: 'var(--color-surface-elevated, rgba(255, 255, 255, 0.06))',
+                    border: '1.5px solid var(--color-border, rgba(255, 255, 255, 0.15))',
+                    minHeight: 44,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Tag size={16} color="#FF6A00" />
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
+                      {form.tag_id || (editing ? '—' : 'Generating...')}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#10B981',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      padding: '3px 8px',
+                      borderRadius: 999,
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                    }}
+                  >
+                    <CheckCircle2 size={12} color="#10B981" />
+                    {editing ? 'Registered ID' : 'Auto-generated ID'}
+                  </span>
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748B)', marginTop: -2 }}>
+                  Animal ID is automatically generated by the system and cannot be manually changed.
+                </span>
+              </div>
               <FormField label="Name" required error={errors.name}>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Bella"
+                  placeholder="e.g. Bella, Thor, Luna"
                 />
               </FormField>
             </div>
@@ -401,7 +480,7 @@ export function AnimalsPage() {
               <FormField label="Species" required>
                 <Select
                   value={form.species}
-                  onChange={(e) => setForm({ ...form, species: e.target.value as Species })}
+                  onChange={(e) => handleSpeciesChange(e.target.value as Species)}
                   options={[
                     { value: 'Goat', label: 'Goat' },
                     { value: 'Sheep', label: 'Sheep' },

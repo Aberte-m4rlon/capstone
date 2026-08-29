@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/auth';
 import { useToast } from '../components/ui/Toast';
 import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -10,10 +11,11 @@ import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { FilterToolbar, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Baby, CheckCircle2, Tag, Sparkles } from 'lucide-react';
 import { calculateKiddingDate, formatDate, daysUntil, assessBreedingReadiness } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
-import type { BreedingRecord } from '../types';
+import { generateNextAnimalId, fetchNextUniqueAnimalId, insertAnimalWithUniqueRetry } from '../lib/animalId';
+import type { Animal, BreedingRecord, Species, Sex } from '../types';
 
 const emptyForm = {
   animal_id: '',
@@ -25,6 +27,7 @@ const emptyForm = {
 
 export function BreedingPage() {
   const farmData = useFarmData();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -34,6 +37,22 @@ export function BreedingPage() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<BreedingRecord | null>(null);
   const [fStatus, setFStatus] = useState('All');
+
+  // Newborn registration state
+  const [offspringModalOpen, setOffspringModalOpen] = useState(false);
+  const [offspringMother, setOffspringMother] = useState<Animal | null>(null);
+  const [offspringFather, setOffspringFather] = useState<Animal | null>(null);
+  const [offspringForm, setOffspringForm] = useState({
+    tag_id: '',
+    name: '',
+    species: 'Goat' as Species,
+    breed: '',
+    sex: 'Female' as Sex,
+    date_of_birth: new Date().toISOString().split('T')[0],
+    weight_kg: '3.0',
+    notes: '',
+  });
+  const [savingOffspring, setSavingOffspring] = useState(false);
 
   const females = farmData.animals.filter((a) => !a.archived && a.sex === 'Female');
   const males = farmData.animals.filter((a) => !a.archived && a.sex === 'Male');
@@ -140,6 +159,80 @@ export function BreedingPage() {
     }
   };
 
+  const openRegisterOffspring = (record?: BreedingRecord) => {
+    const mother = record ? farmData.animals.find((a) => a.id === record.animal_id) : females[0];
+    const father = record && record.partner_id ? farmData.animals.find((a) => a.id === record.partner_id) : null;
+    const species = (mother?.species || 'Goat') as Species;
+    const candidateId = generateNextAnimalId(species, farmData.animals);
+
+    setOffspringMother(mother || null);
+    setOffspringFather(father || null);
+    setOffspringForm({
+      tag_id: candidateId,
+      name: mother ? `${mother.name}'s Kid` : 'Newborn',
+      species,
+      breed: mother?.breed || '',
+      sex: 'Female',
+      date_of_birth: record?.expected_kidding_date || new Date().toISOString().split('T')[0],
+      weight_kg: species === 'Goat' ? '3.0' : '3.5',
+      notes: mother ? `Dam: ${mother.name} (${mother.tag_id})${father ? `, Sire: ${father.name} (${father.tag_id})` : ''}` : '',
+    });
+    setOffspringModalOpen(true);
+
+    fetchNextUniqueAnimalId(species, user?.id).then((freshId) => {
+      setOffspringForm((prev) => (prev.species === species ? { ...prev, tag_id: freshId } : prev));
+    }).catch(() => {});
+  };
+
+  const handleSpeciesChangeOffspring = (newSpecies: Species) => {
+    const candidateId = generateNextAnimalId(newSpecies, farmData.animals);
+    setOffspringForm((prev) => ({
+      ...prev,
+      species: newSpecies,
+      tag_id: candidateId,
+    }));
+    fetchNextUniqueAnimalId(newSpecies, user?.id).then((freshId) => {
+      setOffspringForm((prev) => (prev.species === newSpecies ? { ...prev, tag_id: freshId } : prev));
+    }).catch(() => {});
+  };
+
+  const handleSaveOffspring = async () => {
+    if (!offspringForm.name.trim()) {
+      toast('Please enter a name for the newborn animal.', 'warning');
+      return;
+    }
+    setSavingOffspring(true);
+    try {
+      const payload = {
+        name: offspringForm.name.trim(),
+        species: offspringForm.species,
+        breed: offspringForm.breed.trim() || null,
+        sex: offspringForm.sex,
+        date_of_birth: offspringForm.date_of_birth || null,
+        weight_kg: offspringForm.weight_kg ? Number(offspringForm.weight_kg) : null,
+        notes: offspringForm.notes.trim() || null,
+        user_id: user?.id,
+      };
+
+      const result = await insertAnimalWithUniqueRetry(payload, {
+        onAutoIncrement: (newId) => {
+          setOffspringForm((prev) => ({ ...prev, tag_id: newId }));
+        },
+      });
+
+      if (result.error) throw result.error;
+
+      toast(`Newborn registered successfully with ID: ${result.finalTagId}`, 'success');
+      setOffspringModalOpen(false);
+      farmData.refresh();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unable to register newborn.';
+      toast(msg, 'danger');
+    } finally {
+      setSavingOffspring(false);
+    }
+  };
+
   const animalName = (id: string) => {
     const a = farmData.animals.find((x) => x.id === id);
     return a ? `${a.name} (${a.tag_id})` : 'Unknown';
@@ -169,9 +262,14 @@ export function BreedingPage() {
             {filtered.length} breeding records · 150-day gestation auto-calculated
           </p>
         </div>
-        <Button variant="primary" onClick={openAdd} disabled={females.length === 0} leftIcon={<Plus size={16} />}>
-          Add Breeding Record
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Button variant="secondary" onClick={() => openRegisterOffspring()} leftIcon={<Baby size={16} />}>
+            Register Newborn
+          </Button>
+          <Button variant="primary" onClick={openAdd} disabled={females.length === 0} leftIcon={<Plus size={16} />}>
+            Add Breeding Record
+          </Button>
+        </div>
       </div>
 
       {/* Breeding Readiness Overview */}
@@ -305,7 +403,18 @@ export function BreedingPage() {
                           </Badge>
                         </td>
                         <td>
-                          <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                          <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                            {b.status === 'Kidded' && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => openRegisterOffspring(b)}
+                                leftIcon={<Baby size={13} color="#FF6A00" />}
+                                title="Register newborn kid/lamb"
+                              >
+                                Offspring
+                              </Button>
+                            )}
                             <Button variant="ghost" size="sm" onClick={() => openEdit(b)}>
                               <Pencil size={15} />
                             </Button>
@@ -324,7 +433,7 @@ export function BreedingPage() {
         </CardContent>
       </Card>
 
-      {/* Modal */}
+      {/* Breeding Record Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
         <ModalHeader
           title={editing ? 'Edit Breeding Record' : 'Add Breeding Record'}
@@ -417,6 +526,139 @@ export function BreedingPage() {
           </Button>
           <Button variant="primary" onClick={handleSave} loading={saving}>
             {editing ? 'Save Changes' : 'Save Record'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Newborn Offspring Registration Modal */}
+      <Modal open={offspringModalOpen} onClose={() => setOffspringModalOpen(false)} size="md">
+        <ModalHeader
+          title={offspringMother ? `Register Newborn from ${offspringMother.name}` : 'Register Newborn Offspring'}
+          onClose={() => setOffspringModalOpen(false)}
+        />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                  Newborn Animal ID
+                </label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '9px 14px',
+                    borderRadius: 'var(--radius-md, 12px)',
+                    background: 'var(--color-surface-elevated, rgba(255, 255, 255, 0.06))',
+                    border: '1.5px solid var(--color-border, rgba(255, 255, 255, 0.15))',
+                    minHeight: 44,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Tag size={16} color="#FF6A00" />
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
+                      {offspringForm.tag_id || 'Generating...'}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#10B981',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      padding: '3px 8px',
+                      borderRadius: 999,
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                    }}
+                  >
+                    <CheckCircle2 size={12} color="#10B981" />
+                    Auto-generated ID
+                  </span>
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748B)', marginTop: -2 }}>
+                  Offspring ID is automatically generated by the system.
+                </span>
+              </div>
+
+              <FormField label="Offspring Name" required>
+                <Input
+                  value={offspringForm.name}
+                  onChange={(e) => setOffspringForm({ ...offspringForm, name: e.target.value })}
+                  placeholder="e.g. Leo, Bella Junior"
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+              <FormField label="Species" required>
+                <Select
+                  value={offspringForm.species}
+                  onChange={(e) => handleSpeciesChangeOffspring(e.target.value as Species)}
+                  options={[
+                    { value: 'Goat', label: 'Goat' },
+                    { value: 'Sheep', label: 'Sheep' },
+                  ]}
+                />
+              </FormField>
+              <FormField label="Sex" required>
+                <Select
+                  value={offspringForm.sex}
+                  onChange={(e) => setOffspringForm({ ...offspringForm, sex: e.target.value as Sex })}
+                  options={[
+                    { value: 'Female', label: 'Female' },
+                    { value: 'Male', label: 'Male' },
+                  ]}
+                />
+              </FormField>
+              <FormField label="Breed">
+                <Input
+                  value={offspringForm.breed}
+                  onChange={(e) => setOffspringForm({ ...offspringForm, breed: e.target.value })}
+                  placeholder="e.g. Boer"
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Birth Date">
+                <Input
+                  type="date"
+                  value={offspringForm.date_of_birth}
+                  onChange={(e) => setOffspringForm({ ...offspringForm, date_of_birth: e.target.value })}
+                />
+              </FormField>
+              <FormField label="Birth Weight (kg)">
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={offspringForm.weight_kg}
+                  onChange={(e) => setOffspringForm({ ...offspringForm, weight_kg: e.target.value })}
+                  placeholder="3.0"
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Lineage / Notes">
+              <textarea
+                className="form-textarea"
+                value={offspringForm.notes}
+                onChange={(e) => setOffspringForm({ ...offspringForm, notes: e.target.value })}
+                placeholder="Parentage or health observations..."
+                style={{ minHeight: 70 }}
+              />
+            </FormField>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setOffspringModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSaveOffspring} loading={savingOffspring}>
+            Register Animal
           </Button>
         </ModalFooter>
       </Modal>
