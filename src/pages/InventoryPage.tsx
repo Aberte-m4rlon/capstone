@@ -525,17 +525,10 @@ export function InventoryPage() {
         <button className="btn btn-primary" onClick={openAdd}><Plus size={16} /> Add Inventory</button>
       </div>
 
-      {/* KPI Cards — horizontal scroll on mobile, 4-col on desktop */}
-      <div style={{ marginBottom: 16, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(140px, 1fr))',
-          gap: 12,
-          minWidth: 'max-content',
-          width: '100%',
-        }} className="inv-kpi-grid">
+      {/* KPI Cards — 4-col on desktop, exactly 2-col on mobile */}
+      <div className="dashboard-stats stats-grid inv-kpi-grid">
         {/* Total Items */}
-        <div className="kpi-card" style={{ minWidth: 140 }}>
+        <div className="kpi-card">
           <div className="kpi-top"><div className="kpi-icon blue"><Icons.Package size={18} /></div></div>
           <div className="kpi-value">{summary.totalItems}</div>
           <div className="kpi-label">Total Items</div>
@@ -543,7 +536,7 @@ export function InventoryPage() {
         </div>
 
         {/* Money Spent */}
-        <div className="kpi-card" style={{ minWidth: 140 }}>
+        <div className="kpi-card">
           <div className="kpi-top"><div className="kpi-icon orange"><Icons.DollarSign size={18} /></div></div>
           <div className="kpi-value" style={{ fontSize: summary.totalSpent >= 100000 ? 16 : undefined }}>
             ₱{summary.totalSpent.toLocaleString('en-PH', { maximumFractionDigits: 0 })}
@@ -553,7 +546,7 @@ export function InventoryPage() {
         </div>
 
         {/* Consumed */}
-        <div className="kpi-card" style={{ minWidth: 140 }}>
+        <div className="kpi-card">
           <div className="kpi-top"><div className="kpi-icon red"><TrendingDown size={18} /></div></div>
           <div className="kpi-value">{summary.consumedMonth.toFixed(1)}</div>
           <div className="kpi-label">Consumed / Mo</div>
@@ -561,18 +554,19 @@ export function InventoryPage() {
         </div>
 
         {/* Stock Alerts */}
-        <div className="kpi-card" style={{ minWidth: 140 }}>
+        <div className="kpi-card">
           <div className="kpi-top"><div className="kpi-icon orange"><Icons.AlertTriangle size={18} /></div></div>
           <div className="kpi-value">{summary.lowStock + summary.outOfStock}</div>
           <div className="kpi-label">Stock Alerts</div>
           <div className="kpi-delta down">{summary.expiring} exp · {summary.expired} exp'd</div>
         </div>
-        </div>
       </div>
-      {/* responsive CSS — on desktop use full-width auto grid, on mobile horizontal scroll */}
       <style>{`
-        @media (min-width: 640px) {
-          .inv-kpi-grid { min-width: unset !important; grid-template-columns: repeat(4, minmax(0,1fr)) !important; }
+        @media (max-width: 768px) {
+          .inv-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+          .inv-main-expense { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+          .inv-main-expense > div:last-child { grid-column: span 2 !important; }
+          .inv-expense-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
         }
       `}</style>
 

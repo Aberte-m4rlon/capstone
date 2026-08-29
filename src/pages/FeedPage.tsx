@@ -354,7 +354,7 @@ export function FeedPage() {
                     {feedForecast.confidence}% confidence
                   </Badge>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+                <div className="dashboard-stats stats-grid" style={{ marginBottom: 12 }}>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                       Daily Herd Requirement

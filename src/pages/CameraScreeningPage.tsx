@@ -522,7 +522,7 @@ export function CameraScreeningPage() {
       {/* ══ HISTORY ══ */}
       {tab === 'history' && (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 14, marginBottom: 20 }}>
+          <div className="dashboard-stats stats-grid" style={{ marginBottom: 20 }}>
             <SummaryCard label="Total Screenings"  value={summary.total}           color="var(--accent-orange)" icon={<Camera size={16}/>} />
             <SummaryCard label="Possible Concerns" value={summary.possibleConcerns} color="#F97316"             icon={<AlertTriangle size={16}/>} />
             <SummaryCard label="Low Confidence"    value={summary.lowConfidence}    color="#F59E0B"             icon={<XCircle size={16}/>} />

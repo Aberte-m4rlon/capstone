@@ -1041,7 +1041,11 @@ select:-webkit-autofill:focus {
 
 /* ===== KPI & STATISTIC LIQUID GLASS CARDS ===== */
 .kpi-grid,
-.stats-grid {
+.stats-grid,
+.dashboard-stats,
+.alpas-responsive-grid,
+.breeding-readiness-grid,
+.inv-kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
@@ -1302,7 +1306,8 @@ select:-webkit-autofill:focus {
 }
 
 /* Dashboard Grids */
-.dashboard-grid-2 {
+.dashboard-grid-2,
+.dashboard-charts-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
@@ -2535,7 +2540,11 @@ table.data-table {
   }
 
   .kpi-grid,
-  .stats-grid {
+  .stats-grid,
+  .dashboard-stats,
+  .alpas-responsive-grid,
+  .breeding-readiness-grid,
+  .inv-kpi-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
@@ -2650,59 +2659,74 @@ table.data-table {
     font-size: 12px;
   }
 
-  /* Quick Actions — Exactly ONE Single Horizontal Scrollable Row on Mobile */
+  /* Quick Actions — Compact TWO-COLUMN GRID on Mobile (< 768px) */
   .quick-actions,
-  .quick-actions-grid {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    gap: 10px !important;
+  .quick-actions-grid,
+  .quick-actions-grid-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
     width: 100% !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    padding: 4px 2px 14px !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
     margin-bottom: 20px !important;
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-    -webkit-overflow-scrolling: touch !important;
   }
 
   .quick-actions::-webkit-scrollbar,
-  .quick-actions-grid::-webkit-scrollbar {
+  .quick-actions-grid::-webkit-scrollbar,
+  .quick-actions-grid-container::-webkit-scrollbar {
     display: none !important;
     width: 0 !important;
     height: 0 !important;
   }
 
   .quick-action,
-  .quick-action-btn {
-    flex: 0 0 auto !important;
-    width: max-content !important;
-    min-width: 140px !important;
-    height: 42px !important;
+  .quick-action-btn,
+  .qa-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    height: 44px !important;
     white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 8px !important;
-    padding: 8px 16px !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
     font-size: 12px !important;
+    border-radius: 12px !important;
   }
 
-  /* Statistics — EXACTLY 3 Cards Per Row on Mobile */
+  .qa-btn-label {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+  }
+
+  /* Statistics — EXACTLY 2 Cards Per Row on Mobile (< 768px) */
   .stats-grid,
-  .kpi-grid {
+  .kpi-grid,
+  .dashboard-stats,
+  .alpas-responsive-grid,
+  .breeding-readiness-grid,
+  .inv-kpi-grid {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 8px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
     width: 100% !important;
     margin-bottom: 20px !important;
   }
 
   .stat-card,
-  .kpi-card {
+  .kpi-card,
+  .alpas-stat-card {
     min-width: 0 !important;
-    padding: 12px 8px !important;
+    padding: 12px 10px !important;
     border-radius: 16px !important;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)) !important;
     backdrop-filter: blur(20px) !important;
@@ -2716,37 +2740,50 @@ table.data-table {
     gap: 4px !important;
   }
 
+  .alpas-stat-header,
   .kpi-top {
     margin-bottom: 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
   }
 
   .stat-card-icon,
-  .kpi-icon {
-    width: 36px !important;
-    height: 36px !important;
+  .kpi-icon,
+  .alpas-stat-icon {
+    width: 34px !important;
+    height: 34px !important;
     border-radius: 10px !important;
   }
 
   .stat-card-icon svg,
-  .kpi-icon svg {
+  .kpi-icon svg,
+  .alpas-stat-icon svg {
     width: 18px !important;
     height: 18px !important;
   }
 
   .stat-card-value,
-  .kpi-value {
-    font-size: 20px !important;
+  .kpi-value,
+  .alpas-stat-value {
+    font-size: 22px !important;
     font-weight: 800 !important;
     line-height: 1.1 !important;
   }
 
   .stat-card-label,
-  .kpi-label {
-    font-size: 10px !important;
+  .kpi-label,
+  .alpas-stat-title {
+    font-size: 11px !important;
     line-height: 1.2 !important;
     text-transform: uppercase !important;
     overflow-wrap: anywhere !important;
     letter-spacing: 0.3px !important;
+  }
+
+  .alpas-stat-footer {
+    margin-top: 4px !important;
+    font-size: 10px !important;
   }
 
   .kpi-delta {
@@ -2757,22 +2794,26 @@ table.data-table {
     text-overflow: ellipsis !important;
   }
 
-  .dashboard-grid-2 {
-    grid-template-columns: 1fr;
-    gap: 14px;
-    margin-bottom: 20px;
+  .dashboard-grid-2,
+  .dashboard-charts-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    margin-bottom: 20px !important;
   }
 
   .ml-insights-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
   }
 
   .grid-2,
   .grid-3,
   .grid-4 {
-    grid-template-columns: 1fr;
-    gap: 14px;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
   }
 
   /* Analytics Page Responsive Stacking on Mobile */
@@ -2913,48 +2954,64 @@ table.data-table {
     padding: 10px;
   }
 
+  .quick-actions,
+  .quick-actions-grid,
+  .quick-actions-grid-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+
   .quick-action,
-  .quick-action-btn {
-    min-width: 130px !important;
+  .quick-action-btn,
+  .qa-btn {
     height: 40px !important;
-    padding: 8px 14px !important;
+    padding: 6px 8px !important;
     font-size: 11px !important;
   }
 
   .stats-grid,
-  .kpi-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 6px !important;
+  .kpi-grid,
+  .dashboard-stats,
+  .alpas-responsive-grid,
+  .breeding-readiness-grid,
+  .inv-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
   }
 
   .stat-card,
-  .kpi-card {
-    padding: 10px 6px !important;
+  .kpi-card,
+  .alpas-stat-card {
+    padding: 10px 8px !important;
     border-radius: 14px !important;
   }
 
   .stat-card-icon,
-  .kpi-icon {
-    width: 32px !important;
-    height: 32px !important;
+  .kpi-icon,
+  .alpas-stat-icon {
+    width: 30px !important;
+    height: 30px !important;
     border-radius: 8px !important;
   }
 
   .stat-card-icon svg,
-  .kpi-icon svg {
-    width: 16px !important;
-    height: 16px !important;
+  .kpi-icon svg,
+  .alpas-stat-icon svg {
+    width: 15px !important;
+    height: 15px !important;
   }
 
   .stat-card-value,
-  .kpi-value {
-    font-size: 17px !important;
+  .kpi-value,
+  .alpas-stat-value {
+    font-size: 18px !important;
     font-weight: 800 !important;
   }
 
   .stat-card-label,
-  .kpi-label {
-    font-size: 9px !important;
+  .kpi-label,
+  .alpas-stat-title {
+    font-size: 10px !important;
     line-height: 1.15 !important;
   }
 

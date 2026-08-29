@@ -285,7 +285,7 @@ export function BreedingPage() {
               description="Add female animals to see breeding recommendations."
             />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+            <div className="breeding-readiness-grid stats-grid" style={{ marginBottom: 0 }}>
               {readinessAssessments.map(({ animal, assessment }) => (
                 <div
                   key={animal.id}

@@ -369,7 +369,7 @@ export function SuperAdminPage() {
       {/* ── DASHBOARD TAB ── */}
       {tab === 'dashboard' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+          <div className="dashboard-stats stats-grid" style={{ marginBottom: 24 }}>
             <StatCard icon={<Users size={18} />} accentColor="blue" value={loading ? '—' : stats.totalUsers} label="Total Users" />
             <StatCard icon={<Crown size={18} />} accentColor="red" value={loading ? '—' : stats.superAdmins} label="Super Admins" />
             <StatCard icon={<ShieldCheck size={18} />} accentColor="orange" value={loading ? '—' : stats.sysAdmins} label="System Admins" />

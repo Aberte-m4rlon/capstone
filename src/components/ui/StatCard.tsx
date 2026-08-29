@@ -115,48 +115,16 @@ export function StatCard({
       padding="md"
       onClick={onClick}
       className={`alpas-stat-card ${className}`}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        minHeight: 120,
-      }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <span
-            style={{
-              display: 'block',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: 'var(--color-text-muted, #64748B)',
-              marginBottom: 4,
-            }}
-          >
+      <div className="alpas-stat-header">
+        <div className="alpas-stat-info">
+          <span className="alpas-stat-title">
             {displayTitle}
           </span>
           {loading ? (
-            <div
-              style={{
-                height: 36,
-                width: 70,
-                borderRadius: 8,
-                background: 'rgba(150, 150, 150, 0.15)',
-                animation: 'pulse 1.5s infinite',
-              }}
-            />
+            <div className="alpas-stat-loading" />
           ) : (
-            <div
-              style={{
-                fontSize: '28px',
-                fontWeight: 800,
-                lineHeight: 1.1,
-                color: 'var(--color-text-primary, #0F172A)',
-                letterSpacing: '-0.02em',
-              }}
-            >
+            <div className="alpas-stat-value">
               {value}
             </div>
           )}
@@ -164,16 +132,10 @@ export function StatCard({
 
         {icon && (
           <div
+            className="alpas-stat-icon"
             style={{
-              width: 42,
-              height: 42,
-              borderRadius: 'var(--radius-md, 14px)',
               background: iconBg,
               color: iconColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
             }}
           >
             {icon}
@@ -182,35 +144,17 @@ export function StatCard({
       </div>
 
       {(displayDesc || effectiveTrend) && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            marginTop: 10,
-            fontSize: '12px',
-            color: 'var(--color-text-secondary, #475569)',
-          }}
-        >
+        <div className="alpas-stat-footer">
           {effectiveTrend && (
             <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 2,
-                fontWeight: 700,
-                color: effectiveTrend.isPositive ? 'var(--color-success, #10B981)' : 'var(--color-danger, #EF4444)',
-                background: effectiveTrend.isPositive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                padding: '2px 6px',
-                borderRadius: 'var(--radius-xs, 6px)',
-              }}
+              className={`alpas-stat-trend ${effectiveTrend.isPositive ? 'trend-positive' : 'trend-negative'}`}
             >
               {effectiveTrend.isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
               {effectiveTrend.value}
             </span>
           )}
           {displayDesc && (
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span className="alpas-stat-desc">
               {displayDesc}
             </span>
           )}

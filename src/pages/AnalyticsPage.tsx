@@ -186,7 +186,7 @@ export function AnalyticsPage() {
         </Card>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
+          <div className="dashboard-charts-grid" style={{ marginBottom: 16 }}>
             <Card variant="glass" padding="md">
               <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Health Check Activity</div>
               {healthTrend.counts.every((c) => c === 0) ? (
@@ -245,7 +245,7 @@ export function AnalyticsPage() {
             </Card>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
+          <div className="dashboard-charts-grid" style={{ marginBottom: 16 }}>
             <Card variant="glass" padding="md">
               <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Weight Growth Trend</div>
               {weightTrend.avgWeights.every((w) => w === 0) ? (
@@ -304,7 +304,7 @@ export function AnalyticsPage() {
             </Card>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
+          <div className="dashboard-charts-grid" style={{ marginBottom: 16 }}>
             <Card variant="glass" padding="md">
               <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Breeding Overview</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>

@@ -45,6 +45,7 @@ export function ResponsiveGrid({
         gridTemplateColumns: getGridTemplateColumns(),
         gap: getGapValue(),
         width: '100%',
+        ['--grid-cols' as any]: cols === 'auto' ? undefined : cols,
         ...style,
       }}
       {...props}

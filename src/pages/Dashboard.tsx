@@ -26,6 +26,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { QuickActions } from '../components/ui/QuickActions';
 import { Card, CardHeader, CardContent } from '../components/ui/Card';
 import { StatCard } from '../components/ui/StatCard';
 import { Button } from '../components/ui/Button';
@@ -224,54 +225,20 @@ export function Dashboard() {
       </div>
 
       {/* Quick Actions Row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-          gap: 10,
-        }}
-      >
-        {[
-          { label: 'Add Animal', to: '/animals', icon: 'PawPrint' as const },
-          { label: 'Health Check', to: '/health', icon: 'HeartPulse' as const },
-          { label: 'Record Weight', to: '/weights', icon: 'Scale' as const },
-          { label: 'Breeding Record', to: '/breeding', icon: 'Heart' as const },
-          { label: 'Add Vaccine', to: '/vaccinations', icon: 'Syringe' as const },
-          { label: 'Add Inventory', to: '/inventory', icon: 'Package' as const },
-          { label: 'Record Feed', to: '/feed', icon: 'Wheat' as const },
-        ].map((a) => {
-          const Icon = Icons[a.icon];
-          return (
-            <Button
-              key={a.label}
-              variant="secondary"
-              size="sm"
-              onClick={() => navigate(a.to)}
-              leftIcon={<Plus size={14} />}
-              style={{
-                justifyContent: 'flex-start',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md, 14px)',
-                fontWeight: 600,
-                fontSize: '13px',
-              }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {a.label}
-              </span>
-            </Button>
-          );
-        })}
-      </div>
+      <QuickActions
+        actions={[
+          { label: 'Add Animal', to: '/animals', icon: <Plus size={14} className="qa-plus-icon" /> },
+          { label: 'Health Check', to: '/health', icon: <Plus size={14} className="qa-plus-icon" /> },
+          { label: 'Record Weight', to: '/weights', icon: <Plus size={14} className="qa-plus-icon" /> },
+          { label: 'Breeding Record', to: '/breeding', icon: <Plus size={14} className="qa-plus-icon" /> },
+          { label: 'Add Vaccine', to: '/vaccinations', icon: <Plus size={14} className="qa-plus-icon" /> },
+          { label: 'Add Inventory', to: '/inventory', icon: <Plus size={14} className="qa-plus-icon" /> },
+          { label: 'Record Feed', to: '/feed', icon: <Plus size={14} className="qa-plus-icon" /> },
+        ]}
+      />
 
       {/* KPI Stats Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 16,
-        }}
-      >
+      <div className="dashboard-stats stats-grid">
         {kpiCards.map((kpi) => (
           <StatCard
             key={kpi.title}
@@ -287,13 +254,7 @@ export function Dashboard() {
       </div>
 
       {/* Charts Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          gap: 20,
-        }}
-      >
+      <div className="dashboard-charts-grid">
         {/* Health Activity Chart */}
         <Card variant="default" padding="lg">
           <CardHeader
@@ -426,13 +387,7 @@ export function Dashboard() {
           }
         />
         <CardContent>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 14,
-            }}
-          >
+          <div className="ml-insights-grid">
             {/* Health Risk Model */}
             <div
               style={{
@@ -571,13 +526,7 @@ export function Dashboard() {
       </Card>
 
       {/* Recommendations & Priorities Row */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          gap: 20,
-        }}
-      >
+      <div className="dashboard-charts-grid">
         {/* Smart Recommendations */}
         <Card variant="default" padding="lg">
           <CardHeader

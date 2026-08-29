@@ -2415,25 +2415,85 @@ export function HealthPage() {
         /* ── RESPONSIVE MEDIA QUERIES ── */
         @media (max-width: 1024px) {
           .health-summary-grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
           }
           .quick-actions-grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
           }
           .trend-stat-row {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
           }
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
           .health-summary-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+            margin-bottom: 18px !important;
+          }
+          .health-stat-card {
+            padding: 12px 14px !important;
+            border-radius: 14px !important;
+            min-width: 0 !important;
+          }
+          .stat-value {
+            font-size: 22px !important;
+            margin-top: 4px !important;
+          }
+          .stat-label {
+            font-size: 11px !important;
+          }
+          .stat-subtext {
+            font-size: 10px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
           }
           .quick-actions-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+            margin-bottom: 18px !important;
+          }
+          .action-card {
+            padding: 12px 10px !important;
+            border-radius: 12px !important;
+            min-width: 0 !important;
+          }
+          .action-card-icon {
+            width: 34px !important;
+            height: 34px !important;
+            margin-bottom: 8px !important;
+          }
+          .action-card-title {
+            font-size: 12.5px !important;
+            line-height: 1.2 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+          }
+          .action-card-desc {
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2 !important;
+            -webkit-box-orient: vertical !important;
+            overflow: hidden !important;
+          }
+          .action-card-arrow {
+            display: none !important;
           }
           .trend-stat-row {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+          }
+          .trend-stat-box {
+            padding: 10px 12px !important;
+          }
+          .trend-box-val {
+            font-size: 18px !important;
           }
           .health-page-header {
             flex-direction: column;
@@ -2447,7 +2507,7 @@ export function HealthPage() {
             grid-template-columns: 1fr;
           }
           .vitals-row {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
           .history-filter-bar {
             flex-direction: column;

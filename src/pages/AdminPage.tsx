@@ -232,7 +232,7 @@ export function AdminPage() {
       )}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 20 }}>
+      <div className="dashboard-stats stats-grid" style={{ marginBottom: 20 }}>
         <StatCard
           icon={<Users size={20} />}
           accentColor="red"
