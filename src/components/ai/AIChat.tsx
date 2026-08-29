@@ -64,7 +64,7 @@ function renderMessageContent(text: string): ReactNode[] {
             fontSize: '13.5px',
             marginTop: 8,
             marginBottom: 4,
-            color: 'var(--color-text-primary, #0F172A)',
+            color: 'var(--color-text-primary, #1F2933)',
           }}
         >
           {t.replace(/^#+\s*/, '')}
@@ -74,7 +74,7 @@ function renderMessageContent(text: string): ReactNode[] {
     if (t.startsWith('- ') || t.startsWith('• ') || t.startsWith('* ')) {
       return (
         <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
-          <span style={{ color: 'var(--color-primary, #FF6A2A)', flexShrink: 0, marginTop: 3, fontSize: 10 }}>●</span>
+          <span style={{ color: 'var(--color-primary, #43A047)', flexShrink: 0, marginTop: 3, fontSize: 10 }}>●</span>
           <span style={{ lineHeight: 1.55, fontSize: '13px' }}>{fmt(t.slice(2))}</span>
         </div>
       );
@@ -82,7 +82,7 @@ function renderMessageContent(text: string): ReactNode[] {
     if (/^\d+\./.test(t)) {
       return (
         <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
-          <span style={{ color: 'var(--color-primary, #FF6A2A)', flexShrink: 0, fontWeight: 700, fontSize: 11, minWidth: 16 }}>
+          <span style={{ color: 'var(--color-primary, #43A047)', flexShrink: 0, fontWeight: 700, fontSize: 11, minWidth: 16 }}>
             {t.match(/^(\d+)\./)?.[1]}.
           </span>
           <span style={{ lineHeight: 1.55, fontSize: '13px' }}>{fmt(t.replace(/^\d+\.\s*/, ''))}</span>
@@ -121,7 +121,7 @@ function CopyBtn({ text }: { text: string }) {
         fontSize: 11,
       }}
     >
-      {copied ? <Check size={12} color="var(--color-primary, #FF6A2A)" /> : <Copy size={12} />}
+      {copied ? <Check size={12} color="var(--color-primary, #43A047)" /> : <Copy size={12} />}
     </button>
   );
 }
@@ -273,7 +273,7 @@ export function AIChat({
                   width: 28,
                   height: 28,
                   borderRadius: '50%',
-                  background: 'var(--color-primary-gradient, linear-gradient(135deg, #FF3B30 0%, #FF6A2A 100%))',
+                  background: 'var(--ai-gradient, linear-gradient(135deg, #43A047 0%, #42A5F5 100%))',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -283,10 +283,10 @@ export function AIChat({
                 <Bot size={16} />
               </div>
               <div>
-                <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-text-primary, #1F2933)' }}>
                   AlpasFarm AI
                 </div>
-                <div style={{ fontSize: '10.5px', color: 'var(--color-text-muted, #64748B)' }}>
+                <div style={{ fontSize: '10.5px', color: 'var(--color-text-muted, #667085)' }}>
                   {AI_MODE} · {MYAI_MODEL}
                 </div>
               </div>
@@ -335,7 +335,7 @@ export function AIChat({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted, #64748B)' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted, #667085)' }}>
                 Conversations
               </span>
               <Button
@@ -364,8 +364,8 @@ export function AIChat({
                   justifyContent: 'space-between',
                   padding: '6px 8px',
                   borderRadius: 'var(--radius-sm, 8px)',
-                  background: c.id === activeId ? 'rgba(255, 106, 42, 0.12)' : 'transparent',
-                  color: c.id === activeId ? 'var(--color-primary, #FF6A2A)' : 'var(--color-text-primary, #0F172A)',
+                  background: c.id === activeId ? 'rgba(67, 160, 71, 0.12)' : 'transparent',
+                  color: c.id === activeId ? 'var(--color-primary, #2E7D32)' : 'var(--color-text-primary, #1F2933)',
                   fontSize: '12px',
                   fontWeight: c.id === activeId ? 700 : 500,
                   cursor: 'pointer',
@@ -415,8 +415,8 @@ export function AIChat({
                   width: 44,
                   height: 44,
                   borderRadius: '50%',
-                  background: 'rgba(255, 106, 42, 0.12)',
-                  color: 'var(--color-primary, #FF6A2A)',
+                  background: 'rgba(67, 160, 71, 0.12)',
+                  color: 'var(--color-primary, #2E7D32)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -425,10 +425,10 @@ export function AIChat({
               >
                 <Sparkles size={20} />
               </div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', fontWeight: 700, color: 'var(--color-text-primary, #1F2933)' }}>
                 How can I assist your farm today?
               </h4>
-              <p style={{ margin: '0 0 16px 0', fontSize: '12.5px', color: 'var(--color-text-muted, #64748B)' }}>
+              <p style={{ margin: '0 0 16px 0', fontSize: '12.5px', color: 'var(--color-text-muted, #667085)' }}>
                 Ask about herd health, feeding plans, overdue vaccines, or stock.
               </p>
 
@@ -439,8 +439,8 @@ export function AIChat({
                     key={q}
                     onClick={() => onSendMessage(q)}
                     style={{
-                      background: 'var(--color-surface, rgba(148, 163, 184, 0.08))',
-                      border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
+                      background: 'var(--color-surface, #F0F4F1)',
+                      border: '1px solid var(--color-border, #E5EDE6)',
                       borderRadius: 'var(--radius-pill, 999px)',
                       padding: '5px 10px',
                       fontSize: '11.5px',
@@ -476,10 +476,10 @@ export function AIChat({
                       : '18px 18px 18px 4px',
                   background:
                     m.role === 'user'
-                      ? 'var(--color-primary-gradient, linear-gradient(135deg, #FF3B30 0%, #FF6A2A 100%))'
-                      : 'var(--color-surface-hover, rgba(148, 163, 184, 0.12))',
-                  color: m.role === 'user' ? '#FFFFFF' : 'var(--color-text-primary, #0F172A)',
-                  boxShadow: m.role === 'user' ? '0 4px 12px rgba(255, 106, 42, 0.25)' : 'none',
+                      ? 'var(--color-primary-gradient, linear-gradient(135deg, #43A047 0%, #2E7D32 100%))'
+                      : 'var(--color-surface-hover, #F0F4F1)',
+                  color: m.role === 'user' ? '#FFFFFF' : 'var(--color-text-primary, #1F2933)',
+                  boxShadow: m.role === 'user' ? '0 4px 12px rgba(46, 125, 50, 0.25)' : 'none',
                   fontSize: '13px',
                 }}
               >
@@ -501,8 +501,8 @@ export function AIChat({
                   maxWidth: '85%',
                   padding: '10px 14px',
                   borderRadius: '18px 18px 18px 4px',
-                  background: 'var(--color-surface-hover, rgba(148, 163, 184, 0.12))',
-                  color: 'var(--color-text-primary, #0F172A)',
+                  background: 'var(--color-surface-hover, #F0F4F1)',
+                  color: 'var(--color-text-primary, #1F2933)',
                   fontSize: '13px',
                 }}
               >
@@ -518,7 +518,7 @@ export function AIChat({
         <div
           style={{
             padding: '10px 14px',
-            borderTop: '1px solid var(--color-border-light, rgba(226, 232, 240, 0.8))',
+            borderTop: '1px solid var(--color-border-light, #E5EDE6)',
             background: 'var(--color-surface, #FFFFFF)',
             display: 'flex',
             alignItems: 'flex-end',
@@ -543,10 +543,10 @@ export function AIChat({
               padding: '8px 12px',
               fontSize: '13px',
               fontFamily: 'inherit',
-              borderRadius: 'var(--radius-md, 14px)',
-              background: 'var(--color-surface-hover, rgba(148, 163, 184, 0.08))',
-              border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
-              color: 'var(--color-text-primary, #0F172A)',
+              borderRadius: 'var(--radius-md, 12px)',
+              background: 'var(--color-surface-hover, #F8FAF8)',
+              border: '1px solid var(--color-border, #DDE7DF)',
+              color: 'var(--color-text-primary, #1F2933)',
               outline: 'none',
               resize: 'none',
             }}

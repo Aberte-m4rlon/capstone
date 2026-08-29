@@ -297,14 +297,14 @@ export function AppHeader({
                             width: 7,
                             height: 7,
                             borderRadius: '50%',
-                            background: 'var(--color-primary, #FF6A2A)',
+                            background: 'var(--color-primary, #43A047)',
                           }}
                         />
                       )}
                     </div>
                     <span style={{ fontWeight: 600, fontSize: 12 }}>{n.title}</span>
                     {n.description && (
-                      <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)' }}>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #667085)' }}>
                         {n.description}
                       </span>
                     )}
@@ -345,7 +345,7 @@ export function AppHeader({
           {profileOpen && (
             <div className="profile-dropdown">
               <div className="pd-header">
-                <p style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text-primary, #0F172A)', wordBreak: 'break-all' }}>
+                <p style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text-primary, #1F2933)', wordBreak: 'break-all' }}>
                   {user?.email}
                 </p>
                 <span
@@ -362,13 +362,13 @@ export function AppHeader({
                       ? 'rgba(139,92,246,0.15)'
                       : isAdmin
                       ? 'rgba(217,45,32,0.12)'
-                      : 'rgba(255,106,42,0.12)',
-                    color: isSuperAdmin ? '#7C3AED' : isAdmin ? '#D92D20' : '#FF6A2A',
+                      : '#E8F5E9',
+                    color: isSuperAdmin ? '#7C3AED' : isAdmin ? '#D92D20' : '#2E7D32',
                     border: isSuperAdmin
                       ? '1px solid rgba(139,92,246,0.30)'
                       : isAdmin
                       ? '1px solid rgba(217,45,32,0.25)'
-                      : '1px solid rgba(255,106,42,0.25)',
+                      : '1px solid rgba(67,160,71,0.25)',
                   }}
                 >
                   {isSuperAdmin ? 'Super Administrator' : isAdmin ? 'System Administrator' : 'Farm Manager'}

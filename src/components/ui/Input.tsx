@@ -5,7 +5,7 @@ import {
   type SelectHTMLAttributes,
   type ReactNode,
 } from 'react';
-import { Search, X, Calendar } from 'lucide-react';
+import { Search, X, Calendar, ChevronDown } from 'lucide-react';
 
 // ── Base Form Field Wrapper ──────────────────────────────────────────────────
 export interface FormFieldProps {
@@ -41,7 +41,7 @@ export function FormField({
             gap: 4,
             fontSize: '13px',
             fontWeight: 600,
-            color: 'var(--color-text-primary, #0F172A)',
+            color: 'var(--color-text-primary, #1F2933)',
             marginBottom: 6,
           }}
         >
@@ -68,7 +68,7 @@ export function FormField({
           style={{
             margin: '4px 0 0 0',
             fontSize: '12px',
-            color: 'var(--color-text-muted, #64748B)',
+            color: 'var(--color-text-muted, #667085)',
           }}
         >
           {displayHint}
@@ -119,7 +119,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               left: 14,
               display: 'flex',
               alignItems: 'center',
-              color: 'var(--color-text-muted, #64748B)',
+              color: 'var(--color-text-muted, #667085)',
               pointerEvents: 'none',
               zIndex: 1,
             }}
@@ -138,10 +138,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             padding: `0 ${rightIcon ? '40px' : '14px'} 0 ${leftIcon ? '40px' : '14px'}`,
             fontSize: '13.5px',
             fontFamily: 'inherit',
-            color: 'var(--color-text-primary, #0F172A)',
+            color: 'var(--color-text-primary, #1F2933)',
             background: 'var(--color-surface, #FFFFFF)',
-            border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--color-border, rgba(226, 232, 240, 0.95))'}`,
-            borderRadius: 'var(--radius-md, 14px)',
+            border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--color-border, #DDE7DF)'}`,
+            borderRadius: 'var(--radius-md, 12px)',
             outline: 'none',
             transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
             opacity: disabled ? 0.6 : 1,
@@ -158,7 +158,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               right: 14,
               display: 'flex',
               alignItems: 'center',
-              color: 'var(--color-text-muted, #64748B)',
+              color: 'var(--color-text-muted, #667085)',
               zIndex: 1,
             }}
           >
@@ -209,7 +209,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted, #667085)',
                 display: 'flex',
                 alignItems: 'center',
                 padding: 2,
@@ -266,10 +266,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           padding: '10px 14px',
           fontSize: '13.5px',
           fontFamily: 'inherit',
-          color: 'var(--color-text-primary, #0F172A)',
+          color: 'var(--color-text-primary, #1F2933)',
           background: 'var(--color-surface, #FFFFFF)',
-          border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--color-border, rgba(226, 232, 240, 0.95))'}`,
-          borderRadius: 'var(--radius-md, 14px)',
+          border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--color-border, #DDE7DF)'}`,
+          borderRadius: 'var(--radius-md, 12px)',
           outline: 'none',
           transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
           opacity: disabled ? 0.6 : 1,
@@ -318,10 +318,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             padding: '0 36px 0 14px',
             fontSize: '13.5px',
             fontFamily: 'inherit',
-            color: 'var(--color-text-primary, #0F172A)',
+            color: 'var(--color-text-primary, #1F2933)',
             background: 'var(--color-surface, #FFFFFF)',
-            border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--color-border, rgba(226, 232, 240, 0.95))'}`,
-            borderRadius: 'var(--radius-md, 14px)',
+            border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--color-border, #DDE7DF)'}`,
+            borderRadius: 'var(--radius-md, 12px)',
             outline: 'none',
             appearance: 'none',
             WebkitAppearance: 'none',
@@ -348,11 +348,13 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             top: '50%',
             transform: 'translateY(-50%)',
             pointerEvents: 'none',
-            color: 'var(--color-text-muted, #64748B)',
-            fontSize: '11px',
+            color: 'var(--color-text-muted, #667085)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          ▼
+          <ChevronDown size={14} />
         </span>
       </div>
     );

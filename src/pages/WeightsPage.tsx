@@ -290,11 +290,11 @@ export function WeightsPage() {
 
       {/* ML Growth Prediction */}
       {mlGrowth && (
-        <Card variant="default" style={{ borderLeft: '4px solid var(--color-primary, #FF6A2A)' }}>
+        <Card variant="default" style={{ borderLeft: '4px solid var(--color-primary, #43A047)' }}>
           <CardContent>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-              <Brain size={18} color="#FF6A2A" />
-              <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)' }}>
+              <Brain size={18} color="#43A047" />
+              <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #1F2933)' }}>
                 ML Growth Prediction — Polynomial Regression
               </span>
               <Badge variant="warning" size="sm">
@@ -306,41 +306,41 @@ export function WeightsPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
               <div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                   Projected Daily Gain
                 </div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.projectedDailyGain > 0 ? 'var(--color-success, #16A34A)' : 'var(--color-danger, #EF4444)' }}>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.projectedDailyGain > 0 ? 'var(--color-success, #2E7D32)' : 'var(--color-danger, #EF4444)' }}>
                   {mlGrowth.projectedDailyGain} kg/day
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                   30-Day Projection
                 </div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #1F2933)' }}>
                   {mlGrowth.projectedWeights[Math.min(4, mlGrowth.projectedWeights.length - 1)]?.weight ?? '—'} kg
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                   Market Ready Date
                 </div>
-                <div style={{ fontSize: '16px', fontWeight: 700, paddingTop: 4, color: 'var(--color-primary, #FF6A2A)' }}>
+                <div style={{ fontSize: '16px', fontWeight: 700, paddingTop: 4, color: 'var(--color-primary, #43A047)' }}>
                   {mlGrowth.marketReadyDate ?? 'Already at target'}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                   Model Fit (R²)
                 </div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.rSquared >= 0.7 ? 'var(--color-success, #16A34A)' : mlGrowth.rSquared >= 0.4 ? 'var(--color-warning, #F59E0B)' : 'var(--color-danger, #EF4444)' }}>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.rSquared >= 0.7 ? 'var(--color-success, #2E7D32)' : mlGrowth.rSquared >= 0.4 ? 'var(--color-warning, #F59E0B)' : 'var(--color-danger, #EF4444)' }}>
                   {mlGrowth.rSquared.toFixed(3)}
                 </div>
               </div>
             </div>
             {mlGrowth.projectedWeights.length > 0 && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary, #475569)' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary, #667085)' }}>
                   Projected Growth Curve with Confidence Interval
                 </div>
                 <Line
@@ -350,8 +350,8 @@ export function WeightsPage() {
                       {
                         label: 'Projected Weight',
                         data: mlGrowth.projectedWeights.map((p) => p.weight),
-                        borderColor: '#FF6A2A',
-                        backgroundColor: 'rgba(255,106,42,0.1)',
+                        borderColor: '#43A047',
+                        backgroundColor: 'rgba(67, 160, 71, 0.1)',
                         fill: false,
                         tension: 0.3,
                         pointRadius: 2,

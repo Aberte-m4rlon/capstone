@@ -27,13 +27,13 @@ export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasL
           width: 40,
           height: 40,
           borderRadius: '12px',
-          background: 'linear-gradient(135deg, #FF7A00 0%, #FF3D5A 100%)',
+          background: 'linear-gradient(135deg, #43A047 0%, #2E7D32 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#FFFFFF',
           flexShrink: 0,
-          boxShadow: '0 4px 14px rgba(255, 122, 0, 0.35)',
+          boxShadow: '0 4px 14px rgba(67, 160, 71, 0.35)',
         }}
       >
         <svg
@@ -65,18 +65,18 @@ export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasL
               fontWeight: 900,
               letterSpacing: '-0.02em',
               lineHeight: 1.15,
-              color: 'var(--color-text-primary, #0F172A)',
+              color: 'var(--color-text-primary, #1F2933)',
             }}
           >
-            <span style={{ color: '#FF7A00' }}>ALPAS</span>
-            <span style={{ color: 'var(--color-text-primary, #0F172A)' }}>FARM</span>
+            <span style={{ color: '#43A047' }}>ALPAS</span>
+            <span style={{ color: 'var(--color-text-primary, #1F2933)' }}>FARM</span>
           </span>
           <span
             style={{
               fontSize: '11px',
               fontWeight: 600,
               letterSpacing: '0.01em',
-              color: 'var(--color-text-secondary, #64748B)',
+              color: 'var(--color-text-secondary, #667085)',
               marginTop: 2,
               whiteSpace: 'nowrap',
               overflow: 'hidden',

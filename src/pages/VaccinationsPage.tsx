@@ -224,13 +224,13 @@ export function VaccinationsPage() {
               width: 48,
               height: 48,
               borderRadius: 16,
-              background: 'linear-gradient(135deg, rgba(255, 106, 42, 0.22), rgba(255, 59, 48, 0.10))',
-              border: '1px solid rgba(255, 106, 42, 0.35)',
-              boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 8px 20px rgba(255, 106, 42, 0.16)',
+              background: '#E8F5E9',
+              border: '1px solid rgba(67, 160, 71, 0.25)',
+              boxShadow: '0 4px 12px rgba(46, 125, 50, 0.12)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#FF6A2A',
+              color: '#2E7D32',
             }}
           >
             <Syringe size={24} />
@@ -515,14 +515,14 @@ export function VaccinationsPage() {
                 width: 72,
                 height: 72,
                 borderRadius: 22,
-                background: 'linear-gradient(135deg, rgba(255, 106, 42, 0.22), rgba(255, 59, 48, 0.10))',
-                border: '1px solid rgba(255, 106, 42, 0.35)',
-                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 10px 30px rgba(255, 106, 42, 0.20)',
+                background: '#E8F5E9',
+                border: '1px solid rgba(67, 160, 71, 0.25)',
+                boxShadow: '0 8px 24px rgba(46, 125, 50, 0.12)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 18,
-                color: '#FF6A2A',
+                color: '#2E7D32',
               }}
             >
               <Syringe size={34} />
@@ -541,9 +541,9 @@ export function VaccinationsPage() {
               style={{
                 padding: '10px 24px',
                 borderRadius: 999,
-                background: 'linear-gradient(135deg, #FF3B30, #FF6A2A)',
+                background: 'linear-gradient(135deg, #43A047, #2E7D32)',
                 border: '1px solid rgba(255, 255, 255, 0.30)',
-                boxShadow: '0 8px 24px rgba(255, 80, 30, 0.25)',
+                boxShadow: '0 4px 14px rgba(46, 125, 50, 0.25)',
                 color: '#FFFFFF',
                 fontWeight: 700,
                 fontSize: '13px',

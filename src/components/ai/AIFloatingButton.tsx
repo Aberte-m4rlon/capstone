@@ -47,7 +47,7 @@ export interface AIFloatingButtonProps {
 export function AIFloatingButton({
   isOpen,
   onToggle,
-  statusDotColor = '#FF6A2A',
+  statusDotColor = '#43A047',
   icon,
   badgeCount,
 }: AIFloatingButtonProps) {
@@ -165,10 +165,10 @@ export function AIFloatingButton({
           borderRadius: '50%',
           border: 'none',
           cursor: dragging ? 'grabbing' : 'pointer',
-          background: 'var(--color-primary-gradient, linear-gradient(135deg, #FF3B30 0%, #FF6A2A 100%))',
+          background: 'var(--ai-gradient, linear-gradient(135deg, #43A047 0%, #42A5F5 100%))',
           boxShadow: isOpen
-            ? '0 0 0 3px rgba(255, 106, 42, 0.4), var(--shadow-floating, 0 12px 32px rgba(255, 106, 42, 0.4))'
-            : 'var(--shadow-floating, 0 12px 32px rgba(255, 106, 42, 0.35))',
+            ? '0 0 0 3px rgba(67, 160, 71, 0.4), 0 12px 32px rgba(67, 160, 71, 0.4)'
+            : '0 12px 32px rgba(67, 160, 71, 0.35)',
           color: '#FFFFFF',
           display: 'flex',
           alignItems: 'center',

@@ -45,9 +45,9 @@ export function EmptyState({
         style={{
           width: 56,
           height: 56,
-          borderRadius: 'var(--radius-lg, 20px)',
-          background: 'rgba(255, 106, 42, 0.10)',
-          color: 'var(--color-primary, #FF6A2A)',
+          borderRadius: 'var(--radius-lg, 16px)',
+          background: '#E8F5E9',
+          color: '#2E7D32',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -62,7 +62,7 @@ export function EmptyState({
           margin: '0 0 6px 0',
           fontSize: '16px',
           fontWeight: 700,
-          color: 'var(--color-text-primary, #0F172A)',
+          color: 'var(--color-text-primary, #1F2933)',
           letterSpacing: '-0.01em',
         }}
       >
@@ -74,7 +74,7 @@ export function EmptyState({
           style={{
             margin: '0 0 20px 0',
             fontSize: '13.5px',
-            color: 'var(--color-text-muted, #64748B)',
+            color: 'var(--color-text-muted, #667085)',
             maxWidth: '420px',
             lineHeight: 1.5,
           }}

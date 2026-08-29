@@ -46,27 +46,27 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       switch (variant) {
         case 'primary':
           return {
-            background: 'var(--color-primary-gradient, linear-gradient(135deg, #FF3B30 0%, #FF6A2A 100%))',
+            background: 'var(--color-primary-gradient, linear-gradient(135deg, #43A047 0%, #2E7D32 100%))',
             color: '#FFFFFF',
             border: 'none',
-            boxShadow: '0 4px 14px rgba(255, 106, 42, 0.35)',
+            boxShadow: '0 4px 14px rgba(67, 160, 71, 0.35)',
           };
         case 'secondary':
           return {
-            background: 'var(--color-surface, rgba(255, 255, 255, 0.08))',
-            color: 'var(--color-text-primary, #F8FAFC)',
-            border: '1px solid var(--color-border, rgba(255, 255, 255, 0.16))',
+            background: 'var(--color-surface, #FFFFFF)',
+            color: 'var(--color-text-primary, #1F2933)',
+            border: '1px solid var(--color-border, #DDE7DF)',
           };
         case 'outline':
           return {
             background: 'transparent',
-            color: 'var(--color-primary, #FF6A2A)',
-            border: '1.5px solid var(--color-primary, #FF6A2A)',
+            color: 'var(--color-primary, #43A047)',
+            border: '1.5px solid var(--color-primary, #43A047)',
           };
         case 'ghost':
           return {
             background: 'transparent',
-            color: 'var(--color-text-secondary, #CBD8E6)',
+            color: 'var(--color-text-secondary, #667085)',
             border: 'none',
           };
         case 'danger':
@@ -78,10 +78,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           };
         case 'success':
           return {
-            background: 'var(--color-success, #10B981)',
+            background: 'var(--color-success, #2E7D32)',
             color: '#FFFFFF',
             border: 'none',
-            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.30)',
+            boxShadow: '0 4px 14px rgba(46, 125, 50, 0.30)',
           };
         case 'warning':
           return {
@@ -92,19 +92,19 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           };
         case 'icon':
           return {
-            background: 'var(--color-surface, rgba(255, 255, 255, 0.08))',
-            color: 'var(--color-text-primary, #F8FAFC)',
-            border: '1px solid var(--color-border, rgba(255, 255, 255, 0.16))',
+            background: 'var(--color-surface, #FFFFFF)',
+            color: 'var(--color-text-primary, #1F2933)',
+            border: '1px solid var(--color-border, #DDE7DF)',
             padding: 0,
             borderRadius: 'var(--radius-md, 14px)',
           };
         case 'floating':
           return {
-            background: 'var(--color-primary-gradient, linear-gradient(135deg, #FF3B30 0%, #FF6A2A 100%))',
+            background: 'var(--color-primary-gradient, linear-gradient(135deg, #43A047 0%, #2E7D32 100%))',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: '50%',
-            boxShadow: 'var(--shadow-floating, 0 12px 32px rgba(255, 106, 42, 0.35))',
+            boxShadow: 'var(--shadow-floating, 0 12px 32px rgba(67, 160, 71, 0.35))',
             padding: 0,
           };
         default:

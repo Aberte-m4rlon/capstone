@@ -157,9 +157,9 @@ export function CardHeader({
               justifyContent: 'center',
               width: 36,
               height: 36,
-              borderRadius: 'var(--radius-md, 14px)',
-              background: 'rgba(255, 106, 42, 0.12)',
-              color: 'var(--color-primary, #FF6A2A)',
+              borderRadius: 'var(--radius-md, 12px)',
+              background: '#E8F5E9',
+              color: '#2E7D32',
               flexShrink: 0,
             }}
           >
@@ -173,7 +173,7 @@ export function CardHeader({
                 margin: 0,
                 fontSize: '16px',
                 fontWeight: 700,
-                color: 'var(--color-text-primary, #0F172A)',
+                color: 'var(--color-text-primary, #1F2933)',
                 lineHeight: 1.3,
                 letterSpacing: '-0.01em',
               }}
@@ -186,7 +186,7 @@ export function CardHeader({
               style={{
                 margin: '2px 0 0 0',
                 fontSize: '12.5px',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted, #667085)',
                 lineHeight: 1.4,
               }}
             >

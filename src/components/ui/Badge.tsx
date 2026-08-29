@@ -24,46 +24,46 @@ export function Badge({
     switch (variant) {
       case 'primary':
         return {
-          bg: 'rgba(255, 106, 42, 0.12)',
-          text: 'var(--color-primary, #FF6A2A)',
-          border: 'rgba(255, 106, 42, 0.28)',
-          dotColor: 'var(--color-primary, #FF6A2A)',
+          bg: '#E8F5E9',
+          text: '#2E7D32',
+          border: 'rgba(67, 160, 71, 0.30)',
+          dotColor: '#43A047',
         };
       case 'success':
         return {
-          bg: 'rgba(16, 185, 129, 0.12)',
-          text: 'var(--color-success, #10B981)',
-          border: 'rgba(16, 185, 129, 0.28)',
-          dotColor: 'var(--color-success, #10B981)',
+          bg: '#E8F5E9',
+          text: '#2E7D32',
+          border: 'rgba(67, 160, 71, 0.30)',
+          dotColor: '#43A047',
         };
       case 'warning':
         return {
           bg: 'rgba(245, 158, 11, 0.12)',
-          text: 'var(--color-warning, #F59E0B)',
+          text: '#D97706',
           border: 'rgba(245, 158, 11, 0.28)',
-          dotColor: 'var(--color-warning, #F59E0B)',
+          dotColor: '#F59E0B',
         };
       case 'danger':
         return {
           bg: 'rgba(239, 68, 68, 0.12)',
-          text: 'var(--color-danger, #EF4444)',
+          text: '#DC2626',
           border: 'rgba(239, 68, 68, 0.28)',
-          dotColor: 'var(--color-danger, #EF4444)',
+          dotColor: '#EF4444',
         };
       case 'info':
         return {
           bg: 'rgba(59, 130, 246, 0.12)',
-          text: 'var(--color-info, #3B82F6)',
+          text: '#2563EB',
           border: 'rgba(59, 130, 246, 0.28)',
-          dotColor: 'var(--color-info, #3B82F6)',
+          dotColor: '#3B82F6',
         };
       case 'default':
       case 'neutral':
       default:
         return {
-          bg: 'var(--color-surface-hover, rgba(241, 245, 249, 0.9))',
-          text: 'var(--color-text-secondary, #475569)',
-          border: 'var(--color-border, #E2E8F0)',
+          bg: 'var(--color-surface-hover, #F0F4F1)',
+          text: 'var(--color-text-secondary, #667085)',
+          border: 'var(--color-border, #E5EDE6)',
           dotColor: 'var(--color-text-muted, #94A3B8)',
         };
     }

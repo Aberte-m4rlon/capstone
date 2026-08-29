@@ -69,9 +69,9 @@ export function StatCard({
     switch (effectiveStatus) {
       case 'primary':
         return {
-          iconBg: 'rgba(255, 106, 42, 0.14)',
-          iconColor: 'var(--color-primary, #FF6A2A)',
-          badgeBorder: 'rgba(255, 106, 42, 0.25)',
+          iconBg: '#E8F5E9',
+          iconColor: 'var(--color-primary, #43A047)',
+          badgeBorder: 'rgba(67, 160, 71, 0.25)',
         };
       case 'danger':
         return {
@@ -87,9 +87,9 @@ export function StatCard({
         };
       case 'success':
         return {
-          iconBg: 'rgba(16, 185, 129, 0.14)',
-          iconColor: 'var(--color-success, #10B981)',
-          badgeBorder: 'rgba(16, 185, 129, 0.25)',
+          iconBg: '#E8F5E9',
+          iconColor: 'var(--color-success, #2E7D32)',
+          badgeBorder: 'rgba(46, 125, 50, 0.25)',
         };
       case 'info':
         return {
@@ -100,9 +100,9 @@ export function StatCard({
       case 'default':
       default:
         return {
-          iconBg: 'rgba(255, 106, 42, 0.10)',
-          iconColor: 'var(--color-primary, #FF6A2A)',
-          badgeBorder: 'var(--color-border, rgba(226, 232, 240, 0.8))',
+          iconBg: '#E8F5E9',
+          iconColor: 'var(--color-primary, #43A047)',
+          badgeBorder: 'var(--color-border, #E5EDE6)',
         };
     }
   };

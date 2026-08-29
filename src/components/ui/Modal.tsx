@@ -179,8 +179,8 @@ export function ModalHeader({
               width: 36,
               height: 36,
               borderRadius: 'var(--radius-sm, 10px)',
-              background: 'rgba(255, 106, 42, 0.12)',
-              color: 'var(--color-primary, #FF6A2A)',
+              background: '#E8F5E9',
+              color: '#2E7D32',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -196,7 +196,7 @@ export function ModalHeader({
               margin: 0,
               fontSize: '17px',
               fontWeight: 700,
-              color: 'var(--color-text-primary, #0F172A)',
+              color: 'var(--color-text-primary, #1F2933)',
               letterSpacing: '-0.01em',
             }}
           >
@@ -207,7 +207,8 @@ export function ModalHeader({
               style={{
                 margin: '2px 0 0 0',
                 fontSize: '12.5px',
-                color: 'var(--color-text-muted, #64748B)',
+                color: 'var(--color-text-muted, #667085)',
+                lineHeight: 1.4,
               }}
             >
               {subtitle}

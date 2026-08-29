@@ -343,11 +343,11 @@ export function FeedPage() {
 
           {/* ML Feed Requirement Forecast */}
           {activeAnimals.length > 0 && (
-            <Card variant="default" style={{ borderLeft: '4px solid var(--color-primary, #FF6A2A)' }}>
+            <Card variant="default" style={{ borderLeft: '4px solid var(--color-primary, #43A047)' }}>
               <CardContent>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <Brain size={18} color="#FF6A2A" />
-                  <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)' }}>
+                  <Brain size={18} color="#43A047" />
+                  <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #1F2933)' }}>
                     ML Feed Requirement Forecast — 30-Day Projection
                   </span>
                   <Badge variant="primary" size="sm">
@@ -356,18 +356,18 @@ export function FeedPage() {
                 </div>
                 <div className="dashboard-stats stats-grid" style={{ marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                       Daily Herd Requirement
                     </div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #1F2933)' }}>
                       {feedForecast.dailyHerdRequirementKg} kg/day
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
                       30-Day Projected Total
                     </div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-primary, #FF6A2A)' }}>
+                    <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-primary, #43A047)' }}>
                       {feedForecast.projectedMonthlyKg} kg
                     </div>
                   </div>
@@ -509,9 +509,9 @@ export function FeedPage() {
                           <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Trend:</span>
                           <strong>{forecast.trend}</strong>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--color-border, #E2E8F0)', paddingTop: 4, marginTop: 2 }}>
-                          <span style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>Next Month Forecast:</span>
-                          <strong style={{ color: 'var(--color-primary, #FF6A2A)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--color-border, #E5EDE6)', paddingTop: 4, marginTop: 2 }}>
+                          <span style={{ color: 'var(--color-primary, #43A047)', fontWeight: 600 }}>Next Month Forecast:</span>
+                          <strong style={{ color: 'var(--color-primary, #43A047)' }}>
                             {forecast.forecastNextMonth !== null ? `${forecast.forecastNextMonth} L/day` : 'Need more data'}
                           </strong>
                         </div>
@@ -555,10 +555,10 @@ export function FeedPage() {
                       {filteredMilk.map((m) => (
                         <tr key={m.id}>
                           <td>{formatDate(m.record_date)}</td>
-                          <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                          <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #1F2933)' }}>
                             {animalName(m.animal_id)}
                           </td>
-                          <td style={{ fontWeight: 600, color: 'var(--color-primary, #FF6A2A)' }}>
+                          <td style={{ fontWeight: 600, color: 'var(--color-primary, #43A047)' }}>
                             {m.yield_litres} L
                           </td>
                           <td>

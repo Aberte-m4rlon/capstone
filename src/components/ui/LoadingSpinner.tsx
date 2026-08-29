@@ -16,7 +16,7 @@ export function LoadingSpinner({
   text,
   fullPage = false,
   fullScreen = false,
-  color = 'var(--color-primary, #FF6A2A)',
+  color = 'var(--color-primary, #43A047)',
   className = '',
 }: LoadingSpinnerProps) {
   const displayMsg = message ?? text;
@@ -55,7 +55,7 @@ export function LoadingSpinner({
             margin: 0,
             fontSize: '13px',
             fontWeight: 500,
-            color: 'var(--color-text-muted, #64748B)',
+            color: 'var(--color-text-muted, #667085)',
           }}
         >
           {displayMsg}
@@ -70,7 +70,7 @@ export function LoadingSpinner({
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'var(--color-background, #F4F7FB)',
+          background: 'var(--color-background, #F5F8F5)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
