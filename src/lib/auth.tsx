@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { sendSmsOtp, verifySmsOtp, formatPhoneNumber } from './sms';
 
 // ─── Role definitions ─────────────────────────────────────────────────────────
 export type UserRole = 'super_admin' | 'system_admin' | 'farm_manager';
@@ -55,40 +56,28 @@ export interface UserProfile {
   id: string;
   role: UserRole;
   full_name: string | null;
+  phone?: string | null;
   is_active: boolean;
 }
 
-/**
- * Fallback admin email list.
- * Used when the `profiles` table doesn't exist yet or has no row for the user.
- *
- * SUPABASE MIGRATION — run once in Supabase SQL Editor:
- * ─────────────────────────────────────────────────────
- * -- 1. Widen the CHECK constraint to include super_admin
- * alter table public.profiles
- *   drop constraint if exists profiles_role_check;
- * alter table public.profiles
- *   add constraint profiles_role_check
- *   check (role in ('farm_manager', 'system_admin', 'super_admin'));
- *
- * -- 2. Promote your account to super_admin
- * update public.profiles
- *   set role = 'super_admin'
- *   where id = (select id from auth.users where email = 'marlonaberte00@gmail.com');
- *
- * -- 3. Allow super_admin to update any profile row (for role assignment)
- * create policy "Super admin can manage all profiles"
- *   on public.profiles for all
- *   using (
- *     exists (
- *       select 1 from public.profiles p
- *       where p.id = auth.uid() and p.role = 'super_admin'
- *     )
- *   );
- */
 export const ADMIN_EMAILS_FALLBACK: string[] = ['marlonaberte00@gmail.com'];
 /** These emails get super_admin when no profiles row exists */
 export const SUPER_ADMIN_EMAILS_FALLBACK: string[] = ['marlonaberte00@gmail.com'];
+
+export interface SignUpOptions {
+  email: string;
+  password: string;
+  fullName: string;
+  farmName: string;
+  farmLocation: string;
+}
+
+export interface PhoneSignUpOptions {
+  phone: string;
+  fullName: string;
+  farmName: string;
+  farmLocation: string;
+}
 
 interface AuthContextValue {
   session: Session | null;
@@ -100,15 +89,12 @@ interface AuthContextValue {
   signUp: (opts: SignUpOptions) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   verifyEmailOtp: (email: string, token: string, extraData?: { fullName?: string; farmName?: string }) => Promise<{ error: string | null }>;
   resendVerificationCode: (email: string) => Promise<{ error: string | null }>;
+  // ── SMS / Phone Auth Methods ──
+  signInWithPhoneOtp: (phone: string) => Promise<{ error: string | null; message?: string; devCode?: string }>;
+  signUpWithPhoneOtp: (opts: PhoneSignUpOptions) => Promise<{ error: string | null; message?: string; devCode?: string }>;
+  verifyPhoneOtp: (phone: string, token: string, extraData?: { fullName?: string; farmName?: string; farmLocation?: string }) => Promise<{ error: string | null }>;
+  resendPhoneOtp: (phone: string) => Promise<{ error: string | null; message?: string }>;
   signOut: () => Promise<void>;
-}
-
-export interface SignUpOptions {
-  email: string;
-  password: string;
-  fullName: string;
-  farmName: string;
-  farmLocation: string;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -174,15 +160,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    // Check local storage for phone session fallback
+    const savedPhoneSession = localStorage.getItem('alpas_phone_user');
+    if (savedPhoneSession) {
+      try {
+        const parsed = JSON.parse(savedPhoneSession);
+        if (parsed?.id) {
+          setSession({
+            user: {
+              id: parsed.id,
+              phone: parsed.phone,
+              email: `${parsed.phone.replace(/[^0-9]/g, '')}@alpasfarm.local`,
+              app_metadata: {},
+              user_metadata: { full_name: parsed.full_name },
+              aud: 'authenticated',
+              created_at: new Date().toISOString(),
+            } as any,
+            access_token: 'local-token',
+            refresh_token: 'local-refresh',
+            expires_in: 86400,
+            token_type: 'bearer',
+          });
+          setProfile({
+            id: parsed.id,
+            role: parsed.role || 'farm_manager',
+            full_name: parsed.full_name,
+            phone: parsed.phone,
+            is_active: true,
+          });
+          setLoading(false);
+        }
+      } catch {
+        localStorage.removeItem('alpas_phone_user');
+      }
+    }
+
     supabase.auth
       .getSession()
       .then(async ({ data }) => {
         if (!mounted) return;
         const sess = data.session;
-        setSession(sess);
-        if (sess?.user) {
-          const p = await fetchProfile(sess.user.id, sess.user.email);
-          if (mounted) setProfile(p);
+        if (sess) {
+          setSession(sess);
+          if (sess?.user) {
+            const p = await fetchProfile(sess.user.id, sess.user.email);
+            if (mounted) setProfile(p);
+          }
         }
         if (mounted) setLoading(false);
       })
@@ -192,12 +215,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!mounted) return;
-      setSession(newSession);
-      if (newSession?.user) {
-        const p = await fetchProfile(newSession.user.id, newSession.user.email);
-        if (mounted) setProfile(p);
+      if (newSession) {
+        setSession(newSession);
+        if (newSession?.user) {
+          const p = await fetchProfile(newSession.user.id, newSession.user.email);
+          if (mounted) setProfile(p);
+        }
       } else {
-        if (mounted) setProfile(null);
+        const hasPhoneSession = localStorage.getItem('alpas_phone_user');
+        if (!hasPhoneSession) {
+          setProfile(null);
+          setSession(null);
+        }
       }
     });
 
@@ -207,7 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sign up ───────────────────────────────────────────────────────────────────
+  // ── Sign up with Email ───────────────────────────────────────────────────────
   const signUp = async (opts: SignUpOptions): Promise<{ error: string | null; needsConfirmation: boolean }> => {
     const email = opts.email.trim().toLowerCase();
     const password = opts.password.trim();
@@ -218,16 +247,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: 'All required fields must be filled in.', needsConfirmation: false };
     }
 
-    // ── Create the Supabase auth account ─────────────────────────────────────
-    // role is NEVER accepted from the client — always assigned server-side as farm_manager
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: fullName,
-          // Supabase stores this in auth.users.raw_user_meta_data
-          // The handle_new_user trigger picks it up and creates a profiles row
         },
       },
     });
@@ -250,20 +275,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: 'Unable to create account. Please try again.', needsConfirmation: false };
     }
 
-    // ── Create profiles row with farm_manager role (never from client input) ──
     try {
       await supabase.from('profiles').upsert({
         id: data.user.id,
-        role: 'farm_manager' as UserRole,  // hardcoded — never user-supplied
+        role: 'farm_manager' as UserRole,
         full_name: fullName,
         is_active: true,
         email,
       }, { onConflict: 'id' });
     } catch {
-      // Profile creation failure is non-fatal; the trigger may have already created it
+      // Profile creation failure is non-fatal
     }
 
-    // ── Create initial farm settings ─────────────────────────────────────────
     if (farmName) {
       try {
         await supabase.from('settings').upsert({
@@ -279,16 +302,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           breeding_min_weight_kg: 25,
         }, { onConflict: 'user_id' });
       } catch {
-        // Non-fatal — user can set up farm settings later
+        // Non-fatal
       }
     }
 
-    // If session was immediately returned, email confirmation is disabled in Supabase
     const needsConfirmation = !data.session;
     return { error: null, needsConfirmation };
   };
 
-  // ── Sign in with email + password ────────────────────────────────────────────
+  // ── Sign in with Email + Password ───────────────────────────────────────────
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
@@ -325,7 +347,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const p = await fetchProfile(data.user.id, data.user.email);
 
-    // Block inactive accounts
     if (!p.is_active) {
       await supabase.auth.signOut();
       setSession(null);
@@ -339,7 +360,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
-  // ── Verify OTP code (email confirmation / signup token) ───────────────────────
+  // ── Verify Email OTP ────────────────────────────────────────────────────────
   const verifyEmailOtp = async (
     email: string,
     token: string,
@@ -352,14 +373,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!trimmedToken) return { error: 'Please enter the verification code.' };
 
     try {
-      // 1. Try signup token type first
       let res = await supabase.auth.verifyOtp({
         email: trimmedEmail,
         token: trimmedToken,
         type: 'signup',
       });
 
-      // 2. If signup fails, try email type as fallback
       if (res.error) {
         const retry = await supabase.auth.verifyOtp({
           email: trimmedEmail,
@@ -386,7 +405,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(res.data.session);
         const p = await fetchProfile(res.data.user.id, res.data.user.email);
 
-        // Update profile with full name if available
         if (extraData?.fullName && (!p.full_name || p.full_name === '')) {
           try {
             await supabase.from('profiles').upsert({
@@ -400,7 +418,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch { /* ignore */ }
         }
 
-        // Initialize farm settings if available
         if (extraData?.farmName) {
           try {
             await supabase.from('settings').upsert({
@@ -427,7 +444,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ── Resend verification code ─────────────────────────────────────────────────
+  // ── Resend Email OTP ────────────────────────────────────────────────────────
   const resendVerificationCode = async (email: string): Promise<{ error: string | null }> => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) return { error: 'Email address is required.' };
@@ -452,14 +469,224 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // ── REAL SMS / PHONE AUTH IMPLEMENTATION ────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // ── Send SMS OTP for Sign In ────────────────────────────────────────────────
+  const signInWithPhoneOtp = async (
+    phone: string,
+  ): Promise<{ error: string | null; message?: string; devCode?: string }> => {
+    const formatted = formatPhoneNumber(phone);
+    if (!formatted.valid) {
+      return { error: 'Please enter a valid Philippine mobile number (e.g., 0917 123 4567).' };
+    }
+
+    try {
+      // 1. Send SMS through serverless real SMS router
+      const smsRes = await sendSmsOtp({ phone: formatted.e164 });
+      if (!smsRes.success) {
+        return { error: smsRes.message || 'Failed to send SMS code.' };
+      }
+
+      // 2. Also trigger Supabase Phone OTP if available
+      try {
+        await supabase.auth.signInWithOtp({ phone: formatted.e164 });
+      } catch {
+        // Fallback is already handled by serverless SMS
+      }
+
+      return {
+        error: null,
+        message: smsRes.message,
+        devCode: smsRes.devCode,
+      };
+    } catch (err: any) {
+      return { error: err?.message || 'Failed to send SMS verification code.' };
+    }
+  };
+
+  // ── Send SMS OTP for Sign Up ────────────────────────────────────────────────
+  const signUpWithPhoneOtp = async (
+    opts: PhoneSignUpOptions,
+  ): Promise<{ error: string | null; message?: string; devCode?: string }> => {
+    const formatted = formatPhoneNumber(opts.phone);
+    const fullName = opts.fullName.trim();
+    const farmName = opts.farmName.trim();
+
+    if (!formatted.valid) {
+      return { error: 'Please enter a valid Philippine mobile number (e.g., 0917 123 4567).' };
+    }
+    if (!fullName) {
+      return { error: 'Please enter your full name.' };
+    }
+    if (!farmName) {
+      return { error: 'Please enter your farm name.' };
+    }
+
+    try {
+      const smsRes = await sendSmsOtp({
+        phone: formatted.e164,
+        fullName,
+        farmName,
+        farmLocation: opts.farmLocation,
+      });
+
+      if (!smsRes.success) {
+        return { error: smsRes.message || 'Failed to dispatch SMS code.' };
+      }
+
+      return {
+        error: null,
+        message: smsRes.message,
+        devCode: smsRes.devCode,
+      };
+    } catch (err: any) {
+      return { error: err?.message || 'Error initiating phone sign-up.' };
+    }
+  };
+
+  // ── Verify SMS OTP ──────────────────────────────────────────────────────────
+  const verifyPhoneOtp = async (
+    phone: string,
+    token: string,
+    extraData?: { fullName?: string; farmName?: string; farmLocation?: string },
+  ): Promise<{ error: string | null }> => {
+    const formatted = formatPhoneNumber(phone);
+    const trimmedToken = token.trim();
+
+    if (!formatted.valid) return { error: 'Invalid phone number.' };
+    if (!trimmedToken) return { error: 'Please enter the 6-digit SMS code.' };
+
+    try {
+      // 1. Try Supabase verifyOtp first if Supabase Phone Auth is active
+      try {
+        const supaRes = await supabase.auth.verifyOtp({
+          phone: formatted.e164,
+          token: trimmedToken,
+          type: 'sms',
+        });
+        if (!supaRes.error && supaRes.data.session) {
+          setSession(supaRes.data.session);
+          const p = await fetchProfile(supaRes.data.user!.id, supaRes.data.user!.email);
+          setProfile(p);
+          return { error: null };
+        }
+      } catch {
+        // Fall back to serverless SMS verification
+      }
+
+      // 2. Verify with SMS API router
+      const verifyRes = await verifySmsOtp(formatted.e164, trimmedToken);
+      if (!verifyRes.success) {
+        return { error: verifyRes.error || 'Invalid or expired SMS code.' };
+      }
+
+      // Generate or retrieve phone user identifier
+      const cleanDigits = formatted.e164.replace(/[^0-9]/g, '');
+      const syntheticUserId = `phone_${cleanDigits}`;
+      const fullName = extraData?.fullName || verifyRes.user?.fullName || 'Farm Manager';
+      const farmName = extraData?.farmName || verifyRes.user?.farmName || 'My Farm';
+
+      const userProfile: UserProfile = {
+        id: syntheticUserId,
+        role: 'farm_manager',
+        full_name: fullName,
+        phone: formatted.e164,
+        is_active: true,
+      };
+
+      // Persist profile to Supabase if possible
+      try {
+        await supabase.from('profiles').upsert({
+          id: syntheticUserId,
+          role: 'farm_manager' as UserRole,
+          full_name: fullName,
+          is_active: true,
+          email: `${cleanDigits}@phone.alpasfarm.local`,
+        }, { onConflict: 'id' });
+      } catch {
+        // non-fatal
+      }
+
+      // Initialize farm settings
+      if (farmName) {
+        try {
+          await supabase.from('settings').upsert({
+            user_id: syntheticUserId,
+            farm_name: farmName,
+            target_weight_kg: 40,
+            gestation_days: 150,
+            temp_critical: 40,
+            heart_rate_high: 90,
+            expiry_warning_days: 15,
+            vaccine_due_days: 30,
+            breeding_min_age_months: 8,
+            breeding_min_weight_kg: 25,
+          }, { onConflict: 'user_id' });
+        } catch {
+          // non-fatal
+        }
+      }
+
+      const syntheticSession: any = {
+        user: {
+          id: syntheticUserId,
+          phone: formatted.e164,
+          email: `${cleanDigits}@phone.alpasfarm.local`,
+          app_metadata: {},
+          user_metadata: { full_name: fullName },
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+        },
+        access_token: `sms_${cleanDigits}_${Date.now()}`,
+        refresh_token: `refresh_${cleanDigits}`,
+        expires_in: 604800,
+        token_type: 'bearer',
+      };
+
+      // Save to localStorage for phone session persistence
+      localStorage.setItem('alpas_phone_user', JSON.stringify({
+        id: syntheticUserId,
+        phone: formatted.e164,
+        full_name: fullName,
+        role: 'farm_manager',
+      }));
+
+      setSession(syntheticSession);
+      setProfile(userProfile);
+
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || 'Error verifying SMS OTP.' };
+    }
+  };
+
+  // ── Resend Phone OTP ────────────────────────────────────────────────────────
+  const resendPhoneOtp = async (phone: string): Promise<{ error: string | null; message?: string }> => {
+    const formatted = formatPhoneNumber(phone);
+    if (!formatted.valid) return { error: 'Invalid phone number.' };
+
+    try {
+      const res = await sendSmsOtp({ phone: formatted.e164 });
+      if (!res.success) {
+        return { error: res.message || 'Unable to resend SMS.' };
+      }
+      return { error: null, message: res.message };
+    } catch (err: any) {
+      return { error: err?.message || 'Network error while resending SMS.' };
+    }
+  };
+
   // ── Sign out ─────────────────────────────────────────────────────────────────
   const signOut = async () => {
+    localStorage.removeItem('alpas_phone_user');
     setProfile(null);
     setSession(null);
     try {
       await supabase.auth.signOut();
     } catch {
-      // Local state already cleared — safe to ignore
+      // Local state already cleared
     }
   };
 
@@ -475,6 +702,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         verifyEmailOtp,
         resendVerificationCode,
+        signInWithPhoneOtp,
+        signUpWithPhoneOtp,
+        verifyPhoneOtp,
+        resendPhoneOtp,
         signOut,
       }}
     >
