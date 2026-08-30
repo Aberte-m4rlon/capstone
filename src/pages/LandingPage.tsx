@@ -571,7 +571,7 @@ export function LandingPage() {
             <PawPrint size={18} />
             AlpasFarm
           </div>
-          <p>© 2026 AlpasFarm. Premium Smart Farm Management for Goats &amp; Sheep.</p>
+          <p>&copy; 2026 AlpasFarm. Premium Smart Farm Management for Goats &amp; Sheep.</p>
         </div>
       </footer>
     </div>

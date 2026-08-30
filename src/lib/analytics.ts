@@ -16,7 +16,7 @@ import type {
 // - Penn State Extension (meat goat health)
 // - Cornell University Cooperative Extension (routine goat health care)
 // - Virginia Tech Extension (monitoring livestock vital signs)
-// - FAMACHA© system (H. contortus/barber pole worm anemia scoring)
+// - FAMACHA(C) system (H. contortus/barber pole worm anemia scoring)
 
 export interface EarlyIllnessResult {
   detectedConditions: string[];
@@ -28,7 +28,7 @@ export interface EarlyIllnessResult {
 // Heart rate: 70–90 BPM adults (Virginia Tech Extension)
 // Respiratory rate: 12–20 breaths/min (Penn State Extension)
 // Rumen sounds: 1–3 per minute (Cornell Extension)
-// FAMACHA: 1–2 normal, 3 borderline, 4–5 anemic (FAMACHA© system)
+// FAMACHA: 1–2 normal, 3 borderline, 4–5 anemic (FAMACHA(C) system)
 // Bloat score: 0–1 normal, 2 moderate, 3 severe (Colorado State Univ.)
 
 export function detectEarlyIllness(input: {
@@ -77,7 +77,7 @@ export function detectEarlyIllness(input: {
   }
 
   // ── 2. Anemia / Barber Pole Worm (Haemonchus contortus) ─────────────────
-  // FAMACHA© score 4–5 = anemia; pale/white mucous membrane
+  // FAMACHA(C) score 4–5 = anemia; pale/white mucous membrane
   const anemiaScore = [
     input.famacha_score !== null && input.famacha_score >= 4,
     input.mucous_membrane === 'Pale' || input.mucous_membrane === 'White',
@@ -307,7 +307,7 @@ export function calculateHealthRisk(
     else if (input.respiratory_rate < 10)  { score += 15; reasons.push(`Low respiratory rate (${input.respiratory_rate} breaths/min)`); }
   }
 
-  // FAMACHA score (1–2 normal, 3 borderline, 4–5 anemic — FAMACHA© system)
+  // FAMACHA score (1–2 normal, 3 borderline, 4–5 anemic — FAMACHA(C) system)
   if (input.famacha_score !== null) {
     if (input.famacha_score === 5)       { score += 30; reasons.push('FAMACHA 5 — severe anemia'); }
     else if (input.famacha_score === 4)  { score += 20; reasons.push('FAMACHA 4 — anemic'); }
