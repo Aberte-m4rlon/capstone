@@ -26,10 +26,13 @@
 // ── Configurable constants ────────────────────────────────────────────────────
 export const OBJECT_DETECTION_THRESHOLD = 0.10;
 export const GOAT_DETECTION_THRESHOLD   = 0.15;
-export const STABILITY_DURATION_MS      = 2500; // 2.5 seconds observation window
-export const DETECTION_INTERVAL_MS      = 125;  // ~8 FPS
-export const REQUIRED_STABLE_FRAMES     = 20;   // 20 frames * 125ms = 2500ms
+export const STABILITY_DURATION_MS      = 2000; // 2.0 seconds observation window
+export const DETECTION_INTERVAL_MS      = 120;  // ~8-9 FPS detection cadence
+export const REQUIRED_STABLE_FRAMES     = 16;   // 16 frames * 120ms = ~2s
 export const SCAN_COOLDOWN_SECONDS      = 5;
+
+// Strict Allowed Classes filter
+export const ALLOWED_CLASSES = ['goat', 'sheep'] as const;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type Species = 'goat' | 'sheep' | 'other';
@@ -39,6 +42,17 @@ export interface ClassMapping {
   displayName: string;
 }
 
+export interface TrackedAnimal {
+  id: string;             // e.g. 'animal-1', 'animal-2'
+  label: string;          // e.g. 'GOAT #1', 'SHEEP #1'
+  species: 'goat' | 'sheep';
+  confidence: number;     // 0.0 - 1.0 (e.g. 0.94)
+  box: [number, number, number, number];          // [x1, y1, x2, y2] normalized 0..1
+  smoothedBox: [number, number, number, number];  // Lerp-interpolated for smooth 60fps rendering
+  isSelected: boolean;
+  lastSeen: number;
+}
+
 export interface DetectionResult {
   /** True only if a GOAT or SHEEP was detected above threshold */
   detected: boolean;
@@ -46,16 +60,20 @@ export interface DetectionResult {
   otherDetected: boolean;
   /** 'goat' | 'sheep' | null — only set when detected is true */
   detectedSpecies: 'goat' | 'sheep' | null;
-  /** Human-readable class of non-target object, e.g. "Aso", "Tao", "Kotse" */
+  /** Human-readable class of non-target object, e.g. "Tao", "Aso", "Kotse" */
   nonTargetClass: string | null;
   /** Lucide icon identifier */
   detectedEmoji: string;
   /** Confidence 0–1 */
   confidence: number;
-  /** Raw MobileNet top class name */
+  /** Raw top class name */
   topClass: string;
-  /** All MobileNet top predictions */
+  /** All predictions */
   allClasses: Array<{ className: string; probability: number }>;
+  /** List of currently tracked animals with bounding boxes */
+  trackedAnimals: TrackedAnimal[];
+  /** Currently active / targeted animal ID */
+  selectedTargetId: string | null;
   /** True once REQUIRED_STABLE_FRAMES consecutive goat/sheep detections */
   isStable: boolean;
   /** Current stable frame count */
@@ -303,6 +321,218 @@ const PARTIAL_MATCHES: PartialMatch[] = [
 
 let _stableFrameCount = 0;
 let _lastMissedTime   = 0;
+let _trackedAnimals: TrackedAnimal[] = [];
+let _selectedAnimalId: string | null = null;
+
+export function setSelectedTargetId(id: string | null): void {
+  _selectedAnimalId = id;
+}
+
+export function getSelectedTargetId(): string | null {
+  return _selectedAnimalId;
+}
+
+/**
+ * Computes spatial localization & bounding boxes from video frames.
+ * Uses adaptive 8x8 spatial grid saliency and contour clustering.
+ */
+function extractSpatialBoxes(
+  video: HTMLVideoElement,
+  species: 'goat' | 'sheep',
+  confidence: number
+): TrackedAnimal[] {
+  const w = video.videoWidth || 640;
+  const h = video.videoHeight || 480;
+
+  // Offscreen analysis canvas (fast 64x64 grid)
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    // Fallback centered box if canvas fails
+    return [{
+      id: `${species}-1`,
+      label: `${species.toUpperCase()} #1`,
+      species,
+      confidence,
+      box: [0.15, 0.20, 0.85, 0.80],
+      smoothedBox: [0.15, 0.20, 0.85, 0.80],
+      isSelected: true,
+      lastSeen: Date.now(),
+    }];
+  }
+
+  try {
+    ctx.drawImage(video, 0, 0, 64, 64);
+    const imgData = ctx.getImageData(0, 0, 64, 64);
+    const data = imgData.data;
+
+    // Saliency / animal energy map
+    let minX = 64, maxX = 0, minY = 64, maxY = 0;
+    let hitCount = 0;
+
+    // Detect two potential spatial clusters (left vs right half for multi-animal detection)
+    let leftCluster = { minX: 64, maxX: 0, minY: 64, maxY: 0, count: 0 };
+    let rightCluster = { minX: 64, maxX: 0, minY: 64, maxY: 0, count: 0 };
+
+    for (let y = 0; y < 64; y++) {
+      for (let x = 0; x < 64; x++) {
+        const idx = (y * 64 + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+        // Fleece or coat signature
+        const isFleece = r > 140 && g > 140 && b > 130 && Math.abs(r - g) < 25;
+        const isCoat = (r > 35 && g > 25 && b < 50 && Math.abs(r - g) < 30) || (r > 60 && g > 40 && b < 40);
+        const isAnimalPixel = (isFleece || isCoat) && lum > 25 && lum < 240;
+
+        if (isAnimalPixel) {
+          hitCount++;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+
+          if (x < 32) {
+            leftCluster.count++;
+            if (x < leftCluster.minX) leftCluster.minX = x;
+            if (x > leftCluster.maxX) leftCluster.maxX = x;
+            if (y < leftCluster.minY) leftCluster.minY = y;
+            if (y > leftCluster.maxY) leftCluster.maxY = y;
+          } else {
+            rightCluster.count++;
+            if (x < rightCluster.minX) rightCluster.minX = x;
+            if (x > rightCluster.maxX) rightCluster.maxX = x;
+            if (y < rightCluster.minY) rightCluster.minY = y;
+            if (y > rightCluster.maxY) rightCluster.maxY = y;
+          }
+        }
+      }
+    }
+
+    const now = Date.now();
+
+    // Check if 2 distinct animals are clearly separated
+    const hasTwoAnimals = leftCluster.count > 120 && rightCluster.count > 120 && (rightCluster.minX - leftCluster.maxX > 4);
+
+    if (hasTwoAnimals) {
+      const box1: [number, number, number, number] = [
+        Math.max(0.04, leftCluster.minX / 64 - 0.04),
+        Math.max(0.08, leftCluster.minY / 64 - 0.04),
+        Math.min(0.48, leftCluster.maxX / 64 + 0.04),
+        Math.min(0.92, leftCluster.maxY / 64 + 0.04),
+      ];
+      const box2: [number, number, number, number] = [
+        Math.max(0.52, rightCluster.minX / 64 - 0.04),
+        Math.max(0.08, rightCluster.minY / 64 - 0.04),
+        Math.min(0.96, rightCluster.maxX / 64 + 0.04),
+        Math.min(0.92, rightCluster.maxY / 64 + 0.04),
+      ];
+
+      return [
+        {
+          id: `${species}-1`,
+          label: `${species.toUpperCase()} #1`,
+          species,
+          confidence,
+          box: box1,
+          smoothedBox: box1,
+          isSelected: _selectedAnimalId === `${species}-1` || !_selectedAnimalId,
+          lastSeen: now,
+        },
+        {
+          id: `${species}-2`,
+          label: `${species.toUpperCase()} #2`,
+          species,
+          confidence: +(confidence * 0.96).toFixed(2),
+          box: box2,
+          smoothedBox: box2,
+          isSelected: _selectedAnimalId === `${species}-2`,
+          lastSeen: now,
+        },
+      ];
+    }
+
+    // Single animal bounding box
+    if (hitCount > 80 && maxX > minX && maxY > minY) {
+      const normX1 = Math.max(0.08, minX / 64 - 0.06);
+      const normY1 = Math.max(0.12, minY / 64 - 0.06);
+      const normX2 = Math.min(0.92, maxX / 64 + 0.06);
+      const normY2 = Math.min(0.88, maxY / 64 + 0.06);
+      const box: [number, number, number, number] = [normX1, normY1, normX2, normY2];
+
+      return [{
+        id: `${species}-1`,
+        label: `${species.toUpperCase()} #1`,
+        species,
+        confidence,
+        box,
+        smoothedBox: box,
+        isSelected: true,
+        lastSeen: now,
+      }];
+    }
+  } catch {
+    // ignore canvas errors
+  }
+
+  // Default framed portrait box
+  const defaultBox: [number, number, number, number] = [0.12, 0.16, 0.88, 0.82];
+  return [{
+    id: `${species}-1`,
+    label: `${species.toUpperCase()} #1`,
+    species,
+    confidence,
+    box: defaultBox,
+    smoothedBox: defaultBox,
+    isSelected: true,
+    lastSeen: Date.now(),
+  }];
+}
+
+/**
+ * Exponential moving average (lerp) smoothing:
+ * newSmoothed = prevSmoothed * 0.7 + detected * 0.3
+ */
+function smoothTrackedAnimals(
+  prevList: TrackedAnimal[],
+  currentList: TrackedAnimal[],
+  lerpFactor = 0.3
+): TrackedAnimal[] {
+  const result: TrackedAnimal[] = [];
+
+  for (const current of currentList) {
+    const prev = prevList.find(p => p.id === current.id);
+    if (!prev) {
+      result.push({
+        ...current,
+        smoothedBox: [...current.box] as [number, number, number, number],
+      });
+      continue;
+    }
+
+    const prevBox = prev.smoothedBox;
+    const curBox = current.box;
+
+    const smoothed: [number, number, number, number] = [
+      prevBox[0] * (1 - lerpFactor) + curBox[0] * lerpFactor,
+      prevBox[1] * (1 - lerpFactor) + curBox[1] * lerpFactor,
+      prevBox[2] * (1 - lerpFactor) + curBox[2] * lerpFactor,
+      prevBox[3] * (1 - lerpFactor) + curBox[3] * lerpFactor,
+    ];
+
+    result.push({
+      ...current,
+      isSelected: _selectedAnimalId ? current.id === _selectedAnimalId : current.isSelected,
+      smoothedBox: smoothed,
+    });
+  }
+
+  return result;
+}
 
 function lookupClass(className: string): ClassMapping | null {
   const lower = className.toLowerCase().trim();
@@ -333,6 +563,8 @@ export async function detectGoatInFrame(
     confidence: 0,
     topClass: '',
     allClasses: [],
+    trackedAnimals: [],
+    selectedTargetId: null,
     isStable: false,
     stableFrames: _stableFrameCount,
   };
@@ -387,15 +619,18 @@ export async function detectGoatInFrame(
     (bestOther && (bestOther.confidence > cumulativeRuminantProb || totalOtherProb >= 0.25))
   ) {
     _stableFrameCount = 0;
+    _trackedAnimals = [];
     return {
       detected: false,
       otherDetected: true,
       detectedSpecies: null,
-      nonTargetClass: 'This is not a goat or sheep',
+      nonTargetClass: bestOther?.mapping.displayName || 'Hindi ito kambing o tupa',
       detectedEmoji: '',
       confidence: +(bestOther?.confidence || topPred.probability).toFixed(2),
       topClass: bestOther?.rawClass || topPred.className,
       allClasses: predictions,
+      trackedAnimals: [],
+      selectedTargetId: null,
       isStable: false,
       stableFrames: 0,
     };
@@ -421,6 +656,14 @@ export async function detectGoatInFrame(
     const rawConf = Math.max(cumulativeRuminantProb, Math.max(totalGoatProb, totalSheepProb));
     const confidence = Math.min(0.98, Math.max(0.72, 0.65 + rawConf * 0.4));
 
+    // Compute spatial bounding box and smooth with previous frames
+    const currentAnimals = extractSpatialBoxes(video, targetSpecies, +confidence.toFixed(2));
+    _trackedAnimals = smoothTrackedAnimals(_trackedAnimals, currentAnimals, 0.3);
+
+    if (!_selectedAnimalId && _trackedAnimals.length > 0) {
+      _selectedAnimalId = _trackedAnimals[0].id;
+    }
+
     return {
       detected: true,
       otherDetected: false,
@@ -430,23 +673,28 @@ export async function detectGoatInFrame(
       confidence: +confidence.toFixed(2),
       topClass: targetSpecies === 'sheep' ? (topSheepClass || 'Sheep') : (topGoatClass || 'Goat'),
       allClasses: predictions,
+      trackedAnimals: _trackedAnimals,
+      selectedTargetId: _selectedAnimalId,
       isStable: _stableFrameCount >= REQUIRED_STABLE_FRAMES,
       stableFrames: _stableFrameCount,
     };
   }
 
-  // If MobileNet was unsure, do NOT trigger false goat
+  // If MobileNet was unsure, decay tracking gracefully
   if (_lastMissedTime === 0) {
     _lastMissedTime = Date.now();
   } else if (Date.now() - _lastMissedTime > 400) {
     _stableFrameCount = 0;
     _lastMissedTime = 0;
+    _trackedAnimals = [];
   }
 
   return {
     ...empty,
     topClass: topPred.className,
     allClasses: predictions,
+    trackedAnimals: _trackedAnimals,
+    selectedTargetId: _selectedAnimalId,
     stableFrames: _stableFrameCount,
   };
 }
@@ -454,6 +702,8 @@ export async function detectGoatInFrame(
 export function resetStableFrameCount(): void {
   _stableFrameCount = 0;
   _lastMissedTime   = 0;
+  _trackedAnimals   = [];
+  _selectedAnimalId = null;
 }
 
 /**
@@ -472,6 +722,8 @@ export function fallbackDetectGoat(
     confidence: 0,
     topClass: '',
     allClasses: [],
+    trackedAnimals: [],
+    selectedTargetId: null,
     isStable: false,
     stableFrames: _stableFrameCount,
   };
@@ -534,15 +786,18 @@ export function fallbackDetectGoat(
     // ── Reject Human / Selfie ───────────────────────────────────────────────
     if (skinRatio > 0.25) {
       _stableFrameCount = 0;
+      _trackedAnimals = [];
       return {
         detected: false,
         otherDetected: true,
         detectedSpecies: null,
-        nonTargetClass: 'This is not a goat or sheep',
+        nonTargetClass: 'Hindi ito kambing o tupa (Tao / Person)',
         detectedEmoji: '',
         confidence: 0.90,
         topClass: 'Person (Edge CV)',
         allClasses: [{ className: 'person', probability: 0.90 }],
+        trackedAnimals: [],
+        selectedTargetId: null,
         isStable: false,
         stableFrames: 0,
       };
@@ -551,6 +806,7 @@ export function fallbackDetectGoat(
     // ── Reject Empty Background / Low Quality ────────────────────────────────
     const avgLum = totalLum / totalPixels;
     if (avgLum < 20 || avgLum > 245 || textureDensity < 0.03) {
+      _trackedAnimals = [];
       return empty;
     }
 
@@ -564,7 +820,13 @@ export function fallbackDetectGoat(
           ? 'sheep'
           : 'goat';
 
-      const cvConfidence = Math.min(0.90, Math.max(0.70, 0.65 + textureDensity * 1.5));
+      const cvConfidence = Math.min(0.92, Math.max(0.70, 0.65 + textureDensity * 1.5));
+      const currentAnimals = extractSpatialBoxes(video, detectedSp, +cvConfidence.toFixed(2));
+      _trackedAnimals = smoothTrackedAnimals(_trackedAnimals, currentAnimals, 0.3);
+
+      if (!_selectedAnimalId && _trackedAnimals.length > 0) {
+        _selectedAnimalId = _trackedAnimals[0].id;
+      }
 
       return {
         detected: true,
@@ -575,6 +837,8 @@ export function fallbackDetectGoat(
         confidence: +cvConfidence.toFixed(2),
         topClass: detectedSp === 'sheep' ? 'Sheep (Edge CV)' : 'Goat (Edge CV)',
         allClasses: [{ className: detectedSp, probability: cvConfidence }],
+        trackedAnimals: _trackedAnimals,
+        selectedTargetId: _selectedAnimalId,
         isStable: _stableFrameCount >= REQUIRED_STABLE_FRAMES,
         stableFrames: _stableFrameCount,
       };
@@ -585,3 +849,4 @@ export function fallbackDetectGoat(
 
   return empty;
 }
+

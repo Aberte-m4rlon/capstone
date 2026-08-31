@@ -318,26 +318,26 @@ export function CameraScreeningModal({
                     <CameraErrorCard error={cameraError} onSwitchUpload={() => setMode('upload')} />
                   ) : (
                     <div>
-                      <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: '#000', aspectRatio: '4/3', border: '1px solid var(--border)' }}>
-                        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <div className="camera-container" style={{ position: 'relative', borderRadius: 20, overflow: 'hidden', background: '#000', aspectRatio: '9 / 16', maxWidth: 380, margin: '0 auto', border: '1px solid var(--border)' }}>
+                        <video ref={videoRef} autoPlay playsInline muted style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                          <div style={{ border: '2px dashed rgba(255,122,24,0.7)', borderRadius: 12, width: '72%', height: '72%' }} />
+                          <div style={{ border: '2px dashed rgba(67,160,71,0.8)', borderRadius: 16, width: '75%', height: '65%' }} />
                         </div>
                         {multiAngle && (
-                          <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(255,106,42,0.85)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 12px', borderRadius: 999 }}>
+                          <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(46,125,50,0.9)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 14px', borderRadius: 999 }}>
                             Capture: {ANGLE_LABELS[currentAngle]}
                           </div>
                         )}
-                        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '3px 12px', borderRadius: 999, whiteSpace: 'nowrap' }}>
-                          Position animal in frame
+                        <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '5px 14px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                          Position goat or sheep in frame
                         </div>
                         {/* Flip button */}
-                        <button onClick={handleFlipCamera} style={{ position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }} title="Flip camera">
+                        <button onClick={handleFlipCamera} style={{ position: 'absolute', top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }} title="Flip camera">
                           <RotateCcw size={15} />
                         </button>
                       </div>
-                      <div style={{ background: 'rgba(255,122,24,0.07)', border: '1px solid rgba(255,122,24,0.2)', borderRadius: 10, padding: '8px 14px', marginTop: 10, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                        Good lighting · Full body visible · Avoid motion blur
+                      <div style={{ background: 'rgba(67,160,71,0.08)', border: '1px solid rgba(67,160,71,0.2)', borderRadius: 10, padding: '8px 14px', marginTop: 10, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                        Good lighting · Full goat or sheep body visible · Avoid motion blur
                       </div>
                       <button onClick={handleCapture} disabled={!cameraActive} style={{ width: '100%', marginTop: 12, padding: '14px', borderRadius: 12, border: 'none', background: cameraActive ? 'linear-gradient(135deg,#FF3B30,#FF7A18)' : 'var(--surface)', color: cameraActive ? '#fff' : 'var(--text-secondary)', fontSize: 15, fontWeight: 800, cursor: cameraActive ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: cameraActive ? '0 6px 20px rgba(255,59,48,0.35)' : 'none', transition: 'all 0.2s' }}>
                         <Camera size={18} /> Capture Photo

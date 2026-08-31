@@ -92,9 +92,11 @@ export function CameraScreeningPage() {
   const [search, setSearch]                     = useState('');
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<CameraScreening | null>(null);
 
-  const videoRef     = useRef<HTMLVideoElement>(null);
-  const streamRef    = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef         = useRef<HTMLVideoElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const animFrameRef     = useRef<number | null>(null);
+  const streamRef        = useRef<MediaStream | null>(null);
+  const fileInputRef     = useRef<HTMLInputElement>(null);
 
   // Selected animal data
   const selectedAnimal = farmData.animals.find(a => a.id === selectedAnimalId);
@@ -189,6 +191,129 @@ export function CameraScreeningPage() {
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => stopCamera(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Live 60 FPS Bounding Box Canvas Overlay Renderer ─────────────────────
+  useEffect(() => {
+    const canvas = overlayCanvasRef.current;
+    if (!canvas || permission !== 'granted') return;
+
+    let isRunning = true;
+
+    const renderOverlay = () => {
+      if (!isRunning) return;
+      const ctx = canvas.getContext('2d');
+      if (ctx && canvas.clientWidth > 0 && canvas.clientHeight > 0) {
+        if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+          canvas.width = canvas.clientWidth;
+          canvas.height = canvas.clientHeight;
+        }
+
+        const W = canvas.width;
+        const H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+
+        const tracked = autoScan.trackedAnimals;
+        const selectedId = autoScan.selectedTargetId;
+
+        if (autoScan.state !== 'other_detected' && tracked && tracked.length > 0) {
+          for (const animal of tracked) {
+            const [x1Norm, y1Norm, x2Norm, y2Norm] = animal.smoothedBox;
+            const x = x1Norm * W;
+            const y = y1Norm * H;
+            const w = Math.max(20, (x2Norm - x1Norm) * W);
+            const h = Math.max(20, (y2Norm - y1Norm) * H);
+
+            const isSelected = selectedId ? animal.id === selectedId : animal.isSelected;
+            const strokeColor = isSelected ? '#43A047' : 'rgba(255, 255, 255, 0.7)';
+            const fillColor = isSelected ? 'rgba(67, 160, 71, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+
+            // Fill bounding box
+            ctx.fillStyle = fillColor;
+            ctx.fillRect(x, y, w, h);
+
+            // Border
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = isSelected ? 2.5 : 1.5;
+            ctx.strokeRect(x, y, w, h);
+
+            // Sleek Corner Accents
+            const cornerLen = Math.min(22, w * 0.25, h * 0.25);
+            ctx.strokeStyle = isSelected ? '#81C784' : '#FFFFFF';
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+
+            // Top-Left
+            ctx.beginPath();
+            ctx.moveTo(x, y + cornerLen);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x + cornerLen, y);
+            ctx.stroke();
+
+            // Top-Right
+            ctx.beginPath();
+            ctx.moveTo(x + w - cornerLen, y);
+            ctx.lineTo(x + w, y);
+            ctx.lineTo(x + w, y + cornerLen);
+            ctx.stroke();
+
+            // Bottom-Left
+            ctx.beginPath();
+            ctx.moveTo(x, y + h - cornerLen);
+            ctx.lineTo(x, y + h);
+            ctx.lineTo(x + cornerLen, y + h);
+            ctx.stroke();
+
+            // Bottom-Right
+            ctx.beginPath();
+            ctx.moveTo(x + w - cornerLen, y + h);
+            ctx.lineTo(x + w, y + h);
+            ctx.lineTo(x + w, y + h - cornerLen);
+            ctx.stroke();
+
+            // Target crosshair if selected
+            if (isSelected) {
+              const cx = x + w / 2;
+              const cy = y + h / 2;
+              const r = Math.min(16, w * 0.15, h * 0.15);
+              ctx.strokeStyle = 'rgba(67, 160, 71, 0.8)';
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(cx, cy, r, 0, Math.PI * 2);
+              ctx.stroke();
+            }
+
+            // Label Badge: GOAT Confidence: 94% / SHEEP Confidence: 91%
+            const labelText = `${animal.species.toUpperCase()} Confidence: ${Math.round(animal.confidence * 100)}%`;
+            ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+            const textWidth = ctx.measureText(labelText).width;
+            const tagH = 22;
+            const tagW = textWidth + 16;
+            const tagX = Math.max(6, Math.min(W - tagW - 6, x));
+            const tagY = Math.max(tagH + 4, y - 6);
+
+            ctx.fillStyle = isSelected ? '#2E7D32' : 'rgba(15, 23, 42, 0.88)';
+            ctx.beginPath();
+            ctx.roundRect(tagX, tagY - tagH, tagW, tagH, 6);
+            ctx.fill();
+
+            ctx.strokeStyle = isSelected ? '#43A047' : 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillText(labelText, tagX + 8, tagY - 7);
+          }
+        }
+      }
+      animFrameRef.current = requestAnimationFrame(renderOverlay);
+    };
+
+    animFrameRef.current = requestAnimationFrame(renderOverlay);
+    return () => {
+      isRunning = false;
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [autoScan.trackedAnimals, autoScan.selectedTargetId, autoScan.state, permission]);
 
   // ── Save Assessment ───────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
@@ -403,7 +528,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
               background: '#FFFFFF',
               border: '1px solid #E5EDE6',
               borderRadius: 14,
-              padding: '8px 12px',
+              padding: '8px 14px',
               boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
               gap: 8,
               flexWrap: 'wrap',
@@ -438,26 +563,97 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
               </div>
             </div>
 
-            <div style={{
-              position: 'relative',
-              borderRadius: 20,
-              overflow: 'hidden',
-              background: '#0B130E',
-              aspectRatio: '4/3',
-              border: `2px solid ${borderColor}`,
-              boxShadow: permission === 'granted' ? `0 0 28px ${borderColor}33` : '0 4px 16px rgba(0,0,0,0.1)',
-              transition: 'border-color 0.4s, box-shadow 0.4s',
-            }}>
+            {/* Multi-Animal Target Selection Chips */}
+            {permission === 'granted' && autoScan.trackedAnimals && autoScan.trackedAnimals.length > 0 && autoScan.state !== 'other_detected' && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                background: '#FFFFFF',
+                border: '1px solid #E5EDE6',
+                borderRadius: 14,
+                padding: '8px 14px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  {autoScan.trackedAnimals.length > 1 ? `Target Animal (${autoScan.trackedAnimals.length} detected):` : 'Target Lock:'}
+                </span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {autoScan.trackedAnimals.map((animal) => {
+                    const isSelected = autoScan.selectedTargetId ? animal.id === autoScan.selectedTargetId : animal.isSelected;
+                    return (
+                      <button
+                        key={animal.id}
+                        onClick={() => autoScan.setSelectedTarget(animal.id)}
+                        className={`target-animal-chip ${isSelected ? 'active' : ''}`}
+                        style={{
+                          padding: '5px 12px',
+                          borderRadius: 999,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          border: isSelected ? '2px solid #43A047' : '1px solid #D1D5DB',
+                          background: isSelected ? '#E8F5E9' : '#FFFFFF',
+                          color: isSelected ? '#2E7D32' : '#4B5563',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          transition: 'all 0.15s ease',
+                          boxShadow: isSelected ? '0 2px 8px rgba(67,160,71,0.25)' : 'none',
+                        }}
+                      >
+                        <Activity size={12} color={isSelected ? '#2E7D32' : '#9CA3AF'} />
+                        <span>{animal.label} ({Math.round(animal.confidence * 100)}%)</span>
+                        {isSelected && <Check size={12} color="#2E7D32" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
+            {/* 9:16 Vertical Portrait Camera Viewport */}
+            <div
+              className="camera-container"
+              style={{
+                position: 'relative',
+                width: '100%',
+                maxWidth: 420,
+                aspectRatio: '9 / 16',
+                margin: '0 auto',
+                overflow: 'hidden',
+                borderRadius: 24,
+                background: '#000000',
+                border: `2px solid ${borderColor}`,
+                boxShadow: permission === 'granted' ? `0 0 28px ${borderColor}33` : '0 4px 16px rgba(0,0,0,0.1)',
+                transition: 'border-color 0.4s, box-shadow 0.4s',
+              }}
+            >
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
                 style={{
+                  position: 'absolute',
+                  inset: 0,
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
+                  display: permission === 'granted' ? 'block' : 'none',
+                }}
+              />
+
+              {/* Real-time Dynamic Bounding Box Canvas Overlay */}
+              <canvas
+                ref={overlayCanvasRef}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
                   display: permission === 'granted' ? 'block' : 'none',
                 }}
               />
@@ -501,32 +697,17 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                 </div>
               )}
 
-              {/* Live HUD Overlay */}
+              {/* Live HUD Overlay Elements */}
               {permission === 'granted' && (
                 <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-
-                  {/* Corner brackets */}
-                  {(['tl','tr','bl','br'] as const).map(c => (
-                    <div key={c} style={{
-                      position: 'absolute', width: 28, height: 28,
-                      top:    c[0]==='t' ? 14 : undefined, bottom: c[0]==='b' ? 14 : undefined,
-                      left:   c[1]==='l' ? 14 : undefined, right:  c[1]==='r' ? 14 : undefined,
-                      borderTop:    c[0]==='t' ? `3px solid ${borderColor}` : undefined,
-                      borderBottom: c[0]==='b' ? `3px solid ${borderColor}` : undefined,
-                      borderLeft:   c[1]==='l' ? `3px solid ${borderColor}` : undefined,
-                      borderRight:  c[1]==='r' ? `3px solid ${borderColor}` : undefined,
-                      borderRadius: c==='tl'?'8px 0 0 0':c==='tr'?'0 8px 0 0':c==='bl'?'0 0 0 8px':'0 0 8px 0',
-                      transition: 'border-color 0.4s',
-                    }} />
-                  ))}
 
                   {/* NON-TARGET WARNING BANNER */}
                   {autoScan.state === 'other_detected' && (
                     <div style={{
                       position: 'absolute',
                       inset: 0,
-                      background: 'rgba(15, 23, 42, 0.85)',
-                      backdropFilter: 'blur(5px)',
+                      background: 'rgba(15, 23, 42, 0.88)',
+                      backdropFilter: 'blur(6px)',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -534,6 +715,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                       gap: 12,
                       padding: 24,
                       textAlign: 'center',
+                      zIndex: 20,
                     }}>
                       <div style={{
                         width: 60,
@@ -561,57 +743,28 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                       }}>
                         Hindi ito kambing o tupa
                       </div>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, maxWidth: 320 }}>
-                        Pakitapat ang camera sa goat o sheep. Ang AI Health Scanner ay para lamang sa mga kambing at tupa.
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, maxWidth: 300 }}>
+                        Pakitapat ang camera sa kambing o tupa. Ang AI Health Scanner ay para lamang sa mga kambing at tupa.
                       </div>
                     </div>
                   )}
 
-                  {/* Scan line effect during scanning */}
+                  {/* Scan line effect during health scanning */}
                   {autoScan.state === 'scanning' && (
                     <div style={{
                       position: 'absolute',
-                      left: '6%',
-                      right: '6%',
-                      height: 2,
-                      background: 'linear-gradient(90deg, transparent, #2563EB, transparent)',
+                      left: '4%',
+                      right: '4%',
+                      height: 3,
+                      background: 'linear-gradient(90deg, transparent, #2563EB, #60A5FA, transparent)',
+                      boxShadow: '0 0 12px #2563EB',
                       animation: 'scanLine 1.5s ease-in-out infinite',
+                      zIndex: 10,
                     }} />
                   )}
 
-                  {/* Detection box for goat/sheep */}
-                  {det?.detected && autoScan.state !== 'result' && autoScan.state !== 'other_detected' && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '16%',
-                      left: '12%',
-                      right: '12%',
-                      bottom: '16%',
-                      border: `2px solid ${borderColor}`,
-                      borderRadius: 12,
-                      background: `${borderColor}18`,
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      padding: 8,
-                    }}>
-                      <div style={{
-                        background: '#43A047',
-                        color: '#FFFFFF',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: '3px 8px',
-                        borderRadius: 6,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}>
-                        <Activity size={12} /> {speciesLabel} Detected
-                      </div>
-                    </div>
-                  )}
-
                   {/* Top-right camera flip button */}
-                  <div style={{ position: 'absolute', top: 12, right: 12, pointerEvents: 'auto' }}>
+                  <div style={{ position: 'absolute', top: 12, right: 12, pointerEvents: 'auto', zIndex: 15 }}>
                     <button
                       onClick={toggleCameraFacing}
                       title="Switch Camera (Front/Rear)"
@@ -634,10 +787,10 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                   {/* Bottom status pill */}
                   <div style={{
                     position: 'absolute',
-                    bottom: 12,
+                    bottom: 14,
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    background: 'rgba(15, 23, 42, 0.85)',
+                    background: 'rgba(15, 23, 42, 0.88)',
                     backdropFilter: 'blur(8px)',
                     borderRadius: 999,
                     padding: '6px 18px',
@@ -647,6 +800,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                     whiteSpace: 'nowrap',
                     maxWidth: 'calc(100% - 32px)',
                     border: '1px solid rgba(255,255,255,0.15)',
+                    zIndex: 15,
                   }}>
                     {autoScan.state === 'loading'        && <Loader2 size={13} color="#43A047" style={{ animation: 'spin 1s linear infinite' }} />}
                     {autoScan.state === 'scanning'       && <Loader2 size={13} color="#2563EB" style={{ animation: 'spin 1s linear infinite' }} />}
@@ -664,21 +818,30 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
               )}
             </div>
 
-            {/* 2.5-Second Stability & Verification Progress */}
+            {/* 2.0-Second Stability & Auto-Scan Verification Progress */}
             {permission === 'granted' && (autoScan.state === 'detecting' || autoScan.state === 'stable') && (
-              <div style={{ background: '#FFFFFF', border: '1px solid #E5EDE6', borderRadius: 12, padding: '12px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+              <div style={{
+                background: '#FFFFFF',
+                border: '1px solid #E5EDE6',
+                borderRadius: 14,
+                padding: '12px 16px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                maxWidth: 420,
+                width: '100%',
+                margin: '0 auto',
+              }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#4B5563', marginBottom: 6 }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: det?.detected ? '#2E7D32' : det?.otherDetected ? '#D97706' : '#6B7280' }}>
                     {det?.detected ? (
-                      <><Activity size={13} color="#43A047" /> {speciesLabel} Detected ({Math.round(det.confidence * 100)}%)</>
+                      <><Check size={13} color="#43A047" /> {speciesLabel} detected / Ready for health scan</>
                     ) : det?.otherDetected ? (
                       <><Activity size={13} color="#D97706" /> Sinusuri ang feed...</>
                     ) : (
-                      'Naghahanap ng Hayop...'
+                      'Naghahanap ng kambing o tupa...'
                     )}
                   </span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: autoScan.isObserving ? '#2E7D32' : '#9CA3AF' }}>
-                    {autoScan.isObserving ? `${autoScan.stabilityRemainingSeconds.toFixed(1)}s (2.5s Steady Hold)` : '2.5s Verification Window'}
+                    {autoScan.isObserving ? `${autoScan.stabilityRemainingSeconds.toFixed(1)}s (Hold Steady)` : '2.0s Hold Stability'}
                   </span>
                 </div>
                 <div style={{ height: 8, borderRadius: 999, background: '#F3F4F6', overflow: 'hidden', marginBottom: 8 }}>
@@ -699,8 +862,8 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                 <div style={{ fontSize: 11, color: '#6B7280', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>
                     {autoScan.isObserving
-                      ? `Pinagmamasdan ang camera feed nang 2.5s... ${autoScan.stabilityProgress}% tapos`
-                      : 'Itutok ang camera sa kambing o tupa nang 2.5 segundo bago isagawa ang scan.'}
+                      ? `Panatilihing nakatutok sa hayop (${autoScan.stabilityProgress}% tapos)...`
+                      : 'Itutok ang camera sa kambing o tupa nang 2.0 segundo para sa auto health scan.'}
                   </span>
                   {autoScan.isObserving && (
                     <span style={{ fontWeight: 800, color: det?.detected ? '#2E7D32' : '#D97706' }}>
@@ -713,7 +876,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
 
             {/* Action Bar */}
             {permission === 'granted' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420, width: '100%', margin: '0 auto' }}>
                 {/* Instant Scan Button */}
                 <button
                   onClick={() => autoScan.triggerManualScan()}

@@ -18,10 +18,13 @@ import {
   detectGoatInFrame,
   fallbackDetectGoat,
   resetStableFrameCount,
+  setSelectedTargetId,
+  getSelectedTargetId,
   SCAN_COOLDOWN_SECONDS,
   DETECTION_INTERVAL_MS,
   STABILITY_DURATION_MS,
   type DetectionResult,
+  type TrackedAnimal,
 } from './goatDetector';
 import {
   loadMobileNet,
@@ -37,8 +40,8 @@ export type ScanState =
   | 'idle'
   | 'loading'
   | 'detecting'       // looking or observing subject
-  | 'other_detected'  // verified non-target object visible after 2.5s
-  | 'stable'          // goat/sheep verified stable for 2.5s — executing scan
+  | 'other_detected'  // verified non-target object visible
+  | 'stable'          // goat/sheep verified stable — executing scan
   | 'scanning'        // running health ML
   | 'result'          // showing result
   | 'cooldown'        // waiting before next scan
@@ -56,9 +59,11 @@ export interface AutoScanStatus {
   usingFallback: boolean;
   message: string;
   detectedSpecies: 'goat' | 'sheep' | null;
+  trackedAnimals: TrackedAnimal[];
+  selectedTargetId: string | null;
   stabilityProgress: number;          // 0 to 100%
-  stabilityRemainingSeconds: number;  // 2.5 to 0.0s
-  isObserving: boolean;               // True while counting down 2.5s
+  stabilityRemainingSeconds: number;  // 2.0 to 0.0s
+  isObserving: boolean;               // True while counting down
 }
 
 // ── User-facing messages ──────────────────────────────────────────────────────
@@ -460,6 +465,20 @@ export function useAutoScan(options: {
     };
   }, [stopDetection]);
 
+  const setSelectedTarget = useCallback((id: string | null) => {
+    setSelectedTargetId(id);
+    if (detection) {
+      setDetection({
+        ...detection,
+        selectedTargetId: id,
+        trackedAnimals: detection.trackedAnimals.map(a => ({
+          ...a,
+          isSelected: id ? a.id === id : true,
+        })),
+      });
+    }
+  }, [detection]);
+
   const message = buildMessage(state, detection, cooldownRemaining, stabilityRemainingSeconds, isObserving);
 
   return {
@@ -474,6 +493,9 @@ export function useAutoScan(options: {
     usingFallback,
     message,
     detectedSpecies,
+    trackedAnimals: detection?.trackedAnimals || [],
+    selectedTargetId: detection?.selectedTargetId || null,
+    setSelectedTarget,
     stabilityProgress,
     stabilityRemainingSeconds,
     isObserving,
@@ -481,10 +503,6 @@ export function useAutoScan(options: {
     stopAutoScan,
     rescan,
     triggerManualScan,
-  } satisfies AutoScanStatus & {
-    startAutoScan: () => void;
-    stopAutoScan: () => void;
-    rescan: () => void;
-    triggerManualScan: (customCanvas?: HTMLCanvasElement) => Promise<void>;
   };
 }
+
