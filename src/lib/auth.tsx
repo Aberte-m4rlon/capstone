@@ -4,6 +4,12 @@ import { supabase } from './supabase';
 import { sendSmsOtp, verifySmsOtp, formatPhoneNumber } from './sms';
 import { isFirebaseConfigured } from './firebase';
 import { sendFirebasePhoneOtp, verifyFirebasePhoneOtp } from './firebasePhoneAuth';
+import {
+  sendFirebaseEmailSignInCode,
+  signUpWithFirebase,
+  verifyFirebaseEmailLinkOrCode,
+  checkFirebaseIncomingEmailLink,
+} from './firebaseEmailAuth';
 
 // ─── Role definitions ─────────────────────────────────────────────────────────
 export type UserRole = 'super_admin' | 'system_admin' | 'farm_manager';
@@ -239,16 +245,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Sign up with Email ───────────────────────────────────────────────────────
+    // ── Sign up with Email (Firebase + DB sync) ─────────────────────────────────
   const signUp = async (opts: SignUpOptions): Promise<{ error: string | null; needsConfirmation: boolean }> => {
     const email = opts.email.trim().toLowerCase();
     const password = opts.password.trim();
     const fullName = opts.fullName.trim();
     const farmName = opts.farmName.trim();
+    const farmLocation = opts.farmLocation?.trim() || '';
 
     if (!email || !password || !fullName || !farmName) {
       return { error: 'All required fields must be filled in.', needsConfirmation: false };
     }
+
+    // 1. Create account & send verification via Firebase
+    const fbSignUp = await signUpWithFirebase(email, password);
+
+    // 2. Create in DB / Supabase for backend schema consistency
+    let dbUserId: string | null = fbSignUp.user?.uid || null;
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -260,7 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    if (error) {
+    if (error && !fbSignUp.success) {
       const msg = error.message?.toLowerCase() ?? '';
       if (msg.includes('already registered') || msg.includes('user already exists') || msg.includes('already been registered')) {
         return { error: 'This email is already registered. Please sign in.', needsConfirmation: false };
@@ -271,46 +284,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (msg.includes('invalid') && msg.includes('email')) {
         return { error: 'Please enter a valid email address.', needsConfirmation: false };
       }
-      return { error: 'Unable to create account. Please try again.', needsConfirmation: false };
+      return { error: fbSignUp.error || 'Unable to create account. Please try again.', needsConfirmation: false };
     }
 
-    if (!data.user) {
-      return { error: 'Unable to create account. Please try again.', needsConfirmation: false };
+    if (data?.user?.id) {
+      dbUserId = data.user.id;
     }
 
-    try {
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        role: 'farm_manager' as UserRole,
-        full_name: fullName,
-        is_active: true,
-        email,
-      }, { onConflict: 'id' });
-    } catch {
-      // Profile creation failure is non-fatal
-    }
-
-    if (farmName) {
+    if (dbUserId) {
       try {
-        await supabase.from('settings').upsert({
-          user_id: data.user.id,
-          farm_name: farmName,
-          target_weight_kg: 40,
-          gestation_days: 150,
-          temp_critical: 40,
-          heart_rate_high: 90,
-          expiry_warning_days: 15,
-          vaccine_due_days: 30,
-          breeding_min_age_months: 8,
-          breeding_min_weight_kg: 25,
-        }, { onConflict: 'user_id' });
+        await supabase.from('profiles').upsert({
+          id: dbUserId,
+          role: 'farm_manager' as UserRole,
+          full_name: fullName,
+          is_active: true,
+          email,
+        }, { onConflict: 'id' });
       } catch {
         // Non-fatal
       }
+
+      if (farmName) {
+        try {
+          await supabase.from('settings').upsert({
+            user_id: dbUserId,
+            farm_name: farmName,
+            target_weight_kg: 40,
+            gestation_days: 150,
+            temp_critical: 40,
+            heart_rate_high: 90,
+            expiry_warning_days: 15,
+            vaccine_due_days: 30,
+            breeding_min_age_months: 8,
+            breeding_min_weight_kg: 25,
+          }, { onConflict: 'user_id' });
+        } catch {
+          // Non-fatal
+        }
+      }
     }
 
-    const needsConfirmation = !data.session;
-    return { error: null, needsConfirmation };
+    // Needs email confirmation if Firebase or Supabase requires verification
+    return { error: null, needsConfirmation: true };
   };
 
   // ── Sign in with Email + Password ───────────────────────────────────────────
@@ -363,7 +378,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
-    // ── Sign in with Email OTP Code ─────────────────────────────────────────────
+      // ── Sign in with Email Code (Sent via Firebase) ─────────────────────────────
   const signInWithEmailOtp = async (email: string): Promise<{ error: string | null; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) return { error: 'Please enter your email address.' };
@@ -371,35 +386,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRe.test(trimmedEmail)) return { error: 'Please enter a valid email address.' };
 
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
+    // 1. Dispatch directly via Google Firebase
+    const fbRes = await sendFirebaseEmailSignInCode(trimmedEmail);
+    if (!fbRes.success) {
+      // Fallback to Supabase OTP if Firebase encounters a network/domain issue
+      const { error: sbErr } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        options: {
-          shouldCreateUser: false,
-        },
+        options: { shouldCreateUser: false },
       });
-
-      if (error) {
-        const msg = error.message?.toLowerCase() ?? '';
-        if (msg.includes('user not found') || msg.includes('signups not allowed') || msg.includes('not found')) {
-          return { error: 'No account found with this email. Please sign up first.' };
-        }
-        if (msg.includes('rate') || msg.includes('limit') || msg.includes('seconds')) {
-          return { error: 'Please wait a moment before requesting another code.' };
-        }
-        return { error: error.message || 'Failed to send verification code to email.' };
+      if (sbErr) {
+        return { error: fbRes.message || sbErr.message || 'Failed to send verification code to email.' };
       }
-
-      return {
-        error: null,
-        message: 'A 6-digit verification code has been sent to ' + trimmedEmail + '.',
-      };
-    } catch (err: any) {
-      return { error: err?.message || 'Error sending email verification code.' };
     }
+
+    return {
+      error: null,
+      message: 'Verification code sent to ' + trimmedEmail + '.',
+    };
   };
 
-  // ── Verify Email OTP ────────────────────────────────────────────────────────
+  // ── Verify Email OTP / Code (Firebase + Supabase) ───────────────────────────
   const verifyEmailOtp = async (
     email: string,
     token: string,
@@ -412,14 +418,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!trimmedToken) return { error: 'Please enter the verification code.' };
 
     try {
-      // 1. Try verify with type 'email' (Magic code / OTP login)
+      // 1. Check Firebase Email Verification / Code
+      const fbVerify = await verifyFirebaseEmailLinkOrCode(trimmedEmail, trimmedToken);
+      if (fbVerify.success && fbVerify.user) {
+        const uid = fbVerify.user.uid;
+        const p = await fetchProfile(uid, trimmedEmail);
+
+        if (extraData?.fullName && (!p.full_name || p.full_name === '')) {
+          try {
+            await supabase.from('profiles').upsert({
+              id: uid,
+              role: p.role || 'farm_manager',
+              full_name: extraData.fullName,
+              is_active: true,
+              email: trimmedEmail,
+            }, { onConflict: 'id' });
+            p.full_name = extraData.fullName;
+          } catch { /* ignore */ }
+        }
+
+        if (extraData?.farmName) {
+          try {
+            await supabase.from('settings').upsert({
+              user_id: uid,
+              farm_name: extraData.farmName,
+              target_weight_kg: 40,
+              gestation_days: 150,
+              temp_critical: 40,
+              heart_rate_high: 90,
+              expiry_warning_days: 15,
+              vaccine_due_days: 30,
+              breeding_min_age_months: 8,
+              breeding_min_weight_kg: 25,
+            }, { onConflict: 'user_id' });
+          } catch { /* ignore */ }
+        }
+
+        setProfile(p);
+        return { error: null };
+      }
+
+      // 2. Check Supabase OTP verification
       let res = await supabase.auth.verifyOtp({
         email: trimmedEmail,
         token: trimmedToken,
         type: 'email',
       });
 
-      // 2. Fallback to type 'signup' (Sign up confirmation code)
       if (res.error) {
         const signupRetry = await supabase.auth.verifyOtp({
           email: trimmedEmail,
@@ -431,7 +476,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // 3. Fallback to type 'magiclink'
       if (res.error) {
         const mlRetry = await supabase.auth.verifyOtp({
           email: trimmedEmail,
@@ -444,6 +488,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (res.error) {
+        if (fbVerify.success) {
+          return { error: null };
+        }
         const msg = res.error.message?.toLowerCase() ?? '';
         if (msg.includes('expired')) {
           return { error: 'The verification code has expired. Please click "Resend Code" to get a new code.' };
@@ -497,26 +544,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ── Resend Email OTP ────────────────────────────────────────────────────────
+  // ── Resend Email Verification Code (via Firebase) ───────────────────────────
   const resendVerificationCode = async (email: string): Promise<{ error: string | null; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) return { error: 'Email address is required.' };
 
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: trimmedEmail,
-      });
+      // 1. Resend via Firebase
+      const fbRes = await sendFirebaseEmailSignInCode(trimmedEmail);
+      if (!fbRes.success) {
+        // Fallback to Supabase resend
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: trimmedEmail,
+        });
 
-      if (error) {
-        // Fallback: try signInWithOtp
-        const otpRetry = await supabase.auth.signInWithOtp({ email: trimmedEmail });
-        if (otpRetry.error) {
-          const msg = otpRetry.error.message?.toLowerCase() ?? '';
-          if (msg.includes('rate') || msg.includes('limit') || msg.includes('seconds')) {
-            return { error: 'Please wait a moment before requesting another code.' };
+        if (error) {
+          const retry = await supabase.auth.signInWithOtp({ email: trimmedEmail });
+          if (retry.error) {
+            return { error: fbRes.message || retry.error.message || 'Unable to resend verification code.' };
           }
-          return { error: otpRetry.error.message || 'Unable to resend verification code.' };
         }
       }
 
