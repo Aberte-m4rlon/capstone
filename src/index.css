@@ -2658,9 +2658,9 @@ table.data-table {
   }
 
   .mobile-toggle {
-    width: 38px;
-    height: 38px;
+    display: none !important;
   }
+
 
   .topbar-search {
     display: block;
@@ -2955,17 +2955,20 @@ table.data-table {
   }
 
   .topbar-icon-btn,
-  .mobile-toggle,
   .profile-avatar {
     width: 34px;
     height: 34px;
   }
 
-  .topbar-icon-btn svg,
-  .mobile-toggle svg {
+  .topbar-icon-btn svg {
     width: 16px;
     height: 16px;
   }
+
+  .mobile-toggle {
+    display: none !important;
+  }
+
 
   .profile-avatar {
     font-size: 12px;
@@ -3894,10 +3897,18 @@ input[type="time"] {
     padding-bottom: 110px !important;
   }
 
-  /* Desktop sidebar hidden */
-  .alpas-sidebar.desktop-sidebar {
+  /* Desktop and Mobile Drawer sidebars hidden */
+  .alpas-sidebar.desktop-sidebar,
+  .alpas-sidebar.mobile-drawer,
+  .sidebar-overlay {
     display: none !important;
   }
+
+  /* Remove burger / hamburger button on mobile view */
+  .mobile-toggle {
+    display: none !important;
+  }
+
 
   /* Fixed 72px Bottom Navigation Bar */
   .mobile-bottom-nav {
