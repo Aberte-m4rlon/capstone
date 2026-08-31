@@ -3404,3 +3404,364 @@ input[type="time"] {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
+
+
+/* ===== BREEDING MANAGEMENT RESPONSIVE DESIGN SYSTEM ===== */
+.breeding-page-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 110px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .breeding-page-container {
+    padding-bottom: 120px;
+    gap: 16px;
+  }
+}
+
+/* ── Desktop & Tablet Table ──────────────────────────────── */
+.breeding-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--color-surface, #FFFFFF);
+  border-radius: var(--radius-xl, 20px);
+  border: 1px solid var(--color-border, #E2E8F0);
+  box-shadow: var(--shadow-card, 0 4px 20px rgba(30, 70, 40, 0.06));
+}
+
+[data-theme="dark"] .breeding-table-wrapper {
+  background: #17231B;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.breeding-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 13.5px;
+}
+
+.breeding-table th {
+  padding: 16px 20px;
+  font-weight: 800;
+  color: var(--color-text-secondary, #64748B);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  background: var(--color-surface-elevated, #F8FAF8);
+  border-bottom: 1px solid var(--color-border, #E2E8F0);
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .breeding-table th {
+  background: #1D2B22;
+  color: #9EAF9F;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.breeding-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border-light, #F1F5F9);
+  color: var(--color-text-primary, #1F2933);
+  vertical-align: middle;
+}
+
+[data-theme="dark"] .breeding-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  color: #F3F7F4;
+}
+
+.breeding-table tr:last-child td {
+  border-bottom: none;
+}
+
+.breeding-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.breeding-table tbody tr:hover {
+  background-color: rgba(67, 160, 71, 0.04);
+}
+
+[data-theme="dark"] .breeding-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Specific Column Min-widths */
+.breeding-col-female {
+  min-width: 180px;
+}
+
+.breeding-col-partner {
+  min-width: 150px;
+}
+
+.breeding-col-date {
+  min-width: 140px;
+}
+
+.breeding-col-kidding {
+  min-width: 190px;
+}
+
+.breeding-col-status {
+  min-width: 130px;
+}
+
+.breeding-col-actions {
+  min-width: 130px;
+  text-align: right;
+}
+
+/* Animal cell text formatting */
+.animal-cell-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text-primary, #0F172A);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .animal-cell-title {
+  color: #F8FAFC;
+}
+
+.animal-cell-subtitle {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748B);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .animal-cell-subtitle {
+  color: #94A3B8;
+}
+
+/* Pill status badges */
+.breeding-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.breeding-status-planned {
+  background: rgba(245, 158, 11, 0.12);
+  color: #D97706;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+.breeding-status-pregnant {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563EB;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+
+.breeding-status-kidded {
+  background: #E8F5E9;
+  color: #2E7D32;
+  border: 1px solid rgba(46, 125, 50, 0.28);
+}
+
+.breeding-status-failed {
+  background: rgba(239, 68, 68, 0.12);
+  color: #DC2626;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+.breeding-status-monitor {
+  background: rgba(245, 158, 11, 0.12);
+  color: #D97706;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+/* Action button grouping */
+.breeding-actions-group {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.breeding-action-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border, #E2E8F0);
+  background: var(--color-surface-elevated, #FFFFFF);
+  color: var(--color-text-secondary, #64748B);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.breeding-action-btn:hover {
+  background: var(--color-surface-hover, #F1F5F9);
+  color: var(--color-text-primary, #0F172A);
+  border-color: var(--color-border-focus, #43A047);
+  transform: translateY(-1px);
+}
+
+.breeding-action-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #DC2626;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+[data-theme="dark"] .breeding-action-btn {
+  background: #1E2D23;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #9EAF9F;
+}
+
+[data-theme="dark"] .breeding-action-btn:hover {
+  background: #273A2E;
+  color: #FFFFFF;
+}
+
+/* ── Mobile Layout (< 768px) ────────────────────────────────── */
+.breeding-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .breeding-desktop-table {
+    display: none !important;
+  }
+
+  .breeding-mobile-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .breeding-card {
+    background: var(--color-surface, #FFFFFF);
+    border: 1px solid var(--color-border, #E2E8F0);
+    border-radius: var(--radius-lg, 18px);
+    padding: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  [data-theme="dark"] .breeding-card {
+    background: #17231B;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .breeding-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border-light, #F1F5F9);
+  }
+
+  [data-theme="dark"] .breeding-card-header {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .breeding-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .breeding-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  @media (max-width: 440px) {
+    .breeding-card-grid {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+  }
+
+  .breeding-card-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .breeding-card-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary, #64748B);
+  }
+
+  [data-theme="dark"] .breeding-card-label {
+    color: #94A3B8;
+  }
+
+  .breeding-card-value {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--color-text-primary, #0F172A);
+  }
+
+  [data-theme="dark"] .breeding-card-value {
+    color: #F8FAFC;
+  }
+
+  .breeding-card-notes {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--color-surface-elevated, #F8FAF8);
+    border: 1px solid var(--color-border-light, #E2E8F0);
+    font-size: 12px;
+    color: var(--color-text-secondary, #64748B);
+    line-height: 1.4;
+  }
+
+  [data-theme="dark"] .breeding-card-notes {
+    background: #141E17;
+    border-color: rgba(255, 255, 255, 0.06);
+    color: #94A3B8;
+  }
+
+  .breeding-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border-light, #F1F5F9);
+    flex-wrap: wrap;
+  }
+
+  [data-theme="dark"] .breeding-card-footer {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+}

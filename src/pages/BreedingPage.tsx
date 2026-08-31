@@ -9,7 +9,7 @@ import { Input, Select, FormField } from '../components/ui/Input';
 import { Card, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
-import { FilterToolbar, FilterSelect } from '../components/FilterToolbar';
+import { FilterToolbar, FilterSearch, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
 import {
   Plus,
@@ -22,8 +22,9 @@ import {
   AlertCircle,
   ShieldCheck,
   ShieldAlert,
-  Info,
-  Heart,
+  Clock,
+  Calendar,
+  HeartHandshake,
 } from 'lucide-react';
 import {
   calculateKiddingDate,
@@ -57,6 +58,7 @@ export function BreedingPage() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<BreedingRecord | null>(null);
   const [fStatus, setFStatus] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [readinessTab, setReadinessTab] = useState<'females' | 'males' | 'not_ready'>('females');
 
   // Newborn registration state
@@ -142,7 +144,6 @@ export function BreedingPage() {
     if (selectedFemale.species !== selectedMale.species) {
       return `Species mismatch: Dam is a ${selectedFemale.species} while Sire is a ${selectedMale.species}.`;
     }
-    // Check if known parent/offspring
     const damNotes = (selectedFemale.notes || '').toLowerCase();
     const sireNotes = (selectedMale.notes || '').toLowerCase();
     if (
@@ -155,11 +156,36 @@ export function BreedingPage() {
     return null;
   }, [selectedFemale, selectedMale]);
 
+  // Filtered and Searched breeding records
   const filtered = useMemo(() => {
     return farmData.breedingRecords
-      .filter((r) => fStatus === 'All' || r.status === fStatus)
+      .filter((r) => {
+        const matchesStatus = fStatus === 'All' || r.status === fStatus;
+        if (!matchesStatus) return false;
+
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase().trim();
+        const female = farmData.animals.find((a) => a.id === r.animal_id);
+        const male = farmData.animals.find((a) => a.id === r.partner_id);
+
+        const femaleName = (female?.name || '').toLowerCase();
+        const femaleTag = (female?.tag_id || '').toLowerCase();
+        const femaleBreed = (female?.breed || '').toLowerCase();
+        const maleName = (male?.name || '').toLowerCase();
+        const maleTag = (male?.tag_id || '').toLowerCase();
+        const notes = (r.notes || '').toLowerCase();
+
+        return (
+          femaleName.includes(q) ||
+          femaleTag.includes(q) ||
+          femaleBreed.includes(q) ||
+          maleName.includes(q) ||
+          maleTag.includes(q) ||
+          notes.includes(q)
+        );
+      })
       .sort((a, b) => new Date(b.mating_date).getTime() - new Date(a.mating_date).getTime());
-  }, [farmData.breedingRecords, fStatus]);
+  }, [farmData.breedingRecords, farmData.animals, fStatus, searchQuery]);
 
   const openAdd = () => {
     setEditing(null);
@@ -352,13 +378,53 @@ export function BreedingPage() {
     }
   };
 
-  const animalName = (id: string) => {
-    const a = farmData.animals.find((x) => x.id === id);
-    return a ? `${a.name} (${a.tag_id})` : 'Unknown';
+  const renderStatusPill = (status: string) => {
+    let className = 'breeding-status-pill ';
+    if (status === 'Pregnant') className += 'breeding-status-pregnant';
+    else if (status === 'Kidded' || status === 'Delivered') className += 'breeding-status-kidded';
+    else if (status === 'Failed') className += 'breeding-status-failed';
+    else if (status === 'Monitor') className += 'breeding-status-monitor';
+    else className += 'breeding-status-planned';
+
+    return <span className={className}>{status}</span>;
+  };
+
+  const renderKiddingInfo = (dateStr: string | null, status: string) => {
+    if (!dateStr) return <span style={{ color: 'var(--color-text-muted, #94A3B8)' }}>—</span>;
+    const days = daysUntil(dateStr);
+
+    let daysElement = null;
+    if (status === 'Pregnant') {
+      if (days === 0) {
+        daysElement = <span style={{ fontSize: '11.5px', color: '#2E7D32', fontWeight: 700 }}>Due today!</span>;
+      } else if (days > 0) {
+        const isUrgent = days <= 14;
+        daysElement = (
+          <span style={{ fontSize: '11.5px', color: isUrgent ? '#D97706' : '#2E7D32', fontWeight: 600 }}>
+            {days} days remaining{isUrgent ? ' (Due soon)' : ''}
+          </span>
+        );
+      } else {
+        daysElement = (
+          <span style={{ fontSize: '11.5px', color: '#DC2626', fontWeight: 700 }}>
+            {Math.abs(days)} days overdue
+          </span>
+        );
+      }
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--color-text-primary, #0F172A)' }}>
+          {formatDate(dateStr)}
+        </span>
+        {daysElement}
+      </div>
+    );
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
+    <div className="breeding-page-container">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -366,7 +432,7 @@ export function BreedingPage() {
             Breeding Management
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
-            {filtered.length} breeding records · {readyFemales.length} does ready · {readyMales.length} bucks ready
+            {farmData.breedingRecords.length} total breeding records · {readyFemales.length} does ready · {readyMales.length} bucks ready
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -608,8 +674,14 @@ export function BreedingPage() {
         </CardContent>
       </Card>
 
-      {/* Filter Toolbar */}
+      {/* Filter Toolbar with Search & Status Filter */}
       <FilterToolbar>
+        <FilterSearch
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search by animal name, tag ID, breed, or sire..."
+          minWidth={260}
+        />
         <FilterSelect
           value={fStatus}
           onChange={setFStatus}
@@ -617,126 +689,254 @@ export function BreedingPage() {
             { value: 'All', label: 'All Status' },
             { value: 'Planned', label: 'Planned' },
             { value: 'Pregnant', label: 'Pregnant' },
-            { value: 'Kidded', label: 'Kidded' },
+            { value: 'Kidded', label: 'Kidded / Delivered' },
             { value: 'Failed', label: 'Failed' },
             { value: 'Monitor', label: 'Monitor' },
           ]}
           ariaLabel="Filter Status"
-          minWidth={150}
+          minWidth={160}
         />
       </FilterToolbar>
 
-      {/* Records Table */}
-      <Card variant="default" padding="none">
-        <CardContent>
+      {/* ── Desktop & Tablet Table (Hidden on Mobile < 768px) ── */}
+      <div className="breeding-desktop-table">
+        <div className="breeding-table-wrapper">
           {filtered.length === 0 ? (
-            <div style={{ padding: 32 }}>
+            <div style={{ padding: 40 }}>
               <EmptyState
                 icon={<Icons.Heart size={32} />}
                 title="No breeding records found"
-                description={fStatus === 'All' ? 'Start tracking breeding by adding your first record.' : 'No records match the selected status filter.'}
+                description={
+                  searchQuery || fStatus !== 'All'
+                    ? 'No records match your search query or filter criteria.'
+                    : 'Start tracking breeding by adding your first record.'
+                }
                 actionLabel="Add Record"
                 onAction={openAdd}
               />
             </div>
           ) : (
-            <div className="table-responsive">
-              <table className="alpas-table">
-                <thead>
-                  <tr>
-                    <th>Female (Dam)</th>
-                    <th>Partner (Sire)</th>
-                    <th>Mating Date</th>
-                    <th>Expected Kidding</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((b) => {
-                    const female = farmData.animals.find((a) => a.id === b.animal_id);
-                    const male = farmData.animals.find((a) => a.id === b.partner_id);
-                    const days = b.expected_kidding_date ? daysUntil(b.expected_kidding_date) : null;
-                    return (
-                      <tr key={b.id}>
-                        <td>
-                          <div style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                            {female?.name ?? animalName(b.animal_id)}
+            <table className="breeding-table">
+              <thead>
+                <tr>
+                  <th className="breeding-col-female">Female (Dam)</th>
+                  <th className="breeding-col-partner">Partner (Sire)</th>
+                  <th className="breeding-col-date">Mating Date</th>
+                  <th className="breeding-col-kidding">Expected Kidding</th>
+                  <th className="breeding-col-status">Status</th>
+                  <th className="breeding-col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((b) => {
+                  const female = farmData.animals.find((a) => a.id === b.animal_id);
+                  const male = farmData.animals.find((a) => a.id === b.partner_id);
+
+                  return (
+                    <tr key={b.id}>
+                      {/* Female Dam Column */}
+                      <td className="breeding-col-female">
+                        <div style={{ maxWidth: 220 }}>
+                          <div className="animal-cell-title" title={female?.name || 'Unknown'}>
+                            {female?.name || 'Unknown Female'}
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #64748B)' }}>
-                            {female?.tag_id ?? ''} {female?.breed ? `· ${female.breed}` : ''}
+                          <div className="animal-cell-subtitle" title={`${female?.tag_id || ''} ${female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species}` : ''}`}>
+                            {female?.tag_id || 'No Tag'} {female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species}` : ''}
                           </div>
-                        </td>
-                        <td>
-                          {male ? (
-                            <div>
-                              <div style={{ fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>{male.name}</div>
-                              <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #64748B)' }}>{male.tag_id}</div>
+                        </div>
+                      </td>
+
+                      {/* Partner Sire Column */}
+                      <td className="breeding-col-partner">
+                        {male ? (
+                          <div style={{ maxWidth: 200 }}>
+                            <div className="animal-cell-title" title={male.name}>
+                              {male.name}
                             </div>
-                          ) : (
-                            <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '12px' }}>Unassigned</span>
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>{formatDate(b.mating_date)}</div>
-                        </td>
-                        <td>
-                          {b.expected_kidding_date ? (
-                            <div>
-                              <div style={{ fontWeight: 700, color: '#2E7D32' }}>{formatDate(b.expected_kidding_date)}</div>
-                              {days !== null && b.status === 'Pregnant' && (
-                                <div style={{ fontSize: '11px', color: days <= 14 ? '#DC2626' : '#2E7D32', fontWeight: 600 }}>
-                                  {days === 0 ? 'Due today!' : days > 0 ? `${days} days remaining` : `${Math.abs(days)} days overdue`}
-                                </div>
-                              )}
+                            <div className="animal-cell-subtitle" title={`${male.tag_id} ${male.breed ? `• ${male.breed}` : ''}`}>
+                              {male.tag_id} {male.breed ? `• ${male.breed}` : ''}
                             </div>
-                          ) : (
-                            <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '12px' }}>—</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--color-text-muted, #94A3B8)', fontSize: '13px' }}>Unassigned</span>
+                        )}
+                      </td>
+
+                      {/* Mating Date Column */}
+                      <td className="breeding-col-date">
+                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary, #0F172A)', fontSize: '13.5px' }}>
+                          {formatDate(b.mating_date)}
+                        </div>
+                      </td>
+
+                      {/* Expected Kidding Column */}
+                      <td className="breeding-col-kidding">
+                        {renderKiddingInfo(b.expected_kidding_date, b.status)}
+                      </td>
+
+                      {/* Status Column */}
+                      <td className="breeding-col-status">
+                        {renderStatusPill(b.status)}
+                      </td>
+
+                      {/* Actions Column */}
+                      <td className="breeding-col-actions">
+                        <div className="breeding-actions-group">
+                          {b.status === 'Kidded' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => openRegisterOffspring(b)}
+                              leftIcon={<Baby size={14} color="#FF6A00" />}
+                              title="Register newborn kid/lamb"
+                            >
+                              Offspring
+                            </Button>
                           )}
-                        </td>
-                        <td>
-                          <Badge
-                            variant={b.status === 'Pregnant' ? 'info' : b.status === 'Kidded'
-                                ? 'success'
-                                : b.status === 'Failed'
-                                ? 'danger'
-                                : 'default'
-                            }
-                            size="sm"
+                          <button
+                            type="button"
+                            className="breeding-action-btn"
+                            onClick={() => openEdit(b)}
+                            title="Edit Breeding Record"
+                            aria-label="Edit Breeding Record"
                           >
-                            {b.status}
-                          </Badge>
-                        </td>
-                        <td>
-                          <div className="row-actions" style={{ justifyContent: 'flex-end', gap: 6 }}>
-                            {b.status === 'Kidded' && (
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => openRegisterOffspring(b)}
-                                leftIcon={<Baby size={13} color="#FF6A00" />}
-                                title="Register newborn kid/lamb"
-                              >
-                                Offspring
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="sm" onClick={() => openEdit(b)}>
-                              <Pencil size={15} />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(b)}>
-                              <Trash2 size={15} />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            className="breeding-action-btn delete"
+                            onClick={() => setConfirmDelete(b)}
+                            title="Delete Breeding Record"
+                            aria-label="Delete Breeding Record"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* ── Mobile Cards Layout (< 768px) ── */}
+      <div className="breeding-mobile-cards">
+        {filtered.length === 0 ? (
+          <div style={{ padding: 24 }}>
+            <EmptyState
+              icon={<Icons.Heart size={32} />}
+              title="No breeding records found"
+              description={
+                searchQuery || fStatus !== 'All'
+                  ? 'No records match your filter criteria.'
+                  : 'Start tracking breeding by adding your first record.'
+              }
+              actionLabel="Add Record"
+              onAction={openAdd}
+            />
+          </div>
+        ) : (
+          filtered.map((b) => {
+            const female = farmData.animals.find((a) => a.id === b.animal_id);
+            const male = farmData.animals.find((a) => a.id === b.partner_id);
+
+            return (
+              <div key={b.id} className="breeding-card">
+                {/* Header: Female Dam + Status Pill */}
+                <div className="breeding-card-header">
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-text-primary, #0F172A)' }}>
+                      {female?.name || 'Unknown Female'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #64748B)', marginTop: 2 }}>
+                      {female?.tag_id || 'No Tag'} {female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species}` : ''}
+                    </div>
+                  </div>
+                  <div>
+                    {renderStatusPill(b.status)}
+                  </div>
+                </div>
+
+                {/* Body Details */}
+                <div className="breeding-card-body">
+                  {/* Partner Sire */}
+                  <div className="breeding-card-field">
+                    <span className="breeding-card-label">Partner (Sire)</span>
+                    <span className="breeding-card-value">
+                      {male ? (
+                        <span>
+                          {male.name} <span style={{ fontSize: '12px', color: 'var(--color-text-secondary, #64748B)', fontWeight: 500 }}>• {male.tag_id} {male.breed ? `(${male.breed})` : ''}</span>
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-muted, #94A3B8)', fontWeight: 400 }}>Unassigned</span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* 2-Column Grid: Mating Date & Expected Kidding */}
+                  <div className="breeding-card-grid">
+                    <div className="breeding-card-field">
+                      <span className="breeding-card-label">Mating Date</span>
+                      <span className="breeding-card-value" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Calendar size={13} color="var(--color-text-secondary, #64748B)" />
+                        {formatDate(b.mating_date)}
+                      </span>
+                    </div>
+
+                    <div className="breeding-card-field">
+                      <span className="breeding-card-label">Expected Kidding</span>
+                      {renderKiddingInfo(b.expected_kidding_date, b.status)}
+                    </div>
+                  </div>
+
+                  {/* Observations / Notes if present */}
+                  {b.notes && (
+                    <div className="breeding-card-notes">
+                      {b.notes}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Action Buttons */}
+                <div className="breeding-card-footer">
+                  {b.status === 'Kidded' && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => openRegisterOffspring(b)}
+                      leftIcon={<Baby size={14} color="#FF6A00" />}
+                      style={{ minHeight: 40 }}
+                    >
+                      Offspring
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEdit(b)}
+                    leftIcon={<Pencil size={15} />}
+                    style={{ minHeight: 40, border: '1px solid var(--color-border, #E2E8F0)' }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfirmDelete(b)}
+                    leftIcon={<Trash2 size={15} color="#DC2626" />}
+                    style={{ minHeight: 40, border: '1px solid rgba(239, 68, 68, 0.2)', color: '#DC2626' }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       {/* Breeding Record Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
@@ -909,7 +1109,7 @@ export function BreedingPage() {
                   options={[
                     { value: 'Planned', label: 'Planned' },
                     { value: 'Pregnant', label: 'Pregnant' },
-                    { value: 'Kidded', label: 'Kidded' },
+                    { value: 'Kidded', label: 'Kidded / Delivered' },
                     { value: 'Failed', label: 'Failed' },
                     { value: 'Monitor', label: 'Monitor' },
                   ]}
