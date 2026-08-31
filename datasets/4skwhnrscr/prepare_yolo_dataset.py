@@ -139,7 +139,7 @@ def clean_and_prepare():
     # 4. Generate data.yaml
     print("\n[4/4] Writing data.yaml...")
     data_yaml_content = f"""# AlpasFarm 4skwhnrscr-2 Goat Anatomical & Health Dataset
-path: {OUTPUT_DIR.resolve().as_posix()}
+path: .
 train: images/train
 val: images/val
 test: images/test

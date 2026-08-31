@@ -1,5 +1,5 @@
 # AlpasFarm 4skwhnrscr-2 Goat Anatomical & Health Dataset
-path: C:/Users/ACER/Downloads/project-bolt-sb1-wgbqecdo/final capstone proj/datasets/4skwhnrscr/yolo_dataset
+path: .
 train: images/train
 val: images/val
 test: images/test
