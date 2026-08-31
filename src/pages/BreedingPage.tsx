@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
+
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../components/ui/Toast';
@@ -50,6 +52,9 @@ export function BreedingPage() {
   const farmData = useFarmData();
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BreedingRecord | null>(null);
@@ -197,6 +202,15 @@ export function BreedingPage() {
     setErrors({});
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'add') {
+      openAdd();
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search]);
+
 
   const openEdit = (r: BreedingRecord) => {
     setEditing(r);

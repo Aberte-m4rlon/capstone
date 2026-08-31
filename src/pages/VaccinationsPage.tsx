@@ -1,4 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
@@ -59,6 +61,8 @@ const specularHighlight: React.CSSProperties = {
 export function VaccinationsPage() {
   const farmData = useFarmData();
   const toast = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Vaccination | null>(null);
@@ -111,6 +115,15 @@ export function VaccinationsPage() {
     setErrors({});
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'add') {
+      openAdd();
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search]);
+
 
   const openEdit = (r: Vaccination) => {
     setEditing(r);

@@ -114,6 +114,9 @@ export function AIFloatingButton({
 
   if (!mounted) return null;
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+  const bottomOffset = isMobile ? 90 : MARGIN;
+
   // Compute position styles
   const getPositionStyles = (): React.CSSProperties => {
     if (livePos) {
@@ -138,10 +141,11 @@ export function AIFloatingButton({
     switch (corner) {
       case 'tl': return { ...base, left: MARGIN, top: MARGIN };
       case 'tr': return { ...base, right: MARGIN, top: MARGIN };
-      case 'bl': return { ...base, left: MARGIN, bottom: MARGIN };
-      case 'br': return { ...base, right: MARGIN, bottom: MARGIN };
+      case 'bl': return { ...base, left: MARGIN, bottom: bottomOffset };
+      case 'br': return { ...base, right: MARGIN, bottom: bottomOffset };
     }
   };
+
 
   return (
     <div style={getPositionStyles()}>

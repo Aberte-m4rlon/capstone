@@ -4,8 +4,10 @@ import { useAuth } from '../../lib/auth';
 import { useFarmData } from '../../lib/useFarmData';
 import { AppSidebar } from './AppSidebar';
 import { MobileSidebar } from './MobileSidebar';
+import { MobileBottomNav } from './MobileBottomNav';
 import { AppHeader } from './AppHeader';
 import { FloatingAICloud } from '../FloatingAICloud';
+
 
 export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/dashboard':        { title: 'Dashboard',            subtitle: 'Farm overview at a glance'                  },
@@ -98,6 +100,10 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* AI Cloud Floating Assistant */}
       <FloatingAICloud />
+
+      {/* Mobile Fixed Bottom Navigation (<= 768px) */}
+      <MobileBottomNav role={role} getBadge={getBadge} />
     </div>
   );
 }
+

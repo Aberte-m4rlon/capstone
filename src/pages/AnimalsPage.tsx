@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+
 import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -86,6 +87,16 @@ export function AnimalsPage() {
       setForm((prev) => (prev.species === 'Goat' ? { ...prev, tag_id: freshId } : prev));
     }).catch(() => {});
   };
+
+  const location = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'add') {
+      openAdd();
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search]);
+
 
   const handleSpeciesChange = (newSpecies: Species) => {
     if (!editing) {

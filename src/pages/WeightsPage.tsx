@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
+
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
 import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
@@ -26,6 +28,8 @@ const emptyForm = {
 export function WeightsPage() {
   const farmData = useFarmData();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<WeightRecord | null>(null);
@@ -36,7 +40,15 @@ export function WeightsPage() {
   const [fAnimal, setFAnimal] = useState('All');
   const mlGrowth = useGrowthPrediction(fAnimal !== 'All' ? fAnimal : null);
 
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
+  const activeAnimals = useMemo(
+    () => farmData.animals.filter((a) => !a.archived),
+    [farmData.animals]
+  );
+
+  const animalMap = useMemo(
+    () => new Map(farmData.animals.map((a) => [a.id, a])),
+    [farmData.animals]
+  );
 
   const filtered = useMemo(() => {
     return farmData.weightRecords
@@ -50,6 +62,14 @@ export function WeightsPage() {
     setErrors({});
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'add') {
+      openAdd();
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search]);
 
   const openEdit = (r: WeightRecord) => {
     setEditing(r);

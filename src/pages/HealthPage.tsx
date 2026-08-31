@@ -13,8 +13,9 @@
  */
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
+
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
@@ -295,6 +296,16 @@ export function HealthPage() {
     setCameraError(null);
     setModalOpen(true);
   };
+
+  const location = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'add' || params.get('action') === 'check') {
+      openPredictionModal();
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search]);
+
 
   // Close Camera Stream helper
   const stopCameraStream = () => {

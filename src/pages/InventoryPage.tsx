@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
+
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../components/ui/Toast';
@@ -70,6 +72,9 @@ export function InventoryPage() {
   const farmData = useFarmData();
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+
 
   const warningDays = farmData.settings?.expiry_warning_days ?? 15;
   const allTx = farmData.inventoryTransactions;
@@ -409,6 +414,15 @@ export function InventoryPage() {
 
   // ── Add/Edit item ───────────────────────────────────────────────────────────
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('action') === 'add') {
+      openAdd();
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search]);
+
   const openEdit = (i: InventoryItem) => {
     setEditing(i);
     setForm({
