@@ -17,15 +17,19 @@
  *   GOAT_DETECTION_THRESHOLD    = 0.15  (cumulative threshold across all ruminant classes)
  *   REQUIRED_STABLE_FRAMES      = 2     (300ms window for fast auto-capture)
  *   SCAN_COOLDOWN_SECONDS       = 5     (seconds before auto-resuming next scan)
- *   DETECTION_INTERVAL_MS       = 140   (~7 FPS detection cadence)
+ *   STABILITY_DURATION_MS       = 2500  (2.5 second observation & verification window)
+ *   DETECTION_INTERVAL_MS       = 125   (~8 FPS detection cadence)
+ *   REQUIRED_STABLE_FRAMES      = 20    (2.5s steady hold window)
+ *   SCAN_COOLDOWN_SECONDS       = 5     (seconds before auto-resuming next scan)
  */
 
 // ── Configurable constants ────────────────────────────────────────────────────
 export const OBJECT_DETECTION_THRESHOLD = 0.10;
 export const GOAT_DETECTION_THRESHOLD   = 0.15;
-export const REQUIRED_STABLE_FRAMES     = 2;
+export const STABILITY_DURATION_MS      = 2500; // 2.5 seconds observation window
+export const DETECTION_INTERVAL_MS      = 125;  // ~8 FPS
+export const REQUIRED_STABLE_FRAMES     = 20;   // 20 frames * 125ms = 2500ms
 export const SCAN_COOLDOWN_SECONDS      = 5;
-export const DETECTION_INTERVAL_MS      = 140;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type Species = 'goat' | 'sheep' | 'other';

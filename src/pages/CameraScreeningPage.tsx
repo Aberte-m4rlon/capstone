@@ -25,7 +25,7 @@ import { supabase } from '../lib/supabase';
 import { fileToCanvas, type ScanResult } from '../lib/cameraML';
 import {
   GOAT_DETECTION_THRESHOLD,
-  REQUIRED_STABLE_FRAMES,
+  STABILITY_DURATION_MS,
 } from '../lib/goatDetector';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -657,30 +657,50 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
               )}
             </div>
 
-            {/* Stable Frame Progress */}
+            {/* 2.5-Second Stability & Verification Progress */}
             {permission === 'granted' && (autoScan.state === 'detecting' || autoScan.state === 'stable') && (
               <div style={{ background: '#FFFFFF', border: '1px solid #E5EDE6', borderRadius: 12, padding: '12px 16px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#4B5563', marginBottom: 6 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: det?.detected ? '#2E7D32' : '#6B7280' }}>
-                    {det?.detected ? <><Activity size={13} color="#43A047" /> {speciesLabel} Detected ({Math.round(det.confidence * 100)}%)</> : 'Awaiting Animal...'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: det?.detected ? '#2E7D32' : det?.otherDetected ? '#D97706' : '#6B7280' }}>
+                    {det?.detected ? (
+                      <><Activity size={13} color="#43A047" /> {speciesLabel} Detected ({Math.round(det.confidence * 100)}%)</>
+                    ) : det?.otherDetected ? (
+                      <><Activity size={13} color="#D97706" /> Sinusuri ang Bagay ({det.nonTargetClass || 'Non-Livestock'})</>
+                    ) : (
+                      'Naghahanap ng Hayop...'
+                    )}
                   </span>
-                  <span style={{ fontSize: 11, color: '#9CA3AF' }}>Threshold: {Math.round(GOAT_DETECTION_THRESHOLD * 100)}%</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: autoScan.isObserving ? '#2E7D32' : '#9CA3AF' }}>
+                    {autoScan.isObserving ? `${autoScan.stabilityRemainingSeconds.toFixed(1)}s (2.5s Steady Hold)` : '2.5s Verification Window'}
+                  </span>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: '#F3F4F6', overflow: 'hidden', marginBottom: 8 }}>
-                  <div style={{ height: '100%', borderRadius: 999, background: det?.detected ? 'linear-gradient(90deg, #43A047, #2E7D32)' : '#E5E7EB', width: `${Math.round((det?.confidence ?? 0) * 100)}%`, transition: 'width 0.3s' }} />
+                <div style={{ height: 8, borderRadius: 999, background: '#F3F4F6', overflow: 'hidden', marginBottom: 8 }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      borderRadius: 999,
+                      background: det?.detected
+                        ? 'linear-gradient(90deg, #43A047, #2E7D32)'
+                        : det?.otherDetected
+                        ? 'linear-gradient(90deg, #F59E0B, #D97706)'
+                        : '#E5E7EB',
+                      width: `${autoScan.isObserving ? autoScan.stabilityProgress : 0}%`,
+                      transition: 'width 0.15s linear',
+                    }}
+                  />
                 </div>
-                {det?.detected && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {Array.from({ length: REQUIRED_STABLE_FRAMES }).map((_, i) => (
-                        <div key={i} style={{ width: 10, height: 10, borderRadius: 3, background: i < (det.stableFrames ?? 0) ? '#43A047' : '#E5E7EB', transition: 'background 0.2s' }} />
-                      ))}
-                    </div>
-                    <span style={{ fontSize: 11, color: '#6B7280' }}>
-                      Auto-scan triggers after {REQUIRED_STABLE_FRAMES} stable frames
+                <div style={{ fontSize: 11, color: '#6B7280', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>
+                    {autoScan.isObserving
+                      ? `Pinagmamasdan ang camera feed nang 2.5s... ${autoScan.stabilityProgress}% tapos`
+                      : 'Itutok ang camera sa kambing o tupa nang 2.5 segundo bago isagawa ang scan.'}
+                  </span>
+                  {autoScan.isObserving && (
+                    <span style={{ fontWeight: 800, color: det?.detected ? '#2E7D32' : '#D97706' }}>
+                      {autoScan.stabilityRemainingSeconds.toFixed(1)}s
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
