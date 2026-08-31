@@ -3,12 +3,11 @@
  * POST /api/auth/sms
  *
  * Actions:
- *   1. action: 'send'   → generates 6-digit OTP and sends REAL SMS via Semaphore (Primary PH Gateway) or Twilio (Secondary)
+ *   1. action: 'send'   → generates 6-digit OTP and sends REAL SMS via Twilio (if configured)
  *   2. action: 'verify' → validates OTP token, creates/authenticates user, returns profile & session info
  *
- * Primary SMS Gateway (Philippines Free Tier & High Delivery):
- *   - SEMAPHORE_API_KEY (from https://semaphore.co)
- *   - SEMAPHORE_SENDER_NAME (optional)
+ * Primary SMS Provider for AlpasFarm:
+ *   - Google Firebase Phone Authentication (10,000 Free Real SMS / month)
  *
  * Secondary / International Gateway:
  *   - TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
@@ -93,155 +92,92 @@ function postRequest(
   });
 }
 
-// ── SMS Dispatcher: Semaphore (Primary Philippine Gateway) ───────────────────
-async function sendViaSemaphore(
-  apiKey: string,
-  number: string,
-  message: string,
-  senderName?: string,
-): Promise<{ success: boolean; detail?: string }> {
-  const cleanNumber = number.replace(/[^0-9]/g, '');
-  const phNumber = cleanNumber.startsWith('63') ? '0' + cleanNumber.slice(2) : cleanNumber;
-
-  const payloadObj: Record<string, string> = {
-    apikey: apiKey.trim(),
-    number: phNumber,
-    message: message,
-  };
-
-  if (senderName && senderName.trim()) {
-    payloadObj.sendername = senderName.trim();
-  }
-
-  const payload = JSON.stringify(payloadObj);
-
-  try {
-    const res = await postRequest('https://api.semaphore.co/api/v4/messages', {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(payload),
-    }, payload);
-
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(res.data);
-    } catch {
-      parsed = null;
-    }
-
-    if (res.status >= 200 && res.status < 300) {
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const first = parsed[0];
-        if (first.status && String(first.status).toLowerCase() === 'failed') {
-          return { success: false, detail: `Semaphore failed: ${first.message_id || 'Failed delivery'}` };
-        }
-      }
-      return { success: true, detail: res.data };
-    }
-
-    const errDetail = (parsed && (parsed.message || parsed.error)) ? (parsed.message || parsed.error) : res.data;
-    return { success: false, detail: `Semaphore error HTTP ${res.status}: ${errDetail}` };
-  } catch (err: any) {
-    return { success: false, detail: err?.message || 'Semaphore network failure' };
-  }
-}
-
-// ── SMS Dispatcher: Twilio (Secondary / International) ───────────────────────
+// ── SMS Dispatcher: Twilio ──────────────────────────────────────────────────
 async function sendViaTwilio(
   accountSid: string,
   authToken: string,
-  fromOrServiceSid: string,
+  fromNumber: string,
   toNumber: string,
   message: string,
-): Promise<{ success: boolean; detail?: string; sid?: string }> {
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-  
-  const params = new URLSearchParams();
-  params.append('To', toNumber);
-  params.append('Body', message);
-
-  if (fromOrServiceSid.startsWith('MG')) {
-    params.append('MessagingServiceSid', fromOrServiceSid);
-  } else {
-    params.append('From', fromOrServiceSid);
-  }
-
-  const postData = params.toString();
-  const authHeader = 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-
+): Promise<{ success: boolean; detail?: string }> {
   try {
-    const res = await postRequest(url, {
-      'Authorization': authHeader,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Content-Length': Buffer.byteLength(postData),
-    }, postData);
+    const authHeader = 'Basic ' + Buffer.from(accountSid + ':' + authToken).toString('base64');
+    const postData = new URLSearchParams({
+      To: toNumber,
+      From: fromNumber,
+      Body: message,
+    }).toString();
+
+    const response = await postRequest(
+      'https://api.twilio.com/2010-04-01/Accounts/' + accountSid + '/Messages.json',
+      {
+        Authorization: authHeader,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postData),
+      },
+      postData,
+    );
 
     let parsed: any = {};
     try {
-      parsed = JSON.parse(res.data);
+      parsed = JSON.parse(response.data);
     } catch {
-      parsed = {};
+      parsed = { raw: response.data };
     }
 
-    if (res.status >= 200 && res.status < 300 && parsed.sid) {
-      return { success: true, detail: `Twilio message SID: ${parsed.sid}`, sid: parsed.sid };
+    if (response.status >= 200 && response.status < 300 && parsed.sid) {
+      return { success: true, detail: 'Twilio SID: ' + parsed.sid };
     }
 
-    const errMessage = parsed.message || parsed.error_message || `HTTP ${res.status}: ${res.data}`;
-    return { success: false, detail: `Twilio error: ${errMessage}` };
+    const errDetail = parsed.message || parsed.detail || 'Twilio HTTP ' + response.status;
+    return { success: false, detail: errDetail };
   } catch (err: any) {
-    return { success: false, detail: err?.message || 'Twilio network failure' };
+    return { success: false, detail: err.message || 'Twilio network error' };
   }
 }
 
-// ── Main Serverless Handler ──────────────────────────────────────────────────
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  // CORS
+// ── Main Serverless Handler ─────────────────────────────────────────────────
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed. Use POST.', code: 'METHOD_NOT_ALLOWED' });
+    res.status(405).json({ error: 'Method not allowed. Use POST.' });
     return;
   }
 
-  let body: any;
-  try {
-    body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body ?? {});
-  } catch {
-    res.status(400).json({ error: 'Invalid JSON request body.', code: 'INVALID_JSON' });
-    return;
-  }
-
-  const { action, phone, code, fullName, farmName, farmLocation } = body;
+  const { action, phone, code, fullName, farmName, farmLocation } = req.body || {};
 
   if (!phone || typeof phone !== 'string') {
-    res.status(400).json({ error: 'Phone number is required.', code: 'MISSING_PHONE' });
+    res.status(400).json({ error: 'Phone number is required.' });
     return;
   }
 
   const normalized = normalizePhoneNumber(phone);
   if (!normalized.valid) {
     res.status(400).json({
-      error: 'Please enter a valid mobile number (e.g., 09171234567 or +639171234567).',
-      code: 'INVALID_PHONE_FORMAT',
+      error: 'Invalid phone number format. Please enter a valid Philippine mobile number (e.g. 0917 123 4567).',
     });
     return;
   }
 
-  const phoneKey = normalized.e164;
-
   // ════════════════════════════════════════════════════════════════════════════
-  // 1. ACTION: SEND REAL SMS OTP
+  // ── ACTION: SEND SMS OTP ────────────────────────────────────────────────────
   // ════════════════════════════════════════════════════════════════════════════
   if (action === 'send') {
-    // Generate secure 6-digit numeric OTP code
+    // Generate secure 6-digit OTP code
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes TTL
 
-    // Store in cache for verification
-    otpCache.set(phoneKey, {
+    // Store in memory cache
+    otpCache.set(normalized.e164, {
       code: generatedOtp,
       expiresAt,
       attempts: 0,
@@ -250,68 +186,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       farmLocation: typeof farmLocation === 'string' ? farmLocation.trim() : undefined,
     });
 
-    const smsMessage = `Your AlpasFarm authentication code is: ${generatedOtp}. Valid for 10 minutes. Do not share this code.`;
+    const smsMessage = 'Your AlpasFarm authentication code is: ' + generatedOtp + '. Valid for 10 minutes. Do not share this code.';
 
     let smsSent = false;
     let providerUsed = 'none';
     let providerError = '';
 
-    // 1. Primary Gateway: Semaphore (Philippine Carrier Native)
-    const semaphoreKey = process.env.SEMAPHORE_API_KEY || process.env.VITE_SEMAPHORE_API_KEY;
-    const semaphoreSender = process.env.SEMAPHORE_SENDER_NAME || process.env.VITE_SEMAPHORE_SENDER_NAME;
+    // Twilio Gateway
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID || process.env.VITE_TWILIO_ACCOUNT_SID;
+    const twilioAuth = process.env.TWILIO_AUTH_TOKEN || process.env.VITE_TWILIO_AUTH_TOKEN;
+    const twilioFrom =
+      process.env.TWILIO_PHONE_NUMBER ||
+      process.env.TWILIO_FROM_NUMBER ||
+      process.env.TWILIO_MESSAGING_SERVICE_SID ||
+      process.env.VITE_TWILIO_PHONE_NUMBER;
 
-    if (semaphoreKey) {
-      const semResult = await sendViaSemaphore(semaphoreKey, normalized.national, smsMessage, semaphoreSender);
-      if (semResult.success) {
+    if (twilioSid && twilioAuth && twilioFrom) {
+      const twilioResult = await sendViaTwilio(twilioSid, twilioAuth, twilioFrom, normalized.e164, smsMessage);
+      if (twilioResult.success) {
         smsSent = true;
-        providerUsed = 'semaphore';
+        providerUsed = 'twilio';
       } else {
-        providerError = semResult.detail || 'Semaphore send failed';
-        console.error('[AlpasFarm SMS] Semaphore dispatch failure:', semResult.detail);
+        providerError = twilioResult.detail || 'Twilio send failed';
+        console.error('[AlpasFarm SMS] Twilio dispatch failure:', twilioResult.detail);
       }
     }
 
-    // 2. Secondary / International Gateway: Twilio
+    // If serverless SMS gateway is not configured
     if (!smsSent) {
-      const twilioSid = process.env.TWILIO_ACCOUNT_SID || process.env.VITE_TWILIO_ACCOUNT_SID;
-      const twilioAuth = process.env.TWILIO_AUTH_TOKEN || process.env.VITE_TWILIO_AUTH_TOKEN;
-      const twilioFrom =
-        process.env.TWILIO_PHONE_NUMBER ||
-        process.env.TWILIO_FROM_NUMBER ||
-        process.env.TWILIO_MESSAGING_SERVICE_SID ||
-        process.env.VITE_TWILIO_PHONE_NUMBER;
-
-      if (twilioSid && twilioAuth && twilioFrom) {
-        const twilioResult = await sendViaTwilio(twilioSid, twilioAuth, twilioFrom, normalized.e164, smsMessage);
-        if (twilioResult.success) {
-          smsSent = true;
-          providerUsed = 'twilio';
-        } else {
-          if (!providerError) providerError = twilioResult.detail || 'Twilio send failed';
-          console.error('[AlpasFarm SMS] Twilio dispatch failure:', twilioResult.detail);
-        }
-      }
-    }
-
-    // If no SMS provider was configured or dispatch failed
-    if (!smsSent) {
-      const hasAnyConfig = semaphoreKey || (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
-      const errorMsg = !hasAnyConfig
-        ? 'SMS Gateway is not configured. Please add SEMAPHORE_API_KEY in Vercel Environment Variables (get your free API key at https://semaphore.co).'
-        : `Failed to dispatch SMS: ${providerError || 'Unknown SMS error'}`;
-
       res.status(502).json({
         success: false,
-        error: errorMsg,
+        error: providerError ? 'Failed to dispatch SMS: ' + providerError : 'SMS service is active via Firebase Phone Authentication.',
         code: 'SMS_SEND_FAILED',
       });
       return;
     }
 
-    // Real SMS dispatched successfully. Never leak/expose the OTP in the JSON response!
     res.status(200).json({
       success: true,
-      message: `A 6-digit verification code has been sent via SMS to ${normalized.e164}.`,
+      message: 'A 6-digit verification code has been sent via SMS to ' + normalized.e164 + '.',
       phone: normalized.e164,
       expiresInSeconds: 600,
       provider: providerUsed,
@@ -321,36 +234,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // 2. ACTION: VERIFY SMS OTP
+  // ── ACTION: VERIFY SMS OTP ──────────────────────────────────────────────────
   // ════════════════════════════════════════════════════════════════════════════
   if (action === 'verify') {
     if (!code || typeof code !== 'string') {
-      res.status(400).json({ error: 'Please enter the 6-digit verification code.', code: 'MISSING_CODE' });
+      res.status(400).json({ error: 'Verification code is required.' });
       return;
     }
 
     const trimmedCode = code.trim();
-    const stored = otpCache.get(phoneKey);
+    const record = otpCache.get(normalized.e164);
 
-    if (!stored) {
+    if (!record) {
       res.status(400).json({
-        error: 'No active verification code found for this phone number. Please click "Resend SMS".',
-        code: 'CODE_EXPIRED_OR_NOT_FOUND',
+        error: 'No active verification code found for this number. Please click "Resend SMS".',
+        code: 'NO_OTP_FOUND',
       });
       return;
     }
 
-    if (Date.now() > stored.expiresAt) {
-      otpCache.delete(phoneKey);
+    if (Date.now() > record.expiresAt) {
+      otpCache.delete(normalized.e164);
       res.status(400).json({
-        error: 'This verification code has expired. Please request a new code.',
-        code: 'CODE_EXPIRED',
+        error: 'Verification code has expired. Please request a new code.',
+        code: 'OTP_EXPIRED',
       });
       return;
     }
 
-    if (stored.attempts >= 5) {
-      otpCache.delete(phoneKey);
+    if (record.attempts >= 5) {
+      otpCache.delete(normalized.e164);
       res.status(429).json({
         error: 'Too many incorrect attempts. Please request a new verification code.',
         code: 'TOO_MANY_ATTEMPTS',
@@ -358,34 +271,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return;
     }
 
-    if (stored.code !== trimmedCode) {
-      stored.attempts += 1;
+    record.attempts += 1;
+
+    if (record.code !== trimmedCode) {
+      const remaining = 5 - record.attempts;
       res.status(400).json({
-        error: 'Incorrect verification code. Please check your SMS messages and try again.',
+        error: 'Incorrect verification code. ' + remaining + ' attempt' + (remaining === 1 ? '' : 's') + ' remaining.',
         code: 'INVALID_CODE',
-        attemptsRemaining: 5 - stored.attempts,
       });
       return;
     }
 
-    // Code is valid! Consume it
-    otpCache.delete(phoneKey);
+    // OTP is valid — consume it
+    otpCache.delete(normalized.e164);
 
-    // Return verification success with user payload
     res.status(200).json({
       success: true,
+      message: 'Phone number verified successfully.',
       phone: normalized.e164,
       user: {
         phone: normalized.e164,
-        fullName: stored.fullName || fullName || 'Farm Manager',
-        farmName: stored.farmName || farmName || 'My Farm',
-        farmLocation: stored.farmLocation || farmLocation || '',
-        role: 'farm_manager',
+        fullName: record.fullName || 'Farm Manager',
+        farmName: record.farmName,
+        farmLocation: record.farmLocation,
       },
-      message: 'Phone number verified successfully.',
     });
     return;
   }
 
-  res.status(400).json({ error: 'Invalid action. Supported actions: send, verify.', code: 'INVALID_ACTION' });
+  res.status(400).json({ error: 'Invalid action. Supported actions: "send", "verify".' });
 }

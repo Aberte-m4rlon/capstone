@@ -26,13 +26,13 @@ export function getOrCreateRecaptchaVerifier(containerId: string = 'recaptcha-co
 
     const container = document.getElementById(containerId);
     if (!container) {
-      console.warn('[Firebase Auth] reCAPTCHA container #' + containerId + ' not found.');
+      console.warn('[Firebase Auth] reCAPTCHA container #' + containerId + ' not found in DOM.');
     }
 
     recaptchaVerifierCache = new RecaptchaVerifier(firebaseAuth, containerId, {
       size: 'invisible',
       callback: () => {
-        // reCAPTCHA solved
+        // reCAPTCHA solved automatically
       },
       'expired-callback': () => {
         if (recaptchaVerifierCache) {
@@ -68,17 +68,25 @@ export async function sendFirebasePhoneOtp(
   if (!isFirebaseConfigured() || !firebaseAuth) {
     return {
       success: false,
-      message: 'Firebase is not configured yet. Please provide your Firebase credentials.',
+      message: 'Firebase configuration is missing or incomplete.',
       error: 'FIREBASE_NOT_CONFIGURED',
     };
   }
 
   try {
+    // Reset any old verifier to avoid stale widget state
+    if (recaptchaVerifierCache) {
+      try {
+        recaptchaVerifierCache.clear();
+      } catch {}
+      recaptchaVerifierCache = null;
+    }
+
     const verifier = getOrCreateRecaptchaVerifier(containerId);
     if (!verifier) {
       return {
         success: false,
-        message: 'Could not initialize reCAPTCHA verifier for SMS.',
+        message: 'Could not initialize security verification widget. Please refresh and try again.',
         error: 'RECAPTCHA_FAILED',
       };
     }
@@ -88,13 +96,13 @@ export async function sendFirebasePhoneOtp(
 
     return {
       success: true,
-      message: 'SMS verification code sent to ' + phoneNumberE164 + ' via Firebase (Free Tier).',
+      message: 'SMS verification code sent to ' + phoneNumberE164 + ' via Firebase.',
       confirmationResult,
     };
   } catch (err: any) {
     console.error('[Firebase Phone Auth] Send error:', err);
 
-    // Reset verifier on error so subsequent attempts can re-render
+    // Reset verifier on error so subsequent attempts can re-render cleanly
     if (recaptchaVerifierCache) {
       try {
         recaptchaVerifierCache.clear();
@@ -103,14 +111,22 @@ export async function sendFirebasePhoneOtp(
     }
 
     let userFriendlyMessage = 'Failed to send SMS verification code.';
-    if (err.code === 'auth/invalid-phone-number') {
-      userFriendlyMessage = 'The phone number format is invalid. Please use +639XXXXXXXXX format.';
+    const hostName = typeof window !== 'undefined' ? window.location.hostname : 'your domain';
+
+    if (err.code === 'auth/unauthorized-domain') {
+      userFriendlyMessage = 'Domain "' + hostName + '" is not authorized in Firebase. Please add "' + hostName + '" to Firebase Console > Authentication > Settings > Authorized domains.';
+    } else if (err.code === 'auth/operation-not-allowed') {
+      userFriendlyMessage = 'Phone sign-in is not enabled in Firebase Console. Please go to Firebase Console > Authentication > Sign-in method and enable Phone.';
+    } else if (err.code === 'auth/invalid-app-credential') {
+      userFriendlyMessage = 'reCAPTCHA verification failed. Please verify that "' + hostName + '" is added to Firebase Console > Authentication > Settings > Authorized domains.';
+    } else if (err.code === 'auth/invalid-phone-number') {
+      userFriendlyMessage = 'The phone number format is invalid. Please use Philippine mobile format: 09XXXXXXXXX or +639XXXXXXXXX.';
     } else if (err.code === 'auth/too-many-requests') {
-      userFriendlyMessage = 'Too many requests. Please wait a few minutes before requesting another code.';
+      userFriendlyMessage = 'Too many requests from this device. Please wait a few minutes before trying again.';
     } else if (err.code === 'auth/quota-exceeded') {
-      userFriendlyMessage = 'SMS quota exceeded for today. Please try again later.';
+      userFriendlyMessage = 'SMS quota limit reached. Please try again later or contact admin.';
     } else if (err.code === 'auth/captcha-check-failed') {
-      userFriendlyMessage = 'reCAPTCHA verification failed. Please try again.';
+      userFriendlyMessage = 'Security verification check failed. Please refresh the page and try again.';
     } else if (err.message) {
       userFriendlyMessage = err.message;
     }

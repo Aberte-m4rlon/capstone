@@ -485,16 +485,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // 1. Firebase Phone Auth (10,000 Free SMS / month)
+      // 1. Firebase Phone Auth (10,000 Free Real SMS / month)
       if (isFirebaseConfigured()) {
         const fbRes = await sendFirebasePhoneOtp(formatted.e164);
         if (fbRes.success) {
           return { error: null, message: fbRes.message };
         }
-        console.warn('[AlpasFarm Auth] Firebase Phone Auth failed, trying serverless SMS:', fbRes.error);
+        return { error: fbRes.message };
       }
 
-      // 2. Fallback to Serverless SMS Gateway (Semaphore / Twilio)
+      // 2. Fallback to Serverless SMS Gateway (if Firebase not configured)
       const smsRes = await sendSmsOtp({ phone: formatted.e164 });
       if (!smsRes.success) {
         return { error: smsRes.message || 'Failed to send SMS code.' };
@@ -528,16 +528,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // 1. Firebase Phone Auth (10,000 Free SMS / month)
+      // 1. Firebase Phone Auth (10,000 Free Real SMS / month)
       if (isFirebaseConfigured()) {
         const fbRes = await sendFirebasePhoneOtp(formatted.e164);
         if (fbRes.success) {
           return { error: null, message: fbRes.message };
         }
-        console.warn('[AlpasFarm Auth] Firebase Phone Auth failed, trying serverless SMS:', fbRes.error);
+        return { error: fbRes.message };
       }
 
-      // 2. Fallback to Serverless SMS Gateway (Semaphore / Twilio)
+      // 2. Fallback to Serverless SMS Gateway (if Firebase not configured)
       const smsRes = await sendSmsOtp({
         phone: formatted.e164,
         fullName,
