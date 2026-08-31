@@ -28,7 +28,11 @@ import * as https from 'https';
 import * as http from 'http';
 import { URL } from 'url';
 
-const ML_MODEL_VERSION = 'goat-health-v1.0';
+const ML_MODEL_VERSION = 'goat-health-v2.0-vision';
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_HOST = 'api.groq.com';
+const GROQ_CHAT_PATH = '/openai/v1/chat/completions';
+const GROQ_VISION_MODELS = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
 const ML_SERVER_URL = process.env.ML_SERVER_URL;
 const ML_SERVER_API_KEY = process.env.ML_SERVER_API_KEY || 'alpasfarm_ml_secret_key_2026';
 
@@ -54,6 +58,35 @@ interface AnalyzeRequestPayload {
   animalType?: 'Goat' | 'Sheep' | 'Auto' | string;
   animalId?: string;
   farmContext?: FarmContext;
+}
+
+// ── Tiny HTTPS Helper for Groq API ────────────────────────────────────────────
+function httpsPost(
+  hostname: string,
+  path: string,
+  headers: Record<string, string | number>,
+  body: string,
+): Promise<{ status: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      { hostname, path, method: 'POST', headers },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, text: data }));
+        res.on('error', reject);
+      },
+    );
+    req.on('error', reject);
+    req.setTimeout(22000, () => { req.destroy(); reject(new Error('Groq Vision request timed out after 22s')); });
+    req.write(body);
+    req.end();
+  });
+}
+
+function ensureDataUrl(input: string): string {
+  if (input.startsWith('data:image/')) return input;
+  return 'data:image/jpeg;base64,' + input;
 }
 
 // ── Image Processing & Feature Extraction in Node.js ─────────────────────────
@@ -337,6 +370,96 @@ function computeVeterinaryAssessment(
   };
 }
 
+// ── Cloud Vision AI Engine (Groq Llama 3.2 Vision) ────────────────────────────
+async function analyzeWithGroqVision(
+  dataUrl: string,
+  requestedSpecies?: string,
+  farmContext?: FarmContext,
+): Promise<any> {
+  if (!GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY is not configured');
+  }
+
+  const vitals = farmContext ? [
+    farmContext.temperature ? 'Temperature: ' + farmContext.temperature + ' C' : null,
+    farmContext.heartRate ? 'Heart Rate: ' + farmContext.heartRate + ' BPM' : null,
+    farmContext.famachaScore ? 'FAMACHA Score: ' + farmContext.famachaScore + ' (1=Normal, 5=Severe Anemia)' : null,
+    farmContext.weightLossKg30d ? '30-Day Weight Loss: -' + farmContext.weightLossKg30d + ' kg' : null,
+    farmContext.appetite ? 'Appetite: ' + farmContext.appetite : null,
+    farmContext.activityLevel ? 'Activity: ' + farmContext.activityLevel : null,
+    farmContext.bloatScore ? 'Bloat Score: ' + farmContext.bloatScore : null,
+    farmContext.symptoms && farmContext.symptoms.length > 0 ? 'Noted Symptoms: ' + farmContext.symptoms.join(', ') : null,
+  ].filter(Boolean).join(', ') : 'No prior vital records provided.';
+
+  const prompt = [
+    'You are AlpasFarm Senior AI Veterinary Diagnostic Vision System specialized in Caprine (Goat) and Ovine (Sheep) health assessment.',
+    'Analyze the provided livestock camera frame and synthesize with farm vitals: ' + vitals + '.',
+    'Selected Species Preference: ' + (requestedSpecies || 'Auto') + '.',
+    'RULES:',
+    '1. Examine:',
+    '   - Species identification (Goat / Sheep / Other animal / Non-animal object).',
+    '   - Eye/Mucous inspection (conjunctival pallor / FAMACHA score estimate, ocular discharge, cloudy cornea / pinkeye).',
+    '   - Nasal & muzzle inspection (nasal discharge, crusty sores / Sore Mouth / Orf / Contagious Ecthyma).',
+    '   - Body condition & spine/flank emaciation (BCS estimate 1 to 5).',
+    '   - Coat & fleece condition (alopecia, mange scabs, dermatitis, rough dull coat).',
+    '   - Posture & stance (arched back / pain, ruminal bloat / left flank distension, lameness).',
+    '2. STRICT RULE: DO NOT USE ANY UNICODE EMOJIS IN YOUR RESPONSE.',
+    '3. Use professional, cautious veterinary language (Possible, Suspected, Consistent with).',
+    '4. Respond ONLY with a valid JSON object matching this exact structure:',
+    '{',
+    '  "animalDetected": true,',
+    '  "animalType": "Goat",',
+    '  "nonTargetClass": null,',
+    '  "detectionConfidence": 0.94,',
+    '  "healthRisk": "low",',
+    '  "riskScore": 25,',
+    '  "possibleConditions": ["Normal Clinical Appearance", "Mild Coat Roughness"],',
+    '  "observations": ["Clear eyes with normal ocular reflectance", "Symmetrical standing posture", "No nasal discharge observed"],',
+    '  "explanation": "Visual assessment indicates healthy physical condition...",',
+    '  "recommendedActions": ["Continue regular pasture feeding and mineral supplementation", "Recheck physical condition next week"],',
+    '  "disclaimer": "AI health screening is a preliminary decision-support aid and does not replace in-person examination by a licensed veterinarian."',
+    '}',
+  ].join('\n');
+
+  const requestBody = JSON.stringify({
+    model: GROQ_VISION_MODELS[0],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    temperature: 0.1,
+    max_tokens: 1200,
+    response_format: { type: 'json_object' },
+  });
+
+  const response = await httpsPost(
+    GROQ_HOST,
+    GROQ_CHAT_PATH,
+    {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + GROQ_API_KEY,
+    },
+    requestBody,
+  );
+
+  if (response.status !== 200) {
+    throw new Error('Groq Vision API returned status ' + response.status + ': ' + response.text);
+  }
+
+  const parsed = JSON.parse(response.text);
+  const msgContent = parsed.choices?.[0]?.message?.content;
+  if (!msgContent) {
+    throw new Error('No content returned from Groq Vision');
+  }
+
+  return JSON.parse(msgContent);
+}
+
 // ── Main Serverless Handler ───────────────────────────────────────────────────
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   // CORS Headers
@@ -394,7 +517,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return;
     }
 
-    // ── Check if external ML inference server is configured and reachable ──
+    // ── 1. Cloud Vision AI (Groq Llama 3.2 Vision) ───────────────────────────
+    if (GROQ_API_KEY) {
+      try {
+        const dataUrl = ensureDataUrl(image);
+        const groqResult = await analyzeWithGroqVision(dataUrl, animalType, farmContext);
+        console.log('[AlpasFarm ML Analyze] [' + requestId + '] Groq Vision analyzed image successfully');
+        res.status(200).json({
+          ...groqResult,
+          modelVersion: ML_MODEL_VERSION,
+          engine: 'groq-llama-3.2-vision',
+          processedAt: new Date().toISOString(),
+        });
+        return;
+      } catch (err: any) {
+        console.warn('[AlpasFarm ML Analyze] [' + requestId + '] Groq Vision API unavailable, using built-in engine:', err?.message);
+      }
+    }
+
+    // ── 2. Check if external ML inference server is configured and reachable ──
     if (ML_SERVER_URL) {
       try {
         const mlUrl = new URL('/api/v1/analyze', ML_SERVER_URL);

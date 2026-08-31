@@ -1029,6 +1029,7 @@ export async function runHealthScan(
   options: {
     animalId?: string;
     animalName?: string;
+    animalType?: 'Goat' | 'Sheep' | 'Auto' | string;
     farmContext?: FarmHealthContext;
     scanType?: 'image' | 'video';
   } = {},
@@ -1038,7 +1039,7 @@ export async function runHealthScan(
 
   // ── Step A: Call Real Serverless ML Endpoint (/api/ml/analyze) ──────────
   try {
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
     const resp = await fetch('/api/ml/analyze', {
       method: 'POST',
       headers: {
@@ -1046,7 +1047,7 @@ export async function runHealthScan(
       },
       body: JSON.stringify({
         image: dataUrl,
-        animalType: 'Auto',
+        animalType: options.animalType || 'Auto',
         animalId: options.animalId,
         farmContext: options.farmContext,
       }),

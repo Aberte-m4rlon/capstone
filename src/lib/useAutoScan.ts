@@ -118,10 +118,11 @@ export function useAutoScan(options: {
   videoRef: React.RefObject<HTMLVideoElement>;
   animalId?: string;
   animalName?: string;
+  speciesPreference?: 'auto' | 'goat' | 'sheep';
   farmContext?: FarmHealthContext;
   onResult?: (result: ScanResult, canvas: HTMLCanvasElement, species: 'goat' | 'sheep') => void;
 }) {
-  const { videoRef, animalId, animalName, farmContext, onResult } = options;
+  const { videoRef, animalId, animalName, speciesPreference = 'auto', farmContext, onResult } = options;
 
   const [state, setState]               = useState<ScanState>('idle');
   const [detection, setDetection]       = useState<DetectionResult | null>(null);
@@ -201,13 +202,19 @@ export function useAutoScan(options: {
     setState('scanning');
     stateRef.current = 'scanning';
 
-    setCapturedUrl(canvas.toDataURL('image/jpeg', 0.85));
+    setCapturedUrl(canvas.toDataURL('image/jpeg', 0.92));
     setCapturedCanvas(canvas);
 
     try {
+      const targetSpecies =
+        speciesPreference === 'sheep' ? 'Sheep' :
+        speciesPreference === 'goat' ? 'Goat' :
+        species === 'sheep' ? 'Sheep' : 'Goat';
+
       const scanResult = await runHealthScan(canvas, {
         animalId,
         animalName,
+        animalType: targetSpecies,
         farmContext,
         scanType: 'image',
       });

@@ -83,6 +83,7 @@ export function CameraScreeningPage() {
   const { screenings, loading: histLoading, refresh } = useAllScreenings();
 
   const [tab, setTab]                           = useState<'scan' | 'attention' | 'history'>('scan');
+  const [speciesMode, setSpeciesMode]           = useState<'auto' | 'goat' | 'sheep'>('auto');
   const [permission, setPermission]             = useState<CameraPermission>('pending');
   const [facingMode, setFacingMode]             = useState<'environment' | 'user'>('environment');
   const [saving, setSaving]                     = useState(false);
@@ -101,8 +102,9 @@ export function CameraScreeningPage() {
   // ── Auto-scan hook ────────────────────────────────────────────────────────
   const autoScan = useAutoScan({
     videoRef,
-    animalId:   selectedAnimalId || undefined,
-    animalName: selectedAnimal?.name,
+    animalId:          selectedAnimalId || undefined,
+    animalName:        selectedAnimal?.name,
+    speciesPreference: speciesMode,
     onResult: (scanResult, _canvas, species) => {
       // Auto-create health alert notification for high or critical results
       if (user && (scanResult.riskLevel === 'HIGH' || scanResult.riskLevel === 'CRITICAL')) {
@@ -385,6 +387,49 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
 
           {/* LEFT: Camera Viewport */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Species Detection Mode Guidance */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#FFFFFF',
+              border: '1px solid #E5EDE6',
+              borderRadius: 14,
+              padding: '8px 12px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#2E7D32', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={14} color="#43A047" /> Target Species:
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[
+                  { key: 'auto',  label: 'Auto Detect' },
+                  { key: 'goat',  label: 'Goat (Kambing)' },
+                  { key: 'sheep', label: 'Sheep (Tupa)' },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => setSpeciesMode(item.key as any)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 8,
+                      border: speciesMode === item.key ? '1px solid #43A047' : '1px solid #E5EDE6',
+                      background: speciesMode === item.key ? '#E8F5E9' : '#FFFFFF',
+                      color: speciesMode === item.key ? '#2E7D32' : '#6B7280',
+                      fontSize: 12,
+                      fontWeight: speciesMode === item.key ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div style={{
               position: 'relative',
