@@ -13,7 +13,7 @@ import {
   Camera, AlertTriangle, CheckCircle, RefreshCw,
   Loader2, Search, Info, WifiOff, ScanLine, History,
   Save, Ban, Zap, Upload, ShieldAlert, Activity, Check,
-  Bot, Sparkles, Stethoscope, Flame, SwitchCamera, X
+  Bot, Sparkles, Stethoscope, Flame, SwitchCamera, X, Compass, Eye
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -282,8 +282,9 @@ export function CameraScreeningPage() {
               ctx.stroke();
             }
 
-            // Label Badge: GOAT Confidence: 94% / SHEEP Confidence: 91%
-            const labelText = `${animal.species.toUpperCase()} Confidence: ${Math.round(animal.confidence * 100)}%`;
+            // Label Badge: GOAT · SIDE VIEW (94%) / SHEEP · FRONT VIEW (91%)
+            const angleSuffix = animal.angleLabel ? ` · ${animal.angleLabel.toUpperCase()}` : (autoScan.angleLabel ? ` · ${autoScan.angleLabel.toUpperCase()}` : '');
+            const labelText = `${animal.species.toUpperCase()}${angleSuffix} (${Math.round(animal.confidence * 100)}%)`;
             ctx.font = 'bold 11px Inter, system-ui, sans-serif';
             const textWidth = ctx.measureText(labelText).width;
             const tagH = 22;
@@ -761,6 +762,32 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                       animation: 'scanLine 1.5s ease-in-out infinite',
                       zIndex: 10,
                     }} />
+                  )}
+
+                  {/* Top-left Angle Indicator Pill */}
+                  {autoScan.angleLabel && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 12,
+                      left: 12,
+                      pointerEvents: 'none',
+                      zIndex: 15,
+                      background: 'rgba(15, 23, 42, 0.88)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(67, 160, 71, 0.5)',
+                      borderRadius: 10,
+                      padding: '5px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      color: '#FFFFFF',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    }}>
+                      <Compass size={13} color="#4ADE80" />
+                      <span>{autoScan.angleLabel} ({autoScan.angleTagalog})</span>
+                    </div>
                   )}
 
                   {/* Top-right camera flip button */}
@@ -1590,6 +1617,40 @@ function ScanResultCard({
             <div style={{ fontSize: 11, color: '#6B7280' }}>Vision Model</div>
           </div>
         </div>
+
+        {/* Detected Viewing Angle & Morphometric Evaluation */}
+        {(result.angleLabel || result.detectedAngle) && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(67, 160, 71, 0.08) 0%, rgba(46, 125, 50, 0.04) 100%)',
+            border: '1px solid rgba(67, 160, 71, 0.25)',
+            borderRadius: 12,
+            padding: '12px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#2E7D32' }}>
+                <Compass size={14} color="#2E7D32" />
+                <span>Detected Angle: {result.angleLabel || result.detectedAngle} ({result.angleTagalog || 'Sinuri'})</span>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32', background: '#E8F5E9', padding: '2px 8px', borderRadius: 6 }}>
+                Multi-Angle AI Verified
+              </span>
+            </div>
+            {result.angleClinicalFocus && (
+              <div style={{ fontSize: 12, color: '#374151', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                <Eye size={13} color="#43A047" style={{ marginTop: 2, flexShrink: 0 }} />
+                <span><strong>Clinical Focus:</strong> {result.angleClinicalFocus}</span>
+              </div>
+            )}
+            {result.angleGuidance && (
+              <div style={{ fontSize: 11, color: '#6B7280', fontStyle: 'italic', paddingLeft: 19 }}>
+                {result.angleGuidance}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Possible Health Concerns */}
         <div>

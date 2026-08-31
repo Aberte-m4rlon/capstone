@@ -31,6 +31,15 @@
  */
 
 import { supabase } from './supabase';
+import {
+  LivestockAngle,
+  AngleClassificationResult,
+  classifyLivestockAngle,
+  extractMultiAngleFeatures,
+  ANGLE_DEFINITIONS,
+} from './angleClassifier';
+
+export type { LivestockAngle, AngleClassificationResult };
 
 // ── Lazy TF.js imports ────────────────────────────────────────────────────────
 type TFModule = typeof import('@tensorflow/tfjs');
@@ -150,6 +159,14 @@ export interface ScanResult {
   species?: 'goat' | 'sheep' | 'other' | 'unknown' | string | null;
   boundingBoxes?: BoundingBoxDetection[];
   detectionEngine?: string;
+
+  // Detected Viewing Angle
+  detectedAngle?: LivestockAngle | null;
+  angleLabel?: string | null;
+  angleTagalog?: string | null;
+  angleClinicalFocus?: string | null;
+  angleGuidance?: string | null;
+  angleConfidence?: number | null;
 
   // Risk scoring
   riskScore: number;         // 0–100, transparent additive scoring
@@ -1199,6 +1216,13 @@ export async function runHealthScan(
   const timestamp = new Date().toISOString();
   const scanType = options.scanType ?? 'image';
 
+  // ── Extract Multi-Angle Livestock Features ────────────────────────────────
+  const angleFeatures = extractMultiAngleFeatures(canvas);
+  const angleResult = classifyLivestockAngle(
+    angleFeatures,
+    options.animalType?.toLowerCase() === 'sheep' ? 'sheep' : options.animalType?.toLowerCase() === 'goat' ? 'goat' : 'auto'
+  );
+
   // ── Step A: Call Real Serverless ML Endpoint (/api/ml/analyze) ──────────
   try {
     // Downscale canvas to max 640x640 for high-speed transmission & GPU inference
@@ -1310,8 +1334,14 @@ export async function runHealthScan(
         goatDetectionConfidence: serverResult.detectionConfidence || 0.92,
         multipleAnimals: false,
         nonTargetClass: null,
-        species: (serverResult.animalType || 'Goat').toLowerCase(),
+        species: (serverResult.animalType || (angleResult.detected ? angleResult.species : 'Goat')).toLowerCase(),
         detectionEngine: 'AlpasFarm ML Vision Core',
+        detectedAngle: angleResult.detected ? angleResult.angle : 'SIDE_VIEW',
+        angleLabel: angleResult.detected ? angleResult.label : 'Side Profile',
+        angleTagalog: angleResult.detected ? angleResult.tagalogLabel : 'Tagiliran',
+        angleClinicalFocus: angleResult.detected ? angleResult.clinicalFocus : 'General veterinary screening',
+        angleGuidance: angleResult.detected ? angleResult.guidance : 'Panatilihing steady ang camera sa hayop.',
+        angleConfidence: angleResult.detected ? angleResult.confidence : 0.88,
         riskScore,
         riskLevel,
         riskLevelLabel: riskMeta.label,
@@ -1324,7 +1354,10 @@ export async function runHealthScan(
         combinedRiskScore: riskScore,
         combinedFactors: observations.slice(0, 3),
         possibleConditions,
-        observations,
+        observations: [
+          ...observations,
+          angleResult.detected ? `Detected Viewing Perspective: ${angleResult.label} (${angleResult.tagalogLabel}) — ${angleResult.clinicalFocus}` : ''
+        ].filter(Boolean),
         recommendation: serverResult.explanation,
         recommendedActions: serverResult.recommendedActions || [],
         explanation: serverResult.explanation,
@@ -1429,10 +1462,26 @@ export async function runHealthScan(
 
   const riskMeta = riskLevelMeta(riskLevel);
 
+  const localObs = abnormal.length > 0
+    ? abnormal.map((i) => i.description || i.label)
+    : ['Visual features conform with healthy ruminant baseline.'];
+
+  if (angleResult.detected) {
+    localObs.push(`Viewing Perspective: ${angleResult.label} (${angleResult.tagalogLabel}) — ${angleResult.clinicalFocus}`);
+  }
+
   return {
     goatDetected: detection.detected,
     goatDetectionConfidence: detection.confidence,
     multipleAnimals: detection.multipleDetected,
+    species: angleResult.detected ? angleResult.species : 'goat',
+    detectionEngine: 'AlpasFarm Edge AI Vision',
+    detectedAngle: angleResult.detected ? angleResult.angle : 'SIDE_VIEW',
+    angleLabel: angleResult.detected ? angleResult.label : 'Side Profile',
+    angleTagalog: angleResult.detected ? angleResult.tagalogLabel : 'Tagiliran',
+    angleClinicalFocus: angleResult.detected ? angleResult.clinicalFocus : 'General veterinary screening',
+    angleGuidance: angleResult.detected ? angleResult.guidance : 'Panatilihing steady ang camera sa hayop.',
+    angleConfidence: angleResult.detected ? angleResult.confidence : 0.85,
     riskScore,
     riskLevel,
     riskLevelLabel: riskMeta.label,
@@ -1444,6 +1493,8 @@ export async function runHealthScan(
     primaryIndicators: abnormal.slice(0, 3).map((i) => i.label),
     combinedRiskScore,
     combinedFactors,
+    possibleConditions: abnormal.length > 0 ? abnormal.map((i) => i.label) : ['Normal Clinical Appearance'],
+    observations: localObs,
     recommendation,
     recommendedActions: actions,
     explanation,

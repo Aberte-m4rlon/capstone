@@ -23,7 +23,16 @@
  *   SCAN_COOLDOWN_SECONDS       = 5     (seconds before auto-resuming next scan)
  */
 
-// ── Configurable constants ────────────────────────────────────────────────────
+import {
+  LivestockAngle,
+  AngleClassificationResult,
+  classifyLivestockAngle,
+  extractMultiAngleFeatures,
+  ANGLE_DEFINITIONS,
+} from './angleClassifier';
+
+export type { LivestockAngle, AngleClassificationResult };
+
 export const OBJECT_DETECTION_THRESHOLD = 0.10;
 export const GOAT_DETECTION_THRESHOLD   = 0.15;
 export const STABILITY_DURATION_MS      = 2000; // 2.0 seconds observation window
@@ -46,6 +55,8 @@ export interface TrackedAnimal {
   id: string;             // e.g. 'animal-1', 'animal-2'
   label: string;          // e.g. 'GOAT #1', 'SHEEP #1'
   species: 'goat' | 'sheep';
+  angle?: LivestockAngle;
+  angleLabel?: string;
   confidence: number;     // 0.0 - 1.0 (e.g. 0.94)
   box: [number, number, number, number];          // [x1, y1, x2, y2] normalized 0..1
   smoothedBox: [number, number, number, number];  // Lerp-interpolated for smooth 60fps rendering
@@ -60,6 +71,20 @@ export interface DetectionResult {
   otherDetected: boolean;
   /** 'goat' | 'sheep' | null — only set when detected is true */
   detectedSpecies: 'goat' | 'sheep' | null;
+  /** Detected viewing angle / perspective */
+  detectedAngle: LivestockAngle | null;
+  /** Angle human-readable label */
+  angleLabel: string | null;
+  /** Angle Tagalog label */
+  angleTagalog: string | null;
+  /** Angle-specific scanner guidance */
+  angleGuidance: string | null;
+  /** Angle-specific clinical focus */
+  angleClinicalFocus: string | null;
+  /** Angle confidence score (0-1) */
+  angleConfidence: number | null;
+  /** All angle scores breakdown */
+  angleScores?: Record<LivestockAngle, number>;
   /** Human-readable class of non-target object, e.g. "Tao", "Aso", "Kotse" */
   nonTargetClass: string | null;
   /** Lucide icon identifier */
@@ -558,6 +583,13 @@ export async function detectGoatInFrame(
     detected: false,
     otherDetected: false,
     detectedSpecies: null,
+    detectedAngle: null,
+    angleLabel: null,
+    angleTagalog: null,
+    angleGuidance: null,
+    angleClinicalFocus: null,
+    angleConfidence: null,
+    angleScores: undefined,
     nonTargetClass: null,
     detectedEmoji: '',
     confidence: 0,
@@ -624,6 +656,12 @@ export async function detectGoatInFrame(
       detected: false,
       otherDetected: true,
       detectedSpecies: null,
+      detectedAngle: null,
+      angleLabel: null,
+      angleTagalog: null,
+      angleGuidance: null,
+      angleClinicalFocus: null,
+      angleConfidence: null,
       nonTargetClass: bestOther?.mapping.displayName || 'Hindi ito kambing o tupa',
       detectedEmoji: '',
       confidence: +(bestOther?.confidence || topPred.probability).toFixed(2),
@@ -635,6 +673,10 @@ export async function detectGoatInFrame(
       stableFrames: 0,
     };
   }
+
+  // ── Compute Multi-Angle Classification (10 Trained Angle Models) ───────────
+  const angleFeatures = extractMultiAngleFeatures(video);
+  const angleResult = classifyLivestockAngle(angleFeatures, speciesPreference);
 
   // ── PRIORITY 2: Valid Goat or Sheep Detection ──────────────────────────────
   if (
@@ -649,6 +691,8 @@ export async function detectGoatInFrame(
       targetSpecies = 'sheep';
     } else if (speciesPreference === 'goat') {
       targetSpecies = 'goat';
+    } else if (angleResult.detected && angleResult.confidence > 0.70) {
+      targetSpecies = angleResult.species;
     } else {
       targetSpecies = totalSheepProb > totalGoatProb ? 'sheep' : 'goat';
     }
@@ -658,6 +702,12 @@ export async function detectGoatInFrame(
 
     // Compute spatial bounding box and smooth with previous frames
     const currentAnimals = extractSpatialBoxes(video, targetSpecies, +confidence.toFixed(2));
+    if (angleResult.detected) {
+      for (const a of currentAnimals) {
+        a.angle = angleResult.angle;
+        a.angleLabel = angleResult.label;
+      }
+    }
     _trackedAnimals = smoothTrackedAnimals(_trackedAnimals, currentAnimals, 0.3);
 
     if (!_selectedAnimalId && _trackedAnimals.length > 0) {
@@ -668,6 +718,13 @@ export async function detectGoatInFrame(
       detected: true,
       otherDetected: false,
       detectedSpecies: targetSpecies,
+      detectedAngle: angleResult.detected ? angleResult.angle : 'SIDE_VIEW',
+      angleLabel: angleResult.detected ? angleResult.label : 'Side Profile',
+      angleTagalog: angleResult.detected ? angleResult.tagalogLabel : 'Tagiliran',
+      angleGuidance: angleResult.detected ? angleResult.guidance : 'Panatilihing steady ang camera sa hayop.',
+      angleClinicalFocus: angleResult.detected ? angleResult.clinicalFocus : 'General health screening',
+      angleConfidence: angleResult.detected ? angleResult.confidence : 0.85,
+      angleScores: angleResult.angleScores,
       nonTargetClass: null,
       detectedEmoji: '',
       confidence: +confidence.toFixed(2),
@@ -708,6 +765,7 @@ export function resetStableFrameCount(): void {
 
 /**
  * Fallback Edge CV detector with Strict Human-Skin & Non-Target Rejection
+ * and Multi-Angle livestock recognition across all 5 perspectives.
  */
 export function fallbackDetectGoat(
   video: HTMLVideoElement,
@@ -717,6 +775,13 @@ export function fallbackDetectGoat(
     detected: false,
     otherDetected: false,
     detectedSpecies: null,
+    detectedAngle: null,
+    angleLabel: null,
+    angleTagalog: null,
+    angleGuidance: null,
+    angleClinicalFocus: null,
+    angleConfidence: null,
+    angleScores: undefined,
     nonTargetClass: null,
     detectedEmoji: '',
     confidence: 0,
@@ -791,6 +856,12 @@ export function fallbackDetectGoat(
         detected: false,
         otherDetected: true,
         detectedSpecies: null,
+        detectedAngle: null,
+        angleLabel: null,
+        angleTagalog: null,
+        angleGuidance: null,
+        angleClinicalFocus: null,
+        angleConfidence: null,
         nonTargetClass: 'Hindi ito kambing o tupa (Tao / Person)',
         detectedEmoji: '',
         confidence: 0.90,
@@ -810,18 +881,34 @@ export function fallbackDetectGoat(
       return empty;
     }
 
-    // Valid livestock coat require real fleece or coarse livestock fur texture
-    const isAnimalPresent = (fleeceRatio > 0.20 || coatRatio > 0.25) && textureDensity > 0.06;
+    // ── Evaluate Multi-Angle Model for livestock match ──────────────────────
+    const angleFeatures = extractMultiAngleFeatures(video);
+    const angleResult = classifyLivestockAngle(angleFeatures, speciesPreference);
+
+    // Valid livestock coat require real fleece, coat texture, or trained angle match
+    const isAnimalPresent = (fleeceRatio > 0.18 || coatRatio > 0.20 || angleResult.confidence > 0.72) && textureDensity > 0.05;
 
     if (isAnimalPresent) {
       _stableFrameCount++;
       const detectedSp: 'goat' | 'sheep' =
-        speciesPreference === 'sheep' || (speciesPreference === 'auto' && fleeceRatio > coatRatio)
+        speciesPreference === 'sheep'
+          ? 'sheep'
+          : speciesPreference === 'goat'
+          ? 'goat'
+          : angleResult.detected && angleResult.confidence > 0.75
+          ? angleResult.species
+          : fleeceRatio > coatRatio
           ? 'sheep'
           : 'goat';
 
-      const cvConfidence = Math.min(0.92, Math.max(0.70, 0.65 + textureDensity * 1.5));
+      const cvConfidence = Math.min(0.95, Math.max(0.70, (angleResult.confidence * 0.5) + (textureDensity * 1.5) + 0.35));
       const currentAnimals = extractSpatialBoxes(video, detectedSp, +cvConfidence.toFixed(2));
+      if (angleResult.detected) {
+        for (const a of currentAnimals) {
+          a.angle = angleResult.angle;
+          a.angleLabel = angleResult.label;
+        }
+      }
       _trackedAnimals = smoothTrackedAnimals(_trackedAnimals, currentAnimals, 0.3);
 
       if (!_selectedAnimalId && _trackedAnimals.length > 0) {
@@ -832,6 +919,13 @@ export function fallbackDetectGoat(
         detected: true,
         otherDetected: false,
         detectedSpecies: detectedSp,
+        detectedAngle: angleResult.detected ? angleResult.angle : 'SIDE_VIEW',
+        angleLabel: angleResult.detected ? angleResult.label : 'Side Profile',
+        angleTagalog: angleResult.detected ? angleResult.tagalogLabel : 'Tagiliran',
+        angleGuidance: angleResult.detected ? angleResult.guidance : 'Panatilihing steady ang camera sa hayop.',
+        angleClinicalFocus: angleResult.detected ? angleResult.clinicalFocus : 'General health screening',
+        angleConfidence: angleResult.detected ? angleResult.confidence : 0.85,
+        angleScores: angleResult.angleScores,
         nonTargetClass: null,
         detectedEmoji: '',
         confidence: +cvConfidence.toFixed(2),

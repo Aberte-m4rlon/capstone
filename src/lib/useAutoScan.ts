@@ -25,6 +25,7 @@ import {
   STABILITY_DURATION_MS,
   type DetectionResult,
   type TrackedAnimal,
+  type LivestockAngle,
 } from './goatDetector';
 import {
   loadMobileNet,
@@ -59,6 +60,11 @@ export interface AutoScanStatus {
   usingFallback: boolean;
   message: string;
   detectedSpecies: 'goat' | 'sheep' | null;
+  detectedAngle: LivestockAngle | null;
+  angleLabel: string | null;
+  angleTagalog: string | null;
+  angleGuidance: string | null;
+  angleClinicalFocus: string | null;
   trackedAnimals: TrackedAnimal[];
   selectedTargetId: string | null;
   stabilityProgress: number;          // 0 to 100%
@@ -87,11 +93,12 @@ function buildMessage(
       }
       if (det.detected) {
         const sp = det.detectedSpecies === 'sheep' ? 'Tupa (Sheep)' : 'Kambing (Goat)';
+        const ang = det.angleTagalog ? ` · ${det.angleTagalog}` : '';
         const conf = Math.round(det.confidence * 100);
         if (isObserving && remainingSec > 0) {
-          return `Na-detect: ${sp} (${conf}%) — Pinagmamasdan (${remainingSec.toFixed(1)}s)... Panatilihing steady`;
+          return `Na-detect: ${sp}${ang} (${conf}%) — Pinagmamasdan (${remainingSec.toFixed(1)}s)... Panatilihing steady`;
         }
-        return `Na-detect: ${sp} (${conf}%) — Kinukumpirma ang hayop...`;
+        return `Na-detect: ${sp}${ang} (${conf}%) — Kinukumpirma ang hayop...`;
       }
       if (det.otherDetected) {
         if (isObserving && remainingSec > 0) {
@@ -493,6 +500,11 @@ export function useAutoScan(options: {
     usingFallback,
     message,
     detectedSpecies,
+    detectedAngle: detection?.detectedAngle || null,
+    angleLabel: detection?.angleLabel || null,
+    angleTagalog: detection?.angleTagalog || null,
+    angleGuidance: detection?.angleGuidance || null,
+    angleClinicalFocus: detection?.angleClinicalFocus || null,
     trackedAnimals: detection?.trackedAnimals || [],
     selectedTargetId: detection?.selectedTargetId || null,
     setSelectedTarget,
