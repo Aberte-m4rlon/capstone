@@ -96,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     console.error(
-      `[AlpasFarm AI] [${rid}] ❌ GROQ_API_KEY is not set. ` +
+      `[AlpasFarm AI] [${rid}] [ERROR] GROQ_API_KEY is not set. ` +
       'Go to Vercel Dashboard → Project → Settings → Environment Variables and add GROQ_API_KEY.',
     );
     res.status(503).json({
@@ -124,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   // Clean and sanitize messages
   const cleanMessages = rawMessages
     .filter((m) => m && typeof m.content === 'string' && m.content.trim().length > 0)
-    .filter((m) => !m.content.trim().startsWith('⚠️')) // exclude UI error banners from history
+    .filter((m) => !m.content.trim().startsWith('[WARN]')) // exclude UI error banners from history
     .map((m) => ({
       role: m.role === 'assistant' ? 'assistant' : m.role === 'system' ? 'system' : 'user',
       content: m.content.trim(),
@@ -171,13 +171,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       ({ status: groqStatus, text: groqText } = await executeGroqChat(candidate));
 
       if (groqStatus === 200) {
-        console.log(`[AlpasFarm AI] [${rid}] ✅ Model ${candidate} succeeded with HTTP 200`);
+        console.log(`[AlpasFarm AI] [${rid}] [OK] Model ${candidate} succeeded with HTTP 200`);
         break;
       }
 
       if (groqStatus === 401) {
         // Invalid API key — don't bother retrying models
-        console.error(`[AlpasFarm AI] [${rid}] ❌ Groq rejected the API key (401).`);
+        console.error(`[AlpasFarm AI] [${rid}] [ERROR] Groq rejected the API key (401).`);
         res.status(502).json({
           error: 'The AI API key is invalid. Verify GROQ_API_KEY in Vercel environment variables.',
           code: 'INVALID_KEY',
@@ -214,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
           selectedModel = activeModel;
           ({ status: groqStatus, text: groqText } = await executeGroqChat(activeModel));
           if (groqStatus === 200) {
-            console.log(`[AlpasFarm AI] [${rid}] ✅ Dynamic model ${activeModel} succeeded!`);
+            console.log(`[AlpasFarm AI] [${rid}] [OK] Dynamic model ${activeModel} succeeded!`);
             break;
           }
         }
@@ -226,7 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   // ── Handle error codes if still not 200 ────────────────────────────────────
   if (groqStatus === 429) {
-    console.warn(`[AlpasFarm AI] [${rid}] ⚠️ Groq rate limit exceeded (429).`);
+    console.warn(`[AlpasFarm AI] [${rid}] [WARN] Groq rate limit exceeded (429).`);
     res.status(429).json({
       error: 'AI is temporarily busy (rate limit). Please wait a moment and try again.',
       code: 'RATE_LIMIT',
@@ -260,7 +260,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  console.log(`[AlpasFarm AI] [${rid}] ✅ Success with [${selectedModel}] — ${content.length} chars → streaming SSE`);
+  console.log(`[AlpasFarm AI] [${rid}] [OK] Success with [${selectedModel}] — ${content.length} chars → streaming SSE`);
 
   // ── Emit as SSE in the format the frontend expects ────────────────────────
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');

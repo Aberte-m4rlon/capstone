@@ -53,14 +53,26 @@ export function FloatingAICloud() {
     };
   }, [checkStatus, retryCount]);
 
-  // Listen for global open event from sidebar AI Cloud launcher
+  // Listen for global open event from sidebar AI Cloud launcher and Vet AI consults
   useEffect(() => {
     const handleOpen = () => setOpen(true);
+    const handleConsult = (e: Event) => {
+      const customEvent = e as CustomEvent<{ prompt?: string }>;
+      setOpen(true);
+      if (customEvent.detail?.prompt) {
+        setTimeout(() => {
+          handleSend(customEvent.detail.prompt!);
+        }, 300);
+      }
+    };
+
     window.addEventListener('alpas:open-ai-cloud', handleOpen);
+    window.addEventListener('alpas:consult-vet-ai', handleConsult);
     return () => {
       window.removeEventListener('alpas:open-ai-cloud', handleOpen);
+      window.removeEventListener('alpas:consult-vet-ai', handleConsult);
     };
-  }, []);
+  }, [conversations, activeId, aiStatus, farmData, cameraScreenings]);
 
   // Persist Conversations
   useEffect(() => {

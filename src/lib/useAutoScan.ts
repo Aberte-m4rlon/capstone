@@ -84,28 +84,30 @@ function buildMessage(
 ): string {
   switch (state) {
     case 'idle':           return 'Camera not started.';
-    case 'loading':        return 'Loading AI detection model…';
+    case 'loading':        return 'Loading AI detection model...';
     case 'other_detected': {
       const obj = det?.nonTargetClass ?? 'Bagay / Ibang Hayop';
-      return `Hindi ito kambing o tupa (${obj}) — Please point at a goat or sheep.`;
+      return `Hindi ito kambing o tupa (${obj}). Pakitapat ang camera sa goat o sheep.`;
     }
     case 'detecting':
       if (!det || (!det.detected && !det.otherDetected)) {
-        return 'Looking for a goat or sheep…';
+        return 'Looking for a goat or sheep...';
       }
       if (det.detected) {
         const sp = det.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
-        return `${sp} detected — stabilizing… (${det.stableFrames}/${REQUIRED_STABLE_FRAMES})`;
+        const conf = Math.round(det.confidence * 100);
+        return `${sp} detected (Confidence: ${conf}%) — Analyzing health condition...`;
       }
-      return 'Looking for a goat or sheep…';
+      return 'Looking for a goat or sheep...';
     case 'stable': {
       const sp = det?.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
-      return `${sp} detected — preparing automatic scan…`;
+      const conf = Math.round((det?.confidence || 0.9) * 100);
+      return `${sp} detected (Confidence: ${conf}%) — Analyzing health condition...`;
     }
-    case 'scanning':       return 'Analyzing health…';
+    case 'scanning':       return 'Analyzing health condition...';
     case 'result':         return 'Screening complete.';
-    case 'cooldown':       return `Looking for another animal in ${cd}s…`;
-    case 'error':          return 'An error occurred.';
+    case 'cooldown':       return `Looking for another animal in ${cd}s...`;
+    case 'error':          return 'An error occurred during scan.';
     default:               return '';
   }
 }
