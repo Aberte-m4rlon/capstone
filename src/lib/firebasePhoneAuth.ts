@@ -115,8 +115,8 @@ export async function sendFirebasePhoneOtp(
 
     if (err.code === 'auth/unauthorized-domain') {
       userFriendlyMessage = 'Domain "' + hostName + '" is not authorized in Firebase. Please add "' + hostName + '" to Firebase Console > Authentication > Settings > Authorized domains.';
-    } else if (err.code === 'auth/operation-not-allowed') {
-      userFriendlyMessage = 'Phone sign-in is not enabled in Firebase Console. Please go to Firebase Console > Authentication > Sign-in method and enable Phone.';
+    } else if (err.code === 'auth/operation-not-allowed' || (err.message && err.message.toLowerCase().includes('region'))) {
+      userFriendlyMessage = 'SMS Region Policy: Google requires enabling the Philippines region. Please open Firebase Console > Authentication > Settings > "SMS region policy" and check Philippines (+63).';
     } else if (err.code === 'auth/invalid-app-credential') {
       userFriendlyMessage = 'reCAPTCHA verification failed. Please verify that "' + hostName + '" is added to Firebase Console > Authentication > Settings > Authorized domains.';
     } else if (err.code === 'auth/invalid-phone-number') {
