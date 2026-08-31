@@ -48,6 +48,97 @@ const emptyForm = {
   notes: '',
 };
 
+
+/**
+ * Helper to compute professional veterinary-style readiness card metadata
+ */
+function getAnimalReadinessCardData(
+  animal: Animal,
+  assessment: BreedingAssessment | undefined,
+  settings: { breeding_min_age_months?: number; breeding_min_weight_kg?: number } | null | undefined
+) {
+  const isFemale = animal.sex === 'Female';
+  const isReady = assessment?.recommendation === 'Ready';
+  const isPregnant = animal.breeding_status === 'Pregnant';
+  const age = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
+  const minAge = settings?.breeding_min_age_months ?? 8;
+  const minWeight = settings?.breeding_min_weight_kg ?? 25;
+
+  if (isReady) {
+    const reasons: string[] = [];
+    reasons.push(`Healthy & mature (${age ? `${age} mos old` : 'age verified'})`);
+    if (animal.weight_kg) {
+      reasons.push(`Weight criteria met (${animal.weight_kg} kg ≥ ${minWeight} kg)`);
+    } else {
+      reasons.push('Meets minimum breeding weight');
+    }
+    if (assessment?.reasons && assessment.reasons.length > 0) {
+      assessment.reasons.forEach((r) => {
+        if (!reasons.includes(r) && !r.toLowerCase().includes('healthy, mature')) {
+          reasons.push(r);
+        }
+      });
+    }
+
+    return {
+      statusType: 'ready',
+      statusLabel: isFemale ? 'Ready for Mating' : 'Ready for Service',
+      StatusIcon: CheckCircle2,
+      ReasonIcon: CheckCircle2,
+      reasons: reasons.slice(0, 3),
+      cardClass: 'readiness-card-ready',
+      badgeClass: 'badge-ready',
+      dotClass: 'dot-ready',
+      iconClass: 'icon-ready',
+    };
+  }
+
+  if (isPregnant) {
+    return {
+      statusType: 'pregnant',
+      statusLabel: 'Currently Pregnant',
+      StatusIcon: Clock,
+      ReasonIcon: AlertCircle,
+      reasons: ['In active gestation (cannot be selected for mating)'],
+      cardClass: 'readiness-card-pregnant',
+      badgeClass: 'badge-pregnant',
+      dotClass: 'dot-pregnant',
+      iconClass: 'icon-pregnant',
+    };
+  }
+
+  // Determine specific warning reason
+  const reasons = assessment?.reasons && assessment.reasons.length > 0
+    ? assessment.reasons
+    : ['Does not meet criteria for breeding selection'];
+
+  let statusLabel = 'Not Ready';
+  let StatusIcon = AlertTriangle;
+  let statusType = 'warning';
+
+  if (age !== null && age < minAge) {
+    statusLabel = 'Under Breeding Age';
+  } else if (animal.weight_kg !== null && Number(animal.weight_kg) < minWeight) {
+    statusLabel = 'Below Required Weight';
+  } else if (animal.health_status === 'At Risk' || animal.health_status === 'Critical') {
+    statusLabel = 'Health Alert Flagged';
+    StatusIcon = AlertCircle;
+    statusType = 'danger';
+  }
+
+  return {
+    statusType,
+    statusLabel,
+    StatusIcon,
+    ReasonIcon: AlertCircle,
+    reasons,
+    cardClass: statusType === 'danger' ? 'readiness-card-danger' : 'readiness-card-warning',
+    badgeClass: statusType === 'danger' ? 'badge-danger' : 'badge-warning',
+    dotClass: statusType === 'danger' ? 'dot-danger' : 'dot-warning',
+    iconClass: statusType === 'danger' ? 'icon-danger' : 'icon-warning',
+  };
+}
+
 export function BreedingPage() {
   const farmData = useFarmData();
   const { user } = useAuth();
@@ -466,227 +557,227 @@ export function BreedingPage() {
       </div>
 
       {/* Breeding Readiness Center */}
-      <Card variant="default">
-        <CardContent>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-text-primary, #0F172A)' }}>
-                Breeding Readiness Center
-              </div>
-              <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: 'var(--color-text-secondary, #64748B)' }}>
-                Only mature, healthy animals meeting age ({farmData.settings?.breeding_min_age_months ?? 8} mos) and weight ({farmData.settings?.breeding_min_weight_kg ?? 25} kg) thresholds can be mated.
-              </p>
-            </div>
-
-            {/* Sub Tabs */}
-            <div style={{ display: 'inline-flex', background: 'var(--color-surface-elevated, #F1F5F9)', padding: 3, borderRadius: 'var(--radius-md, 10px)', gap: 4 }}>
-              <button
-                type="button"
-                onClick={() => setReadinessTab('females')}
-                style={{
-                  border: 'none',
-                  background: readinessTab === 'females' ? '#FFFFFF' : 'transparent',
-                  color: readinessTab === 'females' ? '#2E7D32' : '#64748B',
-                  fontWeight: readinessTab === 'females' ? 700 : 500,
-                  fontSize: '12.5px',
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  boxShadow: readinessTab === 'females' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <span>Ready Females</span>
-                <Badge variant="success" size="sm">{readyFemales.length}</Badge>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setReadinessTab('males')}
-                style={{
-                  border: 'none',
-                  background: readinessTab === 'males' ? '#FFFFFF' : 'transparent',
-                  color: readinessTab === 'males' ? '#2E7D32' : '#64748B',
-                  fontWeight: readinessTab === 'males' ? 700 : 500,
-                  fontSize: '12.5px',
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  boxShadow: readinessTab === 'males' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <span>Ready Sires</span>
-                <Badge variant="success" size="sm">{readyMales.length}</Badge>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setReadinessTab('not_ready')}
-                style={{
-                  border: 'none',
-                  background: readinessTab === 'not_ready' ? '#FFFFFF' : 'transparent',
-                  color: readinessTab === 'not_ready' ? '#C2410C' : '#64748B',
-                  fontWeight: readinessTab === 'not_ready' ? 700 : 500,
-                  fontSize: '12.5px',
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  boxShadow: readinessTab === 'not_ready' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <span>Not Yet Ready</span>
-                <Badge variant="warning" size="sm">{notReadyFemales.length + notReadyMales.length}</Badge>
-              </button>
-            </div>
+      <div className="breeding-readiness-card">
+        <div className="readiness-header-row">
+          <div className="readiness-title-group">
+            <h2 className="readiness-title">Breeding Readiness Center</h2>
+            <p className="readiness-subtitle">
+              Only mature, healthy animals meeting age ({farmData.settings?.breeding_min_age_months ?? 8} mos) and weight ({farmData.settings?.breeding_min_weight_kg ?? 25} kg) thresholds can be mated.
+            </p>
           </div>
 
-          {/* Tab 1: Ready Females */}
-          {readinessTab === 'females' && (
-            readyFemales.length === 0 ? (
-              <EmptyState
-                icon={<Icons.Heart size={28} />}
-                title="No females currently ready for mating"
-                description="Female animals must reach the minimum breeding age and weight to become eligible."
-              />
-            ) : (
-              <div className="breeding-readiness-grid stats-grid" style={{ marginBottom: 0 }}>
-                {readyFemales.map((animal) => {
-                  const assessment = femaleAssessments.get(animal.id);
-                  const age = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
-                  return (
-                    <div
-                      key={animal.id}
-                      style={{
-                        padding: 14,
-                        borderRadius: 'var(--radius-md, 14px)',
-                        background: 'rgba(46, 125, 50, 0.04)',
-                        border: '1px solid rgba(46, 125, 50, 0.2)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <CheckCircle2 size={16} color="#2E7D32" />
-                          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary, #0F172A)' }}>
-                            {animal.name} ({animal.tag_id})
-                          </span>
-                        </div>
-                        <Badge variant="success" size="sm">Ready for Mating</Badge>
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', lineHeight: 1.4 }}>
-                        {animal.breed || animal.species} · {age ? `${age} mos old` : 'Age verified'} · {animal.weight_kg ? `${animal.weight_kg} kg` : 'Weight met'}
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#2E7D32', fontWeight: 600, marginTop: 4 }}>
-                        {assessment?.reasons.join(' · ')}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          )}
+          {/* Sub Tabs */}
+          <div className="readiness-tabs-nav">
+            <button
+              type="button"
+              onClick={() => setReadinessTab('females')}
+              className={`readiness-tab-btn ${readinessTab === 'females' ? 'active' : ''}`}
+            >
+              <span>Ready Females</span>
+              <span className="readiness-tab-count">{readyFemales.length}</span>
+            </button>
 
-          {/* Tab 2: Ready Sires */}
-          {readinessTab === 'males' && (
-            readyMales.length === 0 ? (
-              <EmptyState
-                icon={<Icons.Heart size={28} />}
-                title="No male sires currently ready for service"
-                description="Male animals must meet minimum age and weight to be eligible for service."
-              />
-            ) : (
-              <div className="breeding-readiness-grid stats-grid" style={{ marginBottom: 0 }}>
-                {readyMales.map((animal) => {
-                  const assessment = maleAssessments.get(animal.id);
-                  const age = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
-                  return (
-                    <div
-                      key={animal.id}
-                      style={{
-                        padding: 14,
-                        borderRadius: 'var(--radius-md, 14px)',
-                        background: 'rgba(46, 125, 50, 0.04)',
-                        border: '1px solid rgba(46, 125, 50, 0.2)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <CheckCircle2 size={16} color="#2E7D32" />
-                          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary, #0F172A)' }}>
-                            {animal.name} ({animal.tag_id})
-                          </span>
-                        </div>
-                        <Badge variant="success" size="sm">Ready for Service</Badge>
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', lineHeight: 1.4 }}>
-                        {animal.breed || animal.species} Sire · {age ? `${age} mos old` : 'Age verified'} · {animal.weight_kg ? `${animal.weight_kg} kg` : 'Weight met'}
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#2E7D32', fontWeight: 600, marginTop: 4 }}>
-                        {assessment?.reasons.join(' · ')}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          )}
+            <button
+              type="button"
+              onClick={() => setReadinessTab('males')}
+              className={`readiness-tab-btn ${readinessTab === 'males' ? 'active' : ''}`}
+            >
+              <span>Ready Sires</span>
+              <span className="readiness-tab-count">{readyMales.length}</span>
+            </button>
 
-          {/* Tab 3: Not Yet Ready Animals */}
-          {readinessTab === 'not_ready' && (
-            (notReadyFemales.length === 0 && notReadyMales.length === 0) ? (
-              <EmptyState
-                icon={<CheckCircle2 size={28} color="#2E7D32" />}
-                title="All active animals are ready for breeding"
-                description="There are no animals currently restricted by age, weight, or pregnancy."
-              />
-            ) : (
-              <div className="breeding-readiness-grid stats-grid" style={{ marginBottom: 0 }}>
-                {[...notReadyFemales, ...notReadyMales].map((animal) => {
-                  const isFemale = animal.sex === 'Female';
-                  const assessment = isFemale ? femaleAssessments.get(animal.id) : maleAssessments.get(animal.id);
-                  const isPregnant = animal.breeding_status === 'Pregnant';
-                  return (
-                    <div
-                      key={animal.id}
-                      style={{
-                        padding: 14,
-                        borderRadius: 'var(--radius-md, 14px)',
-                        background: isPregnant ? 'rgba(59, 130, 246, 0.04)' : 'rgba(239, 68, 68, 0.04)',
-                        border: `1px solid ${isPregnant ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <AlertCircle size={16} color={isPregnant ? '#2563EB' : '#DC2626'} />
-                          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary, #0F172A)' }}>
-                            {animal.name} ({animal.tag_id})
-                          </span>
+            <button
+              type="button"
+              onClick={() => setReadinessTab('not_ready')}
+              className={`readiness-tab-btn ${readinessTab === 'not_ready' ? 'active' : ''}`}
+            >
+              <span>Not Yet Ready</span>
+              <span className="readiness-tab-count warning">{notReadyFemales.length + notReadyMales.length}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tab 1: Ready Females */}
+        {readinessTab === 'females' && (
+          readyFemales.length === 0 ? (
+            <EmptyState
+              icon={<Icons.Heart size={28} />}
+              title="No females currently ready for mating"
+              description="Female animals must reach the minimum breeding age and weight to become eligible."
+            />
+          ) : (
+            <div className="readiness-cards-grid">
+              {readyFemales.map((animal) => {
+                const assessment = femaleAssessments.get(animal.id);
+                const age = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
+                const cardData = getAnimalReadinessCardData(animal, assessment, farmData.settings);
+                const { StatusIcon, ReasonIcon } = cardData;
+
+                return (
+                  <div key={animal.id} className={`animal-readiness-card ${cardData.cardClass}`}>
+                    <div className="readiness-card-header">
+                      <div className="readiness-animal-info">
+                        <div className="readiness-name-row">
+                          <span className={`readiness-status-dot ${cardData.dotClass}`} />
+                          <h3 className="readiness-animal-name" title={animal.name}>{animal.name}</h3>
                         </div>
-                        <Badge variant={isPregnant ? 'info' : 'danger'} size="sm">
-                          {isPregnant ? 'Pregnant' : 'Not Ready'}
-                        </Badge>
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)' }}>
-                        {animal.sex} · {animal.breed || animal.species} · {animal.weight_kg ? `${animal.weight_kg} kg` : 'No weight'}
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: isPregnant ? '#2563EB' : '#DC2626', fontWeight: 600, marginTop: 4 }}>
-                        {assessment?.reasons.join(' · ') || 'Restricted from mating selection'}
+                        <span className="readiness-tag-badge">{animal.tag_id}</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )
-          )}
-        </CardContent>
-      </Card>
+
+                    <div className="readiness-meta-row">
+                      <span>{animal.breed || animal.species}</span>
+                      <span className="readiness-meta-sep">•</span>
+                      <span>{age ? `${age} mos old` : 'Age verified'}</span>
+                    </div>
+
+                    <div className="readiness-weight-row">
+                      <span>{animal.weight_kg ? `${animal.weight_kg} kg` : 'Weight met'}</span>
+                    </div>
+
+                    <div className="readiness-badge-row">
+                      <span className={`readiness-status-badge ${cardData.badgeClass}`}>
+                        <StatusIcon size={13} strokeWidth={2.5} />
+                        <span>{cardData.statusLabel}</span>
+                      </span>
+                    </div>
+
+                    <div className="readiness-reasons-list">
+                      {cardData.reasons.map((reason, idx) => (
+                        <div key={idx} className="readiness-reason-item">
+                          <ReasonIcon size={12} className={`reason-icon ${cardData.iconClass}`} />
+                          <span>{reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
+
+        {/* Tab 2: Ready Sires */}
+        {readinessTab === 'males' && (
+          readyMales.length === 0 ? (
+            <EmptyState
+              icon={<Icons.Heart size={28} />}
+              title="No male sires currently ready for service"
+              description="Male animals must meet minimum age and weight to be eligible for service."
+            />
+          ) : (
+            <div className="readiness-cards-grid">
+              {readyMales.map((animal) => {
+                const assessment = maleAssessments.get(animal.id);
+                const age = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
+                const cardData = getAnimalReadinessCardData(animal, assessment, farmData.settings);
+                const { StatusIcon, ReasonIcon } = cardData;
+
+                return (
+                  <div key={animal.id} className={`animal-readiness-card ${cardData.cardClass}`}>
+                    <div className="readiness-card-header">
+                      <div className="readiness-animal-info">
+                        <div className="readiness-name-row">
+                          <span className={`readiness-status-dot ${cardData.dotClass}`} />
+                          <h3 className="readiness-animal-name" title={animal.name}>{animal.name}</h3>
+                        </div>
+                        <span className="readiness-tag-badge">{animal.tag_id}</span>
+                      </div>
+                    </div>
+
+                    <div className="readiness-meta-row">
+                      <span>{animal.breed || animal.species} Sire</span>
+                      <span className="readiness-meta-sep">•</span>
+                      <span>{age ? `${age} mos old` : 'Age verified'}</span>
+                    </div>
+
+                    <div className="readiness-weight-row">
+                      <span>{animal.weight_kg ? `${animal.weight_kg} kg` : 'Weight met'}</span>
+                    </div>
+
+                    <div className="readiness-badge-row">
+                      <span className={`readiness-status-badge ${cardData.badgeClass}`}>
+                        <StatusIcon size={13} strokeWidth={2.5} />
+                        <span>{cardData.statusLabel}</span>
+                      </span>
+                    </div>
+
+                    <div className="readiness-reasons-list">
+                      {cardData.reasons.map((reason, idx) => (
+                        <div key={idx} className="readiness-reason-item">
+                          <ReasonIcon size={12} className={`reason-icon ${cardData.iconClass}`} />
+                          <span>{reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
+
+        {/* Tab 3: Not Yet Ready Animals */}
+        {readinessTab === 'not_ready' && (
+          (notReadyFemales.length === 0 && notReadyMales.length === 0) ? (
+            <EmptyState
+              icon={<CheckCircle2 size={28} color="#2E7D32" />}
+              title="All active animals are ready for breeding"
+              description="There are no animals currently restricted by age, weight, or pregnancy."
+            />
+          ) : (
+            <div className="readiness-cards-grid">
+              {[...notReadyFemales, ...notReadyMales].map((animal) => {
+                const isFemale = animal.sex === 'Female';
+                const assessment = isFemale ? femaleAssessments.get(animal.id) : maleAssessments.get(animal.id);
+                const age = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
+                const cardData = getAnimalReadinessCardData(animal, assessment, farmData.settings);
+                const { StatusIcon, ReasonIcon } = cardData;
+
+                return (
+                  <div key={animal.id} className={`animal-readiness-card ${cardData.cardClass}`}>
+                    <div className="readiness-card-header">
+                      <div className="readiness-animal-info">
+                        <div className="readiness-name-row">
+                          <span className={`readiness-status-dot ${cardData.dotClass}`} />
+                          <h3 className="readiness-animal-name" title={animal.name}>{animal.name}</h3>
+                        </div>
+                        <span className="readiness-tag-badge">{animal.tag_id}</span>
+                      </div>
+                    </div>
+
+                    <div className="readiness-meta-row">
+                      <span>{animal.sex} · {animal.breed || animal.species}</span>
+                      <span className="readiness-meta-sep">•</span>
+                      <span>{age ? `${age} mos old` : 'No DOB recorded'}</span>
+                    </div>
+
+                    <div className="readiness-weight-row">
+                      <span>{animal.weight_kg ? `${animal.weight_kg} kg` : 'No weight recorded'}</span>
+                    </div>
+
+                    <div className="readiness-badge-row">
+                      <span className={`readiness-status-badge ${cardData.badgeClass}`}>
+                        <StatusIcon size={13} strokeWidth={2.5} />
+                        <span>{cardData.statusLabel}</span>
+                      </span>
+                    </div>
+
+                    <div className="readiness-reasons-list">
+                      {cardData.reasons.map((reason, idx) => (
+                        <div key={idx} className="readiness-reason-item">
+                          <ReasonIcon size={12} className={`reason-icon ${cardData.iconClass}`} />
+                          <span>{reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
+      </div>
 
       {/* Filter Toolbar with Search & Status Filter */}
       <FilterToolbar>

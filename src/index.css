@@ -1114,7 +1114,6 @@ select:-webkit-autofill:focus {
 .stats-grid,
 .dashboard-stats,
 .alpas-responsive-grid,
-.breeding-readiness-grid,
 .inv-kpi-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2560,7 +2559,6 @@ table.data-table {
   .stats-grid,
   .dashboard-stats,
   .alpas-responsive-grid,
-  .breeding-readiness-grid,
   .inv-kpi-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
@@ -2730,7 +2728,6 @@ table.data-table {
   .kpi-grid,
   .dashboard-stats,
   .alpas-responsive-grid,
-  .breeding-readiness-grid,
   .inv-kpi-grid {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -2997,7 +2994,6 @@ table.data-table {
   .kpi-grid,
   .dashboard-stats,
   .alpas-responsive-grid,
-  .breeding-readiness-grid,
   .inv-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 8px !important;
@@ -4485,5 +4481,465 @@ input[type="time"] {
   .mobile-nav-item {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+
+/* ═════════════════════════════════════════════════════════════════════
+   BREEDING READINESS CENTER — RESPONSIVE DESIGN SYSTEM (ALPASFARM)
+   ═════════════════════════════════════════════════════════════════════ */
+.breeding-readiness-card {
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: var(--radius-xl, 20px);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(30, 70, 40, 0.05);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .breeding-readiness-card {
+  background: #17231B;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.readiness-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+  width: 100%;
+}
+
+.readiness-title-group {
+  min-width: 0;
+  flex: 1;
+}
+
+.readiness-title {
+  font-weight: 800;
+  font-size: 16.5px;
+  color: var(--color-text-primary, #0F172A);
+  margin: 0;
+}
+
+[data-theme="dark"] .readiness-title {
+  color: #F8FAFC;
+}
+
+.readiness-subtitle {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--color-text-secondary, #64748B);
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .readiness-subtitle {
+  color: #94A3B8;
+}
+
+/* Sub-tabs Nav */
+.readiness-tabs-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  background: var(--color-surface-elevated, #F1F5F9);
+  padding: 4px;
+  border-radius: var(--radius-md, 12px);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .readiness-tabs-nav {
+  background: #1D2B22;
+}
+
+.readiness-tab-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary, #64748B);
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  min-width: 0;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.readiness-tab-btn.active {
+  background: var(--color-surface, #FFFFFF);
+  color: #2E7D32;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .readiness-tab-btn.active {
+  background: #273A2E;
+  color: #4ADE80;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.readiness-tab-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(46, 125, 50, 0.12);
+  color: #2E7D32;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .readiness-tab-count {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ADE80;
+}
+
+.readiness-tab-count.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #D97706;
+}
+
+[data-theme="dark"] .readiness-tab-count.warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
+}
+
+/* Readiness Cards Grid */
+.readiness-cards-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 14px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-top: 4px !important;
+}
+
+/* Individual Animal Card */
+.animal-readiness-card {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  padding: 16px !important;
+  border-radius: var(--radius-lg, 16px) !important;
+  background: var(--color-surface-elevated, #FAFAFA);
+  border: 1px solid var(--color-border, #E2E8F0);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  height: auto !important;
+  min-height: auto !important;
+  position: relative !important;
+}
+
+.animal-readiness-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .animal-readiness-card {
+  background: #1A281F;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Status Variations */
+.readiness-card-ready {
+  background: rgba(46, 125, 50, 0.04) !important;
+  border-color: rgba(46, 125, 50, 0.25) !important;
+}
+
+[data-theme="dark"] .readiness-card-ready {
+  background: rgba(46, 125, 50, 0.12) !important;
+  border-color: rgba(74, 222, 128, 0.25) !important;
+}
+
+.readiness-card-pregnant {
+  background: rgba(59, 130, 246, 0.04) !important;
+  border-color: rgba(59, 130, 246, 0.25) !important;
+}
+
+[data-theme="dark"] .readiness-card-pregnant {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(96, 165, 250, 0.25) !important;
+}
+
+.readiness-card-warning {
+  background: rgba(245, 158, 11, 0.04) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+[data-theme="dark"] .readiness-card-warning {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(251, 191, 36, 0.25) !important;
+}
+
+.readiness-card-danger {
+  background: rgba(239, 68, 68, 0.04) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+[data-theme="dark"] .readiness-card-danger {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(248, 113, 113, 0.25) !important;
+}
+
+/* Card Header */
+.readiness-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.readiness-animal-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.readiness-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.readiness-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-ready { background: #16A34A; }
+.dot-pregnant { background: #2563EB; }
+.dot-warning { background: #F59E0B; }
+.dot-danger { background: #EF4444; }
+
+.readiness-animal-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text-primary, #0F172A);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+[data-theme="dark"] .readiness-animal-name {
+  color: #F8FAFC;
+}
+
+.readiness-tag-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-primary, #FF6A00);
+  background: rgba(255, 106, 0, 0.08);
+  padding: 1px 7px;
+  border-radius: 6px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+[data-theme="dark"] .readiness-tag-badge {
+  background: rgba(255, 106, 0, 0.15);
+  color: #FF8A33;
+}
+
+/* Card Meta (Breed • Age) */
+.readiness-meta-row {
+  font-size: 12.5px;
+  color: var(--color-text-secondary, #64748B);
+  line-height: 1.4;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+[data-theme="dark"] .readiness-meta-row {
+  color: #94A3B8;
+}
+
+.readiness-meta-sep {
+  margin: 0 4px;
+  color: var(--color-text-muted, #CBD5E1);
+}
+
+/* Card Weight */
+.readiness-weight-row {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-primary, #1E293B);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+[data-theme="dark"] .readiness-weight-row {
+  color: #E2E8F0;
+}
+
+/* Status Badge on Dedicated Row */
+.readiness-badge-row {
+  margin-top: 2px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.readiness-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+}
+
+.badge-ready {
+  background: rgba(46, 125, 50, 0.12);
+  color: #2E7D32;
+  border: 1px solid rgba(46, 125, 50, 0.28);
+}
+
+[data-theme="dark"] .badge-ready {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ADE80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.badge-pregnant {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563EB;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+
+[data-theme="dark"] .badge-pregnant {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60A5FA;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #D97706;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+[data-theme="dark"] .badge-warning {
+  background: rgba(245, 158, 11, 0.18);
+  color: #FBBF24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #DC2626;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+[data-theme="dark"] .badge-danger {
+  background: rgba(239, 68, 68, 0.18);
+  color: #F87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Reasons List */
+.readiness-reasons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border-light, #E2E8F0);
+  margin-top: 2px;
+}
+
+[data-theme="dark"] .readiness-reasons-list {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.readiness-reason-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--color-text-secondary, #64748B);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+[data-theme="dark"] .readiness-reason-item {
+  color: #94A3B8;
+}
+
+.reason-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.icon-ready { color: #16A34A; }
+.icon-pregnant { color: #2563EB; }
+.icon-warning { color: #D97706; }
+.icon-danger { color: #DC2626; }
+
+/* Responsive Rules */
+@media (max-width: 768px) {
+  .breeding-readiness-card {
+    padding: 16px !important;
+    border-radius: var(--radius-lg, 16px) !important;
+  }
+  .readiness-header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .readiness-tabs-nav {
+    width: 100% !important;
+  }
+  .readiness-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .readiness-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .readiness-tab-btn {
+    font-size: 11px !important;
+    padding: 6px 4px !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .breeding-readiness-card {
+    padding: 12px !important;
   }
 }
