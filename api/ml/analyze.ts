@@ -343,7 +343,7 @@ export function computeVeterinaryAssessment(
 
     // Symptoms
     if (Array.isArray(farmContext.symptoms) && farmContext.symptoms.length > 0) {
-      const symMap = {
+      const symMap: Record<string, string> = {
         cough: 'Frequent coughing',
         nasal_discharge: 'Mucopurulent nasal discharge',
         diarrhea: 'Watery diarrhea / scours',
@@ -603,7 +603,7 @@ async function analyzeWithGroqVision(
         console.warn(`[Groq Vision] Model ${model} returned HTTP ${response.status}: ${response.text.slice(0, 150)}`);
       }
     } catch (err) {
-      console.warn(`[Groq Vision] Model ${model} failed:`, err?.message);
+      console.warn(`[Groq Vision] Model ${model} failed:`, (err as any)?.message);
       lastError = err;
     }
   }
@@ -682,7 +682,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         });
         return;
       } catch (err) {
-        console.warn(`[AlpasFarm ML Analyze] [${requestId}] Groq Vision API unavailable, using built-in engine:`, err?.message);
+        console.warn(`[AlpasFarm ML Analyze] [${requestId}] Groq Vision API unavailable, using built-in engine:`, (err as any)?.message);
       }
     }
 
