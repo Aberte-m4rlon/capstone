@@ -38,6 +38,7 @@ ml-server/processed_sheep_goat_yolo/
 # Build output
 dist
 .env*
-
-
-
+ALPASFARM-Goat-Pose/images/
+ALPASFARM-Goat-Pose/labels/
+ALPASFARM-Goat-Pose/runs/
+ALPASFARM-Goat-Pose/*.png
