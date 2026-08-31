@@ -354,12 +354,12 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
     yolo_detections = loader.get_yolo_detections(img, conf_threshold=0.20)
     
     if yolo_detections is not None and len(yolo_detections) > 0:
-        # Check if goat or health indicators are detected
-        goat_dets = [d for d in yolo_detections if d["class_name"] == "goat"]
-        indicator_dets = [d for d in yolo_detections if d["class_name"] != "goat"]
+        # Check if goat or health indicators or anatomical landmarks are detected
+        goat_dets = [d for d in yolo_detections if d["class_name"] in ["goat", "goat_face", "goat_body"]]
+        indicator_dets = [d for d in yolo_detections if d["class_name"] not in ["goat", "goat_face", "goat_body"]]
 
         species = "goat" if (goat_dets or indicator_dets) else "unknown"
-        species_confidence = max([d["confidence"] for d in goat_dets], default=0.85) if goat_dets else (0.80 if indicator_dets else 0.0)
+        species_confidence = max([d["confidence"] for d in (goat_dets or indicator_dets)], default=0.88)
 
         indicators = []
         for det in indicator_dets:
@@ -412,6 +412,36 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
                     "description": f"Limb or gait asymmetry detected by YOLO scanner (confidence: {int(conf*100)}%).",
                     "bounding_box": box
                 })
+            elif cname == "eye":
+                # Anatomical landmark detected from 4skwhnrscr
+                indicators.append({
+                    "indicator": "ANATOMICAL_EYE_LOCALIZED",
+                    "label": "Ocular Region Localized",
+                    "riskPoints": 0,
+                    "confidence": round(conf, 3),
+                    "description": f"Goat ocular zone localized with {int(conf*100)}% confidence for FAMACHA pallor inspection.",
+                    "bounding_box": box
+                })
+            elif cname == "mouth":
+                # Anatomical landmark detected from 4skwhnrscr
+                indicators.append({
+                    "indicator": "ANATOMICAL_MUZZLE_LOCALIZED",
+                    "label": "Mouth & Muzzle Localized",
+                    "riskPoints": 0,
+                    "confidence": round(conf, 3),
+                    "description": f"Goat mouth / rostral muzzle localized with {int(conf*100)}% confidence for lesion & discharge screening.",
+                    "bounding_box": box
+                })
+            elif cname == "ear":
+                # Anatomical landmark detected from 4skwhnrscr
+                indicators.append({
+                    "indicator": "ANATOMICAL_EAR_LOCALIZED",
+                    "label": "Ear Region Localized",
+                    "riskPoints": 0,
+                    "confidence": round(conf, 3),
+                    "description": f"Goat ear pinna localized with {int(conf*100)}% confidence for alertness & mange screening.",
+                    "bounding_box": box
+                })
 
         if not indicators:
             indicators.append({
@@ -419,7 +449,7 @@ def run_predictions(img: Image.Image) -> Dict[str, Any]:
                 "label": "Normal Appearance",
                 "riskPoints": 0,
                 "confidence": 0.92,
-                "description": "No visual lesions, discharge, or posture abnormalities detected by YOLOv8.",
+                "description": "No visual lesions, discharge, or posture abnormalities detected by YOLO.",
                 "bounding_box": None
             })
 

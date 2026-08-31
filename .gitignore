@@ -14,11 +14,19 @@ myai_service/.venv
 myai_service/__pycache__
 
 # ML model artifacts — binaries, do not commit to git
-# Re-generate by running: python myai_service/train_health_model.py
 myai_service/models/*.joblib
 myai_service/models/*.pkl
 *.pt
 *.onnx
+*.weights
+*.tar.xz
+4skwhnrscr-2/
+datasets/4skwhnrscr/raw_dataset_1/
+datasets/4skwhnrscr/raw_dataset_2/
+datasets/4skwhnrscr/yolo_dataset/images/
+datasets/4skwhnrscr/yolo_dataset/labels/
+datasets/4skwhnrscr/runs/
+datasets/4skwhnrscr/weights/
 alpasfarm_yolo_goat_health_1000_scaffold/images/
 alpasfarm_yolo_goat_health_1000_scaffold/runs/
 alpasfarm_yolo_goat_health_1000_scaffold/weights/
@@ -28,4 +36,5 @@ ml-server/models/*.onnx
 # Build output
 dist
 .env*
+
 

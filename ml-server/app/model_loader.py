@@ -19,12 +19,16 @@ class ModelLoader:
             cls._instance.labels = None
             cls._instance.yolo_model = None
             cls._instance.yolo_names = {
-                0: "goat",
-                1: "eye_discharge",
-                2: "nasal_discharge",
-                3: "skin_lesion",
-                4: "abnormal_posture",
-                5: "possible_lameness"
+                0: "goat_face",
+                1: "eye",
+                2: "mouth",
+                3: "ear",
+                4: "goat_body",
+                5: "eye_discharge",
+                6: "nasal_discharge",
+                7: "skin_lesion",
+                8: "abnormal_posture",
+                9: "possible_lameness"
             }
         return cls._instance
 
@@ -49,13 +53,15 @@ class ModelLoader:
             raise e
 
     def load_yolo_model(self):
-        """Attempts to load trained YOLOv8 weights."""
+        """Attempts to load trained YOLO weights (4skwhnrscr or health scaffold)."""
         if self.yolo_model is not None:
             return
 
         candidate_paths = [
             Path(__file__).resolve().parent.parent / "models" / "best.pt",
             Path(__file__).resolve().parent.parent / "models" / "best.onnx",
+            Path(__file__).resolve().parent.parent.parent / "datasets" / "4skwhnrscr" / "weights" / "best.pt",
+            Path(__file__).resolve().parent.parent.parent / "datasets" / "4skwhnrscr" / "runs" / "4skwhnrscr_goat_train" / "weights" / "best.pt",
             Path(__file__).resolve().parent.parent.parent / "alpasfarm_yolo_goat_health_1000_scaffold" / "weights" / "best.pt",
             Path("models/best.pt"),
             Path("best.pt"),
