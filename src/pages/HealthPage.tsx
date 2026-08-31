@@ -44,6 +44,10 @@ import {
   Thermometer,
   Calendar,
   ArrowUpRight,
+  ShieldCheck,
+  Info,
+  Clock,
+  AlertOctagon,
 } from 'lucide-react';
 import { formatDate } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
@@ -73,6 +77,132 @@ const AVAILABLE_SYMPTOMS: SymptomChip[] = [
   { id: 'rough_coat', label: 'Rough / Scruffy Coat', description: 'Dull, patchy, or unkempt fleece' },
   { id: 'droopy_head', label: 'Droopy Head / Isolated', description: 'Separated from herd, lethargic' },
 ];
+
+
+/**
+ * Cleans and formats raw AI/database symptoms and observation reasons into readable farm summaries.
+ * Removes raw technical prefixes like [Observation], [Database History], etc. and prevents UI overflow.
+ */
+export function formatHealthReasons(
+  rawText: string | null | undefined,
+  maxItems: number = 3,
+): { summary: string; items: string[]; totalCount: number } {
+  if (!rawText || !rawText.trim()) {
+    return {
+      summary: 'Normal clinical parameters • No acute distress noted',
+      items: ['Normal clinical parameters'],
+      totalCount: 1,
+    };
+  }
+
+  // Split on semicolons, pipes, newlines, or multiple spaces
+  const rawParts = rawText
+    .split(/[;\n|]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const cleanedItems: string[] = [];
+  const seen = new Set<string>();
+
+  for (const part of rawParts) {
+    let cleaned = part
+      // Remove technical tags like [Observation], [Database History], [Early Warning], etc.
+      .replace(/\[(?:Observation|Database History|Early Warning|Camera ML|AI Assessment|Clinical|Vitals|Historical|Risk Factor)\]\s*/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Strip leading / trailing bullets, dashes, colons
+    cleaned = cleaned.replace(/^[-•*–—,:]+\s*/, '').replace(/[-•*–—,:]+$/, '').trim();
+
+    if (!cleaned) continue;
+
+    // Capitalize cleanly
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+
+    const lowerKey = cleaned.toLowerCase();
+    if (!seen.has(lowerKey)) {
+      seen.add(lowerKey);
+      cleanedItems.push(cleaned);
+    }
+  }
+
+  if (cleanedItems.length === 0) {
+    return {
+      summary: 'Routine health check • Standard vital signs',
+      items: ['Routine health check'],
+      totalCount: 1,
+    };
+  }
+
+  const displayed = cleanedItems.slice(0, maxItems);
+  const remaining = cleanedItems.length - maxItems;
+
+  let summary = displayed.join(' • ');
+  if (remaining > 0) {
+    summary += ` • +${remaining} more`;
+  }
+
+  return {
+    summary,
+    items: cleanedItems,
+    totalCount: cleanedItems.length,
+  };
+}
+
+/**
+ * Returns metadata for consistent, non-wrapping risk badges & styling (ZERO emojis, Lucide icons only).
+ */
+export function getRecordRiskMeta(r: HealthRecord) {
+  const score = r.risk_score ?? 0;
+  const level = (r.risk_level || '').toLowerCase();
+
+  if (score >= 85 || level === 'critical') {
+    return {
+      key: 'critical',
+      label: 'Critical Risk',
+      score,
+      badgeClass: 'risk-badge-critical',
+      cardClass: 'record-card-critical',
+      Icon: ShieldAlert,
+      color: '#EF4444',
+      nextCheck: 'Immediate / Within 12 hours',
+    };
+  }
+  if (score >= 60 || level === 'high') {
+    return {
+      key: 'high',
+      label: 'High Risk',
+      score,
+      badgeClass: 'risk-badge-high',
+      cardClass: 'record-card-high',
+      Icon: AlertTriangle,
+      color: '#F97316',
+      nextCheck: 'Within 24 hours',
+    };
+  }
+  if (score >= 35 || level === 'moderate' || level === 'medium') {
+    return {
+      key: 'moderate',
+      label: 'Moderate Risk',
+      score,
+      badgeClass: 'risk-badge-mod',
+      cardClass: 'record-card-mod',
+      Icon: AlertTriangle,
+      color: '#F59E0B',
+      nextCheck: 'Within 48 hours',
+    };
+  }
+  return {
+    key: 'low',
+    label: 'Low Risk',
+    score,
+    badgeClass: 'risk-badge-low',
+    cardClass: 'record-card-low',
+    Icon: CheckCircle2,
+    color: '#16A34A',
+    nextCheck: 'Within 7 days',
+  };
+}
 
 export function HealthPage() {
   const farmData = useFarmData();
@@ -104,6 +234,8 @@ export function HealthPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [trendRange, setTrendRange] = useState<'7' | '30' | '90'>('30');
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
+  const [selectedRecordForDetail, setSelectedRecordForDetail] = useState<HealthRecord | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<HealthRecord | null>(null);
 
@@ -265,7 +397,10 @@ export function HealthPage() {
   const filteredRecords = useMemo(() => {
     return farmData.healthRecords
       .filter((r) => {
-        if (fRisk !== 'All' && r.risk_level !== fRisk) return false;
+        if (fRisk !== 'All') {
+          const meta = getRecordRiskMeta(r);
+          if (fRisk.toLowerCase() !== meta.key) return false;
+        }
         if (fAnimal !== 'All' && r.animal_id !== fAnimal) return false;
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
@@ -899,13 +1034,13 @@ export function HealthPage() {
 
       {/* ── 7. HEALTH HISTORY & LOGS ── */}
       <div id="health-history-section" className="health-history-section">
-        <div className="section-header">
-          <div className="section-title-group">
-            <Activity size={20} color="#FF7A18" />
+        <div className="history-section-header">
+          <div className="history-title-group">
+            <Stethoscope size={20} color="#FF7A18" />
             <h2 className="section-title">Health History & Assessment Logs</h2>
           </div>
-          <span className="badge badge-neutral">
-            {filteredRecords.length} records found
+          <span className="history-count-badge">
+            {filteredRecords.length} {filteredRecords.length === 1 ? 'RECORD FOUND' : 'RECORDS FOUND'}
           </span>
         </div>
 
@@ -929,9 +1064,10 @@ export function HealthPage() {
               onChange={(e) => setFRisk(e.target.value)}
             >
               <option value="All">All Risk Levels</option>
-              <option value="High">High Risk</option>
-              <option value="Moderate">Moderate Risk</option>
-              <option value="Low">Low Risk</option>
+              <option value="critical">Critical Risk</option>
+              <option value="high">High Risk</option>
+              <option value="moderate">Moderate Risk</option>
+              <option value="low">Low Risk</option>
             </select>
 
             <select
@@ -963,91 +1099,87 @@ export function HealthPage() {
         ) : (
           <div className="records-list">
             {filteredRecords.map((r) => {
-              const isExpanded = expandedRecordId === r.id;
               const anName = animalName(r.animal_id);
               const tag = animalTag(r.animal_id);
-              const score = r.risk_score ?? 0;
-              const isHigh = score >= 65 || r.risk_level === 'High';
-              const isMod = score >= 35 || r.risk_level === 'Moderate';
+              const riskMeta = getRecordRiskMeta(r);
+              const reasonsData = formatHealthReasons(r.detected_conditions || r.reasons, 3);
 
               return (
                 <div
                   key={r.id}
-                  className={`record-card ${isHigh ? 'record-high' : isMod ? 'record-mod' : 'record-low'}`}
+                  className={`health-log-card ${riskMeta.cardClass}`}
+                  onClick={() => {
+                    setSelectedRecordForDetail(r);
+                    setDetailModalOpen(true);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      setSelectedRecordForDetail(r);
+                      setDetailModalOpen(true);
+                    }
+                  }}
                 >
-                  <div
-                    className="record-card-header"
-                    onClick={() => setExpandedRecordId(isExpanded ? null : r.id)}
-                  >
-                    <div className="record-header-left">
-                      <div className="record-icon-badge">
-                        <Activity size={18} color="var(--primary)" />
-                      </div>
-                      <div>
-                        <div className="record-title-line">
-                          <span className="record-animal-name">{anName}</span>
-                          <span className="record-tag-badge">{tag}</span>
-                          <span className="record-date-badge">· {formatDate(r.record_date)}</span>
-                        </div>
-                        <div className="record-subtitle">
-                          {r.detected_conditions || r.reasons || 'Regular health assessment'}
-                        </div>
-                      </div>
-                    </div>
+                  {/* Left Icon Badge */}
+                  <div className="health-log-icon-box">
+                    <Stethoscope size={18} />
+                  </div>
 
-                    <div className="record-header-right">
-                      <span className={`record-risk-badge ${isHigh ? 'badge-high' : isMod ? 'badge-mod' : 'badge-low'}`}>
-                        {isHigh ? 'High Risk' : isMod ? 'Moderate Risk' : 'Low Risk'} ({score}%)
-                      </span>
-                      {isExpanded ? (
-                        <ChevronDown size={18} color="var(--text-secondary)" />
-                      ) : (
-                        <ChevronRight size={18} color="var(--text-secondary)" />
-                      )}
+                  {/* Main Content Info */}
+                  <div className="health-log-main">
+                    <div className="health-log-header-line">
+                      <span className="health-log-animal-name" title={anName}>{anName}</span>
+                      {tag && <span className="health-log-tag-badge">{tag}</span>}
+                      <span className="health-log-date-badge">• {formatDate(r.record_date)}</span>
+                    </div>
+                    <div className="health-log-symptoms" title={reasonsData.items.join(' • ')}>
+                      {reasonsData.summary}
                     </div>
                   </div>
 
-                  {/* Expanded Breakdown */}
-                  {isExpanded && (
-                    <div className="record-card-details">
-                      <div className="details-grid">
-                        <div>
-                          <div className="details-section-title">Clinical Parameters & Vitals</div>
-                          <ul className="details-list">
-                            {r.temperature && <li>Body Temperature: <strong>{r.temperature}°C</strong></li>}
-                            {r.heart_rate && <li>Heart Rate: <strong>{r.heart_rate} bpm</strong></li>}
-                            {r.appetite && <li>Appetite: <strong>{r.appetite}</strong></li>}
-                            {r.activity_level && <li>Activity: <strong>{r.activity_level}</strong></li>}
-                            {r.cough && <li>Symptoms: <strong>Coughing observed</strong></li>}
-                            {r.nasal_discharge && <li>Symptoms: <strong>Nasal discharge observed</strong></li>}
-                            {r.diarrhea && <li>Symptoms: <strong>Diarrhea observed</strong></li>}
-                            {r.gait && r.gait !== 'Normal' && <li>Gait: <strong>{r.gait}</strong></li>}
-                          </ul>
-                        </div>
+                  {/* Right Risk Badge */}
+                  <div className="health-log-badge-box">
+                    <span className={`health-risk-badge ${riskMeta.badgeClass}`}>
+                      <riskMeta.Icon size={13} strokeWidth={2.5} />
+                      <span>{riskMeta.label} ({riskMeta.score}%)</span>
+                    </span>
+                  </div>
 
-                        <div>
-                          <div className="details-section-title">AI Engine Recommendations</div>
-                          <p className="recommendations-text">
-                            {r.recommendation || 'Maintain standard nutritional care and monitor vitals regularly.'}
-                          </p>
-                        </div>
+                  {/* Right Chevron Arrow */}
+                  <div className="health-log-arrow-box">
+                    <ChevronRight size={18} className="health-log-arrow" />
+                  </div>
+
+                  {/* Mobile-Only Stacking Structure */}
+                  <div className="health-log-mobile-container">
+                    <div className="health-log-mobile-header">
+                      <div className="health-log-icon-box">
+                        <Stethoscope size={16} />
                       </div>
-
-                      <div className="record-footer-actions">
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          style={{ color: '#EF4444', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDelete(r);
-                          }}
-                        >
-                          <Trash2 size={14} />
-                          <span>Delete Record</span>
-                        </button>
+                      <div className="health-log-mobile-title-wrap">
+                        <span className="health-log-animal-name" title={anName}>{anName}</span>
+                        <div className="health-log-mobile-meta">
+                          {tag && <span className="health-log-tag-badge">{tag}</span>}
+                          <span className="health-log-date-badge">• {formatDate(r.record_date)}</span>
+                        </div>
                       </div>
                     </div>
-                  )}
+
+                    <div className="health-log-symptoms health-log-mobile-symptoms" title={reasonsData.items.join(' • ')}>
+                      {reasonsData.summary}
+                    </div>
+
+                    <div className="health-log-mobile-footer">
+                      <span className={`health-risk-badge ${riskMeta.badgeClass}`}>
+                        <riskMeta.Icon size={12} strokeWidth={2.5} />
+                        <span>{riskMeta.label} ({riskMeta.score}%)</span>
+                      </span>
+                      <div className="health-log-arrow-box">
+                        <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -1475,6 +1607,207 @@ export function HealthPage() {
           </div>
         </div>
         </ModalBody>
+      </Modal>
+
+      
+      {/* ── 7.1 HEALTH ASSESSMENT LOG DETAILS MODAL ── */}
+      <Modal
+        open={detailModalOpen && selectedRecordForDetail !== null}
+        onClose={() => {
+          setDetailModalOpen(false);
+          setSelectedRecordForDetail(null);
+        }}
+        size="lg"
+      >
+        <ModalHeader
+          title="Health Assessment Log Details"
+          onClose={() => {
+            setDetailModalOpen(false);
+            setSelectedRecordForDetail(null);
+          }}
+        />
+        <ModalBody>
+          {selectedRecordForDetail && (() => {
+            const r = selectedRecordForDetail;
+            const an = farmData.animals.find((a) => a.id === r.animal_id);
+            const riskMeta = getRecordRiskMeta(r);
+            const reasonsData = formatHealthReasons(r.reasons, 12);
+            const conditionsData = formatHealthReasons(r.detected_conditions, 12);
+
+            return (
+              <div className="detail-modal-flow">
+                {/* 1. Animal Information */}
+                <div className="detail-card">
+                  <div className="detail-card-head">
+                    <PawPrint size={16} color="var(--primary)" />
+                    <span>Animal Information</span>
+                  </div>
+                  <div className="detail-grid-2x2">
+                    <div className="detail-field">
+                      <span className="detail-field-lbl">Animal Name</span>
+                      <span className="detail-field-val font-bold">{an?.name || 'Unknown Animal'}</span>
+                    </div>
+                    <div className="detail-field">
+                      <span className="detail-field-lbl">Tag ID</span>
+                      <span className="detail-tag-badge">{an?.tag_id || 'N/A'}</span>
+                    </div>
+                    <div className="detail-field">
+                      <span className="detail-field-lbl">Species & Breed</span>
+                      <span className="detail-field-val">{an?.species || 'Goat'} • {an?.breed || 'Standard'}</span>
+                    </div>
+                    <div className="detail-field">
+                      <span className="detail-field-lbl">Date Recorded</span>
+                      <span className="detail-field-val">{formatDate(r.record_date)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Health Assessment Overview */}
+                <div className="detail-card">
+                  <div className="detail-card-head">
+                    <Activity size={16} color="var(--primary)" />
+                    <span>Health Assessment & Diagnosis</span>
+                  </div>
+                  <div className="detail-assessment-banner">
+                    <span className={`health-risk-badge ${riskMeta.badgeClass} detail-lg-badge`}>
+                      <riskMeta.Icon size={15} strokeWidth={2.5} />
+                      <span>{riskMeta.label} ({riskMeta.score}%)</span>
+                    </span>
+                    <div className="detail-assessment-condition">
+                      {r.detected_conditions || (riskMeta.key === 'low' ? 'Normal Clinical Appearance' : 'Health Alert Flagged')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Detected Factors & Vitals */}
+                <div className="detail-card">
+                  <div className="detail-card-head">
+                    <Stethoscope size={16} color="var(--primary)" />
+                    <span>Detected Factors & Clinical Observations</span>
+                  </div>
+
+                  {/* Vitals summary */}
+                  <div className="detail-vitals-row">
+                    {r.temperature !== undefined && r.temperature !== null && (
+                      <span className={`detail-vital-chip ${r.temperature > 39.8 ? 'vital-warn' : 'vital-ok'}`}>
+                        <Thermometer size={13} />
+                        <span>Temp: {r.temperature}°C</span>
+                      </span>
+                    )}
+                    {r.heart_rate !== undefined && r.heart_rate !== null && (
+                      <span className="detail-vital-chip vital-ok">
+                        <Activity size={13} />
+                        <span>Heart Rate: {r.heart_rate} bpm</span>
+                      </span>
+                    )}
+                    {r.appetite && (
+                      <span className={`detail-vital-chip ${r.appetite === 'Normal' ? 'vital-ok' : 'vital-warn'}`}>
+                        <span>Appetite: {r.appetite}</span>
+                      </span>
+                    )}
+                    {r.activity_level && (
+                      <span className={`detail-vital-chip ${r.activity_level === 'Normal' ? 'vital-ok' : 'vital-warn'}`}>
+                        <span>Activity: {r.activity_level}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Clean bulleted factor list */}
+                  <ul className="detail-factor-bullets">
+                    {reasonsData.items.map((item, idx) => (
+                      <li key={idx} className="detail-factor-bullet">
+                        {riskMeta.key === 'low' ? (
+                          <CheckCircle2 size={15} color="#16A34A" className="detail-bullet-icon" />
+                        ) : (
+                          <AlertTriangle size={15} color={riskMeta.color} className="detail-bullet-icon" />
+                        )}
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* 4. Recommendation & Actions */}
+                <div className="detail-card">
+                  <div className="detail-card-head">
+                    <Sparkles size={16} color="var(--primary)" />
+                    <span>Clinical Recommendation</span>
+                  </div>
+                  <p className="detail-rec-intro">
+                    {r.recommendation || (riskMeta.key === 'low'
+                      ? 'Continue regular monitoring. No immediate veterinary intervention is required.'
+                      : 'Monitor the animal closely. Perform regular physical checks and isolate if symptoms worsen.')}
+                  </p>
+                  <div className="detail-action-steps">
+                    <div className="detail-action-steps-title">Recommended Actions:</div>
+                    <ul className="detail-action-list">
+                      {riskMeta.key === 'low' ? (
+                        <>
+                          <li>Continue regular health monitoring schedule</li>
+                          <li>Ensure access to clean drinking water and balanced nutrition</li>
+                          <li>Schedule routine vaccination and parasite check</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>Perform a manual temperature check twice daily</li>
+                          <li>Inspect conjunctival color and check FAMACHA score</li>
+                          <li>Observe appetite and water consumption over the next 24 hours</li>
+                          <li>Isolate from herd if contagious respiratory or skin lesions are present</li>
+                          <li>Contact a licensed veterinarian if symptoms worsen or persist</li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 5. Next Recommended Check */}
+                <div className="detail-next-check-box">
+                  <div className="detail-next-check-left">
+                    <Calendar size={18} color="var(--primary)" />
+                    <div>
+                      <div className="detail-next-check-lbl">Next Recommended Health Check</div>
+                      <div className="detail-next-check-val">{riskMeta.nextCheck}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. Medical Disclaimer */}
+                <div className="detail-disclaimer-box">
+                  <Info size={14} color="var(--text-secondary)" />
+                  <span>AI-assisted assessment only. This system does not replace a licensed veterinarian.</span>
+                </div>
+              </div>
+            );
+          })()}
+        </ModalBody>
+        <ModalFooter>
+          <div className="detail-modal-footer-row">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ color: '#EF4444', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              onClick={() => {
+                if (selectedRecordForDetail) {
+                  setConfirmDelete(selectedRecordForDetail);
+                  setDetailModalOpen(false);
+                }
+              }}
+            >
+              <Trash2 size={15} />
+              <span>Delete Record</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setDetailModalOpen(false);
+                setSelectedRecordForDetail(null);
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </ModalFooter>
       </Modal>
 
       {/* ── CONFIRM DELETE DIALOG ── */}
@@ -1968,19 +2301,47 @@ export function HealthPage() {
           opacity: 0.6;
         }
 
-        /* 7. History & Logs */
+        /* 7. History & Assessment Logs */
         .health-history-section {
           background: var(--surface);
           border: 1px solid var(--border);
           border-radius: 18px;
-          padding: 20px 24px;
+          padding: 22px 24px;
           margin-bottom: 24px;
+          box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+        }
+        .history-section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 12px;
+          margin-bottom: 18px;
+        }
+        .history-title-group {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .history-count-badge {
+          font-size: 11.5px;
+          font-weight: 800;
+          padding: 4px 12px;
+          border-radius: 20px;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border);
+          color: var(--text-secondary);
+          letter-spacing: 0.5px;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .history-filter-bar {
           display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 18px;
+          width: 100%;
           flex-wrap: wrap;
-          gap: 10px;
-          margin-bottom: 20px;
         }
         .search-input-wrapper {
           position: relative;
@@ -1990,20 +2351,38 @@ export function HealthPage() {
         .search-icon {
           position: absolute;
           left: 12px;
-          top: 11px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
         }
         .search-input {
           padding-left: 36px;
+          padding-right: 12px;
           width: 100%;
+          height: 40px;
+          border-radius: 10px;
+          font-size: 13.5px;
+          box-sizing: border-box;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border);
+          color: var(--text);
         }
         .filter-selects-row {
           display: flex;
           gap: 10px;
-          flex-wrap: wrap;
+          flex-shrink: 0;
         }
         .select-input {
-          width: auto;
+          height: 40px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 0 12px;
           min-width: 160px;
+          box-sizing: border-box;
+          background: var(--surface-sunken);
+          border: 1px solid var(--border);
+          color: var(--text);
         }
         .records-empty-state {
           text-align: center;
@@ -2014,128 +2393,322 @@ export function HealthPage() {
           flex-direction: column;
           gap: 10px;
         }
-        .record-card {
-          border-radius: 14px;
-          overflow: hidden;
+
+        /* Health Log Card - Desktop Grid Layout */
+        .health-log-card {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto auto;
+          align-items: center;
+          gap: 16px;
+          padding: 13px 18px;
           background: var(--surface-sunken);
           border: 1px solid var(--border);
-          transition: all 0.2s ease;
-        }
-        .record-high { border-color: rgba(239, 68, 68, 0.35); }
-        .record-mod { border-color: rgba(245, 158, 11, 0.35); }
-        .record-low { border-color: var(--border); }
-        .record-card-header {
-          padding: 14px 18px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+          border-radius: 14px;
           cursor: pointer;
-          flex-wrap: wrap;
-          gap: 12px;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          min-height: 64px;
+          box-sizing: border-box;
+          position: relative;
+          overflow: hidden;
         }
-        .record-header-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
+        .health-log-card:hover {
+          background: var(--surface);
+          border-color: var(--primary);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.08);
         }
-        .record-icon-badge {
-          width: 36px;
-          height: 36px;
+        .health-log-card:focus-visible {
+          outline: 2px solid var(--primary);
+          outline-offset: 2px;
+        }
+
+        /* Border Accents by Risk */
+        .record-card-critical { border-left: 4px solid #EF4444; }
+        .record-card-high { border-left: 4px solid #F97316; }
+        .record-card-mod { border-left: 4px solid #F59E0B; }
+        .record-card-low { border-left: 4px solid #16A34A; }
+
+        .health-log-icon-box {
+          width: 38px;
+          height: 38px;
           border-radius: 10px;
           background: var(--surface);
           border: 1px solid var(--border);
           display: flex;
           align-items: center;
           justify-content: center;
+          color: var(--primary);
           flex-shrink: 0;
         }
-        .record-title-line {
+        .health-log-main {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          min-width: 0; /* Prevents overflow in CSS grid */
+        }
+        .health-log-header-line {
           display: flex;
           align-items: center;
           gap: 8px;
+          flex-wrap: nowrap;
+          min-width: 0;
         }
-        .record-animal-name {
+        .health-log-animal-name {
           font-weight: 800;
-          font-size: 15px;
+          font-size: 14.5px;
           color: var(--text);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 220px;
         }
-        .record-tag-badge {
-          font-size: 12px;
+        .health-log-tag-badge {
+          font-size: 11.5px;
+          font-weight: 600;
           background: var(--surface);
           border: 1px solid var(--border);
-          padding: 1px 6px;
-          border-radius: 4px;
+          padding: 1px 7px;
+          border-radius: 6px;
           color: var(--text-secondary);
+          white-space: nowrap;
+          flex-shrink: 0;
         }
-        .record-date-badge {
+        .health-log-date-badge {
           font-size: 12px;
           color: var(--text-secondary);
+          white-space: nowrap;
+          flex-shrink: 0;
         }
-        .record-subtitle {
-          font-size: 12px;
+        .health-log-symptoms {
+          font-size: 12.5px;
           color: var(--text-secondary);
-          margin-top: 2px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 1.4;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
-        .record-header-right {
+
+        /* Right Risk Badge */
+        .health-log-badge-box {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+        }
+        .health-risk-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 4px 11px;
+          border-radius: 20px;
+          white-space: nowrap;
+          flex-shrink: 0;
+          box-sizing: border-box;
+        }
+        .risk-badge-critical {
+          background: rgba(239, 68, 68, 0.12);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #DC2626;
+        }
+        .risk-badge-high {
+          background: rgba(249, 115, 22, 0.12);
+          border: 1px solid rgba(249, 115, 22, 0.3);
+          color: #EA580C;
+        }
+        .risk-badge-mod {
+          background: rgba(245, 158, 11, 0.12);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          color: #D97706;
+        }
+        .risk-badge-low {
+          background: rgba(22, 163, 74, 0.12);
+          border: 1px solid rgba(22, 163, 74, 0.3);
+          color: #16A34A;
+        }
+        .detail-lg-badge {
+          font-size: 13.5px;
+          padding: 6px 14px;
+        }
+
+        .health-log-arrow-box {
+          display: flex;
+          align-items: center;
+          color: var(--text-secondary);
+          opacity: 0.6;
+          flex-shrink: 0;
+        }
+        .health-log-card:hover .health-log-arrow-box {
+          color: var(--primary);
+          opacity: 1;
+          transform: translateX(2px);
+        }
+        .health-log-mobile-container {
+          display: none;
+        }
+
+        /* Detail Modal Styles */
+        .detail-modal-flow {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        .detail-card {
+          background: var(--surface-sunken);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 14px 16px;
+        }
+        .detail-card-head {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          font-weight: 800;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 10px;
+        }
+        .detail-grid-2x2 {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .detail-field {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+        .detail-field-lbl {
+          font-size: 11px;
+          color: var(--text-secondary);
+        }
+        .detail-field-val {
+          font-size: 13.5px;
+          color: var(--text);
+          overflow-wrap: anywhere;
+        }
+        .detail-assessment-banner {
           display: flex;
           align-items: center;
           gap: 14px;
+          flex-wrap: wrap;
         }
-        .record-risk-badge {
-          font-size: 13px;
-          font-weight: 800;
-          padding: 4px 10px;
-          border-radius: 20px;
+        .detail-assessment-condition {
+          font-size: 13.5px;
+          font-weight: 600;
+          color: var(--text);
+          flex: 1;
+          min-width: 180px;
         }
-        .badge-high {
-          background: rgba(239, 68, 68, 0.15);
+        .detail-vitals-row {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 10px;
+        }
+        .detail-vital-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 3px 9px;
+          border-radius: 6px;
+          font-size: 11.5px;
+          font-weight: 600;
+        }
+        .vital-ok {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          color: var(--text);
+        }
+        .vital-warn {
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.25);
           color: #EF4444;
         }
-        .badge-mod {
-          background: rgba(245, 158, 11, 0.15);
-          color: #F59E0B;
+        .detail-factor-bullets {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
-        .badge-low {
-          background: rgba(22, 163, 74, 0.15);
-          color: #16A34A;
+        .detail-factor-bullet {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          font-size: 13px;
+          color: var(--text);
+          line-height: 1.4;
         }
-        .record-card-details {
-          padding: 16px 20px;
-          border-top: 1px solid var(--border);
+        .detail-bullet-icon {
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+        .detail-rec-intro {
+          font-size: 13px;
+          color: var(--text);
+          line-height: 1.5;
+          margin: 0 0 10px 0;
+        }
+        .detail-action-steps {
           background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 10px 14px;
         }
-        .details-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 16px;
-        }
-        .details-section-title {
-          font-size: 12px;
+        .detail-action-steps-title {
+          font-size: 11.5px;
           font-weight: 700;
-          color: var(--text-secondary);
-          text-transform: uppercase;
+          color: var(--primary);
           margin-bottom: 6px;
         }
-        .details-list {
-          font-size: 13px;
-          color: var(--text);
+        .detail-action-list {
           margin: 0;
           padding-left: 18px;
-          line-height: 1.6;
-        }
-        .recommendations-text {
-          font-size: 13px;
+          font-size: 12.5px;
           color: var(--text);
-          margin: 0;
-          white-space: pre-line;
           line-height: 1.5;
         }
-        .record-footer-actions {
+        .detail-next-check-box {
+          background: rgba(59, 130, 246, 0.08);
+          border: 1px solid rgba(59, 130, 246, 0.25);
+          border-radius: 12px;
+          padding: 12px 16px;
+        }
+        .detail-next-check-left {
           display: flex;
-          justify-content: flex-end;
-          margin-top: 14px;
-          padding-top: 10px;
-          border-top: 1px solid var(--border-light);
+          align-items: center;
+          gap: 12px;
+        }
+        .detail-next-check-lbl {
+          font-size: 11px;
+          color: var(--text-secondary);
+        }
+        .detail-next-check-val {
+          font-size: 14px;
+          font-weight: 700;
+          color: #2563EB;
+        }
+        .detail-disclaimer-box {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 11.5px;
+          color: var(--text-secondary);
+          font-style: italic;
+          padding: 6px 8px;
+        }
+        .detail-modal-footer-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
         }
 
         /* Modal Internals */
@@ -2520,20 +3093,107 @@ export function HealthPage() {
           .vitals-row {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
+          .health-history-section {
+            padding: 16px 14px !important;
+            border-radius: 16px !important;
+          }
           .history-filter-bar {
-            flex-direction: column;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+          }
+          .search-input-wrapper {
+            width: 100% !important;
+            min-width: 0 !important;
           }
           .filter-selects-row {
-            width: 100%;
+            width: 100% !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
           }
           .select-input {
-            width: 100%;
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+          .health-log-card {
+            display: block !important;
+            padding: 12px 14px !important;
+            min-height: auto !important;
+          }
+          .health-log-card > .health-log-icon-box,
+          .health-log-card > .health-log-main,
+          .health-log-card > .health-log-badge-box,
+          .health-log-card > .health-log-arrow-box {
+            display: none !important;
+          }
+          .health-log-mobile-container {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            width: 100% !important;
+          }
+          .health-log-mobile-header {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+          .health-log-mobile-title-wrap {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 2px !important;
+            min-width: 0 !important;
+            flex: 1 !important;
+          }
+          .health-log-mobile-meta {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            flex-wrap: wrap !important;
+          }
+          .health-log-mobile-symptoms {
+            font-size: 12px !important;
+            white-space: normal !important;
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2 !important;
+            -webkit-box-orient: vertical !important;
+            overflow: hidden !important;
+            line-height: 1.4 !important;
+            color: var(--text-secondary) !important;
+          }
+          .health-log-mobile-footer {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding-top: 8px !important;
+            border-top: 1px solid var(--border-light) !important;
+            width: 100% !important;
+          }
+          .detail-grid-2x2 {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
+          }
+          .detail-modal-footer-row {
+            flex-direction: column-reverse !important;
+            gap: 8px !important;
+          }
+          .detail-modal-footer-row button {
+            width: 100% !important;
           }
           .modal-actions-footer {
             flex-direction: column-reverse;
           }
           .modal-actions-footer button {
             width: 100%;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .filter-selects-row {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
           }
         }
       `}</style>
