@@ -93,6 +93,12 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
         roles: ['system_admin'],
       },
       {
+        to: '/analytics',
+        label: 'Analytics',
+        icon: <TrendingUp size={20} strokeWidth={2} />,
+        roles: ['system_admin'],
+      },
+      {
         to: '/reports',
         label: 'System Reports',
         icon: <BarChart3 size={20} strokeWidth={2} />,
@@ -158,6 +164,12 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
       to: '/camera-screening',
       label: 'AI Scanner',
       icon: <Camera size={20} strokeWidth={2} />,
+      roles: ['farm_manager'],
+    },
+    {
+      to: '/analytics',
+      label: 'Analytics',
+      icon: <TrendingUp size={20} strokeWidth={2} />,
       roles: ['farm_manager'],
     },
     {
