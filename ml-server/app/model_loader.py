@@ -75,7 +75,7 @@ class ModelLoader:
                     self.yolo_model = YOLO(str(p))
                     if hasattr(self.yolo_model, "names") and self.yolo_model.names:
                         self.yolo_names = self.yolo_model.names
-                    logger.info(f"✅ YOLO model loaded successfully from {p}")
+                    logger.info(f"[SUCCESS] YOLO model loaded successfully from {p}")
                     return
                 except Exception as err:
                     logger.warning(f"Could not load YOLO from {p}: {err}")
