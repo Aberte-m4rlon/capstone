@@ -16,7 +16,6 @@ import {
   Scale,
   Package,
   AlertTriangle,
-  Info,
 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord, Notification } from '../../types';
@@ -54,7 +53,6 @@ export function AppHeader({
   inventory = [],
   vaccinations = [],
   breedingRecords = [],
-  onRefreshData,
 }: AppHeaderProps) {
   const navigate = useNavigate();
   const {
@@ -81,10 +79,6 @@ export function AppHeader({
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [darkMode]);
-
-  const isAdmin       = role === 'system_admin';
-  const isSuperAdmin  = role === 'super_admin';
-  const isFarmManager = role === 'farm_manager' || (!isAdmin && !isSuperAdmin);
 
   // ── Search logic ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -199,27 +193,29 @@ export function AppHeader({
 
   return (
     <header className="topbar">
-      {/* Left: Mobile hamburger + Page Title */}
+      {/* ── Left Section: Mobile Hamburger Toggle + Page Heading ── */}
       <div className="topbar-left">
         <button
+          type="button"
           className="topbar-hamburger-btn"
           onClick={onOpenMobileNav}
-          aria-label="Open Navigation Menu"
+          aria-label="Open navigation menu"
         >
           <Menu size={20} />
         </button>
-        <div>
+        <div className="topbar-heading-group">
           <h1 className="topbar-title">{title}</h1>
           {subtitle && <p className="topbar-sub">{subtitle}</p>}
         </div>
       </div>
 
-      {/* Center: Global Search Bar */}
+      {/* ── Center Section: Centered Responsive Global Search Bar ── */}
       <div className="topbar-center" ref={searchRef}>
         <div className="search-box">
-          <Search size={16} className="search-icon" />
+          <Search size={17} className="search-icon" />
           <input
             type="text"
+            className="search-input"
             placeholder="Search animals, inventory, vaccines..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -228,14 +224,16 @@ export function AppHeader({
           />
           {searchQuery && (
             <button
+              type="button"
               className="search-clear-btn"
               onClick={() => {
                 setSearchQuery('');
                 setSearchResults([]);
                 setSearchOpen(false);
               }}
+              aria-label="Clear search"
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           )}
         </div>
@@ -266,50 +264,54 @@ export function AppHeader({
         )}
       </div>
 
-      {/* Right: Actions (Theme toggle, Notifications, Profile) */}
+      {/* ── Right Section: Action Controls (Theme, Notifications, Profile) ── */}
       <div className="topbar-right">
         {/* Dark Mode Toggle */}
         <button
-          className="topbar-icon-btn"
+          type="button"
+          className="topbar-icon-btn theme-toggle-btn"
           onClick={() => setDarkMode(!darkMode)}
           aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           title={darkMode ? 'Light mode' : 'Dark mode'}
         >
-          {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+          {darkMode ? <Sun size={19} /> : <Moon size={19} />}
         </button>
 
         {/* Notifications Dropdown */}
         <div ref={notifRef} style={{ position: 'relative' }}>
           <button
+            type="button"
             className="topbar-icon-btn notif-bell-btn"
             onClick={() => setNotifOpen(!notifOpen)}
             aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
             title="Notifications"
           >
-            <Bell size={18} />
+            <Bell size={19} />
             {unreadCount > 0 && (
               <span className="notif-badge">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </button>
+
           {notifOpen && (
             <div className="profile-dropdown notif-dropdown">
-              <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px' }}>
+              <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
                 <div>
-                  <p style={{ fontWeight: 700, fontSize: 13, margin: 0 }}>Notifications</p>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  <p style={{ fontWeight: 700, fontSize: 13.5, margin: 0, color: 'var(--color-text-primary)' }}>Notifications</p>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
                     {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
                   </span>
                 </div>
                 {unreadCount > 0 && (
                   <button
+                    type="button"
                     className="btn-ghost btn-sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       markAllAsRead();
                     }}
-                    style={{ fontSize: 11, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}
+                    style={{ fontSize: 11, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 4, borderRadius: 8 }}
                   >
                     <CheckCircle2 size={13} />
                     Mark all read
@@ -318,7 +320,7 @@ export function AppHeader({
               </div>
               <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 {notifications.length === 0 && (
-                  <div className="search-empty" style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
+                  <div className="search-empty" style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13 }}>
                     No notifications yet
                   </div>
                 )}
@@ -332,7 +334,7 @@ export function AppHeader({
                         flexDirection: 'column',
                         alignItems: 'flex-start',
                         gap: 3,
-                        padding: '10px 12px',
+                        padding: '10px 14px',
                         cursor: 'pointer',
                         borderBottom: '1px solid var(--border-light, rgba(0,0,0,0.05))',
                         background: isUnread ? 'rgba(67, 160, 71, 0.08)' : 'transparent',
@@ -379,7 +381,7 @@ export function AppHeader({
                         style={{
                           fontWeight: isUnread ? 700 : 500,
                           fontSize: 12.5,
-                          color: 'var(--text, #0f172a)',
+                          color: 'var(--color-text-primary, #0f172a)',
                           lineHeight: 1.3,
                         }}
                       >
@@ -412,8 +414,8 @@ export function AppHeader({
                   fontSize: 12,
                   color: 'var(--color-primary, #43A047)',
                   borderTop: '1px solid var(--border-light, rgba(0,0,0,0.06))',
-                  marginTop: 4,
-                  padding: '10px 12px',
+                  marginTop: 2,
+                  padding: '10px 14px',
                   cursor: 'pointer',
                 }}
                 onClick={() => {
@@ -434,12 +436,13 @@ export function AppHeader({
             onClick={() => setProfileOpen(!profileOpen)}
             role="button"
             aria-label="User profile"
+            title={user?.user_metadata?.full_name || user?.email || 'User Profile'}
           >
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt="avatar"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }}
               />
             ) : (
               <span>{initials}</span>
@@ -453,6 +456,7 @@ export function AppHeader({
                 <span>{role ? role.replace('_', ' ').toUpperCase() : 'FARM USER'}</span>
               </div>
               <button
+                type="button"
                 className="pd-item"
                 onClick={() => {
                   navigate('/settings');
@@ -462,7 +466,7 @@ export function AppHeader({
                 <Settings size={16} />
                 <span>Settings</span>
               </button>
-              <button className="pd-item text-danger" onClick={handleSignOut}>
+              <button type="button" className="pd-item text-danger" onClick={handleSignOut}>
                 <LogOut size={16} />
                 <span>Sign Out</span>
               </button>
