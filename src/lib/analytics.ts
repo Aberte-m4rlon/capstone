@@ -616,56 +616,111 @@ export function assessBreedingReadiness(
   lastMating: BreedingRecord | null,
 ): BreedingAssessment {
   const reasons: string[] = [];
+  const minAge = settings?.breeding_min_age_months ?? 8;
+  const minWeight = settings?.breeding_min_weight_kg ?? 25;
+  const gestationDays = settings?.gestation_days ?? 150;
 
-  if (animal.sex !== 'Female') {
-    return { recommendation: 'Not Ready', reasons: ['Breeding readiness applies to females.'] };
+  // 1. Check if archived or inactive
+  if (animal.archived) {
+    return { recommendation: 'Not Ready', reasons: ['Animal is archived or inactive.'] };
   }
 
-  if (animal.breeding_status === 'Pregnant') {
-    return { recommendation: 'Not Ready', reasons: ['Already pregnant.'] };
-  }
+  // 2. Female-specific checks (Does / Ewes / Dams)
+  if (animal.sex === 'Female') {
+    if (animal.breeding_status === 'Pregnant') {
+      return { recommendation: 'Not Ready', reasons: ['Currently pregnant (in active gestation).'] };
+    }
 
-  let ready = true;
+    let ready = true;
 
-  if (animal.date_of_birth) {
-    const ageMonths = monthsSince(animal.date_of_birth);
-    if (ageMonths < settings.breeding_min_age_months) {
-      reasons.push(`Too young (${ageMonths} months, minimum ${settings.breeding_min_age_months})`);
+    if (animal.date_of_birth) {
+      const ageMonths = monthsSince(animal.date_of_birth);
+      if (ageMonths < minAge) {
+        reasons.push(`Too young (${ageMonths} mos, minimum ${minAge} mos required)`);
+        ready = false;
+      }
+    }
+
+    if (animal.weight_kg !== null && Number(animal.weight_kg) < minWeight) {
+      reasons.push(
+        `Underweight (${animal.weight_kg} kg, minimum ${minWeight} kg required)`,
+      );
       ready = false;
     }
-  }
 
-  if (animal.weight_kg !== null && Number(animal.weight_kg) < settings.breeding_min_weight_kg) {
-    reasons.push(
-      `Underweight (${animal.weight_kg} kg, minimum ${settings.breeding_min_weight_kg} kg)`,
-    );
-    ready = false;
-  }
-
-  if (animal.health_status === 'At Risk' || animal.health_status === 'Critical') {
-    reasons.push(`Health status is ${animal.health_status}`);
-    ready = false;
-  }
-
-  if (lastMating) {
-    const daysSinceMating = daysBetween(lastMating.mating_date, new Date().toISOString());
-    if (daysSinceMating < settings.gestation_days + 60 && lastMating.status !== 'Kidded') {
-      reasons.push('Recent breeding — allow recovery time');
+    if (animal.health_status === 'At Risk' || animal.health_status === 'Critical') {
+      reasons.push(`Health status is ${animal.health_status}`);
       ready = false;
     }
+
+    if (lastMating) {
+      const daysSinceMating = daysBetween(lastMating.mating_date, new Date().toISOString());
+      if (daysSinceMating < gestationDays + 60 && lastMating.status === 'Pregnant') {
+        reasons.push('Active pregnancy from recent mating record');
+        ready = false;
+      } else if (daysSinceMating < 60 && lastMating.status === 'Kidded') {
+        reasons.push('Post-kidding recovery period (minimum 60 days rest)');
+        ready = false;
+      }
+    }
+
+    if (ready) {
+      const ageMonths = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
+      reasons.push(`Healthy, mature${ageMonths ? ` (${ageMonths} mos)` : ''}, and weight meets breeding criteria`);
+      return { recommendation: 'Ready', reasons };
+    }
+
+    if (animal.health_status === 'Monitor') {
+      return { recommendation: 'Monitor', reasons };
+    }
+
+    return { recommendation: 'Not Ready', reasons };
   }
 
-  if (ready) {
-    reasons.push('Healthy, mature, and weight meets minimum');
-    return { recommendation: 'Ready', reasons };
+  // 3. Male-specific checks (Bucks / Rams / Sires)
+  if (animal.sex === 'Male') {
+    let ready = true;
+
+    // Check for castration or wether notes
+    const notesLower = (animal.notes || '').toLowerCase();
+    if (notesLower.includes('castrat') || notesLower.includes('wether')) {
+      return { recommendation: 'Not Ready', reasons: ['Castrated / wether (incapable of breeding).'] };
+    }
+
+    if (animal.date_of_birth) {
+      const ageMonths = monthsSince(animal.date_of_birth);
+      if (ageMonths < minAge) {
+        reasons.push(`Too young for service (${ageMonths} mos, minimum ${minAge} mos required)`);
+        ready = false;
+      }
+    }
+
+    if (animal.weight_kg !== null && Number(animal.weight_kg) < minWeight) {
+      reasons.push(
+        `Underweight for service (${animal.weight_kg} kg, minimum ${minWeight} kg required)`,
+      );
+      ready = false;
+    }
+
+    if (animal.health_status === 'At Risk' || animal.health_status === 'Critical') {
+      reasons.push(`Health status is ${animal.health_status}`);
+      ready = false;
+    }
+
+    if (ready) {
+      const ageMonths = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
+      reasons.push(`Healthy, mature breeding sire${ageMonths ? ` (${ageMonths} mos)` : ''}`);
+      return { recommendation: 'Ready', reasons };
+    }
+
+    if (animal.health_status === 'Monitor') {
+      return { recommendation: 'Monitor', reasons };
+    }
+
+    return { recommendation: 'Not Ready', reasons };
   }
 
-  // Monitor if close
-  if (animal.health_status === 'Monitor') {
-    return { recommendation: 'Monitor', reasons };
-  }
-
-  return { recommendation: 'Not Ready', reasons };
+  return { recommendation: 'Not Ready', reasons: ['Unknown sex or unassigned status.'] };
 }
 
 export interface FeedEfficiency {

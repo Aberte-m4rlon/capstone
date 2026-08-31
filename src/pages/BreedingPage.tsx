@@ -11,8 +11,28 @@ import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { FilterToolbar, FilterSelect } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
-import { Plus, Pencil, Trash2, Baby, CheckCircle2, Tag, Sparkles } from 'lucide-react';
-import { calculateKiddingDate, formatDate, daysUntil, assessBreedingReadiness } from '../lib/analytics';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Baby,
+  CheckCircle2,
+  Tag,
+  AlertTriangle,
+  AlertCircle,
+  ShieldCheck,
+  ShieldAlert,
+  Info,
+  Heart,
+} from 'lucide-react';
+import {
+  calculateKiddingDate,
+  formatDate,
+  daysUntil,
+  assessBreedingReadiness,
+  monthsSince,
+  type BreedingAssessment,
+} from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
 import { generateNextAnimalId, fetchNextUniqueAnimalId, insertAnimalWithUniqueRetry } from '../lib/animalId';
 import type { Animal, BreedingRecord, Species, Sex } from '../types';
@@ -37,6 +57,7 @@ export function BreedingPage() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<BreedingRecord | null>(null);
   const [fStatus, setFStatus] = useState('All');
+  const [readinessTab, setReadinessTab] = useState<'females' | 'males' | 'not_ready'>('females');
 
   // Newborn registration state
   const [offspringModalOpen, setOffspringModalOpen] = useState(false);
@@ -54,8 +75,85 @@ export function BreedingPage() {
   });
   const [savingOffspring, setSavingOffspring] = useState(false);
 
-  const females = farmData.animals.filter((a) => !a.archived && a.sex === 'Female');
-  const males = farmData.animals.filter((a) => !a.archived && a.sex === 'Male');
+  const females = useMemo(() => farmData.animals.filter((a) => !a.archived && a.sex === 'Female'), [farmData.animals]);
+  const males = useMemo(() => farmData.animals.filter((a) => !a.archived && a.sex === 'Male'), [farmData.animals]);
+
+  // Comprehensive Breeding Assessments for all females and males
+  const femaleAssessments = useMemo(() => {
+    if (!farmData.settings) return new Map<string, BreedingAssessment>();
+    const map = new Map<string, BreedingAssessment>();
+    females.forEach((f) => {
+      const lastMating = farmData.breedingRecords
+        .filter((b) => b.animal_id === f.id)
+        .sort((a, b) => new Date(b.mating_date).getTime() - new Date(a.mating_date).getTime())[0] ?? null;
+      map.set(f.id, assessBreedingReadiness(f, farmData.settings!, lastMating));
+    });
+    return map;
+  }, [females, farmData.breedingRecords, farmData.settings]);
+
+  const maleAssessments = useMemo(() => {
+    if (!farmData.settings) return new Map<string, BreedingAssessment>();
+    const map = new Map<string, BreedingAssessment>();
+    males.forEach((m) => {
+      map.set(m.id, assessBreedingReadiness(m, farmData.settings!, null));
+    });
+    return map;
+  }, [males, farmData.settings]);
+
+  const readyFemales = useMemo(() => {
+    return females.filter((f) => femaleAssessments.get(f.id)?.recommendation === 'Ready');
+  }, [females, femaleAssessments]);
+
+  const notReadyFemales = useMemo(() => {
+    return females.filter((f) => femaleAssessments.get(f.id)?.recommendation !== 'Ready');
+  }, [females, femaleAssessments]);
+
+  const readyMales = useMemo(() => {
+    return males.filter((m) => maleAssessments.get(m.id)?.recommendation === 'Ready');
+  }, [males, maleAssessments]);
+
+  const notReadyMales = useMemo(() => {
+    return males.filter((m) => maleAssessments.get(m.id)?.recommendation !== 'Ready');
+  }, [males, maleAssessments]);
+
+  // Selected animal live assessments in modal
+  const selectedFemale = useMemo(() => {
+    return females.find((a) => a.id === form.animal_id) || null;
+  }, [females, form.animal_id]);
+
+  const selectedFemaleAssessment = useMemo(() => {
+    if (!selectedFemale || !farmData.settings) return null;
+    return femaleAssessments.get(selectedFemale.id) || null;
+  }, [selectedFemale, femaleAssessments, farmData.settings]);
+
+  const selectedMale = useMemo(() => {
+    return males.find((a) => a.id === form.partner_id) || null;
+  }, [males, form.partner_id]);
+
+  const selectedMaleAssessment = useMemo(() => {
+    if (!selectedMale || !farmData.settings) return null;
+    return maleAssessments.get(selectedMale.id) || null;
+  }, [selectedMale, maleAssessments, farmData.settings]);
+
+  // Inbreeding & Species Compatibility Warnings
+  const inbreedingWarning = useMemo(() => {
+    if (!selectedFemale || !selectedMale) return null;
+    if (selectedFemale.id === selectedMale.id) return 'Dam and Sire cannot be the same animal.';
+    if (selectedFemale.species !== selectedMale.species) {
+      return `Species mismatch: Dam is a ${selectedFemale.species} while Sire is a ${selectedMale.species}.`;
+    }
+    // Check if known parent/offspring
+    const damNotes = (selectedFemale.notes || '').toLowerCase();
+    const sireNotes = (selectedMale.notes || '').toLowerCase();
+    if (
+      damNotes.includes(selectedMale.tag_id.toLowerCase()) ||
+      sireNotes.includes(selectedFemale.tag_id.toLowerCase()) ||
+      (selectedFemale.breed && selectedMale.breed && selectedFemale.breed === selectedMale.breed && damNotes.includes('sire') && sireNotes.includes('sire'))
+    ) {
+      return 'Potential close lineage detected between selected Dam and Sire. Verify pedigree to prevent inbreeding.';
+    }
+    return null;
+  }, [selectedFemale, selectedMale]);
 
   const filtered = useMemo(() => {
     return farmData.breedingRecords
@@ -65,7 +163,11 @@ export function BreedingPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...emptyForm, animal_id: females[0]?.id ?? '', partner_id: males[0]?.id ?? '' });
+    setForm({
+      ...emptyForm,
+      animal_id: readyFemales[0]?.id ?? '',
+      partner_id: readyMales[0]?.id ?? '',
+    });
     setErrors({});
     setModalOpen(true);
   };
@@ -85,8 +187,25 @@ export function BreedingPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.animal_id) e.animal_id = 'Please select a female animal.';
-    if (!form.mating_date) e.mating_date = 'Mating date is required.';
+
+    if (!form.animal_id) {
+      e.animal_id = 'Please select a female animal.';
+    } else if (!editing && selectedFemaleAssessment && selectedFemaleAssessment.recommendation !== 'Ready') {
+      e.animal_id = `This female is not ready for mating: ${selectedFemaleAssessment.reasons.join(', ')}`;
+    }
+
+    if (form.partner_id) {
+      if (form.partner_id === form.animal_id) {
+        e.partner_id = 'Sire and Dam cannot be the same animal.';
+      } else if (!editing && selectedMaleAssessment && selectedMaleAssessment.recommendation !== 'Ready') {
+        e.partner_id = `The selected sire is not ready for mating: ${selectedMaleAssessment.reasons.join(', ')}`;
+      }
+    }
+
+    if (!form.mating_date) {
+      e.mating_date = 'Mating date is required.';
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -117,7 +236,7 @@ export function BreedingPage() {
       } else {
         const { error } = await supabase.from('breeding_records').insert(payload);
         if (error) throw error;
-        toast('Breeding record created.', 'success');
+        toast('Breeding record created successfully.', 'success');
 
         if (kiddingDate && form.status === 'Pregnant') {
           const female = farmData.animals.find((a) => a.id === form.animal_id);
@@ -160,7 +279,7 @@ export function BreedingPage() {
   };
 
   const openRegisterOffspring = (record?: BreedingRecord) => {
-    const mother = record ? farmData.animals.find((a) => a.id === record.animal_id) : females[0];
+    const mother = record ? farmData.animals.find((a) => a.id === record.animal_id) : (readyFemales[0] || females[0]);
     const father = record && record.partner_id ? farmData.animals.find((a) => a.id === record.partner_id) : null;
     const species = (mother?.species || 'Goat') as Species;
     const candidateId = generateNextAnimalId(species, farmData.animals);
@@ -238,18 +357,6 @@ export function BreedingPage() {
     return a ? `${a.name} (${a.tag_id})` : 'Unknown';
   };
 
-  const readinessAssessments = useMemo(() => {
-    if (!farmData.settings) return [];
-    return females
-      .map((f) => {
-        const lastMating = farmData.breedingRecords
-          .filter((b) => b.animal_id === f.id)
-          .sort((a, b) => new Date(b.mating_date).getTime() - new Date(a.mating_date).getTime())[0] ?? null;
-        return { animal: f, assessment: assessBreedingReadiness(f, farmData.settings!, lastMating) };
-      })
-      .filter((x) => x.assessment.recommendation !== 'Not Ready' || x.animal.breeding_status !== 'Pregnant');
-  }, [females, farmData.breedingRecords, farmData.settings]);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 24 }}>
       {/* Page Header */}
@@ -259,66 +366,244 @@ export function BreedingPage() {
             Breeding Management
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
-            {filtered.length} breeding records · 150-day gestation auto-calculated
+            {filtered.length} breeding records · {readyFemales.length} does ready · {readyMales.length} bucks ready
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Button variant="secondary" onClick={() => openRegisterOffspring()} leftIcon={<Baby size={16} />}>
             Register Newborn
           </Button>
-          <Button variant="primary" onClick={openAdd} disabled={females.length === 0} leftIcon={<Plus size={16} />}>
+          <Button
+            variant="primary"
+            onClick={openAdd}
+            disabled={readyFemales.length === 0}
+            leftIcon={<Plus size={16} />}
+            title={readyFemales.length === 0 ? 'No females are currently ready for mating' : 'Add Breeding Record'}
+          >
             Add Breeding Record
           </Button>
         </div>
       </div>
 
-      {/* Breeding Readiness Overview */}
+      {/* Breeding Readiness Center */}
       <Card variant="default">
         <CardContent>
-          <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)', marginBottom: 14 }}>
-            Breeding Readiness
-          </div>
-          {readinessAssessments.length === 0 ? (
-            <EmptyState
-              icon={<Icons.Heart size={28} />}
-              title="No females to assess"
-              description="Add female animals to see breeding recommendations."
-            />
-          ) : (
-            <div className="breeding-readiness-grid stats-grid" style={{ marginBottom: 0 }}>
-              {readinessAssessments.map(({ animal, assessment }) => (
-                <div
-                  key={animal.id}
-                  style={{
-                    padding: 14,
-                    borderRadius: 'var(--radius-md, 14px)',
-                    background: 'var(--color-surface-elevated, #F8FAFC)',
-                    border: '1px solid var(--color-border, #E2E8F0)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary, #0F172A)' }}>
-                      {animal.name}
-                    </span>
-                    <Badge
-                      variant={
-                        assessment.recommendation === 'Ready'
-                          ? 'success'
-                          : assessment.recommendation === 'Monitor'
-                          ? 'warning'
-                          : 'default'
-                      }
-                      size="sm"
-                    >
-                      {assessment.recommendation}
-                    </Badge>
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)' }}>
-                    {assessment.reasons.join(' · ')}
-                  </div>
-                </div>
-              ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-text-primary, #0F172A)' }}>
+                Breeding Readiness Center
+              </div>
+              <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: 'var(--color-text-secondary, #64748B)' }}>
+                Only mature, healthy animals meeting age ({farmData.settings?.breeding_min_age_months ?? 8} mos) and weight ({farmData.settings?.breeding_min_weight_kg ?? 25} kg) thresholds can be mated.
+              </p>
             </div>
+
+            {/* Sub Tabs */}
+            <div style={{ display: 'inline-flex', background: 'var(--color-surface-elevated, #F1F5F9)', padding: 3, borderRadius: 'var(--radius-md, 10px)', gap: 4 }}>
+              <button
+                type="button"
+                onClick={() => setReadinessTab('females')}
+                style={{
+                  border: 'none',
+                  background: readinessTab === 'females' ? '#FFFFFF' : 'transparent',
+                  color: readinessTab === 'females' ? '#2E7D32' : '#64748B',
+                  fontWeight: readinessTab === 'females' ? 700 : 500,
+                  fontSize: '12.5px',
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  boxShadow: readinessTab === 'females' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>Ready Females</span>
+                <Badge variant="success" size="sm">{readyFemales.length}</Badge>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReadinessTab('males')}
+                style={{
+                  border: 'none',
+                  background: readinessTab === 'males' ? '#FFFFFF' : 'transparent',
+                  color: readinessTab === 'males' ? '#2E7D32' : '#64748B',
+                  fontWeight: readinessTab === 'males' ? 700 : 500,
+                  fontSize: '12.5px',
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  boxShadow: readinessTab === 'males' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>Ready Sires</span>
+                <Badge variant="success" size="sm">{readyMales.length}</Badge>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReadinessTab('not_ready')}
+                style={{
+                  border: 'none',
+                  background: readinessTab === 'not_ready' ? '#FFFFFF' : 'transparent',
+                  color: readinessTab === 'not_ready' ? '#C2410C' : '#64748B',
+                  fontWeight: readinessTab === 'not_ready' ? 700 : 500,
+                  fontSize: '12.5px',
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  boxShadow: readinessTab === 'not_ready' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>Not Yet Ready</span>
+                <Badge variant="warning" size="sm">{notReadyFemales.length + notReadyMales.length}</Badge>
+              </button>
+            </div>
+          </div>
+
+          {/* Tab 1: Ready Females */}
+          {readinessTab === 'females' && (
+            readyFemales.length === 0 ? (
+              <EmptyState
+                icon={<Icons.Heart size={28} />}
+                title="No females currently ready for mating"
+                description="Female animals must reach the minimum breeding age and weight to become eligible."
+              />
+            ) : (
+              <div className="breeding-readiness-grid stats-grid" style={{ marginBottom: 0 }}>
+                {readyFemales.map((animal) => {
+                  const assessment = femaleAssessments.get(animal.id);
+                  const age = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
+                  return (
+                    <div
+                      key={animal.id}
+                      style={{
+                        padding: 14,
+                        borderRadius: 'var(--radius-md, 14px)',
+                        background: 'rgba(46, 125, 50, 0.04)',
+                        border: '1px solid rgba(46, 125, 50, 0.2)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <CheckCircle2 size={16} color="#2E7D32" />
+                          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary, #0F172A)' }}>
+                            {animal.name} ({animal.tag_id})
+                          </span>
+                        </div>
+                        <Badge variant="success" size="sm">Ready for Mating</Badge>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', lineHeight: 1.4 }}>
+                        {animal.breed || animal.species} · {age ? `${age} mos old` : 'Age verified'} · {animal.weight_kg ? `${animal.weight_kg} kg` : 'Weight met'}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#2E7D32', fontWeight: 600, marginTop: 4 }}>
+                        {assessment?.reasons.join(' · ')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* Tab 2: Ready Sires */}
+          {readinessTab === 'males' && (
+            readyMales.length === 0 ? (
+              <EmptyState
+                icon={<Icons.Heart size={28} />}
+                title="No male sires currently ready for service"
+                description="Male animals must meet minimum age and weight to be eligible for service."
+              />
+            ) : (
+              <div className="breeding-readiness-grid stats-grid" style={{ marginBottom: 0 }}>
+                {readyMales.map((animal) => {
+                  const assessment = maleAssessments.get(animal.id);
+                  const age = animal.date_of_birth ? monthsSince(animal.date_of_birth) : null;
+                  return (
+                    <div
+                      key={animal.id}
+                      style={{
+                        padding: 14,
+                        borderRadius: 'var(--radius-md, 14px)',
+                        background: 'rgba(46, 125, 50, 0.04)',
+                        border: '1px solid rgba(46, 125, 50, 0.2)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <CheckCircle2 size={16} color="#2E7D32" />
+                          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary, #0F172A)' }}>
+                            {animal.name} ({animal.tag_id})
+                          </span>
+                        </div>
+                        <Badge variant="success" size="sm">Ready for Service</Badge>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', lineHeight: 1.4 }}>
+                        {animal.breed || animal.species} Sire · {age ? `${age} mos old` : 'Age verified'} · {animal.weight_kg ? `${animal.weight_kg} kg` : 'Weight met'}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#2E7D32', fontWeight: 600, marginTop: 4 }}>
+                        {assessment?.reasons.join(' · ')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* Tab 3: Not Yet Ready Animals */}
+          {readinessTab === 'not_ready' && (
+            (notReadyFemales.length === 0 && notReadyMales.length === 0) ? (
+              <EmptyState
+                icon={<CheckCircle2 size={28} color="#2E7D32" />}
+                title="All active animals are ready for breeding"
+                description="There are no animals currently restricted by age, weight, or pregnancy."
+              />
+            ) : (
+              <div className="breeding-readiness-grid stats-grid" style={{ marginBottom: 0 }}>
+                {[...notReadyFemales, ...notReadyMales].map((animal) => {
+                  const isFemale = animal.sex === 'Female';
+                  const assessment = isFemale ? femaleAssessments.get(animal.id) : maleAssessments.get(animal.id);
+                  const isPregnant = animal.breeding_status === 'Pregnant';
+                  return (
+                    <div
+                      key={animal.id}
+                      style={{
+                        padding: 14,
+                        borderRadius: 'var(--radius-md, 14px)',
+                        background: isPregnant ? 'rgba(59, 130, 246, 0.04)' : 'rgba(239, 68, 68, 0.04)',
+                        border: `1px solid ${isPregnant ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <AlertCircle size={16} color={isPregnant ? '#2563EB' : '#DC2626'} />
+                          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary, #0F172A)' }}>
+                            {animal.name} ({animal.tag_id})
+                          </span>
+                        </div>
+                        <Badge variant={isPregnant ? 'info' : 'danger'} size="sm">
+                          {isPregnant ? 'Pregnant' : 'Not Ready'}
+                        </Badge>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)' }}>
+                        {animal.sex} · {animal.breed || animal.species} · {animal.weight_kg ? `${animal.weight_kg} kg` : 'No weight'}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: isPregnant ? '#2563EB' : '#DC2626', fontWeight: 600, marginTop: 4 }}>
+                        {assessment?.reasons.join(' · ') || 'Restricted from mating selection'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </CardContent>
       </Card>
@@ -348,50 +633,70 @@ export function BreedingPage() {
             <div style={{ padding: 32 }}>
               <EmptyState
                 icon={<Icons.Heart size={32} />}
-                title="No breeding records"
-                description="Add a mating record to track pregnancy and kidding dates."
-                actionLabel="Add Breeding Record"
+                title="No breeding records found"
+                description={fStatus === 'All' ? 'Start tracking breeding by adding your first record.' : 'No records match the selected status filter.'}
+                actionLabel="Add Record"
                 onAction={openAdd}
               />
             </div>
           ) : (
-            <div className="table-wrap">
-              <table className="data-table">
+            <div className="table-responsive">
+              <table className="alpas-table">
                 <thead>
                   <tr>
-                    <th>Female</th>
-                    <th>Partner</th>
+                    <th>Female (Dam)</th>
+                    <th>Partner (Sire)</th>
                     <th>Mating Date</th>
                     <th>Expected Kidding</th>
-                    <th>Days Until</th>
                     <th>Status</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((b) => {
+                    const female = farmData.animals.find((a) => a.id === b.animal_id);
+                    const male = farmData.animals.find((a) => a.id === b.partner_id);
                     const days = b.expected_kidding_date ? daysUntil(b.expected_kidding_date) : null;
                     return (
                       <tr key={b.id}>
-                        <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                          {animalName(b.animal_id)}
+                        <td>
+                          <div style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                            {female?.name ?? animalName(b.animal_id)}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #64748B)' }}>
+                            {female?.tag_id ?? ''} {female?.breed ? `· ${female.breed}` : ''}
+                          </div>
                         </td>
-                        <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
-                          {b.partner_id ? animalName(b.partner_id) : '—'}
+                        <td>
+                          {male ? (
+                            <div>
+                              <div style={{ fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>{male.name}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #64748B)' }}>{male.tag_id}</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '12px' }}>Unassigned</span>
+                          )}
                         </td>
-                        <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{formatDate(b.mating_date)}</td>
-                        <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
-                          {formatDate(b.expected_kidding_date)}
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{formatDate(b.mating_date)}</div>
                         </td>
-                        <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>
-                          {days !== null && days >= 0 ? `${days} days` : '—'}
+                        <td>
+                          {b.expected_kidding_date ? (
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#2E7D32' }}>{formatDate(b.expected_kidding_date)}</div>
+                              {days !== null && b.status === 'Pregnant' && (
+                                <div style={{ fontSize: '11px', color: days <= 14 ? '#DC2626' : '#2E7D32', fontWeight: 600 }}>
+                                  {days === 0 ? 'Due today!' : days > 0 ? `${days} days remaining` : `${Math.abs(days)} days overdue`}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '12px' }}>—</span>
+                          )}
                         </td>
                         <td>
                           <Badge
-                            variant={
-                              b.status === 'Pregnant'
-                                ? 'primary'
-                                : b.status === 'Kidded'
+                            variant={b.status === 'Pregnant' ? 'info' : b.status === 'Kidded'
                                 ? 'success'
                                 : b.status === 'Failed'
                                 ? 'danger'
@@ -436,32 +741,157 @@ export function BreedingPage() {
       {/* Breeding Record Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
         <ModalHeader
-          title={editing ? 'Edit Breeding Record' : 'Add Breeding Record'}
+          title={editing ? 'Edit Breeding Record' : 'Record Mating & Breeding'}
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Female Animal" required error={errors.animal_id}>
+            {/* Female Selection (Only Ready Females Enabled) */}
+            <FormField
+              label="Female Animal (Dam)"
+              required
+              error={errors.animal_id}
+              helperText={readyFemales.length === 0 ? 'No female animals currently meet the age and weight requirements for mating.' : undefined}
+            >
               <Select
                 value={form.animal_id}
                 onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Select female...' },
-                  ...females.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
+                  { value: '', label: 'Select eligible female (Dam)...' },
+                  // Ready Females
+                  ...readyFemales.map((a) => {
+                    const age = a.date_of_birth ? monthsSince(a.date_of_birth) : null;
+                    return {
+                      value: a.id,
+                      label: `✓ ${a.name} (${a.tag_id}) — Ready ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
+                    };
+                  }),
+                  // Not Ready Females (Disabled)
+                  ...notReadyFemales.map((a) => {
+                    const assessment = femaleAssessments.get(a.id);
+                    const reason = assessment?.reasons[0] || 'Not Ready';
+                    return {
+                      value: a.id,
+                      label: `⛔ ${a.name} (${a.tag_id}) — [Not Ready: ${reason}]`,
+                      disabled: true,
+                    };
+                  }),
                 ]}
               />
             </FormField>
 
-            <FormField label="Partner (Sire)">
+            {/* Selected Female Readiness Preview */}
+            {selectedFemale && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md, 12px)',
+                  background: selectedFemaleAssessment?.recommendation === 'Ready' ? 'rgba(46, 125, 50, 0.06)' : 'rgba(239, 68, 68, 0.08)',
+                  border: `1.5px solid ${selectedFemaleAssessment?.recommendation === 'Ready' ? 'rgba(46, 125, 50, 0.25)' : 'rgba(239, 68, 68, 0.3)'}`,
+                  marginTop: -6,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {selectedFemaleAssessment?.recommendation === 'Ready' ? (
+                      <ShieldCheck size={16} color="#2E7D32" />
+                    ) : (
+                      <ShieldAlert size={16} color="#DC2626" />
+                    )}
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: selectedFemaleAssessment?.recommendation === 'Ready' ? '#2E7D32' : '#DC2626' }}>
+                      Dam Status: {selectedFemaleAssessment?.recommendation === 'Ready' ? 'Eligible for Mating' : 'Not Eligible for Mating'}
+                    </span>
+                  </div>
+                  <Badge variant={selectedFemaleAssessment?.recommendation === 'Ready' ? 'success' : 'danger'} size="sm">
+                    {selectedFemaleAssessment?.recommendation ?? 'Not Ready'}
+                  </Badge>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)' }}>
+                  {selectedFemaleAssessment?.reasons.join(' · ')}
+                </div>
+              </div>
+            )}
+
+            {/* Partner Selection (Only Ready Males Enabled) */}
+            <FormField label="Partner (Sire - Optional)" error={errors.partner_id}>
               <Select
                 value={form.partner_id}
                 onChange={(e) => setForm({ ...form, partner_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Select male (optional)...' },
-                  ...males.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
+                  { value: '', label: 'Select eligible male (Sire - Optional)...' },
+                  // Ready Males
+                  ...readyMales.map((a) => {
+                    const age = a.date_of_birth ? monthsSince(a.date_of_birth) : null;
+                    return {
+                      value: a.id,
+                      label: `✓ ${a.name} (${a.tag_id}) — Ready Sire ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
+                    };
+                  }),
+                  // Not Ready Males (Disabled)
+                  ...notReadyMales.map((a) => {
+                    const assessment = maleAssessments.get(a.id);
+                    const reason = assessment?.reasons[0] || 'Not Ready';
+                    return {
+                      value: a.id,
+                      label: `⛔ ${a.name} (${a.tag_id}) — [Not Ready: ${reason}]`,
+                      disabled: true,
+                    };
+                  }),
                 ]}
               />
             </FormField>
+
+            {/* Selected Male Readiness Preview */}
+            {selectedMale && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md, 12px)',
+                  background: selectedMaleAssessment?.recommendation === 'Ready' ? 'rgba(46, 125, 50, 0.06)' : 'rgba(239, 68, 68, 0.08)',
+                  border: `1.5px solid ${selectedMaleAssessment?.recommendation === 'Ready' ? 'rgba(46, 125, 50, 0.25)' : 'rgba(239, 68, 68, 0.3)'}`,
+                  marginTop: -6,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {selectedMaleAssessment?.recommendation === 'Ready' ? (
+                      <ShieldCheck size={16} color="#2E7D32" />
+                    ) : (
+                      <ShieldAlert size={16} color="#DC2626" />
+                    )}
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: selectedMaleAssessment?.recommendation === 'Ready' ? '#2E7D32' : '#DC2626' }}>
+                      Sire Status: {selectedMaleAssessment?.recommendation === 'Ready' ? 'Eligible Breeding Sire' : 'Not Eligible for Service'}
+                    </span>
+                  </div>
+                  <Badge variant={selectedMaleAssessment?.recommendation === 'Ready' ? 'success' : 'danger'} size="sm">
+                    {selectedMaleAssessment?.recommendation ?? 'Not Ready'}
+                  </Badge>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)' }}>
+                  {selectedMaleAssessment?.reasons.join(' · ')}
+                </div>
+              </div>
+            )}
+
+            {/* Inbreeding / Lineage Safety Warning */}
+            {inbreedingWarning && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md, 12px)',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                }}
+              >
+                <AlertTriangle size={18} color="#D97706" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: '12.5px', color: '#92400E', lineHeight: 1.4, fontWeight: 600 }}>
+                  {inbreedingWarning}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
               <FormField label="Mating Date" required error={errors.mating_date}>
@@ -490,31 +920,34 @@ export function BreedingPage() {
             {form.mating_date && form.status === 'Pregnant' && (
               <div
                 style={{
-                  background: 'rgba(255,106,42,0.1)',
+                  background: 'rgba(46, 125, 50, 0.08)',
                   padding: '10px 14px',
-                  borderRadius: 'var(--radius-md, 14px)',
-                  color: 'var(--color-primary, #FF6A2A)',
+                  borderRadius: 'var(--radius-md, 12px)',
+                  color: '#2E7D32',
                   fontSize: '13px',
                   fontWeight: 600,
+                  border: '1px solid rgba(46, 125, 50, 0.2)',
                 }}
               >
                 Expected kidding date:{' '}
-                {formatDate(
-                  calculateKiddingDate(form.mating_date, farmData.settings?.gestation_days ?? 150)
-                )}
+                <span style={{ fontWeight: 800 }}>
+                  {formatDate(
+                    calculateKiddingDate(form.mating_date, farmData.settings?.gestation_days ?? 150)
+                  )}
+                </span>
                 <br />
                 <span style={{ fontSize: '11px', opacity: 0.85 }}>
-                  Calculated using {farmData.settings?.gestation_days ?? 150} days gestation.
+                  Calculated using standard {farmData.settings?.gestation_days ?? 150}-day gestation period.
                 </span>
               </div>
             )}
 
-            <FormField label="Notes">
+            <FormField label="Notes / Observations">
               <textarea
                 className="form-textarea"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Breeding observations..."
+                placeholder="Breeding observations, pen number, mating behavior..."
                 style={{ minHeight: 80 }}
               />
             </FormField>
@@ -524,8 +957,13 @@ export function BreedingPage() {
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSave} loading={saving}>
-            {editing ? 'Save Changes' : 'Save Record'}
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            loading={saving}
+            disabled={!editing && selectedFemaleAssessment?.recommendation !== 'Ready'}
+          >
+            {editing ? 'Save Changes' : 'Confirm & Save Mating Record'}
           </Button>
         </ModalFooter>
       </Modal>
@@ -604,33 +1042,28 @@ export function BreedingPage() {
                   ]}
                 />
               </FormField>
+
               <FormField label="Sex" required>
                 <Select
                   value={offspringForm.sex}
                   onChange={(e) => setOffspringForm({ ...offspringForm, sex: e.target.value as Sex })}
                   options={[
-                    { value: 'Female', label: 'Female' },
-                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female (Doeling/Ewe)' },
+                    { value: 'Male', label: 'Male (Buckling/Ram)' },
                   ]}
-                />
-              </FormField>
-              <FormField label="Breed">
-                <Input
-                  value={offspringForm.breed}
-                  onChange={(e) => setOffspringForm({ ...offspringForm, breed: e.target.value })}
-                  placeholder="e.g. Boer"
                 />
               </FormField>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Birth Date">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+              <FormField label="Date of Birth" required>
                 <Input
                   type="date"
                   value={offspringForm.date_of_birth}
                   onChange={(e) => setOffspringForm({ ...offspringForm, date_of_birth: e.target.value })}
                 />
               </FormField>
+
               <FormField label="Birth Weight (kg)">
                 <Input
                   type="number"
@@ -642,13 +1075,11 @@ export function BreedingPage() {
               </FormField>
             </div>
 
-            <FormField label="Lineage / Notes">
-              <textarea
-                className="form-textarea"
+            <FormField label="Pedigree / Notes">
+              <Input
                 value={offspringForm.notes}
                 onChange={(e) => setOffspringForm({ ...offspringForm, notes: e.target.value })}
-                placeholder="Parentage or health observations..."
-                style={{ minHeight: 70 }}
+                placeholder="Dam, Sire, birth notes..."
               />
             </FormField>
           </div>
@@ -658,16 +1089,16 @@ export function BreedingPage() {
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSaveOffspring} loading={savingOffspring}>
-            Register Animal
+            Register Offspring
           </Button>
         </ModalFooter>
       </Modal>
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
-        open={!!confirmDelete}
+        open={Boolean(confirmDelete)}
         title="Delete Breeding Record"
-        message="Are you sure you want to delete this breeding record? This cannot be undone."
+        message="Are you sure you want to delete this breeding record? This action cannot be undone."
         confirmLabel="Delete"
         danger
         onConfirm={handleDelete}
