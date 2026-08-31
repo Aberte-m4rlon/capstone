@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { sendSmsOtp, verifySmsOtp, formatPhoneNumber } from './sms';
+import { isFirebaseConfigured } from './firebase';
+import { sendFirebasePhoneOtp, verifyFirebasePhoneOtp } from './firebasePhoneAuth';
 
 // ─── Role definitions ─────────────────────────────────────────────────────────
 export type UserRole = 'super_admin' | 'system_admin' | 'farm_manager';
@@ -483,17 +485,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // 1. Send SMS through serverless real SMS router
+      // 1. Firebase Phone Auth (10,000 Free SMS / month)
+      if (isFirebaseConfigured()) {
+        const fbRes = await sendFirebasePhoneOtp(formatted.e164);
+        if (fbRes.success) {
+          return { error: null, message: fbRes.message };
+        }
+        console.warn('[AlpasFarm Auth] Firebase Phone Auth failed, trying serverless SMS:', fbRes.error);
+      }
+
+      // 2. Fallback to Serverless SMS Gateway (Semaphore / Twilio)
       const smsRes = await sendSmsOtp({ phone: formatted.e164 });
       if (!smsRes.success) {
         return { error: smsRes.message || 'Failed to send SMS code.' };
-      }
-
-      // 2. Also trigger Supabase Phone OTP if available
-      try {
-        await supabase.auth.signInWithOtp({ phone: formatted.e164 });
-      } catch {
-        // Fallback is already handled by serverless SMS
       }
 
       return {
@@ -524,6 +528,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // 1. Firebase Phone Auth (10,000 Free SMS / month)
+      if (isFirebaseConfigured()) {
+        const fbRes = await sendFirebasePhoneOtp(formatted.e164);
+        if (fbRes.success) {
+          return { error: null, message: fbRes.message };
+        }
+        console.warn('[AlpasFarm Auth] Firebase Phone Auth failed, trying serverless SMS:', fbRes.error);
+      }
+
+      // 2. Fallback to Serverless SMS Gateway (Semaphore / Twilio)
       const smsRes = await sendSmsOtp({
         phone: formatted.e164,
         fullName,

@@ -856,6 +856,10 @@ export function AuthPage() {
           {tabBar}
           {methodSwitcher}
 
+          {/* Firebase Phone Auth Invisible reCAPTCHA Anchor */}
+          <div id="recaptcha-container"></div>
+
+
           {/* Error Banner */}
           {error && (
             <div style={{
