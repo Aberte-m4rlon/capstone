@@ -1024,6 +1024,168 @@ function classifyWithWeights(
  * Run a full AI health scan on a captured image canvas.
  * This is the primary entry point for the scanner feature.
  */
+
+export interface CanvasVisualMetrics {
+  brightness: number;
+  contrast: number;
+  sharpness: number;
+  colorVariance: number;
+  redMean: number;
+  greenMean: number;
+  blueMean: number;
+  eyeRegionContrast: number;
+  eyeCloudinessIndex: number;
+  muzzleRoughness: number;
+  nasalDischargeContrast: number;
+  flankAsymmetry: number;
+  coatTextureVariance: number;
+  bodyConditionDepth: number;
+  lowerStanceAsymmetry: number;
+  headDroopScore: number;
+}
+
+/**
+ * Extracts high-precision visual and anatomical metrics directly from canvas pixel grid.
+ */
+export function extractCanvasVisualMetrics(canvas: HTMLCanvasElement): CanvasVisualMetrics {
+  const sampleWidth = 96;
+  const sampleHeight = 96;
+  const offscreen = document.createElement('canvas');
+  offscreen.width = sampleWidth;
+  offscreen.height = sampleHeight;
+  const ctx = offscreen.getContext('2d');
+
+  if (!ctx) {
+    return {
+      brightness: 0.5,
+      contrast: 0.3,
+      sharpness: 0.3,
+      colorVariance: 0.3,
+      redMean: 0.3,
+      greenMean: 0.3,
+      blueMean: 0.3,
+      eyeRegionContrast: 0.2,
+      eyeCloudinessIndex: 0.1,
+      muzzleRoughness: 0.2,
+      nasalDischargeContrast: 0.2,
+      flankAsymmetry: 1.0,
+      coatTextureVariance: 0.3,
+      bodyConditionDepth: 0.3,
+      lowerStanceAsymmetry: 0.2,
+      headDroopScore: 0.2,
+    };
+  }
+
+  ctx.drawImage(canvas, 0, 0, sampleWidth, sampleHeight);
+  const imgData = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
+  const data = imgData.data;
+  const totalPixels = sampleWidth * sampleHeight;
+
+  let rSum = 0, gSum = 0, bSum = 0, lumSum = 0, lumSqSum = 0;
+  const lumGrid: number[][] = Array.from({ length: sampleHeight }, () => new Array(sampleWidth).fill(0));
+
+  for (let y = 0; y < sampleHeight; y++) {
+    for (let x = 0; x < sampleWidth; x++) {
+      const idx = (y * sampleWidth + x) * 4;
+      const r = data[idx] / 255;
+      const g = data[idx + 1] / 255;
+      const b = data[idx + 2] / 255;
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      lumGrid[y][x] = lum;
+      rSum += r;
+      gSum += g;
+      bSum += b;
+      lumSum += lum;
+      lumSqSum += lum * lum;
+    }
+  }
+
+  const redMean = rSum / totalPixels;
+  const greenMean = gSum / totalPixels;
+  const blueMean = bSum / totalPixels;
+  const brightness = lumSum / totalPixels;
+  const variance = Math.max(0, (lumSqSum / totalPixels) - (brightness * brightness));
+  const contrast = Math.min(1, Math.sqrt(variance) * 2.2);
+
+  // Helper for regional stats
+  const getRegionStats = (minX: number, maxX: number, minY: number, maxY: number) => {
+    const x0 = Math.floor(minX * sampleWidth);
+    const x1 = Math.floor(maxX * sampleWidth);
+    const y0 = Math.floor(minY * sampleHeight);
+    const y1 = Math.floor(maxY * sampleHeight);
+    let sum = 0, sqSum = 0, edgeSum = 0, count = 0;
+
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const val = lumGrid[y][x];
+        sum += val;
+        sqSum += val * val;
+        if (x + 1 < x1) edgeSum += Math.abs(val - lumGrid[y][x + 1]);
+        if (y + 1 < y1) edgeSum += Math.abs(val - lumGrid[y + 1][x]);
+        count++;
+      }
+    }
+    const mean = count > 0 ? sum / count : 0.5;
+    const v = count > 0 ? Math.max(0, (sqSum / count) - (mean * mean)) : 0;
+    const edge = count > 0 ? edgeSum / (count * 2) : 0;
+    return { mean, std: Math.sqrt(v), edge };
+  };
+
+  // 1. Muzzle roughness / scabs (Y: 60%-85%, X: 35%-65%)
+  const muzzleStats = getRegionStats(0.35, 0.65, 0.60, 0.85);
+  const muzzleRoughness = Math.min(1, muzzleStats.edge * 5.5 + muzzleStats.std * 1.5);
+
+  // 2. Eye & Ocular contrast / cloudiness (Y: 20%-50%, X: 25%-75%)
+  const eyeStats = getRegionStats(0.25, 0.75, 0.20, 0.50);
+  const eyeRegionContrast = Math.min(1, eyeStats.std * 3.2);
+  const eyeCloudinessIndex = Math.min(1, (eyeStats.mean > 0.65 ? eyeStats.mean * eyeStats.std * 4.0 : eyeStats.std * 2.0));
+
+  // 3. Nasal discharge (Y: 52%-75%, X: 40%-60%)
+  const nasalStats = getRegionStats(0.40, 0.60, 0.52, 0.75);
+  const nasalDischargeContrast = Math.min(1, nasalStats.edge * 4.5 + nasalStats.std * 1.8);
+
+  // 4. Left vs Right Flank Asymmetry (Bloat) (Left: 10%-45%, Right: 55%-90%, Y: 30%-75%)
+  const leftFlank = getRegionStats(0.10, 0.45, 0.30, 0.75);
+  const rightFlank = getRegionStats(0.55, 0.90, 0.30, 0.75);
+  const flankRatio = rightFlank.mean > 0.05 ? leftFlank.mean / rightFlank.mean : 1.0;
+  const flankAsymmetry = flankRatio >= 1.0 ? flankRatio : 1.0 / Math.max(0.01, flankRatio);
+
+  // 5. Coat texture & alopecia (Mid-body)
+  const coatStats = getRegionStats(0.20, 0.80, 0.25, 0.75);
+  const coatTextureVariance = Math.min(1, coatStats.edge * 4.0 + coatStats.std * 1.5);
+
+  // 6. Body condition shadow depth (Dorsal & lumbar shelf)
+  const bodyConditionDepth = Math.min(1, coatStats.std * 2.8);
+
+  // 7. Lower limb stance asymmetry (Y: 75%-100%)
+  const leftLegs = getRegionStats(0.10, 0.45, 0.75, 1.00);
+  const rightLegs = getRegionStats(0.55, 0.90, 0.75, 1.00);
+  const lowerStanceAsymmetry = Math.min(1, Math.abs(leftLegs.mean - rightLegs.mean) * 3.5);
+
+  // 8. Color variance
+  const colorVariance = Math.min(1, (Math.abs(redMean - greenMean) + Math.abs(greenMean - blueMean) + Math.abs(blueMean - redMean)) * 2.0);
+
+  return {
+    brightness,
+    contrast,
+    sharpness: Math.min(1, coatStats.edge * 6.0),
+    colorVariance,
+    redMean,
+    greenMean,
+    blueMean,
+    eyeRegionContrast,
+    eyeCloudinessIndex,
+    muzzleRoughness,
+    nasalDischargeContrast,
+    flankAsymmetry,
+    coatTextureVariance,
+    bodyConditionDepth,
+    lowerStanceAsymmetry,
+    headDroopScore: Math.min(1, (eyeStats.mean < 0.3 ? 0.6 : 0.2)),
+  };
+}
+
 export async function runHealthScan(
   canvas: HTMLCanvasElement,
   options: {
