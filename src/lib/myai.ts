@@ -38,7 +38,51 @@ export interface MyAIMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  image?: string; // base64 data URL for attached images
   timestamp: number;
+}
+
+/**
+ * Utility to downscale and compress images on the client before storing/uploading
+ */
+export async function compressImageFile(file: File | Blob, maxDim = 800, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) {
+        reject(new Error('Failed to read image file'));
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(src);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export interface MyAIConversation {
@@ -313,7 +357,7 @@ export function buildFarmContext(
 
 // ── Stream chat — routes based on mode ───────────────────────────────────────
 export async function* streamChat(
-  messages: Array<{ role: string; content: string }>,
+  messages: Array<{ role: string; content: string; image?: string }>,
   onToken: (token: string) => void,
   signal?: AbortSignal,
 ): AsyncGenerator<void> {
@@ -353,7 +397,7 @@ export async function* streamChat(
 // The Vercel function holds the GROQ_API_KEY server-side.
 // It accepts the messages array and returns SSE: data: {"token":"..."}
 async function* _streamViaVercel(
-  messages: Array<{ role: string; content: string }>,
+  messages: Array<{ role: string; content: string; image?: string }>,
   onToken: (token: string) => void,
   signal?: AbortSignal,
 ): AsyncGenerator<void> {
@@ -430,7 +474,7 @@ async function* _streamViaVercel(
 
 // ── Supabase Edge Function streaming ─────────────────────────────────────────
 async function* _streamEdgeFunction(
-  messages: Array<{ role: string; content: string }>,
+  messages: Array<{ role: string; content: string; image?: string }>,
   onToken: (token: string) => void,
   signal?: AbortSignal,
 ): AsyncGenerator<void> {
@@ -468,17 +512,27 @@ async function* _streamEdgeFunction(
     yield;
   }
 }
+
 async function* _streamOllama(
-  messages: Array<{ role: string; content: string }>,
+  messages: Array<{ role: string; content: string; image?: string }>,
   onToken: (token: string) => void,
   signal?: AbortSignal,
 ): AsyncGenerator<void> {
+  const formattedMessages = messages.map((m) => {
+    const msgObj: any = { role: m.role, content: m.content };
+    if (m.image) {
+      const base64 = m.image.replace(/^data:image\/[a-z]+;base64,/, '');
+      msgObj.images = [base64];
+    }
+    return msgObj;
+  });
+
   const resp = await fetch(`${OLLAMA_URL}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: OLLAMA_MODEL,
-      messages,
+      messages: formattedMessages,
       stream: true,
       options: { temperature: 0.7, num_ctx: 4096, num_predict: 1024 },
     }),

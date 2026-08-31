@@ -76,7 +76,6 @@ export interface SendSmsOtpResult {
   phone?: string;
   provider?: string;
   smsDelivered?: boolean;
-  devCode?: string;
   error?: string;
 }
 
@@ -135,7 +134,6 @@ export async function sendSmsOtp(opts: SendSmsOtpOptions): Promise<SendSmsOtpRes
       phone: formatted.e164,
       provider: data.provider,
       smsDelivered: data.smsDelivered,
-      devCode: data.devCode,
     };
   } catch (err: any) {
     return {

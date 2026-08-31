@@ -2,12 +2,12 @@
  * Vercel Serverless Function — AlpasFarm AI Chat
  * POST /api/ai/chat
  *
- * Receives:  { messages: [{role, content}, ...] }
+ * Receives:  { messages: [{role, content, image?}, ...] }
  * Returns:   text/event-stream  →  data: {"token":"..."}\n\n  …  data: {"done":true}\n\n
  *
  * Environment variables (set in Vercel Dashboard — NEVER with VITE_ prefix):
  *   GROQ_API_KEY   — required, your Groq API key
- *   GROQ_MODEL     — optional, defaults to llama-3.1-8b-instant
+ *   GROQ_MODEL     — optional, defaults to llama-3.1-8b-instant / llama-3.2-11b-vision-preview
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -17,19 +17,34 @@ const GROQ_HOST = 'api.groq.com';
 const GROQ_CHAT_PATH = '/openai/v1/chat/completions';
 const GROQ_MODELS_PATH = '/openai/v1/models';
 
-const DEFAULT_CANDIDATE_MODELS = [
+const DEFAULT_VISION_MODELS = [
+  'llama-3.2-11b-vision-preview',
+  'llama-3.2-90b-vision-preview',
+];
+
+const DEFAULT_TEXT_MODELS = [
   process.env.GROQ_MODEL,
-  'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
   'qwen/qwen3.6-27b',
   'meta-llama/llama-4-scout-17b-16e-instruct',
   'meta-llama/llama-4-maverick-17b-128e-instruct',
   'groq/compound',
 ].filter(Boolean) as string[];
 
-interface Message { role: string; content: string; }
+interface Message {
+  role: string;
+  content?: string | any[];
+  image?: string;
+}
+
+function ensureDataUrl(input: string): string {
+  if (!input) return '';
+  if (input.startsWith('data:image/')) return input;
+  return `data:image/jpeg;base64,${input}`;
+}
 
 // ── Tiny HTTPS helpers ────────────────────────────────────────────────────────
 function httpsPost(
@@ -123,12 +138,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   // Clean and sanitize messages
   const cleanMessages = rawMessages
-    .filter((m) => m && typeof m.content === 'string' && m.content.trim().length > 0)
-    .filter((m) => !m.content.trim().startsWith('[WARN]')) // exclude UI error banners from history
-    .map((m) => ({
-      role: m.role === 'assistant' ? 'assistant' : m.role === 'system' ? 'system' : 'user',
-      content: m.content.trim(),
-    }))
+    .filter((m) => m && ((typeof m.content === 'string' && m.content.trim().length > 0) || m.image || Array.isArray(m.content)))
+    .filter((m) => !(typeof m.content === 'string' && m.content.trim().startsWith('[WARN]')))
+    .map((m) => {
+      const role = m.role === 'assistant' ? 'assistant' : m.role === 'system' ? 'system' : 'user';
+      let contentStr = '';
+      if (typeof m.content === 'string') {
+        contentStr = m.content.trim();
+      } else if (Array.isArray(m.content)) {
+        const textItem = m.content.find((c: any) => c.type === 'text');
+        contentStr = textItem?.text || '';
+      }
+      return {
+        role,
+        content: contentStr,
+        image: typeof m.image === 'string' && m.image.length > 20 ? m.image : undefined,
+      };
+    })
     .slice(-16);
 
   if (cleanMessages.length === 0) {
@@ -136,13 +162,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  console.log(`[AlpasFarm AI] [${rid}] Sending ${cleanMessages.length} sanitized message(s) to Groq`);
+  const hasImage = cleanMessages.some((m) => !!m.image);
+  console.log(`[AlpasFarm AI] [${rid}] Sending ${cleanMessages.length} sanitized message(s) to Groq (hasImage: ${hasImage})`);
+
+  // ── Message formatting for Vision vs Text models ──────────────────────────
+  function buildVisionMessages() {
+    return cleanMessages.map((m) => {
+      if (m.image) {
+        return {
+          role: m.role,
+          content: [
+            {
+              type: 'text',
+              text: m.content || 'Please analyze this livestock image (goat/sheep) for health, breed characteristics, symptoms, and condition.',
+            },
+            {
+              type: 'image_url',
+              image_url: { url: ensureDataUrl(m.image) },
+            },
+          ],
+        };
+      }
+      return {
+        role: m.role,
+        content: m.content || 'Hello',
+      };
+    });
+  }
+
+  function buildTextMessages() {
+    return cleanMessages.map((m) => {
+      if (m.image) {
+        return {
+          role: m.role,
+          content: `${m.content || 'Please analyze this livestock image.'}\n\n[User attached an image of a goat/sheep for veterinary visual assessment. Provide comprehensive guidance, common visual symptoms to check, and clinical first-aid recommendations.]`,
+        };
+      }
+      return {
+        role: m.role,
+        content: m.content || 'Hello',
+      };
+    });
+  }
 
   // ── Helper to execute chat completion ─────────────────────────────────────
-  async function executeGroqChat(modelName: string) {
+  async function executeGroqChat(modelName: string, isVision: boolean) {
+    const formattedMsgs = isVision ? buildVisionMessages() : buildTextMessages();
     const payload = JSON.stringify({
       model: modelName,
-      messages: cleanMessages,
+      messages: formattedMsgs,
       stream: false,
       temperature: 0.7,
       max_tokens: 1024,
@@ -159,24 +227,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     );
   }
 
-  // ── Multi-model cascade execution ─────────────────────────────────────────
-  let selectedModel = DEFAULT_CANDIDATE_MODELS[0];
+  // ── Candidate Model Selection ─────────────────────────────────────────────
+  let candidateQueue: Array<{ name: string; isVision: boolean }> = [];
+
+  if (hasImage) {
+    for (const vModel of DEFAULT_VISION_MODELS) {
+      candidateQueue.push({ name: vModel, isVision: true });
+    }
+  }
+
+  for (const tModel of DEFAULT_TEXT_MODELS) {
+    candidateQueue.push({ name: tModel, isVision: false });
+  }
+
+  let selectedModel = candidateQueue[0]?.name || 'llama-3.1-8b-instant';
   let groqStatus = 0;
   let groqText = '';
 
-  for (const candidate of DEFAULT_CANDIDATE_MODELS) {
-    selectedModel = candidate;
+  for (const candidate of candidateQueue) {
+    selectedModel = candidate.name;
     try {
-      console.log(`[AlpasFarm AI] [${rid}] Attempting model: ${candidate}`);
-      ({ status: groqStatus, text: groqText } = await executeGroqChat(candidate));
+      console.log(`[AlpasFarm AI] [${rid}] Attempting model: ${candidate.name} (vision: ${candidate.isVision})`);
+      ({ status: groqStatus, text: groqText } = await executeGroqChat(candidate.name, candidate.isVision));
 
       if (groqStatus === 200) {
-        console.log(`[AlpasFarm AI] [${rid}] [OK] Model ${candidate} succeeded with HTTP 200`);
+        console.log(`[AlpasFarm AI] [${rid}] [OK] Model ${candidate.name} succeeded with HTTP 200`);
         break;
       }
 
       if (groqStatus === 401) {
-        // Invalid API key — don't bother retrying models
         console.error(`[AlpasFarm AI] [${rid}] [ERROR] Groq rejected the API key (401).`);
         res.status(502).json({
           error: 'The AI API key is invalid. Verify GROQ_API_KEY in Vercel environment variables.',
@@ -185,10 +264,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         return;
       }
 
-      console.warn(`[AlpasFarm AI] [${rid}] Model ${candidate} returned HTTP ${groqStatus}, checking next fallback...`);
+      console.warn(`[AlpasFarm AI] [${rid}] Model ${candidate.name} returned HTTP ${groqStatus}, checking next fallback...`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[AlpasFarm AI] [${rid}] Network error on ${candidate}: ${msg}`);
+      console.error(`[AlpasFarm AI] [${rid}] Network error on ${candidate.name}: ${msg}`);
     }
   }
 
@@ -212,7 +291,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
         for (const activeModel of activeChatModels) {
           selectedModel = activeModel;
-          ({ status: groqStatus, text: groqText } = await executeGroqChat(activeModel));
+          const isVision = activeModel.includes('vision');
+          ({ status: groqStatus, text: groqText } = await executeGroqChat(activeModel, isVision));
           if (groqStatus === 200) {
             console.log(`[AlpasFarm AI] [${rid}] [OK] Dynamic model ${activeModel} succeeded!`);
             break;
@@ -275,4 +355,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
   res.end();
 }
-

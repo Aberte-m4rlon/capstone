@@ -116,7 +116,6 @@ export function AuthPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendSuccess, setResendSuccess] = useState<string | null>(null);
   const [verifySuccess, setVerifySuccess] = useState(false);
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
 
   // Phone state
   const [phoneInput, setPhoneInput] = useState('');
@@ -153,7 +152,6 @@ export function AuthPage() {
     setView(v);
     setError(null);
     setResendSuccess(null);
-    setDevOtpHint(null);
   };
 
   // ── Phone Sign In ───────────────────────────────────────────────────────────
@@ -181,7 +179,6 @@ export function AuthPage() {
     setView('verify');
     setResendCooldown(60);
     setVerificationCode('');
-    if (res.devCode) setDevOtpHint(res.devCode);
     setResendSuccess(res.message || 'SMS verification code dispatched.');
   };
 
@@ -242,7 +239,6 @@ export function AuthPage() {
     setView('verify');
     setResendCooldown(60);
     setVerificationCode('');
-    if (res.devCode) setDevOtpHint(res.devCode);
     setResendSuccess(res.message || 'SMS verification code dispatched.');
   };
 
@@ -491,27 +487,6 @@ export function AuthPage() {
               </button>
             </div>
 
-            {/* Dev Hint if active */}
-            {devOtpHint && !verifySuccess && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                padding: '8px 12px',
-                marginBottom: 16,
-                borderRadius: 10,
-                background: '#F0FDF4',
-                border: '1px dashed #86EFAC',
-                color: '#166534',
-                fontSize: 12,
-                fontWeight: 600,
-              }}>
-                <Info size={14} />
-                <span>Instant Code (Dev/Fast Mode): <strong>{devOtpHint}</strong></span>
-              </div>
-            )}
-
             {/* Success message */}
             {resendSuccess && (
               <div style={{
@@ -592,7 +567,7 @@ export function AuthPage() {
                       setVerificationCode(e.target.value.replace(/[^0-9]/g, ''));
                       setError(null);
                     }}
-                    placeholder="123456"
+                    placeholder="------"
                     disabled={loading || verifySuccess}
                     style={{
                       ...inputStyle(),

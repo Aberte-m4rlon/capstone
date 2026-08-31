@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import {
   Send, Square, X, RefreshCw, AlertCircle,
-  Copy, Check, Plus, Trash2, Bot, Sparkles, MessageSquare, ChevronLeft,
+  Copy, Check, Plus, Trash2, Bot, Sparkles, MessageSquare,
+  Image as ImageIcon, Eye,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import {
   type MyAIConversation, type MyAIMessage, type AIStatus,
-  MYAI_MODEL, AI_MODE,
+  MYAI_MODEL, AI_MODE, compressImageFile,
 } from '../../lib/myai';
-import { loadCorner, type Corner } from './AIFloatingButton';
+import { loadCorner } from './AIFloatingButton';
 
 const PANEL_W = 420;
 const PANEL_H = 600;
@@ -24,7 +25,7 @@ export interface AIChatProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, image?: string) => void;
   onStopStreaming: () => void;
   onRetryStatus: () => void;
   streaming: boolean;
@@ -99,15 +100,16 @@ function renderMessageContent(text: string): ReactNode[] {
 
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   return (
     <button
-      onClick={() => {
-        navigator.clipboard.writeText(text).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        });
-      }}
-      aria-label="Copy message"
+      onClick={handleCopy}
+      title="Copy response"
+      aria-label="Copy response"
       style={{
         background: 'none',
         border: 'none',
@@ -151,8 +153,14 @@ export function AIChat({
 }: AIChatProps) {
   const [input, setInput] = useState('');
   const [showSidebar, setShowSidebar] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageName, setImageName] = useState<string | null>(null);
+  const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeConv = conversations.find((c) => c.id === activeId);
   const messages: MyAIMessage[] = activeConv?.messages ?? [];
@@ -166,9 +174,74 @@ export function AIChat({
   if (!open) return null;
 
   const handleSend = () => {
-    if (!input.trim() || streaming) return;
-    onSendMessage(input.trim());
+    if ((!input.trim() && !selectedImage) || streaming) return;
+    onSendMessage(input.trim(), selectedImage || undefined);
     setInput('');
+    setSelectedImage(null);
+    setImageName(null);
+  };
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImageFile(file);
+        setSelectedImage(compressed);
+        setImageName(file.name);
+      } catch (err) {
+        console.error('Image compression error:', err);
+      }
+    }
+    // reset input so the same file can be re-selected if removed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          try {
+            const compressed = await compressImageFile(file);
+            setSelectedImage(compressed);
+            setImageName('Pasted Screenshot');
+          } catch (err) {
+            console.error('Failed to parse pasted image:', err);
+          }
+          break;
+        }
+      }
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      try {
+        const compressed = await compressImageFile(file);
+        setSelectedImage(compressed);
+        setImageName(file.name);
+      } catch (err) {
+        console.error('Dropped image processing failed:', err);
+      }
+    }
   };
 
   const corner = loadCorner();
@@ -179,21 +252,19 @@ export function AIChat({
     if (isMobile) {
       return {
         position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
+        inset: 0,
         width: '100%',
-        height: 'min(76vh, calc(100dvh - 50px))',
-        borderRadius: '24px 24px 0 0',
+        height: '100%',
+        borderRadius: 0,
         zIndex: 9999,
       };
     }
 
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const pw = Math.min(PANEL_W, vw - 32);
-    const ph = Math.min(PANEL_H, vh - 32);
-    const offset = MARGIN + BTN_SIZE + 10;
+    const offset = BTN_SIZE + MARGIN * 2;
+    const maxW = typeof window !== 'undefined' ? window.innerWidth - MARGIN * 2 : PANEL_W;
+    const maxH = typeof window !== 'undefined' ? window.innerHeight - offset - MARGIN : PANEL_H;
+    const pw = Math.min(PANEL_W, maxW);
+    const ph = Math.min(PANEL_H, maxH);
 
     const base: React.CSSProperties = {
       position: 'fixed',
@@ -227,12 +298,79 @@ export function AIChat({
         />
       )}
 
+      {/* Image Zoom Lightbox Modal */}
+      {previewModalImage && (
+        <div
+          onClick={() => setPreviewModalImage(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.82)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '92vw',
+              maxHeight: '88vh',
+              borderRadius: 16,
+              overflow: 'hidden',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+              background: '#1F2933',
+            }}
+          >
+            <img
+              src={previewModalImage}
+              alt="Expanded preview"
+              style={{
+                display: 'block',
+                maxWidth: '100%',
+                maxHeight: '84vh',
+                objectFit: 'contain',
+              }}
+            />
+            <button
+              onClick={() => setPreviewModalImage(null)}
+              aria-label="Close image preview"
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                background: 'rgba(0, 0, 0, 0.65)',
+                color: '#FFFFFF',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '50%',
+                width: 34,
+                height: 34,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div
         className="alpas-ai-chat-panel"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{
           ...getPanelStyles(),
           background: 'var(--color-surface, #FFFFFF)',
-          border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
+          border: isDragging ? '2px dashed var(--color-primary, #43A047)' : '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
           boxShadow: 'var(--shadow-modal, 0 24px 64px rgba(15, 23, 42, 0.18))',
           display: 'flex',
           flexDirection: 'column',
@@ -409,7 +547,7 @@ export function AIChat({
           }}
         >
           {messages.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '24px 8px' }}>
+            <div style={{ textAlign: 'center', padding: '20px 8px' }}>
               <div
                 style={{
                   width: 44,
@@ -428,8 +566,8 @@ export function AIChat({
               <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', fontWeight: 700, color: 'var(--color-text-primary, #1F2933)' }}>
                 How can I assist your farm today?
               </h4>
-              <p style={{ margin: '0 0 16px 0', fontSize: '12.5px', color: 'var(--color-text-muted, #667085)' }}>
-                Ask about herd health, feeding plans, overdue vaccines, or stock.
+              <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: 'var(--color-text-muted, #667085)', lineHeight: 1.4 }}>
+                Ask about herd health, feeding plans, overdue vaccines, or attach photos of goats/sheep for visual AI health checks.
               </p>
 
               {/* Quick Prompts Chips */}
@@ -469,7 +607,7 @@ export function AIChat({
               <div
                 style={{
                   maxWidth: '85%',
-                  padding: '10px 14px',
+                  padding: m.image && !m.content ? '6px' : '10px 14px',
                   borderRadius:
                     m.role === 'user'
                       ? '18px 18px 4px 18px'
@@ -483,7 +621,54 @@ export function AIChat({
                   fontSize: '13px',
                 }}
               >
-                {m.role === 'user' ? m.content : renderMessageContent(m.content)}
+                {/* User attached image thumbnail */}
+                {m.image && (
+                  <div
+                    onClick={() => setPreviewModalImage(m.image!)}
+                    style={{
+                      marginBottom: m.content ? 8 : 0,
+                      borderRadius: 12,
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      border: m.role === 'user' ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.1)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    }}
+                    title="Click to zoom image"
+                  >
+                    <img
+                      src={m.image}
+                      alt="Attached livestock observation"
+                      style={{
+                        width: '100%',
+                        maxHeight: 180,
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 6,
+                        right: 6,
+                        background: 'rgba(0, 0, 0, 0.65)',
+                        color: '#FFFFFF',
+                        borderRadius: 6,
+                        padding: '2px 6px',
+                        fontSize: 10,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Eye size={11} /> Zoom
+                    </div>
+                  </div>
+                )}
+
+                {m.content && (
+                  m.role === 'user' ? m.content : renderMessageContent(m.content)
+                )}
               </div>
               {m.role === 'assistant' && (
                 <div style={{ marginTop: 2, paddingLeft: 4 }}>
@@ -514,6 +699,66 @@ export function AIChat({
           <div ref={endRef} />
         </div>
 
+        {/* Selected Image Attachment Preview Chip */}
+        {selectedImage && (
+          <div
+            style={{
+              padding: '8px 14px',
+              background: 'var(--color-surface-hover, #F0F4F1)',
+              borderTop: '1px solid var(--color-border-light, #E5EDE6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+              <img
+                src={selectedImage}
+                alt="Selected preview"
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 8,
+                  objectFit: 'cover',
+                  border: '1px solid var(--color-border, #DDE7DF)',
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary, #1F2933)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {imageName || 'Attached Image'}
+                </div>
+                <div style={{ fontSize: '10.5px', color: 'var(--color-primary, #2E7D32)', fontWeight: 500 }}>
+                  Ready for AI Analysis
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedImage(null);
+                setImageName(null);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-text-muted, #94A3B8)',
+                cursor: 'pointer',
+                padding: 4,
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              aria-label="Remove attached image"
+              title="Remove attached image"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Input Bar */}
         <div
           style={{
@@ -525,18 +770,52 @@ export function AIChat({
             gap: 8,
           }}
         >
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleFileInputChange}
+          />
+
+          {/* Attach Image Button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            title="Attach livestock photo"
+            aria-label="Attach livestock photo"
+            style={{
+              background: selectedImage ? 'rgba(46, 125, 50, 0.12)' : 'none',
+              border: 'none',
+              color: selectedImage ? 'var(--color-primary, #2E7D32)' : 'var(--color-text-muted, #64748B)',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease',
+              flexShrink: 0,
+              minHeight: 36,
+            }}
+          >
+            <ImageIcon size={18} />
+          </button>
+
           <textarea
             ref={inputRef}
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onPaste={handlePaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
-            placeholder="Ask AI anything about your farm..."
+            placeholder={selectedImage ? "Add notes or ask AI to inspect image..." : "Ask AI or paste / attach image..."}
             style={{
               flex: 1,
               maxHeight: 90,
@@ -567,7 +846,7 @@ export function AIChat({
               variant="primary"
               size="sm"
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() && !selectedImage}
               aria-label="Send prompt"
               style={{ padding: '8px 12px', minHeight: 36 }}
             >

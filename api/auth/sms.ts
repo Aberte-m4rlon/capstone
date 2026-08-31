@@ -3,13 +3,13 @@
  * POST /api/auth/sms
  *
  * Actions:
- *   1. action: 'send'   → generates 6-digit OTP and sends real SMS via Semaphore / Twilio / Supabase
+ *   1. action: 'send'   → generates 6-digit OTP and sends REAL SMS via Twilio (Primary) or Semaphore (Fallback)
  *   2. action: 'verify' → validates OTP token, creates/authenticates user, returns profile & session info
  *
- * Supported SMS Gateways:
- *   - SEMAPHORE_API_KEY (Semaphore.co — standard for Philippine mobile carriers)
- *   - TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER (Twilio international)
- *   - Direct Supabase Phone OTP fallback
+ * Primary SMS Gateway:
+ *   - TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER / TWILIO_MESSAGING_SERVICE_SID
+ * Secondary Fallback Gateway:
+ *   - SEMAPHORE_API_KEY
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -91,7 +91,55 @@ function postRequest(
   });
 }
 
-// ── SMS Dispatcher: Semaphore ────────────────────────────────────────────────
+// ── SMS Dispatcher: Twilio (Primary) ─────────────────────────────────────────
+async function sendViaTwilio(
+  accountSid: string,
+  authToken: string,
+  fromOrServiceSid: string,
+  toNumber: string,
+  message: string,
+): Promise<{ success: boolean; detail?: string; sid?: string }> {
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+  
+  const params = new URLSearchParams();
+  params.append('To', toNumber);
+  params.append('Body', message);
+
+  if (fromOrServiceSid.startsWith('MG')) {
+    params.append('MessagingServiceSid', fromOrServiceSid);
+  } else {
+    params.append('From', fromOrServiceSid);
+  }
+
+  const postData = params.toString();
+  const authHeader = 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+
+  try {
+    const res = await postRequest(url, {
+      'Authorization': authHeader,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': Buffer.byteLength(postData),
+    }, postData);
+
+    let parsed: any = {};
+    try {
+      parsed = JSON.parse(res.data);
+    } catch {
+      parsed = {};
+    }
+
+    if (res.status >= 200 && res.status < 300 && parsed.sid) {
+      return { success: true, detail: `Twilio message SID: ${parsed.sid}`, sid: parsed.sid };
+    }
+
+    const errMessage = parsed.message || parsed.error_message || `HTTP ${res.status}: ${res.data}`;
+    return { success: false, detail: `Twilio error: ${errMessage}` };
+  } catch (err: any) {
+    return { success: false, detail: err?.message || 'Twilio network failure' };
+  }
+}
+
+// ── SMS Dispatcher: Semaphore (Secondary Fallback) ───────────────────────────
 async function sendViaSemaphore(apiKey: string, number: string, message: string): Promise<{ success: boolean; detail?: string }> {
   const payload = JSON.stringify({
     apikey: apiKey,
@@ -112,39 +160,6 @@ async function sendViaSemaphore(apiKey: string, number: string, message: string)
     return { success: false, detail: `Semaphore returned HTTP ${res.status}: ${res.data}` };
   } catch (err: any) {
     return { success: false, detail: err?.message || 'Semaphore network failure' };
-  }
-}
-
-// ── SMS Dispatcher: Twilio ───────────────────────────────────────────────────
-async function sendViaTwilio(
-  accountSid: string,
-  authToken: string,
-  fromNumber: string,
-  toNumber: string,
-  message: string,
-): Promise<{ success: boolean; detail?: string }> {
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-  const postData = new URLSearchParams({
-    To: toNumber,
-    From: fromNumber,
-    Body: message,
-  }).toString();
-
-  const authHeader = 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-
-  try {
-    const res = await postRequest(url, {
-      'Authorization': authHeader,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Content-Length': Buffer.byteLength(postData),
-    }, postData);
-
-    if (res.status >= 200 && res.status < 300) {
-      return { success: true, detail: res.data };
-    }
-    return { success: false, detail: `Twilio returned HTTP ${res.status}: ${res.data}` };
-  } catch (err: any) {
-    return { success: false, detail: err?.message || 'Twilio network failure' };
   }
 }
 
@@ -188,14 +203,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const phoneKey = normalized.e164;
 
   // ════════════════════════════════════════════════════════════════════════════
-  // 1. ACTION: SEND REAL SMS OTP
+  // 1. ACTION: SEND REAL SMS OTP VIA TWILIO (PRIMARY)
   // ════════════════════════════════════════════════════════════════════════════
   if (action === 'send') {
     // Generate secure 6-digit numeric OTP code
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    // Store in cache
+    // Store in cache for verification
     otpCache.set(phoneKey, {
       code: generatedOtp,
       expiresAt,
@@ -209,48 +224,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     let smsSent = false;
     let providerUsed = 'none';
-    let providerDetail = '';
+    let providerError = '';
 
-    // Check Semaphore (Primary for Philippines)
-    const semaphoreKey = process.env.SEMAPHORE_API_KEY || process.env.VITE_SEMAPHORE_API_KEY;
-    if (semaphoreKey) {
-      const semResult = await sendViaSemaphore(semaphoreKey, normalized.national, smsMessage);
-      if (semResult.success) {
-        smsSent = true;
-        providerUsed = 'semaphore';
-        providerDetail = 'SMS successfully dispatched via Semaphore';
-      } else {
-        console.warn('[AlpasFarm SMS] Semaphore dispatch warning:', semResult.detail);
-      }
-    }
+    // 1. Primary Gateway: Twilio
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID || process.env.VITE_TWILIO_ACCOUNT_SID;
+    const twilioAuth = process.env.TWILIO_AUTH_TOKEN || process.env.VITE_TWILIO_AUTH_TOKEN;
+    const twilioFrom =
+      process.env.TWILIO_PHONE_NUMBER ||
+      process.env.TWILIO_FROM_NUMBER ||
+      process.env.TWILIO_MESSAGING_SERVICE_SID ||
+      process.env.VITE_TWILIO_PHONE_NUMBER;
 
-    // Check Twilio (Secondary / International)
-    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-    const twilioAuth = process.env.TWILIO_AUTH_TOKEN;
-    const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
-    if (!smsSent && twilioSid && twilioAuth && twilioPhone) {
-      const twilioResult = await sendViaTwilio(twilioSid, twilioAuth, twilioPhone, normalized.e164, smsMessage);
+    if (twilioSid && twilioAuth && twilioFrom) {
+      const twilioResult = await sendViaTwilio(twilioSid, twilioAuth, twilioFrom, normalized.e164, smsMessage);
       if (twilioResult.success) {
         smsSent = true;
         providerUsed = 'twilio';
-        providerDetail = 'SMS successfully dispatched via Twilio';
       } else {
-        console.warn('[AlpasFarm SMS] Twilio dispatch warning:', twilioResult.detail);
+        providerError = twilioResult.detail || 'Twilio send failed';
+        console.error('[AlpasFarm SMS] Twilio dispatch failure:', twilioResult.detail);
       }
     }
 
-    // Clean response
+    // 2. Secondary Gateway: Semaphore (Fallback)
+    if (!smsSent) {
+      const semaphoreKey = process.env.SEMAPHORE_API_KEY || process.env.VITE_SEMAPHORE_API_KEY;
+      if (semaphoreKey) {
+        const semResult = await sendViaSemaphore(semaphoreKey, normalized.national, smsMessage);
+        if (semResult.success) {
+          smsSent = true;
+          providerUsed = 'semaphore';
+        } else {
+          console.error('[AlpasFarm SMS] Semaphore dispatch failure:', semResult.detail);
+          if (!providerError) providerError = semResult.detail || 'Semaphore send failed';
+        }
+      }
+    }
+
+    // If no SMS provider was configured or dispatch failed
+    if (!smsSent) {
+      const missingConfig = !twilioSid || !twilioAuth || !twilioFrom;
+      const errorMsg = missingConfig
+        ? 'SMS Gateway is not configured. Please ensure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER are set in environment variables.'
+        : `Failed to dispatch SMS: ${providerError || 'Unknown SMS error'}`;
+
+      res.status(502).json({
+        success: false,
+        error: errorMsg,
+        code: 'SMS_SEND_FAILED',
+      });
+      return;
+    }
+
+    // Real SMS dispatched successfully. Never leak/expose the OTP in the JSON response!
     res.status(200).json({
       success: true,
-      message: smsSent
-        ? `A 6-digit verification code has been sent via SMS to ${normalized.e164}.`
-        : `Verification code generated for ${normalized.e164}.`,
+      message: `A 6-digit verification code has been sent via SMS to ${normalized.e164}.`,
       phone: normalized.e164,
       expiresInSeconds: 600,
       provider: providerUsed,
-      smsDelivered: smsSent,
-      // For development/demo convenience when API keys are being set up:
-      devCode: (!smsSent || process.env.NODE_ENV !== 'production') ? generatedOtp : undefined,
+      smsDelivered: true,
     });
     return;
   }

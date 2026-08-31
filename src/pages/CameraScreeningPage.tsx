@@ -229,8 +229,15 @@ Resulta ng Scan:
 
 Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para sa kambing/tupa na ito bago dumating ang lisensyadong beterinaryo?`;
 
+    const snapshotUrl = autoScan.capturedCanvas ? autoScan.capturedCanvas.toDataURL('image/jpeg', 0.8) : undefined;
+
     window.dispatchEvent(new CustomEvent('alpas:consult-vet-ai', {
-      detail: { prompt: promptText, animalId: selectedAnimalId, scanResult: result }
+      detail: {
+        prompt: promptText,
+        animalId: selectedAnimalId,
+        scanResult: result,
+        image: snapshotUrl,
+      }
     }));
   };
 

@@ -57,11 +57,11 @@ export function FloatingAICloud() {
   useEffect(() => {
     const handleOpen = () => setOpen(true);
     const handleConsult = (e: Event) => {
-      const customEvent = e as CustomEvent<{ prompt?: string }>;
+      const customEvent = e as CustomEvent<{ prompt?: string; image?: string }>;
       setOpen(true);
-      if (customEvent.detail?.prompt) {
+      if (customEvent.detail?.prompt || customEvent.detail?.image) {
         setTimeout(() => {
-          handleSend(customEvent.detail.prompt!);
+          handleSend(customEvent.detail.prompt || '', customEvent.detail.image);
         }, 300);
       }
     };
@@ -109,19 +109,21 @@ export function FloatingAICloud() {
   const isOffline = aiStatus === 'offline' || aiStatus === 'no_model' || aiStatus === 'unavailable';
 
   // Send Message
-  const handleSend = async (text: string) => {
+  const handleSend = async (text: string, image?: string) => {
     const msg = text.trim();
-    if (!msg || streaming || isOffline) return;
+    if ((!msg && !image) || streaming || isOffline) return;
+
+    const displayTitle = msg ? (msg.slice(0, 48) + (msg.length > 48 ? '...' : '')) : 'Image Analysis';
 
     let conv = conversations.find((c) => c.id === activeId) ?? null;
     if (!conv) {
-      conv = newConversation(msg);
+      conv = newConversation(displayTitle);
       setConversations((p) => [conv!, ...p]);
       setActiveId(conv.id);
     } else if (conv.messages.length === 0) {
       setConversations((p) =>
         p.map((c) =>
-          c.id === conv!.id ? { ...c, title: msg.slice(0, 48) + (msg.length > 48 ? '...' : '') } : c
+          c.id === conv!.id ? { ...c, title: displayTitle } : c
         )
       );
     }
@@ -129,7 +131,8 @@ export function FloatingAICloud() {
     const userMsg: MyAIMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: msg,
+      content: msg || (image ? 'Please analyze this attached livestock image.' : ''),
+      image: image || undefined,
       timestamp: Date.now(),
     };
 
@@ -142,7 +145,7 @@ export function FloatingAICloud() {
     );
 
     const ctx = !farmData.loading
-      ? buildFarmContext({ ...farmData, cameraScreenings }, msg)
+      ? buildFarmContext({ ...farmData, cameraScreenings }, msg || 'Image Analysis')
       : '';
 
     const sys = ctx
@@ -150,11 +153,15 @@ export function FloatingAICloud() {
       : `You are MyAI, the AI assistant for AlpasFarm — a Goat & Sheep Farm Management System. Be concise. Respond in the user's language.`;
 
     const historyMsgs = conv.messages
-      .filter((m) => m && m.content && !m.content.trim().startsWith('[Alert]'))
+      .filter((m) => m && (m.content || m.image) && !m.content.trim().startsWith('[Alert]'))
       .slice(-8)
-      .map((m) => ({ role: m.role, content: m.content.trim() }));
+      .map((m) => ({ role: m.role, content: m.content.trim(), image: m.image }));
 
-    const msgs = [{ role: 'system', content: sys }, ...historyMsgs, { role: 'user', content: msg }];
+    const msgs = [
+      { role: 'system', content: sys },
+      ...historyMsgs,
+      { role: 'user', content: userMsg.content, image: userMsg.image },
+    ];
 
     setStreaming(true);
     setStreamText('');

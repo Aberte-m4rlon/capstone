@@ -90,8 +90,8 @@ interface AuthContextValue {
   verifyEmailOtp: (email: string, token: string, extraData?: { fullName?: string; farmName?: string }) => Promise<{ error: string | null }>;
   resendVerificationCode: (email: string) => Promise<{ error: string | null }>;
   // ── SMS / Phone Auth Methods ──
-  signInWithPhoneOtp: (phone: string) => Promise<{ error: string | null; message?: string; devCode?: string }>;
-  signUpWithPhoneOtp: (opts: PhoneSignUpOptions) => Promise<{ error: string | null; message?: string; devCode?: string }>;
+  signInWithPhoneOtp: (phone: string) => Promise<{ error: string | null; message?: string }>;
+  signUpWithPhoneOtp: (opts: PhoneSignUpOptions) => Promise<{ error: string | null; message?: string }>;
   verifyPhoneOtp: (phone: string, token: string, extraData?: { fullName?: string; farmName?: string; farmLocation?: string }) => Promise<{ error: string | null }>;
   resendPhoneOtp: (phone: string) => Promise<{ error: string | null; message?: string }>;
   signOut: () => Promise<void>;
@@ -476,7 +476,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Send SMS OTP for Sign In ────────────────────────────────────────────────
   const signInWithPhoneOtp = async (
     phone: string,
-  ): Promise<{ error: string | null; message?: string; devCode?: string }> => {
+  ): Promise<{ error: string | null; message?: string }> => {
     const formatted = formatPhoneNumber(phone);
     if (!formatted.valid) {
       return { error: 'Please enter a valid Philippine mobile number (e.g., 0917 123 4567).' };
@@ -499,7 +499,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {
         error: null,
         message: smsRes.message,
-        devCode: smsRes.devCode,
       };
     } catch (err: any) {
       return { error: err?.message || 'Failed to send SMS verification code.' };
@@ -509,7 +508,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Send SMS OTP for Sign Up ────────────────────────────────────────────────
   const signUpWithPhoneOtp = async (
     opts: PhoneSignUpOptions,
-  ): Promise<{ error: string | null; message?: string; devCode?: string }> => {
+  ): Promise<{ error: string | null; message?: string }> => {
     const formatted = formatPhoneNumber(opts.phone);
     const fullName = opts.fullName.trim();
     const farmName = opts.farmName.trim();
@@ -539,7 +538,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {
         error: null,
         message: smsRes.message,
-        devCode: smsRes.devCode,
       };
     } catch (err: any) {
       return { error: err?.message || 'Error initiating phone sign-up.' };
