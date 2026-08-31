@@ -3,13 +3,15 @@
  * POST /api/auth/sms
  *
  * Actions:
- *   1. action: 'send'   → generates 6-digit OTP and sends REAL SMS via Twilio (Primary) or Semaphore (Fallback)
+ *   1. action: 'send'   → generates 6-digit OTP and sends REAL SMS via Semaphore (Primary PH Gateway) or Twilio (Secondary)
  *   2. action: 'verify' → validates OTP token, creates/authenticates user, returns profile & session info
  *
- * Primary SMS Gateway:
- *   - TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER / TWILIO_MESSAGING_SERVICE_SID
- * Secondary Fallback Gateway:
- *   - SEMAPHORE_API_KEY
+ * Primary SMS Gateway (Philippines Free Tier & High Delivery):
+ *   - SEMAPHORE_API_KEY (from https://semaphore.co)
+ *   - SEMAPHORE_SENDER_NAME (optional)
+ *
+ * Secondary / International Gateway:
+ *   - TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -91,7 +93,59 @@ function postRequest(
   });
 }
 
-// ── SMS Dispatcher: Twilio (Primary) ─────────────────────────────────────────
+// ── SMS Dispatcher: Semaphore (Primary Philippine Gateway) ───────────────────
+async function sendViaSemaphore(
+  apiKey: string,
+  number: string,
+  message: string,
+  senderName?: string,
+): Promise<{ success: boolean; detail?: string }> {
+  const cleanNumber = number.replace(/[^0-9]/g, '');
+  const phNumber = cleanNumber.startsWith('63') ? '0' + cleanNumber.slice(2) : cleanNumber;
+
+  const payloadObj: Record<string, string> = {
+    apikey: apiKey.trim(),
+    number: phNumber,
+    message: message,
+  };
+
+  if (senderName && senderName.trim()) {
+    payloadObj.sendername = senderName.trim();
+  }
+
+  const payload = JSON.stringify(payloadObj);
+
+  try {
+    const res = await postRequest('https://api.semaphore.co/api/v4/messages', {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload),
+    }, payload);
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(res.data);
+    } catch {
+      parsed = null;
+    }
+
+    if (res.status >= 200 && res.status < 300) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const first = parsed[0];
+        if (first.status && String(first.status).toLowerCase() === 'failed') {
+          return { success: false, detail: `Semaphore failed: ${first.message_id || 'Failed delivery'}` };
+        }
+      }
+      return { success: true, detail: res.data };
+    }
+
+    const errDetail = (parsed && (parsed.message || parsed.error)) ? (parsed.message || parsed.error) : res.data;
+    return { success: false, detail: `Semaphore error HTTP ${res.status}: ${errDetail}` };
+  } catch (err: any) {
+    return { success: false, detail: err?.message || 'Semaphore network failure' };
+  }
+}
+
+// ── SMS Dispatcher: Twilio (Secondary / International) ───────────────────────
 async function sendViaTwilio(
   accountSid: string,
   authToken: string,
@@ -139,30 +193,6 @@ async function sendViaTwilio(
   }
 }
 
-// ── SMS Dispatcher: Semaphore (Secondary Fallback) ───────────────────────────
-async function sendViaSemaphore(apiKey: string, number: string, message: string): Promise<{ success: boolean; detail?: string }> {
-  const payload = JSON.stringify({
-    apikey: apiKey,
-    number,
-    message,
-    sendername: process.env.SEMAPHORE_SENDER_NAME || 'SEMAPHORE',
-  });
-
-  try {
-    const res = await postRequest('https://api.semaphore.co/api/v4/messages', {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(payload),
-    }, payload);
-
-    if (res.status >= 200 && res.status < 300) {
-      return { success: true, detail: res.data };
-    }
-    return { success: false, detail: `Semaphore returned HTTP ${res.status}: ${res.data}` };
-  } catch (err: any) {
-    return { success: false, detail: err?.message || 'Semaphore network failure' };
-  }
-}
-
 // ── Main Serverless Handler ──────────────────────────────────────────────────
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   // CORS
@@ -203,7 +233,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const phoneKey = normalized.e164;
 
   // ════════════════════════════════════════════════════════════════════════════
-  // 1. ACTION: SEND REAL SMS OTP VIA TWILIO (PRIMARY)
+  // 1. ACTION: SEND REAL SMS OTP
   // ════════════════════════════════════════════════════════════════════════════
   if (action === 'send') {
     // Generate secure 6-digit numeric OTP code
@@ -226,46 +256,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     let providerUsed = 'none';
     let providerError = '';
 
-    // 1. Primary Gateway: Twilio
-    const twilioSid = process.env.TWILIO_ACCOUNT_SID || process.env.VITE_TWILIO_ACCOUNT_SID;
-    const twilioAuth = process.env.TWILIO_AUTH_TOKEN || process.env.VITE_TWILIO_AUTH_TOKEN;
-    const twilioFrom =
-      process.env.TWILIO_PHONE_NUMBER ||
-      process.env.TWILIO_FROM_NUMBER ||
-      process.env.TWILIO_MESSAGING_SERVICE_SID ||
-      process.env.VITE_TWILIO_PHONE_NUMBER;
+    // 1. Primary Gateway: Semaphore (Philippine Carrier Native)
+    const semaphoreKey = process.env.SEMAPHORE_API_KEY || process.env.VITE_SEMAPHORE_API_KEY;
+    const semaphoreSender = process.env.SEMAPHORE_SENDER_NAME || process.env.VITE_SEMAPHORE_SENDER_NAME;
 
-    if (twilioSid && twilioAuth && twilioFrom) {
-      const twilioResult = await sendViaTwilio(twilioSid, twilioAuth, twilioFrom, normalized.e164, smsMessage);
-      if (twilioResult.success) {
+    if (semaphoreKey) {
+      const semResult = await sendViaSemaphore(semaphoreKey, normalized.national, smsMessage, semaphoreSender);
+      if (semResult.success) {
         smsSent = true;
-        providerUsed = 'twilio';
+        providerUsed = 'semaphore';
       } else {
-        providerError = twilioResult.detail || 'Twilio send failed';
-        console.error('[AlpasFarm SMS] Twilio dispatch failure:', twilioResult.detail);
+        providerError = semResult.detail || 'Semaphore send failed';
+        console.error('[AlpasFarm SMS] Semaphore dispatch failure:', semResult.detail);
       }
     }
 
-    // 2. Secondary Gateway: Semaphore (Fallback)
+    // 2. Secondary / International Gateway: Twilio
     if (!smsSent) {
-      const semaphoreKey = process.env.SEMAPHORE_API_KEY || process.env.VITE_SEMAPHORE_API_KEY;
-      if (semaphoreKey) {
-        const semResult = await sendViaSemaphore(semaphoreKey, normalized.national, smsMessage);
-        if (semResult.success) {
+      const twilioSid = process.env.TWILIO_ACCOUNT_SID || process.env.VITE_TWILIO_ACCOUNT_SID;
+      const twilioAuth = process.env.TWILIO_AUTH_TOKEN || process.env.VITE_TWILIO_AUTH_TOKEN;
+      const twilioFrom =
+        process.env.TWILIO_PHONE_NUMBER ||
+        process.env.TWILIO_FROM_NUMBER ||
+        process.env.TWILIO_MESSAGING_SERVICE_SID ||
+        process.env.VITE_TWILIO_PHONE_NUMBER;
+
+      if (twilioSid && twilioAuth && twilioFrom) {
+        const twilioResult = await sendViaTwilio(twilioSid, twilioAuth, twilioFrom, normalized.e164, smsMessage);
+        if (twilioResult.success) {
           smsSent = true;
-          providerUsed = 'semaphore';
+          providerUsed = 'twilio';
         } else {
-          console.error('[AlpasFarm SMS] Semaphore dispatch failure:', semResult.detail);
-          if (!providerError) providerError = semResult.detail || 'Semaphore send failed';
+          if (!providerError) providerError = twilioResult.detail || 'Twilio send failed';
+          console.error('[AlpasFarm SMS] Twilio dispatch failure:', twilioResult.detail);
         }
       }
     }
 
     // If no SMS provider was configured or dispatch failed
     if (!smsSent) {
-      const missingConfig = !twilioSid || !twilioAuth || !twilioFrom;
-      const errorMsg = missingConfig
-        ? 'SMS Gateway is not configured. Please ensure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER are set in environment variables.'
+      const hasAnyConfig = semaphoreKey || (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN);
+      const errorMsg = !hasAnyConfig
+        ? 'SMS Gateway is not configured. Please add SEMAPHORE_API_KEY in Vercel Environment Variables (get your free API key at https://semaphore.co).'
         : `Failed to dispatch SMS: ${providerError || 'Unknown SMS error'}`;
 
       res.status(502).json({
