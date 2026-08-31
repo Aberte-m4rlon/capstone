@@ -198,14 +198,18 @@ function AppRoutes() {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
+import { NotificationProvider } from './context/NotificationContext';
+
 export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
         <ToastProvider>
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
+          <NotificationProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </NotificationProvider>
         </ToastProvider>
       </AuthProvider>
     </ErrorBoundary>

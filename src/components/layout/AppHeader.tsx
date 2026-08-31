@@ -1,8 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icons } from '../../lib/icons';
-import { Moon, Sun, Menu, Search, Bell, Settings, LogOut, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import {
+  Moon,
+  Sun,
+  Menu,
+  Search,
+  Bell,
+  Settings,
+  LogOut,
+  X,
+  CheckCircle2,
+  HeartPulse,
+  Syringe,
+  Heart,
+  Scale,
+  Package,
+  AlertTriangle,
+  Info,
+} from 'lucide-react';
+import { useNotifications } from '../../context/NotificationContext';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord, Notification } from '../../types';
 
 export interface SearchResult {
@@ -19,11 +35,11 @@ export interface AppHeaderProps {
   user: any;
   role: string | null;
   signOut: () => Promise<void>;
-  notifications: Notification[];
-  animals: Animal[];
-  inventory: InventoryItem[];
-  vaccinations: Vaccination[];
-  breedingRecords: BreedingRecord[];
+  notifications?: Notification[];
+  animals?: Animal[];
+  inventory?: InventoryItem[];
+  vaccinations?: Vaccination[];
+  breedingRecords?: BreedingRecord[];
   onRefreshData?: () => void;
 }
 
@@ -34,7 +50,6 @@ export function AppHeader({
   user,
   role,
   signOut,
-  notifications = [],
   animals = [],
   inventory = [],
   vaccinations = [],
@@ -42,6 +57,12 @@ export function AppHeader({
   onRefreshData,
 }: AppHeaderProps) {
   const navigate = useNavigate();
+  const {
+    notifications,
+    unreadCount,
+    handleNotificationClick,
+    markAllAsRead,
+  } = useNotifications();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -147,14 +168,27 @@ export function AppHeader({
     navigate('/login', { replace: true });
   };
 
-  const markAllRead = async () => {
-    const unread = notifications.filter((n) => !n.read);
-    if (unread.length === 0) return;
-    await supabase.from('notifications').update({ read: true }).in('id', unread.map((n) => n.id));
-    onRefreshData?.();
+  const getNotificationIcon = (type: string) => {
+    const t = (type || '').toLowerCase();
+    switch (t) {
+      case 'health':
+        return <HeartPulse size={16} color="#EF4444" />;
+      case 'vaccination':
+      case 'vaccine':
+        return <Syringe size={16} color="#F97316" />;
+      case 'breeding':
+        return <Heart size={16} color="#EC4899" />;
+      case 'weight':
+        return <Scale size={16} color="#EAB308" />;
+      case 'inventory':
+        return <Package size={16} color="#06B6D4" />;
+      case 'expiry':
+        return <AlertTriangle size={16} color="#F59E0B" />;
+      default:
+        return <Bell size={16} color="#10B981" />;
+    }
   };
 
-  const unreadNotifs = notifications.filter((n) => !n.read).length;
   const initials  = user?.email ? user.email[0].toUpperCase() : 'F';
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
 
@@ -165,64 +199,65 @@ export function AppHeader({
 
   return (
     <header className="topbar">
-      {/* Topbar Left: Menu Toggle + Title */}
+      {/* Left: Mobile hamburger + Page Title */}
       <div className="topbar-left">
-        <button className="mobile-toggle" onClick={onOpenMobileNav} aria-label="Open navigation menu">
+        <button
+          className="topbar-hamburger-btn"
+          onClick={onOpenMobileNav}
+          aria-label="Open Navigation Menu"
+        >
           <Menu size={20} />
         </button>
-        <div className="topbar-title">
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+        <div>
+          <h1 className="topbar-title">{title}</h1>
+          {subtitle && <p className="topbar-sub">{subtitle}</p>}
         </div>
       </div>
 
-      {/* Topbar Search */}
-      <div className="topbar-search" ref={searchRef}>
-        <Search className="search-icon" size={16} />
-        <input
-          type="text"
-          placeholder="Search animals, inventory, vaccines..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
-        />
-        {searchQuery && (
-          <button
-            onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
-            aria-label="Clear search"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--color-text-muted, #64748B)',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0 4px',
-            }}
-          >
-            <X size={14} />
-          </button>
-        )}
+      {/* Center: Global Search Bar */}
+      <div className="topbar-center" ref={searchRef}>
+        <div className="search-box">
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search animals, inventory, vaccines..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
+            aria-label="Global search"
+          />
+          {searchQuery && (
+            <button
+              className="search-clear-btn"
+              onClick={() => {
+                setSearchQuery('');
+                setSearchResults([]);
+                setSearchOpen(false);
+              }}
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
 
-        {searchOpen && (
-          <div className="search-results">
+        {/* Search Results Dropdown */}
+        {searchOpen && searchResults.length > 0 && (
+          <div className="search-dropdown">
             {Object.entries(groupedResults).map(([group, items]) => (
-              <div key={group}>
-                <div className="search-group-label">{group}</div>
-                {items.map((r, i) => (
+              <div key={group} className="search-group">
+                <span className="search-group-title">{group}</span>
+                {items.map((res, i) => (
                   <div
                     key={i}
                     className="search-result-item"
                     onClick={() => {
-                      navigate(r.link);
-                      setSearchQuery('');
+                      navigate(res.link);
                       setSearchOpen(false);
+                      setSearchQuery('');
                     }}
                   >
-                    <div>
-                      <div>{r.label}</div>
-                      <div className="sr-sub">{r.sub}</div>
-                    </div>
+                    <span className="search-res-label">{res.label}</span>
+                    <span className="search-res-sub">{res.sub}</span>
                   </div>
                 ))}
               </div>
@@ -231,12 +266,12 @@ export function AppHeader({
         )}
       </div>
 
-      {/* Topbar Right Actions */}
-      <div className="topbar-actions">
-        {/* Light / Dark Mode Toggle */}
+      {/* Right: Actions (Theme toggle, Notifications, Profile) */}
+      <div className="topbar-right">
+        {/* Dark Mode Toggle */}
         <button
           className="topbar-icon-btn"
-          onClick={() => setDarkMode((d) => !d)}
+          onClick={() => setDarkMode(!darkMode)}
           aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           title={darkMode ? 'Light mode' : 'Dark mode'}
         >
@@ -246,73 +281,141 @@ export function AppHeader({
         {/* Notifications Dropdown */}
         <div ref={notifRef} style={{ position: 'relative' }}>
           <button
-            className="topbar-icon-btn"
+            className="topbar-icon-btn notif-bell-btn"
             onClick={() => setNotifOpen(!notifOpen)}
-            aria-label="Notifications"
+            aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+            title="Notifications"
           >
             <Bell size={18} />
-            {unreadNotifs > 0 && <span className="notif-dot" />}
+            {unreadCount > 0 && (
+              <span className="notif-badge">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </button>
           {notifOpen && (
             <div className="profile-dropdown notif-dropdown">
-              <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <p style={{ fontWeight: 700 }}>Notifications</p>
-                {unreadNotifs > 0 && (
-                  <button className="btn-ghost btn-sm" onClick={markAllRead}>
+              <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px' }}>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: 13, margin: 0 }}>Notifications</p>
+                  <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                    {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+                  </span>
+                </div>
+                {unreadCount > 0 && (
+                  <button
+                    className="btn-ghost btn-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAllAsRead();
+                    }}
+                    style={{ fontSize: 11, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <CheckCircle2 size={13} />
                     Mark all read
                   </button>
                 )}
               </div>
               <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 {notifications.length === 0 && (
-                  <div className="search-empty">No notifications</div>
+                  <div className="search-empty" style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
+                    No notifications yet
+                  </div>
                 )}
-                {notifications.slice(0, 10).map((n) => (
-                  <div
-                    key={n.id}
-                    className="pd-item"
-                    style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
-                    onClick={() => {
-                      if (n.link) navigate(n.link);
-                      setNotifOpen(false);
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                {notifications.slice(0, 10).map((n) => {
+                  const isUnread = !n.read && !n.is_read;
+                  return (
+                    <div
+                      key={n.id}
+                      className={`pd-item notif-dropdown-item ${isUnread ? 'notif-item-unread' : 'notif-item-read'}`}
+                      style={{
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        gap: 3,
+                        padding: '10px 12px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid var(--border-light, rgba(0,0,0,0.05))',
+                        background: isUnread ? 'rgba(67, 160, 71, 0.08)' : 'transparent',
+                        transition: 'background 0.15s ease',
+                      }}
+                      onClick={() => {
+                        handleNotificationClick(n, navigate);
+                        setNotifOpen(false);
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                          {getNotificationIcon(n.type)}
+                        </div>
+                        <span
+                          className={`badge badge-${
+                            n.priority === 'Critical' || n.priority === 'critical'
+                              ? 'red'
+                              : n.priority === 'Warning' || n.priority === 'high'
+                              ? 'orange'
+                              : n.priority === 'Success'
+                              ? 'green'
+                              : 'blue'
+                          }`}
+                          style={{ fontSize: 10, padding: '1px 6px' }}
+                        >
+                          {n.type}
+                        </span>
+                        {isUnread && (
+                          <span
+                            className="notif-unread-dot"
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              background: '#22C55E',
+                              flexShrink: 0,
+                              marginLeft: 'auto',
+                            }}
+                          />
+                        )}
+                      </div>
                       <span
-                        className={`badge badge-${
-                          n.priority === 'Critical'
-                            ? 'red'
-                            : n.priority === 'Warning'
-                            ? 'orange'
-                            : n.priority === 'Success'
-                            ? 'green'
-                            : 'blue'
-                        }`}
+                        style={{
+                          fontWeight: isUnread ? 700 : 500,
+                          fontSize: 12.5,
+                          color: 'var(--text, #0f172a)',
+                          lineHeight: 1.3,
+                        }}
                       >
-                        {n.type}
+                        {n.title}
                       </span>
-                      {!n.read && (
+                      {(n.description || n.message) && (
                         <span
                           style={{
-                            width: 7,
-                            height: 7,
-                            borderRadius: '50%',
-                            background: 'var(--color-primary, #43A047)',
+                            fontSize: 11,
+                            color: 'var(--color-text-secondary, #667085)',
+                            lineHeight: 1.3,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
                           }}
-                        />
+                        >
+                          {n.description || n.message}
+                        </span>
                       )}
                     </div>
-                    <span style={{ fontWeight: 600, fontSize: 12 }}>{n.title}</span>
-                    {n.description && (
-                      <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #667085)' }}>
-                        {n.description}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <div
                 className="pd-item"
+                style={{
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  color: 'var(--color-primary, #43A047)',
+                  borderTop: '1px solid var(--border-light, rgba(0,0,0,0.06))',
+                  marginTop: 4,
+                  padding: '10px 12px',
+                  cursor: 'pointer',
+                }}
                 onClick={() => {
                   navigate('/notifications');
                   setNotifOpen(false);
@@ -339,54 +442,29 @@ export function AppHeader({
                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
               />
             ) : (
-              initials
+              <span>{initials}</span>
             )}
           </div>
+
           {profileOpen && (
             <div className="profile-dropdown">
               <div className="pd-header">
-                <p style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text-primary, #1F2933)', wordBreak: 'break-all' }}>
-                  {user?.email}
-                </p>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    marginTop: 4,
-                    padding: '2px 8px',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    background: isSuperAdmin
-                      ? 'rgba(139,92,246,0.15)'
-                      : isAdmin
-                      ? 'rgba(217,45,32,0.12)'
-                      : '#E8F5E9',
-                    color: isSuperAdmin ? '#7C3AED' : isAdmin ? '#D92D20' : '#2E7D32',
-                    border: isSuperAdmin
-                      ? '1px solid rgba(139,92,246,0.30)'
-                      : isAdmin
-                      ? '1px solid rgba(217,45,32,0.25)'
-                      : '1px solid rgba(67,160,71,0.25)',
-                  }}
-                >
-                  {isSuperAdmin ? 'Super Administrator' : isAdmin ? 'System Administrator' : 'Farm Manager'}
-                </span>
+                <p>{user?.user_metadata?.full_name || user?.email || 'User'}</p>
+                <span>{role ? role.replace('_', ' ').toUpperCase() : 'FARM USER'}</span>
               </div>
-              {isFarmManager && (
-                <button
-                  className="pd-item"
-                  onClick={() => {
-                    navigate('/settings');
-                    setProfileOpen(false);
-                  }}
-                >
-                  <Settings size={16} /> Settings
-                </button>
-              )}
-              <button className="pd-item" onClick={handleSignOut}>
-                <LogOut size={16} /> Sign out
+              <button
+                className="pd-item"
+                onClick={() => {
+                  navigate('/settings');
+                  setProfileOpen(false);
+                }}
+              >
+                <Settings size={16} />
+                <span>Settings</span>
+              </button>
+              <button className="pd-item text-danger" onClick={handleSignOut}>
+                <LogOut size={16} />
+                <span>Sign Out</span>
               </button>
             </div>
           )}

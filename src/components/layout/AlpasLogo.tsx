@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+
 interface AlpasLogoProps {
   collapsed?: boolean;
   className?: string;
@@ -5,9 +7,19 @@ interface AlpasLogoProps {
 }
 
 export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasLogoProps) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   return (
     <div
-      onClick={onClick}
+      onClick={handleClick}
       className={`alpas-brand-logo ${className}`}
       style={{
         display: 'flex',
@@ -15,30 +27,18 @@ export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasL
         alignItems: 'center',
         gap: 12,
         textDecoration: 'none',
-        cursor: onClick ? 'pointer' : 'default',
+        cursor: 'pointer',
         userSelect: 'none',
         width: '100%',
         padding: '0 4px',
       }}
+      title="AlpasFarm Dashboard"
     >
       {/* Brand Emblem */}
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: '12px',
-          background: 'linear-gradient(135deg, #43A047 0%, #2E7D32 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#FFFFFF',
-          flexShrink: 0,
-          boxShadow: '0 4px 14px rgba(67, 160, 71, 0.35)',
-        }}
-      >
+      <div className="alpas-logo-emblem">
         <svg
-          width="24"
-          height="24"
+          width="22"
+          height="22"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -56,37 +56,33 @@ export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasL
         </svg>
       </div>
 
-      {/* Brand Typography */}
-      {!collapsed && (
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left', flex: 1 }}>
-          <span
-            style={{
-              fontSize: '17px',
-              fontWeight: 900,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.15,
-              color: 'var(--color-text-primary, #1F2933)',
-            }}
-          >
-            <span style={{ color: '#43A047' }}>ALPAS</span>
-            <span style={{ color: 'var(--color-text-primary, #1F2933)' }}>FARM</span>
-          </span>
-          <span
-            style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              letterSpacing: '0.01em',
-              color: 'var(--color-text-secondary, #667085)',
-              marginTop: 2,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            Smart Farm, Healthy Herd
-          </span>
-        </div>
-      )}
+      {/* Brand Typography (Hidden when collapsed on desktop, smooth fade on hover) */}
+      <div className="alpas-logo-text">
+        <span
+          style={{
+            fontSize: '16px',
+            fontWeight: 900,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.15,
+            color: 'var(--color-text-primary, #1F2933)',
+          }}
+        >
+          <span style={{ color: '#43A047' }}>ALPAS</span>
+          <span style={{ color: 'var(--color-text-primary, #1F2933)' }}>FARM</span>
+        </span>
+        <span
+          style={{
+            fontSize: '10.5px',
+            fontWeight: 600,
+            letterSpacing: '0.01em',
+            color: 'var(--color-text-secondary, #667085)',
+            marginTop: 1,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Smart Farm, Healthy Herd
+        </span>
+      </div>
     </div>
   );
 }

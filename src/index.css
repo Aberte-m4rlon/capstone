@@ -460,7 +460,9 @@ select:-webkit-autofill:focus {
 /* ===== ALPASFARM SIDEBAR & GLOBAL LAYOUT DESIGN SYSTEM ===== */
 
 :root {
-  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 76px;
+  --sidebar-expanded-width: 250px;
+  --sidebar-width: var(--sidebar-collapsed-width);
   --sidebar-radius: 12px;
   --sidebar-bg: rgba(255, 255, 255, 0.95);
   --sidebar-border: #E5EDE6;
@@ -473,7 +475,9 @@ select:-webkit-autofill:focus {
 }
 
 [data-theme="light"] {
-  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 76px;
+  --sidebar-expanded-width: 250px;
+  --sidebar-width: var(--sidebar-collapsed-width);
   --sidebar-radius: 12px;
   --sidebar-bg: rgba(255, 255, 255, 0.95);
   --sidebar-border: #E5EDE6;
@@ -486,7 +490,9 @@ select:-webkit-autofill:focus {
 }
 
 [data-theme="dark"] {
-  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 76px;
+  --sidebar-expanded-width: 250px;
+  --sidebar-width: var(--sidebar-collapsed-width);
   --sidebar-radius: 12px;
   --sidebar-bg: #17231B;
   --sidebar-border: rgba(255, 255, 255, 0.08);
@@ -530,20 +536,21 @@ select:-webkit-autofill:focus {
 
 /* Desktop Sidebar — Dedicated Column */
 .alpas-sidebar.desktop-sidebar {
-  width: var(--sidebar-width);
-  min-width: var(--sidebar-width);
-  max-width: var(--sidebar-width);
+  width: var(--sidebar-collapsed-width, 76px);
+  min-width: var(--sidebar-collapsed-width, 76px);
+  max-width: var(--sidebar-expanded-width, 250px);
   height: 100vh;
   height: 100dvh;
-  position: sticky;
+  position: fixed;
   top: 0;
   left: 0;
   flex-shrink: 0;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
-  z-index: 50;
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  z-index: 100;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
+  overflow: visible;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
 }
 
 .alpas-sidebar-inner {
@@ -2483,9 +2490,9 @@ table.data-table {
   }
 
   .main-area {
-    margin-left: 0 !important;
-    width: auto !important;
-    max-width: 100% !important;
+    margin-left: var(--sidebar-collapsed-width, 76px) !important;
+    width: calc(100% - var(--sidebar-collapsed-width, 76px)) !important;
+    max-width: calc(100% - var(--sidebar-collapsed-width, 76px)) !important;
   }
 }
 
@@ -4942,4 +4949,509 @@ input[type="time"] {
   .breeding-readiness-card {
     padding: 12px !important;
   }
+}
+
+
+/* ===== NOTIFICATION & ALERTS SYSTEM STYLES ===== */
+:root {
+  --notif-unread-bg: rgba(67, 160, 71, 0.07);
+  --notif-card-hover: rgba(67, 160, 71, 0.12);
+}
+
+[data-theme="dark"] {
+  --notif-unread-bg: rgba(67, 160, 71, 0.16);
+  --notif-card-hover: rgba(67, 160, 71, 0.22);
+}
+
+.topbar-icon-btn.notif-bell-btn {
+  position: relative;
+}
+
+.topbar-icon-btn .notif-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #EF4444;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: 2px solid var(--bg-secondary, #FFFFFF);
+  box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);
+}
+
+.notif-item-unread {
+  background: var(--notif-unread-bg) !important;
+  border-left: 3px solid #43A047 !important;
+}
+
+.notif-item-unread:hover,
+.notif-card-unread:hover,
+.alert-card-unread:hover {
+  background: var(--notif-card-hover) !important;
+  transform: translateY(-1px);
+}
+
+.notif-card-read,
+.alert-card-read {
+  opacity: 0.82;
+}
+
+.notif-card-read:hover,
+.alert-card-read:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .notif-card-read:hover,
+[data-theme="dark"] .alert-card-read:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+
+/* ==========================================================================
+   MODERN COMPACT EXPANDABLE DESKTOP SIDEBAR
+   ========================================================================== */
+
+:root {
+  --sidebar-collapsed-width: 76px;
+  --sidebar-expanded-width: 250px;
+  --sidebar-width: var(--sidebar-collapsed-width);
+  --sidebar-radius: 12px;
+  --sidebar-bg: rgba(255, 255, 255, 0.96);
+  --sidebar-border: #E5EDE6;
+  --sidebar-icon-color: #64748B;
+  --sidebar-text-color: #1E293B;
+  --sidebar-item-hover-bg: rgba(67, 160, 71, 0.08);
+  --sidebar-active-gradient: linear-gradient(135deg, #43A047 0%, #2E7D32 100%);
+}
+
+[data-theme="dark"] {
+  --sidebar-bg: #141E17;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-icon-color: #94A3B8;
+  --sidebar-text-color: #F1F5F9;
+  --sidebar-item-hover-bg: rgba(67, 160, 71, 0.16);
+  --sidebar-active-gradient: linear-gradient(135deg, #43A047 0%, #2E7D32 100%);
+}
+
+/* ── Desktop Sidebar Container (≥ 1024px) ── */
+@media (min-width: 1024px) {
+  .alpas-sidebar.desktop-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    width: var(--sidebar-collapsed-width) !important;
+    min-width: var(--sidebar-collapsed-width) !important;
+    max-width: var(--sidebar-expanded-width) !important;
+    background: var(--sidebar-bg) !important;
+    border-right: 1px solid var(--sidebar-border) !important;
+    z-index: 100 !important;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03) !important;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  @media (hover: hover) {
+    .alpas-sidebar.desktop-sidebar:hover {
+      width: var(--sidebar-expanded-width) !important;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14), 4px 0 18px rgba(46, 125, 50, 0.08) !important;
+    }
+  }
+
+  /* Main Area keeps fixed left margin matching collapsed sidebar width (Zero Layout Jump!) */
+  .main-area {
+    margin-left: var(--sidebar-collapsed-width) !important;
+    width: calc(100% - var(--sidebar-collapsed-width)) !important;
+    max-width: calc(100% - var(--sidebar-collapsed-width)) !important;
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ── Inner Wrapper ── */
+.alpas-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ── Header with Logo ── */
+.alpas-sidebar-header {
+  height: 76px;
+  min-height: 76px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--sidebar-border);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.desktop-sidebar .alpas-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.desktop-sidebar .alpas-logo-emblem {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--sidebar-active-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(67, 160, 71, 0.35);
+  margin: 0 auto;
+  transition: margin 0.25s ease, transform 0.25s ease;
+}
+
+.desktop-sidebar:hover .alpas-logo-emblem {
+  margin: 0;
+}
+
+.desktop-sidebar .alpas-logo-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  text-align: left;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desktop-sidebar:hover .alpas-logo-text {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* ── Navigation List & Items ── */
+.desktop-sidebar .alpas-nav-scroll-area {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  box-sizing: border-box;
+}
+
+.desktop-sidebar .alpas-nav-scroll-area::-webkit-scrollbar {
+  display: none;
+}
+
+.desktop-sidebar .alpas-nav-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 5px;
+}
+
+.desktop-sidebar .alpas-nav-item {
+  position: relative;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  border-radius: var(--sidebar-radius);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  background: transparent;
+  border: 1px solid transparent;
+  user-select: none;
+  box-sizing: border-box;
+  padding: 0 14px;
+  color: var(--sidebar-text-color);
+  overflow: visible;
+}
+
+.desktop-sidebar .alpas-nav-item:hover {
+  background: var(--sidebar-item-hover-bg);
+  color: var(--color-primary-dark, #2E7D32);
+}
+
+.desktop-sidebar .alpas-nav-item.active {
+  background: var(--sidebar-active-gradient) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 6px 18px rgba(46, 125, 50, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.desktop-sidebar .alpas-nav-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin: 0 auto;
+  color: var(--sidebar-icon-color);
+  transition: color 0.2s ease, transform 0.2s ease, margin 0.25s ease;
+}
+
+.desktop-sidebar:hover .alpas-nav-icon {
+  margin: 0;
+}
+
+.desktop-sidebar .alpas-nav-item.active .alpas-nav-icon {
+  color: #FFFFFF !important;
+}
+
+.desktop-sidebar .alpas-nav-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 12px;
+  flex: 1;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--sidebar-text-color);
+}
+
+.desktop-sidebar:hover .alpas-nav-label {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.desktop-sidebar .alpas-nav-item.active .alpas-nav-label {
+  color: #FFFFFF !important;
+  font-weight: 700;
+}
+
+/* ── Badges ── */
+.desktop-sidebar .alpas-nav-badge-collapsed {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #EF4444;
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(239, 68, 68, 0.4);
+  line-height: 1;
+  border: 1.5px solid var(--sidebar-bg);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.desktop-sidebar:hover .alpas-nav-badge-collapsed {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.desktop-sidebar .alpas-nav-badge-expanded {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #EF4444;
+  color: #FFFFFF;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  margin-left: auto;
+  opacity: 0;
+  transform: translateX(-4px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+
+.desktop-sidebar .alpas-nav-item.active .alpas-nav-badge-expanded {
+  background: #FFFFFF;
+  color: #2E7D32;
+}
+
+.desktop-sidebar:hover .alpas-nav-badge-expanded {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* ── Floating Tooltips (Collapsed Desktop Only) ── */
+.alpas-nav-tooltip {
+  position: absolute;
+  left: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-6px);
+  background: #1E293B;
+  color: #FFFFFF;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  z-index: 9999;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+[data-theme="dark"] .alpas-nav-tooltip {
+  background: #0F172A;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.alpas-nav-tooltip::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: #1E293B;
+}
+
+[data-theme="dark"] .alpas-nav-tooltip::before {
+  background: #0F172A;
+}
+
+@media (min-width: 1024px) and (hover: hover) {
+  .desktop-sidebar:not(:hover) .alpas-nav-item:hover .alpas-nav-tooltip,
+  .desktop-sidebar:not(:hover) .ai-cloud-launcher-card:hover .alpas-nav-tooltip {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+    transition-delay: 0.1s;
+  }
+
+  .desktop-sidebar:hover .alpas-nav-tooltip {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    display: none !important;
+  }
+}
+
+/* ── Footer & AI Cloud Card ── */
+.alpas-sidebar-footer {
+  padding: 12px 10px 16px;
+  border-top: 1px solid var(--sidebar-border);
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--sidebar-bg);
+}
+
+.desktop-sidebar .ai-cloud-launcher-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 46px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: rgba(67, 160, 71, 0.08);
+  border: 1px solid rgba(67, 160, 71, 0.25);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.desktop-sidebar:hover .ai-cloud-launcher-card {
+  padding: 0 12px;
+}
+
+.desktop-sidebar .ai-launcher-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(67, 160, 71, 0.2), rgba(66, 165, 245, 0.2));
+  border: 1px solid rgba(67, 160, 71, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #43A047;
+  flex-shrink: 0;
+  margin: 0 auto;
+  transition: margin 0.25s ease;
+}
+
+.desktop-sidebar:hover .ai-launcher-icon {
+  margin: 0;
+}
+
+.desktop-sidebar .ai-launcher-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  margin-left: 10px;
+  flex: 1;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+
+.desktop-sidebar:hover .ai-launcher-text {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.desktop-sidebar .ai-launcher-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  opacity: 0;
+  transform: translateX(-4px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+
+.desktop-sidebar:hover .ai-launcher-status {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
 }

@@ -30,7 +30,7 @@ export function AppSidebar({
       aria-label="Main Sidebar"
     >
       <div className="alpas-sidebar-inner">
-        {/* ── Top: Brand Logo & Tagline (min-height 80px) ── */}
+        {/* ── Top: Brand Logo & Tagline (min-height 76px) ── */}
         <div className="alpas-sidebar-header">
           <AlpasLogo collapsed={false} />
           {isMobile && onClose && (
@@ -75,4 +75,3 @@ export function AppSidebar({
     </aside>
   );
 }
-

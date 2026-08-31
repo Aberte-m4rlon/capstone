@@ -1,12 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
-import { generateDailyAlerts } from '../lib/recommendations';
+import { useNotifications } from '../context/NotificationContext';
+import { generateDailyAlerts, type DailyAlert } from '../lib/recommendations';
 import { FilterToolbar, FilterPill } from '../components/FilterToolbar';
-import { Icons } from '../lib/icons';
 import { sendPushNotifications, generateAlertSummary, copyAlertSummaryToClipboard } from '../lib/alertNotifications';
 import { useToast } from '../components/ui/Toast';
-import { Bell, Copy, Mail, HeartPulse, Syringe, Heart, Scale, Package, CheckCircle, X } from 'lucide-react';
+import {
+  Bell,
+  Copy,
+  Mail,
+  HeartPulse,
+  Syringe,
+  Heart,
+  Scale,
+  Package,
+  AlertTriangle,
+  CheckCircle2,
+  CheckCircle,
+  ArrowRight,
+} from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -16,36 +29,74 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '../components/ui/Mod
 
 export function DailyAlertsPage() {
   const farmData = useFarmData();
+  const {
+    notifications,
+    unreadCount,
+    handleNotificationClick,
+    markAllAsRead,
+    syncAlerts,
+  } = useNotifications();
+
   const navigate = useNavigate();
   const toast = useToast();
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState('All');
 
-  const alerts = useMemo(
-    () => generateDailyAlerts(
-      farmData.animals,
-      farmData.healthRecords,
-      farmData.weightRecords,
-      farmData.vaccinations,
-      farmData.inventory,
-      farmData.breedingRecords,
-      farmData.settings ?? undefined,
-    ),
-    [farmData],
+  const rawAlerts = useMemo(
+    () =>
+      generateDailyAlerts(
+        farmData.animals,
+        farmData.healthRecords,
+        farmData.weightRecords,
+        farmData.vaccinations,
+        farmData.inventory,
+        farmData.breedingRecords,
+        farmData.settings ?? undefined
+      ),
+    [farmData]
   );
 
-  const filteredAlerts = useMemo(() => {
-    if (priorityFilter === 'All') return alerts;
-    return alerts.filter((a) => a.priority === priorityFilter);
-  }, [alerts, priorityFilter]);
+  // Sync alerts with global notifications once farm data is loaded
+  useEffect(() => {
+    if (rawAlerts.length > 0) {
+      syncAlerts(rawAlerts);
+    }
+  }, [rawAlerts, syncAlerts]);
 
-  const alertSummary = useMemo(() => generateAlertSummary(alerts, farmData.settings?.farm_name ?? 'AlpasFarm'), [alerts, farmData.settings?.farm_name]);
+  // Map alerts to sync with read status from notifications
+  const alertsWithReadState = useMemo(() => {
+    return rawAlerts.map((alert) => {
+      const matchingNotif = notifications.find(
+        (n) =>
+          n.title === alert.title &&
+          (n.type.toLowerCase() === alert.type.toLowerCase())
+      );
+
+      const isRead = matchingNotif ? Boolean(matchingNotif.read || matchingNotif.is_read) : false;
+      return {
+        ...alert,
+        matchingNotif,
+        isRead,
+      };
+    });
+  }, [rawAlerts, notifications]);
+
+  const filteredAlerts = useMemo(() => {
+    if (priorityFilter === 'All') return alertsWithReadState;
+    if (priorityFilter === 'Unread') return alertsWithReadState.filter((a) => !a.isRead);
+    return alertsWithReadState.filter((a) => a.priority === priorityFilter);
+  }, [alertsWithReadState, priorityFilter]);
+
+  const alertSummary = useMemo(
+    () => generateAlertSummary(rawAlerts, farmData.settings?.farm_name ?? 'AlpasFarm'),
+    [rawAlerts, farmData.settings?.farm_name]
+  );
 
   const handleSendPushNotifications = async () => {
     setSending(true);
     try {
-      await sendPushNotifications(alerts);
+      await sendPushNotifications(rawAlerts);
       toast('Push notifications sent', 'success');
     } catch (err) {
       toast((err as Error).message || 'Failed to send notifications', 'danger');
@@ -56,10 +107,20 @@ export function DailyAlertsPage() {
 
   const handleCopySummary = async () => {
     try {
-      await copyAlertSummaryToClipboard(alerts, farmData.settings?.farm_name ?? 'AlpasFarm');
+      await copyAlertSummaryToClipboard(rawAlerts, farmData.settings?.farm_name ?? 'AlpasFarm');
       toast('Summary copied to clipboard', 'success');
     } catch (err) {
       toast('Failed to copy summary', 'danger');
+    }
+  };
+
+  const handleAlertClick = (alert: (typeof alertsWithReadState)[0]) => {
+    if (alert.matchingNotif) {
+      handleNotificationClick(alert.matchingNotif, navigate);
+    } else {
+      if (alert.link) {
+        navigate(alert.link);
+      }
     }
   };
 
@@ -67,59 +128,99 @@ export function DailyAlertsPage() {
     return <LoadingSpinner text="Loading daily alerts..." fullScreen />;
   }
 
-  const badgeVariant = (priority: string) =>
-    priority === 'Critical' ? 'danger' : priority === 'Warning' ? 'warning' : 'success';
+  const badgeVariant = (priority: string) => {
+    const pr = priority.toLowerCase();
+    if (pr === 'critical') return 'danger';
+    if (pr === 'warning' || pr === 'high') return 'warning';
+    return 'success';
+  };
+
+  const typeIcon = (t: string) => {
+    const type = (t || '').toLowerCase();
+    switch (type) {
+      case 'health':
+        return <HeartPulse size={18} color="#EF4444" />;
+      case 'vaccination':
+      case 'vaccine':
+        return <Syringe size={18} color="#F97316" />;
+      case 'breeding':
+        return <Heart size={18} color="#EC4899" />;
+      case 'weight':
+        return <Scale size={18} color="#EAB308" />;
+      case 'inventory':
+        return <Package size={18} color="#06B6D4" />;
+      case 'expiry':
+        return <AlertTriangle size={18} color="#F59E0B" />;
+      default:
+        return <Bell size={18} color="#10B981" />;
+    }
+  };
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800 }}>Daily Alerts</h1>
-        <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-          A concise list of the tasks and reminders that matter most today.
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Daily Alerts</h1>
+          <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
+            A concise list of the tasks, health risks, and reminders that matter most today.
+          </p>
+        </div>
+        {rawAlerts.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button
+              variant="secondary"
+              onClick={markAllAsRead}
+              disabled={unreadCount === 0}
+              leftIcon={<CheckCircle2 size={15} />}
+            >
+              Mark all read
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSendPushNotifications}
+              loading={sending}
+              leftIcon={<Bell size={15} />}
+            >
+              Send Push
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setSummaryOpen(true)}
+              leftIcon={<Mail size={15} />}
+            >
+              View Summary
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleCopySummary}
+              leftIcon={<Copy size={15} />}
+            >
+              Copy Summary
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Action buttons */}
-      {alerts.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-          <Button 
-            variant="primary"
-            onClick={handleSendPushNotifications}
-            loading={sending}
-            leftIcon={<Bell size={15} />}
-          >
-            Send Notifications
-          </Button>
-          <Button 
-            variant="secondary"
-            onClick={() => setSummaryOpen(true)}
-            leftIcon={<Mail size={15} />}
-          >
-            View Summary
-          </Button>
-          <Button 
-            variant="secondary"
-            onClick={handleCopySummary}
-            leftIcon={<Copy size={15} />}
-          >
-            Copy Summary
-          </Button>
-        </div>
-      )}
-
-      {/* One-Row Filter Toolbar */}
+      {/* Filter Toolbar */}
       <FilterToolbar>
-        {['All', 'Critical', 'Warning', 'Info'].map((p) => (
-          <FilterPill
-            key={p}
-            active={priorityFilter === p}
-            onClick={() => setPriorityFilter(p)}
-            label={p}
-            count={p === 'All' ? alerts.length : alerts.filter((a) => a.priority === p).length}
-          />
-        ))}
+        {['All', 'Unread', 'Critical', 'Warning', 'Info'].map((p) => {
+          let count = rawAlerts.length;
+          if (p === 'Unread') count = alertsWithReadState.filter((a) => !a.isRead).length;
+          else if (p !== 'All') count = alertsWithReadState.filter((a) => a.priority === p).length;
+
+          return (
+            <FilterPill
+              key={p}
+              active={priorityFilter === p}
+              onClick={() => setPriorityFilter(p)}
+              label={p}
+              count={count}
+            />
+          );
+        })}
       </FilterToolbar>
 
+      {/* Alerts Card List */}
       <Card variant="glass" padding="none">
         {filteredAlerts.length === 0 ? (
           <EmptyState
@@ -128,37 +229,115 @@ export function DailyAlertsPage() {
             description="Your farm is running smoothly right now."
           />
         ) : (
-          <div style={{ padding: '0 20px' }}>
-            {filteredAlerts.map((alert, idx) => (
-              <div
-                key={alert.id}
-                onClick={() => alert.link && navigate(alert.link)}
-                style={{
-                  display: 'flex',
-                  gap: 12,
-                  alignItems: 'flex-start',
-                  padding: '16px 0',
-                  borderBottom: idx < filteredAlerts.length - 1 ? '1px solid var(--border-light, rgba(255,255,255,0.08))' : 'none',
-                  cursor: alert.link ? 'pointer' : 'default',
-                }}
-              >
-                <div style={{ marginTop: 2 }}>
-                  {alert.type === 'Health' && <HeartPulse size={18} color="#FF3B30" />}
-                  {alert.type === 'Vaccination' && <Syringe size={18} color="#FF7A18" />}
-                  {alert.type === 'Breeding' && <Heart size={18} color="#FF7A18" />}
-                  {alert.type === 'Weight' && <Scale size={18} color="#FF9F0A" />}
-                  {alert.type === 'Inventory' && <Package size={18} color="#D92D20" />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>{alert.title}</span>
-                    <Badge variant={badgeVariant(alert.priority)} size="sm">{alert.priority}</Badge>
+          <div style={{ padding: '6px 16px' }}>
+            {filteredAlerts.map((alert, idx) => {
+              const isUnread = !alert.isRead;
+
+              return (
+                <div
+                  key={alert.id || idx}
+                  onClick={() => handleAlertClick(alert)}
+                  className={`alert-row-item ${isUnread ? 'alert-card-unread' : 'alert-card-read'}`}
+                  style={{
+                    display: 'flex',
+                    gap: 14,
+                    alignItems: 'flex-start',
+                    padding: '16px 14px',
+                    margin: '8px 0',
+                    borderRadius: '12px',
+                    border: isUnread
+                      ? '1px solid rgba(67, 160, 71, 0.35)'
+                      : '1px solid var(--border-light, rgba(0,0,0,0.06))',
+                    background: isUnread
+                      ? 'var(--notif-unread-bg, rgba(67, 160, 71, 0.06))'
+                      : 'var(--card-bg, rgba(255, 255, 255, 0.6))',
+                    cursor: alert.link ? 'pointer' : 'default',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {/* Left Icon */}
+                  <div
+                    style={{
+                      marginTop: 2,
+                      width: 36,
+                      height: 36,
+                      borderRadius: '10px',
+                      background: isUnread ? 'rgba(67, 160, 71, 0.12)' : 'rgba(0, 0, 0, 0.04)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {typeIcon(alert.type)}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{alert.description}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)', marginTop: 6 }}>Due: {alert.dueLabel}</div>
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          fontWeight: isUnread ? 800 : 600,
+                          fontSize: 14.5,
+                          color: 'var(--text, #0f172a)',
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        {alert.title}
+                      </span>
+                      <Badge variant={badgeVariant(alert.priority)} size="sm">
+                        {alert.priority}
+                      </Badge>
+                      {isUnread && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: '#22C55E',
+                            color: '#FFFFFF',
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          ● UNREAD
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: isUnread ? 'var(--text, #1e293b)' : 'var(--color-text-secondary, #64748b)',
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {alert.description}
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        fontSize: 11.5,
+                        color: 'var(--color-text-secondary, #94a3b8)',
+                        marginTop: 6,
+                      }}
+                    >
+                      <span>Due: {alert.dueLabel}</span>
+                      {alert.link && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--color-primary, #43A047)', fontWeight: 600 }}>
+                          Resolve alert <ArrowRight size={12} />
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
@@ -172,34 +351,29 @@ export function DailyAlertsPage() {
             icon={<Mail size={18} />}
           />
           <ModalBody>
-            <pre style={{
-              background: 'var(--color-surface-elevated, rgba(0, 0, 0, 0.2))',
-              padding: 14,
-              borderRadius: 8,
-              fontSize: 12,
-              lineHeight: '1.6',
-              whiteSpace: 'pre-wrap',
-              wordWrap: 'break-word',
-              maxHeight: 350,
-              overflowY: 'auto',
-              border: '1px solid var(--border-light, rgba(255,255,255,0.1))',
-              color: 'var(--color-text-primary, #0f172a)',
-            }}>
+            <pre
+              style={{
+                background: 'var(--color-surface-elevated, rgba(0, 0, 0, 0.2))',
+                padding: 14,
+                borderRadius: 8,
+                fontSize: 12,
+                lineHeight: '1.6',
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+                maxHeight: 350,
+                overflowY: 'auto',
+                border: '1px solid var(--border-light, rgba(255,255,255,0.1))',
+                color: 'var(--color-text-primary, #0f172a)',
+              }}
+            >
               {alertSummary}
             </pre>
           </ModalBody>
           <ModalFooter>
-            <Button 
-              variant="secondary"
-              onClick={() => setSummaryOpen(false)}
-            >
+            <Button variant="secondary" onClick={() => setSummaryOpen(false)}>
               Close
             </Button>
-            <Button 
-              variant="primary"
-              onClick={handleCopySummary}
-              leftIcon={<Copy size={15} />}
-            >
+            <Button variant="primary" onClick={handleCopySummary} leftIcon={<Copy size={15} />}>
               Copy to Clipboard
             </Button>
           </ModalFooter>

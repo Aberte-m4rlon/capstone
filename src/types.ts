@@ -28,8 +28,24 @@ export interface InventoryTransaction {
   cost_per_unit: number | null;
   created_at: string;
 }
-export type NotificationType = 'Health' | 'Vaccination' | 'Breeding' | 'Weight' | 'Inventory' | 'System';
+export type NotificationType =
+  | 'Health'
+  | 'Vaccination'
+  | 'Breeding'
+  | 'Weight'
+  | 'Inventory'
+  | 'Expiry'
+  | 'System'
+  | 'health'
+  | 'breeding'
+  | 'inventory'
+  | 'vaccine'
+  | 'expiry'
+  | 'system'
+  | 'weight';
+
 export type Priority = 'Critical' | 'Warning' | 'Normal' | 'Success';
+export type NotificationPriority = Priority | 'critical' | 'high' | 'medium' | 'low';
 
 export interface Animal {
   id: string;
@@ -180,10 +196,15 @@ export interface Notification {
   type: NotificationType;
   title: string;
   description: string | null;
-  priority: Priority;
+  message?: string | null;
+  priority: NotificationPriority;
   link: string | null;
+  action_url?: string | null;
+  animal_id?: string | null;
   read: boolean;
+  is_read?: boolean;
   created_at: string;
+  read_at?: string | null;
 }
 
 export interface Recommendation {

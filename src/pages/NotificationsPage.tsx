@@ -1,93 +1,111 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFarmData } from '../lib/useFarmData';
-import { supabase } from '../lib/supabase';
-import { useToast } from '../components/ui/Toast';
+import { useNotifications } from '../context/NotificationContext';
 import { FilterToolbar, FilterPill } from '../components/FilterToolbar';
 import { formatDateTime } from '../lib/analytics';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import {
   Bell,
-  CheckCircle,
+  CheckCircle2,
   Trash2,
   HeartPulse,
   Syringe,
   Heart,
   Scale,
   Package,
+  AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
 
 export function NotificationsPage() {
-  const farmData = useFarmData();
-  const toast = useToast();
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    handleNotificationClick,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  } = useNotifications();
+
   const navigate = useNavigate();
   const [filter, setFilter] = useState('All');
 
-  const filtered = farmData.notifications.filter((n) => filter === 'All' || n.type === filter);
+  const filtered = notifications.filter((n) => {
+    if (filter === 'All') return true;
+    const t = (n.type || '').toLowerCase();
+    const f = filter.toLowerCase();
+    if (f === 'vaccination' && (t === 'vaccination' || t === 'vaccine')) return true;
+    return t === f;
+  });
 
-  const markRead = async (id: string) => {
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
-    farmData.refresh();
+  const priorityVariant = (p: string) => {
+    const pr = (p || '').toLowerCase();
+    if (pr === 'critical') return 'danger';
+    if (pr === 'warning' || pr === 'high') return 'warning';
+    if (pr === 'success') return 'success';
+    return 'primary';
   };
-
-  const markAllRead = async () => {
-    const unread = farmData.notifications.filter((n) => !n.read);
-    if (unread.length === 0) return;
-    await supabase.from('notifications').update({ read: true }).in('id', unread.map((n) => n.id));
-    toast('All notifications marked as read.', 'success');
-    farmData.refresh();
-  };
-
-  const deleteNotification = async (id: string) => {
-    await supabase.from('notifications').delete().eq('id', id);
-    farmData.refresh();
-  };
-
-  const clearAll = async () => {
-    await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    toast('All notifications cleared.', 'success');
-    farmData.refresh();
-  };
-
-  const priorityVariant = (p: string) =>
-    p === 'Critical' ? 'danger' : p === 'Warning' ? 'warning' : 'primary';
 
   const typeIcon = (t: string) => {
-    switch (t) {
-      case 'Health': return <HeartPulse size={18} color="#FF3B30" />;
-      case 'Vaccination': return <Syringe size={18} color="#FF7A18" />;
-      case 'Breeding': return <Heart size={18} color="#FF7A18" />;
-      case 'Weight': return <Scale size={18} color="#FF9F0A" />;
-      case 'Inventory': return <Package size={18} color="#D92D20" />;
-      default: return <Bell size={18} color="#FFB340" />;
+    const type = (t || '').toLowerCase();
+    switch (type) {
+      case 'health':
+        return <HeartPulse size={18} color="#EF4444" />;
+      case 'vaccination':
+      case 'vaccine':
+        return <Syringe size={18} color="#F97316" />;
+      case 'breeding':
+        return <Heart size={18} color="#EC4899" />;
+      case 'weight':
+        return <Scale size={18} color="#EAB308" />;
+      case 'inventory':
+        return <Package size={18} color="#06B6D4" />;
+      case 'expiry':
+        return <AlertTriangle size={18} color="#F59E0B" />;
+      default:
+        return <Bell size={18} color="#10B981" />;
     }
   };
 
+  if (loading && notifications.length === 0) {
+    return <LoadingSpinner text="Loading notifications..." fullScreen />;
+  }
+
   return (
     <div>
+      {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800 }}>Notifications</h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-            {farmData.notifications.filter((n) => !n.read).length} unread of {farmData.notifications.length} total
+            {unreadCount > 0 ? (
+              <span>
+                <strong style={{ color: 'var(--color-primary, #43A047)' }}>{unreadCount} unread</strong> of {notifications.length} total
+              </span>
+            ) : (
+              <span>All {notifications.length} notifications are read</span>
+            )}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button
             variant="secondary"
-            onClick={markAllRead}
-            disabled={farmData.notifications.every((n) => n.read)}
-            leftIcon={<CheckCircle size={15} />}
+            onClick={markAllAsRead}
+            disabled={unreadCount === 0}
+            leftIcon={<CheckCircle2 size={15} />}
           >
             Mark all read
           </Button>
           <Button
             variant="danger"
             onClick={clearAll}
-            disabled={farmData.notifications.length === 0}
+            disabled={notifications.length === 0}
             leftIcon={<Trash2 size={15} />}
           >
             Clear all
@@ -95,70 +113,177 @@ export function NotificationsPage() {
         </div>
       </div>
 
+      {/* Filter Toolbar */}
       <FilterToolbar>
-        {['All', 'Health', 'Vaccination', 'Breeding', 'Weight', 'Inventory', 'System'].map((t) => (
-          <FilterPill
-            key={t}
-            active={filter === t}
-            onClick={() => setFilter(t)}
-            label={t}
-          />
-        ))}
+        {['All', 'Health', 'Vaccination', 'Breeding', 'Weight', 'Inventory', 'Expiry', 'System'].map((t) => {
+          const count = notifications.filter((n) => {
+            if (t === 'All') return true;
+            const nt = (n.type || '').toLowerCase();
+            const pill = t.toLowerCase();
+            if (pill === 'vaccination' && (nt === 'vaccination' || nt === 'vaccine')) return true;
+            return nt === pill;
+          }).length;
+
+          return (
+            <FilterPill
+              key={t}
+              active={filter === t}
+              onClick={() => setFilter(t)}
+              label={t}
+              count={count}
+            />
+          );
+        })}
       </FilterToolbar>
 
+      {/* Notifications List Container */}
       <Card variant="glass" padding="none">
         {filtered.length === 0 ? (
           <EmptyState
             icon={<Bell size={32} />}
             title="No notifications"
-            description="Alerts about your farm will appear here."
+            description="Alerts and updates about your farm will appear here."
           />
         ) : (
-          <div style={{ padding: '0 20px' }}>
-            {filtered.map((n, idx) => (
-              <div
-                key={n.id}
-                style={{
-                  display: 'flex', gap: 12, alignItems: 'flex-start',
-                  padding: '14px 0',
-                  borderBottom: idx < filtered.length - 1 ? '1px solid var(--border-light, rgba(255,255,255,0.08))' : 'none',
-                  cursor: n.link ? 'pointer' : 'default',
-                  opacity: n.read ? 0.6 : 1,
-                }}
-                onClick={() => { if (n.link) navigate(n.link); }}
-              >
-                <div style={{ marginTop: 2 }}>{typeIcon(n.type)}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{n.title}</span>
-                    <Badge variant={priorityVariant(n.priority)} size="sm">{n.priority}</Badge>
-                    {!n.read && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-brand-primary, #FF7A18)' }} />}
+          <div style={{ padding: '4px 16px' }}>
+            {filtered.map((n, idx) => {
+              const isUnread = !n.read && !n.is_read;
+              const hasLink = Boolean(n.action_url || n.link || n.animal_id);
+
+              return (
+                <div
+                  key={n.id}
+                  className={`notif-row-card ${isUnread ? 'notif-card-unread' : 'notif-card-read'}`}
+                  style={{
+                    display: 'flex',
+                    gap: 14,
+                    alignItems: 'flex-start',
+                    padding: '16px 14px',
+                    margin: '8px 0',
+                    borderRadius: '12px',
+                    border: isUnread
+                      ? '1px solid rgba(67, 160, 71, 0.35)'
+                      : '1px solid var(--border-light, rgba(0,0,0,0.06))',
+                    background: isUnread
+                      ? 'var(--notif-unread-bg, rgba(67, 160, 71, 0.06))'
+                      : 'var(--card-bg, rgba(255, 255, 255, 0.6))',
+                    cursor: hasLink ? 'pointer' : 'default',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onClick={() => {
+                    handleNotificationClick(n, navigate);
+                  }}
+                >
+                  {/* Left Icon */}
+                  <div
+                    style={{
+                      marginTop: 2,
+                      width: 36,
+                      height: 36,
+                      borderRadius: '10px',
+                      background: isUnread ? 'rgba(67, 160, 71, 0.12)' : 'rgba(0, 0, 0, 0.04)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {typeIcon(n.type)}
                   </div>
-                  {n.description && <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{n.description}</div>}
-                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)', marginTop: 4 }}>{formatDateTime(n.created_at)}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {!n.read && (
+
+                  {/* Center Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          fontWeight: isUnread ? 800 : 600,
+                          fontSize: 14.5,
+                          color: 'var(--text, #0f172a)',
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        {n.title}
+                      </span>
+                      <Badge variant={priorityVariant(n.priority)} size="sm">
+                        {n.priority}
+                      </Badge>
+                      {isUnread && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: '#22C55E',
+                            color: '#FFFFFF',
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          ● UNREAD
+                        </span>
+                      )}
+                    </div>
+                    {(n.description || n.message) && (
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: isUnread ? 'var(--text, #1e293b)' : 'var(--color-text-secondary, #64748b)',
+                          lineHeight: 1.45,
+                          marginTop: 2,
+                        }}
+                      >
+                        {n.description || n.message}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        fontSize: 11.5,
+                        color: 'var(--color-text-secondary, #94a3b8)',
+                        marginTop: 6,
+                      }}
+                    >
+                      <span>{formatDateTime(n.created_at)}</span>
+                      {hasLink && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--color-primary, #43A047)', fontWeight: 600 }}>
+                          View details <ArrowRight size={12} />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Actions */}
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                    {isUnread && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Mark as read"
+                        onClick={() => markAsRead(n.id)}
+                        style={{ padding: '6px 8px' }}
+                      >
+                        <CheckCircle2 size={16} />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      title="Mark as read"
-                      onClick={(e) => { e.stopPropagation(); markRead(n.id); }}
+                      title="Delete"
+                      onClick={() => deleteNotification(n.id)}
+                      style={{ padding: '6px 8px', color: 'var(--color-danger, #EF4444)' }}
                     >
-                      <CheckCircle size={15} />
+                      <Trash2 size={16} />
                     </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    title="Delete"
-                    onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
-                  >
-                    <Trash2 size={15} />
-                  </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>

@@ -2,12 +2,12 @@ import { type ReactNode, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { useFarmData } from '../../lib/useFarmData';
+import { useNotifications } from '../../context/NotificationContext';
 import { AppSidebar } from './AppSidebar';
 import { MobileSidebar } from './MobileSidebar';
 import { MobileBottomNav } from './MobileBottomNav';
 import { AppHeader } from './AppHeader';
 import { FloatingAICloud } from '../FloatingAICloud';
-
 
 export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/dashboard':        { title: 'Dashboard',            subtitle: 'Farm overview at a glance'                  },
@@ -40,6 +40,7 @@ export function AppShell({ children }: AppShellProps) {
   const { user, role, signOut } = useAuth();
   const location = useLocation();
   const farmData = useFarmData();
+  const { notifications, unreadCount, refresh: refreshNotifications } = useNotifications();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -54,16 +55,21 @@ export function AppShell({ children }: AppShellProps) {
   const pageTitle = PAGE_TITLES[pathKey] ?? { title: 'AlpasFarm', subtitle: '' };
 
   // ── Badges ──────────────────────────────────────────────────────────────────
-  const unreadNotifs = farmData.notifications.filter((n) => !n.read).length;
+  const unreadNotifs = unreadCount;
   const overdueVacc  = farmData.animals.filter((a) => a.vaccination_status === 'Overdue' && !a.archived).length;
   const lowStock     = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock)).length;
 
   function getBadge(to: string): number {
-    if (to === '/notifications' || to === '/daily-alerts') return unreadNotifs;
+    if (to === '/notifications' || to === '/daily-alerts' || to === '/alerts') return unreadNotifs;
     if (to === '/vaccinations')  return overdueVacc;
     if (to === '/inventory')     return lowStock;
     return 0;
   }
+
+  const handleCombinedRefresh = () => {
+    farmData.refresh();
+    refreshNotifications();
+  };
 
   return (
     <div className="app-layout">
@@ -87,12 +93,12 @@ export function AppShell({ children }: AppShellProps) {
           user={user}
           role={role}
           signOut={signOut}
-          notifications={farmData.notifications}
+          notifications={notifications}
           animals={farmData.animals}
           inventory={farmData.inventory}
           vaccinations={farmData.vaccinations}
           breedingRecords={farmData.breedingRecords}
-          onRefreshData={farmData.refresh}
+          onRefreshData={handleCombinedRefresh}
         />
 
         <main className="content">{children}</main>
@@ -106,4 +112,3 @@ export function AppShell({ children }: AppShellProps) {
     </div>
   );
 }
-
