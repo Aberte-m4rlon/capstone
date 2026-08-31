@@ -342,7 +342,7 @@ export function HealthPage() {
       const result = await runCameraScreening(canvas, selectedAnimalId);
       setCameraResult(result);
       if (!result.goatDetected) {
-        toast(`Non-target species detected: ${result.nonTargetClass ?? 'Unknown'}. Please scan a goat or sheep.`, 'warning');
+        toast('This is not a goat or sheep. Please scan a goat or sheep.', 'warning');
       } else {
         toast('Camera ML visual assessment completed successfully!', 'success');
       }
@@ -364,7 +364,7 @@ export function HealthPage() {
       const result = await runCameraScreening(canvas, selectedAnimalId);
       setCameraResult(result);
       if (!result.goatDetected) {
-        toast(`Non-target species detected: ${result.nonTargetClass ?? 'Unknown'}. Please upload a goat or sheep image.`, 'warning');
+        toast('This is not a goat or sheep. Please upload a goat or sheep image.', 'warning');
       } else {
         toast('Image assessment completed successfully!', 'success');
       }
@@ -1334,7 +1334,7 @@ export function HealthPage() {
                   <div style={{ fontSize: 13, fontWeight: 700, color: cameraResult.goatDetected ? '#7C3AED' : '#EF4444' }}>
                     {cameraResult.goatDetected
                       ? `${cameraResult.species === 'sheep' ? 'Sheep' : 'Goat'} detected (${Math.round(cameraResult.goatDetectionConfidence * 100)}% match)`
-                      : `Non-target detected (${cameraResult.nonTargetClass ?? 'Unknown'})`}
+                      : 'This is not a goat or sheep'}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                     Visual Risk: {cameraResult.riskLevelLabel} · Confidence: {Math.round(cameraResult.confidence * 100)}%

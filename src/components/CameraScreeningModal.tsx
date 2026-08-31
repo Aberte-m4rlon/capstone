@@ -458,13 +458,10 @@ function ScanResultCard({
             <XCircle size={48} color="#EF4444" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
-            Hindi ito Kambing o Tupa!
+            This is not a goat or sheep!
           </div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-            {result.nonTargetClass ? `Na-detect: ${result.nonTargetClass}` : 'Non-Target Object / Animal'}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
-            {result.recommendation || 'Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+            {result.recommendation || 'Hindi ito kambing o tupa. Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
             <AlertTriangle size={14} /> Hindi maaaring i-save ang screening record na ito.

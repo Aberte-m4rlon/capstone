@@ -1081,16 +1081,15 @@ export async function runHealthScan(
       );
 
       if (!isGoatOrSheep) {
-        const nonTargetName = serverResult.nonTargetClass || 'Bagay / Ibang Hayop';
         return {
           goatDetected: false,
           goatDetectionConfidence: serverResult.detectionConfidence || 0,
           multipleAnimals: false,
-          nonTargetClass: nonTargetName,
-          species: serverResult.animalType || 'other',
+          nonTargetClass: 'This is not a goat or sheep',
+          species: 'other',
           riskScore: 0,
           riskLevel: 'LOW',
-          riskLevelLabel: 'Hindi ito Kambing o Tupa',
+          riskLevelLabel: 'This is not a goat or sheep',
           riskLevelColor: '#EF4444',
           riskLevelEmoji: '',
           confidence: serverResult.detectionConfidence || 0,
@@ -1101,13 +1100,13 @@ export async function runHealthScan(
           combinedFactors: [],
           possibleConditions: serverResult.possibleConditions || [],
           observations: serverResult.observations || [],
-          recommendation: serverResult.explanation || `Hindi ito kambing o tupa (${nonTargetName}). Ang AI Health Screening ay para lamang sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.`,
+          recommendation: serverResult.explanation || 'This is not a goat or sheep. Ang AI Health Screening ay para lamang sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.',
           recommendedActions: serverResult.recommendedActions || [
             'Itapat ang camera sa kambing o tupa lamang',
             'Tiyaking buong katawan o mukha ng hayop ang nasa frame',
             'Mag-upload ng malinaw na litrato ng kambing o tupa',
           ],
-          explanation: serverResult.explanation || `Na-detect ng AI ang "${nonTargetName}". Eksklusibo lamang ang sistemang ito sa kalusugan ng kambing at tupa.`,
+          explanation: serverResult.explanation || 'This is not a goat or sheep. Eksklusibo lamang ang sistemang ito sa kalusugan ng kambing at tupa.',
           modelVersion: serverResult.modelVersion || MODEL_VERSION,
           scanType,
           timestamp,

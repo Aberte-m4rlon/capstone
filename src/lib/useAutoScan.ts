@@ -74,8 +74,7 @@ function buildMessage(
     case 'idle':           return 'Camera not started.';
     case 'loading':        return 'Loading AI detection model...';
     case 'other_detected': {
-      const obj = det?.nonTargetClass ?? 'Bagay / Ibang Hayop';
-      return `Hindi ito kambing o tupa (${obj}). Pakitapat ang camera sa goat o sheep.`;
+      return 'This is not a goat or sheep. Pakitapat ang camera sa goat o sheep.';
     }
     case 'detecting':
       if (!det || (!det.detected && !det.otherDetected)) {
@@ -91,10 +90,9 @@ function buildMessage(
       }
       if (det.otherDetected) {
         if (isObserving && remainingSec > 0) {
-          return `Sinusuri kung ano ang nasa camera (${remainingSec.toFixed(1)}s)... Panatilihing nakatutok`;
+          return `Sinusuri ang camera feed (${remainingSec.toFixed(1)}s)... Panatilihing nakatutok`;
         }
-        const obj = det.nonTargetClass ?? 'Bagay / Ibang Hayop';
-        return `Hindi ito kambing o tupa (${obj}).`;
+        return 'This is not a goat or sheep.';
       }
       return 'Naghahanap ng kambing o tupa...';
     case 'stable': {

@@ -387,12 +387,11 @@ export async function detectGoatInFrame(
     (bestOther && (bestOther.confidence > cumulativeRuminantProb || totalOtherProb >= 0.25))
   ) {
     _stableFrameCount = 0;
-    const nonTargetName = bestOther?.mapping.displayName || topMapping?.displayName || 'Bagay / Ibang Hayop';
     return {
       detected: false,
       otherDetected: true,
       detectedSpecies: null,
-      nonTargetClass: nonTargetName,
+      nonTargetClass: 'This is not a goat or sheep',
       detectedEmoji: '',
       confidence: +(bestOther?.confidence || topPred.probability).toFixed(2),
       topClass: bestOther?.rawClass || topPred.className,
@@ -539,7 +538,7 @@ export function fallbackDetectGoat(
         detected: false,
         otherDetected: true,
         detectedSpecies: null,
-        nonTargetClass: 'Tao (Person)',
+        nonTargetClass: 'This is not a goat or sheep',
         detectedEmoji: '',
         confidence: 0.90,
         topClass: 'Person (Edge CV)',

@@ -541,7 +541,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                         <ShieldAlert size={32} color="#DC2626" />
                       </div>
                       <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626' }}>
-                        Hindi ito kambing o tupa!
+                        This is not a goat or sheep!
                       </div>
                       <div style={{
                         fontSize: 13,
@@ -552,10 +552,10 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                         borderRadius: 10,
                         padding: '8px 18px',
                       }}>
-                        {det?.nonTargetClass ? `Detected: ${det.nonTargetClass}` : 'Non-Livestock Object Detected'}
+                        Hindi ito kambing o tupa
                       </div>
                       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, maxWidth: 320 }}>
-                        Pakitapat ang camera sa goat o sheep. Naka-block ang disease analysis para sa hindi awtorisadong bagay.
+                        Pakitapat ang camera sa goat o sheep. Ang AI Health Scanner ay para lamang sa mga kambing at tupa.
                       </div>
                     </div>
                   )}
@@ -665,7 +665,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                     {det?.detected ? (
                       <><Activity size={13} color="#43A047" /> {speciesLabel} Detected ({Math.round(det.confidence * 100)}%)</>
                     ) : det?.otherDetected ? (
-                      <><Activity size={13} color="#D97706" /> Sinusuri ang Bagay ({det.nonTargetClass || 'Non-Livestock'})</>
+                      <><Activity size={13} color="#D97706" /> Sinusuri ang feed...</>
                     ) : (
                       'Naghahanap ng Hayop...'
                     )}
@@ -1314,14 +1314,11 @@ function ScanResultCard({
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
             <ShieldAlert size={40} color="#DC2626" />
           </div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 4 }}>
-            Hindi ito Kambing o Tupa!
+          <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
+            This is not a goat or sheep!
           </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#1F2937', marginBottom: 8 }}>
-            {result.nonTargetClass ? `Na-detect: ${result.nonTargetClass}` : 'Non-livestock object detected'}
-          </div>
-          <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.6, marginBottom: 14 }}>
-            {result.recommendation || 'Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
+          <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, marginBottom: 16 }}>
+            {result.recommendation || 'Hindi ito kambing o tupa. Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
           </div>
           <button
             onClick={onRescan}
