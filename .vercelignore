@@ -1,0 +1,13 @@
+node_modules
+myai_service
+ml-server
+datasets
+alpasfarm_yolo_goat_health_1000_scaffold
+.git
+.github
+*.pt
+*.onnx
+*.weights
+*.tar.xz
+*.joblib
+*.pkl
