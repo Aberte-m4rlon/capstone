@@ -88,6 +88,7 @@ interface AuthContextValue {
   role: UserRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithEmailOtp: (email: string) => Promise<{ error: string | null; message?: string }>;
   signUp: (opts: SignUpOptions) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   verifyEmailOtp: (email: string, token: string, extraData?: { fullName?: string; farmName?: string }) => Promise<{ error: string | null }>;
   resendVerificationCode: (email: string) => Promise<{ error: string | null }>;
@@ -362,11 +363,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
+    // ── Sign in with Email OTP Code ─────────────────────────────────────────────
+  const signInWithEmailOtp = async (email: string): Promise<{ error: string | null; message?: string }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) return { error: 'Please enter your email address.' };
+
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(trimmedEmail)) return { error: 'Please enter a valid email address.' };
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmedEmail,
+        options: {
+          shouldCreateUser: false,
+        },
+      });
+
+      if (error) {
+        const msg = error.message?.toLowerCase() ?? '';
+        if (msg.includes('user not found') || msg.includes('signups not allowed') || msg.includes('not found')) {
+          return { error: 'No account found with this email. Please sign up first.' };
+        }
+        if (msg.includes('rate') || msg.includes('limit') || msg.includes('seconds')) {
+          return { error: 'Please wait a moment before requesting another code.' };
+        }
+        return { error: error.message || 'Failed to send verification code to email.' };
+      }
+
+      return {
+        error: null,
+        message: 'A 6-digit verification code has been sent to ' + trimmedEmail + '.',
+      };
+    } catch (err: any) {
+      return { error: err?.message || 'Error sending email verification code.' };
+    }
+  };
+
   // ── Verify Email OTP ────────────────────────────────────────────────────────
   const verifyEmailOtp = async (
     email: string,
     token: string,
-    extraData?: { fullName?: string; farmName?: string },
+    extraData?: { fullName?: string; farmName?: string; farmLocation?: string },
   ): Promise<{ error: string | null }> => {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedToken = token.trim();
@@ -375,20 +412,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!trimmedToken) return { error: 'Please enter the verification code.' };
 
     try {
+      // 1. Try verify with type 'email' (Magic code / OTP login)
       let res = await supabase.auth.verifyOtp({
         email: trimmedEmail,
         token: trimmedToken,
-        type: 'signup',
+        type: 'email',
       });
 
+      // 2. Fallback to type 'signup' (Sign up confirmation code)
       if (res.error) {
-        const retry = await supabase.auth.verifyOtp({
+        const signupRetry = await supabase.auth.verifyOtp({
           email: trimmedEmail,
           token: trimmedToken,
-          type: 'email',
+          type: 'signup',
         });
-        if (!retry.error && retry.data.user) {
-          res = retry;
+        if (!signupRetry.error && signupRetry.data.user) {
+          res = signupRetry;
+        }
+      }
+
+      // 3. Fallback to type 'magiclink'
+      if (res.error) {
+        const mlRetry = await supabase.auth.verifyOtp({
+          email: trimmedEmail,
+          token: trimmedToken,
+          type: 'magiclink',
+        });
+        if (!mlRetry.error && mlRetry.data.user) {
+          res = mlRetry;
         }
       }
 
@@ -447,7 +498,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // ── Resend Email OTP ────────────────────────────────────────────────────────
-  const resendVerificationCode = async (email: string): Promise<{ error: string | null }> => {
+  const resendVerificationCode = async (email: string): Promise<{ error: string | null; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) return { error: 'Email address is required.' };
 
@@ -458,14 +509,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        const msg = error.message?.toLowerCase() ?? '';
-        if (msg.includes('rate') || msg.includes('limit') || msg.includes('seconds')) {
-          return { error: 'Please wait a moment before requesting another code.' };
+        // Fallback: try signInWithOtp
+        const otpRetry = await supabase.auth.signInWithOtp({ email: trimmedEmail });
+        if (otpRetry.error) {
+          const msg = otpRetry.error.message?.toLowerCase() ?? '';
+          if (msg.includes('rate') || msg.includes('limit') || msg.includes('seconds')) {
+            return { error: 'Please wait a moment before requesting another code.' };
+          }
+          return { error: otpRetry.error.message || 'Unable to resend verification code.' };
         }
-        return { error: error.message || 'Unable to resend code right now.' };
       }
 
-      return { error: null };
+      return { error: null, message: 'A fresh verification code has been sent to ' + trimmedEmail + '.' };
     } catch (err: any) {
       return { error: err?.message || 'Network error while resending verification code.' };
     }
@@ -711,6 +766,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: profile?.role ?? null,
         loading,
         signIn,
+    signInWithEmailOtp,
         signUp,
         verifyEmailOtp,
         resendVerificationCode,

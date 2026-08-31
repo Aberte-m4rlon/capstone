@@ -93,6 +93,7 @@ type AuthMethod = 'phone' | 'email';
 export function AuthPage() {
   const {
     signIn,
+    signInWithEmailOtp,
     signUp,
     verifyEmailOtp,
     resendVerificationCode,
@@ -205,6 +206,40 @@ export function AuthPage() {
       return;
     }
     navigate(defaultRouteForRole(role), { replace: true });
+  };
+
+  // ── Send Email OTP Code for Sign In ───────────────────────────────────────
+  const handleEmailSendOtp = async () => {
+    if (loading) return;
+    const email = siEmail.trim();
+    if (!email) {
+      setError('Please enter your email address to receive a verification code.');
+      return;
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setError(null);
+    setResendSuccess(null);
+    setLoading(true);
+
+    const res = await signInWithEmailOtp(email);
+    setLoading(false);
+
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+
+    setTargetDestination(email);
+    setActiveVerifyType('email');
+    setView('verify');
+    setResendCooldown(60);
+    setVerificationCode('');
+    setResendSuccess(res.message || 'A 6-digit verification code has been sent to your email.');
   };
 
   // ── Phone Sign Up ───────────────────────────────────────────────────────────
@@ -977,7 +1012,7 @@ export function AuthPage() {
                     )}
                   </button>
                 </form>
-              ) : (
+                            ) : (
                 /* Email & Password Sign In */
                 <form onSubmit={handleEmailSignIn} noValidate>
                   <Field label="Email Address" icon={Mail}>
@@ -1003,18 +1038,38 @@ export function AuthPage() {
                     />
                   </Field>
 
-                  <div style={{ marginBottom: 20 }}>
-                    <label style={{
-                      display: 'block',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: 'var(--text, #1F2933)',
-                      marginBottom: 6,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.4px',
-                    }}>
-                      Password
-                    </label>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--text, #1F2933)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px',
+                      }}>
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleEmailSendOtp}
+                        disabled={loading}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#2E7D32',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          padding: 0,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Sparkles size={12} color="#2E7D32" />
+                        Sign In with 6-Digit Email Code
+                      </button>
+                    </div>
                     <div style={{ position: 'relative' }}>
                       <Lock
                         size={16}
@@ -1070,46 +1125,74 @@ export function AuthPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    style={{
-                      width: '100%',
-                      padding: '14px',
-                      background: loading ? 'rgba(67, 160, 71, 0.5)' : 'linear-gradient(135deg, #43A047 0%, #2E7D32 100%)',
-                      border: 'none',
-                      borderRadius: '14px',
-                      color: '#FFFFFF',
-                      fontSize: 15,
-                      fontWeight: 800,
-                      boxShadow: loading ? 'none' : '0 8px 24px rgba(46, 125, 50, 0.28)',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      boxSizing: 'border-box',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    {loading ? (
-                      <>
-                        <div style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
-                          border: '2px solid rgba(255,255,255,0.35)',
-                          borderTopColor: '#FFFFFF',
-                          animation: 'spin 0.7s linear infinite',
-                        }} />
-                        Signing in…
-                      </>
-                    ) : (
-                      <>
-                        Sign In <ArrowRight size={17} />
-                      </>
-                    )}
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      style={{
+                        width: '100%',
+                        padding: '14px',
+                        background: loading ? 'rgba(67, 160, 71, 0.5)' : 'linear-gradient(135deg, #43A047 0%, #2E7D32 100%)',
+                        border: 'none',
+                        borderRadius: '14px',
+                        color: '#FFFFFF',
+                        fontSize: 15,
+                        fontWeight: 800,
+                        boxShadow: loading ? 'none' : '0 8px 24px rgba(46, 125, 50, 0.28)',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        boxSizing: 'border-box',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      {loading ? (
+                        <>
+                          <div style={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            border: '2px solid rgba(255,255,255,0.35)',
+                            borderTopColor: '#FFFFFF',
+                            animation: 'spin 0.7s linear infinite',
+                          }} />
+                          Signing in…
+                        </>
+                      ) : (
+                        <>
+                          Sign In with Password <ArrowRight size={17} />
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleEmailSendOtp}
+                      disabled={loading}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        background: '#F0FDF4',
+                        border: '1.5px solid #BBF7D0',
+                        borderRadius: '14px',
+                        color: '#166534',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        boxSizing: 'border-box',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <Mail size={15} color="#166534" />
+                      Send 6-Digit Code to Email
+                    </button>
+                  </div>
                 </form>
               )}
 
