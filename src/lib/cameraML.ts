@@ -1039,7 +1039,25 @@ export async function runHealthScan(
 
   // ── Step A: Call Real Serverless ML Endpoint (/api/ml/analyze) ──────────
   try {
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    // Downscale canvas to max 640x640 for high-speed transmission & GPU inference
+    let dataUrl: string;
+    const maxDim = 640;
+    if (canvas.width > maxDim || canvas.height > maxDim) {
+      const scale = Math.min(maxDim / canvas.width, maxDim / canvas.height);
+      const smallCanvas = document.createElement('canvas');
+      smallCanvas.width = Math.round(canvas.width * scale);
+      smallCanvas.height = Math.round(canvas.height * scale);
+      const sCtx = smallCanvas.getContext('2d');
+      if (sCtx) {
+        sCtx.drawImage(canvas, 0, 0, smallCanvas.width, smallCanvas.height);
+        dataUrl = smallCanvas.toDataURL('image/jpeg', 0.82);
+      } else {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      }
+    } else {
+      dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    }
+
     const resp = await fetch('/api/ml/analyze', {
       method: 'POST',
       headers: {

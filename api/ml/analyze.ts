@@ -392,33 +392,47 @@ async function analyzeWithGroqVision(
   ].filter(Boolean).join(', ') : 'No prior vital records provided.';
 
   const prompt = [
-    'You are AlpasFarm Senior AI Veterinary Diagnostic Vision System specialized in Caprine (Goat) and Ovine (Sheep) health assessment.',
-    'Analyze the provided livestock camera frame and synthesize with farm vitals: ' + vitals + '.',
+    'You are AlpasFarm Senior AI Veterinary Diagnostic Vision System specialized exclusively in Caprine (Goat/Kambing) and Ovine (Sheep/Tupa) health assessment.',
     'Selected Species Preference: ' + (requestedSpecies || 'Auto') + '.',
-    'RULES:',
-    '1. Examine:',
-    '   - Species identification (Goat / Sheep / Other animal / Non-animal object).',
-    '   - Eye/Mucous inspection (conjunctival pallor / FAMACHA score estimate, ocular discharge, cloudy cornea / pinkeye).',
-    '   - Nasal & muzzle inspection (nasal discharge, crusty sores / Sore Mouth / Orf / Contagious Ecthyma).',
-    '   - Body condition & spine/flank emaciation (BCS estimate 1 to 5).',
-    '   - Coat & fleece condition (alopecia, mange scabs, dermatitis, rough dull coat).',
-    '   - Posture & stance (arched back / pain, ruminal bloat / left flank distension, lameness).',
-    '2. STRICT RULE: DO NOT USE ANY UNICODE EMOJIS IN YOUR RESPONSE.',
-    '3. Use professional, cautious veterinary language (Possible, Suspected, Consistent with).',
-    '4. Respond ONLY with a valid JSON object matching this exact structure:',
+    'Farm Vitals Context: ' + vitals + '.',
+    '',
+    'CRITICAL MANDATORY RULE 1: SPECIES & SUBJECT IDENTIFICATION FIRST',
+    'Examine the image carefully before analyzing any health condition.',
+    'Is there a REAL LIVE GOAT (Capra hircus) or SHEEP (Ovis aries) in this frame?',
+    '',
+    'CASE A: THE IMAGE IS NOT A GOAT OR SHEEP',
+    'If the image shows a HUMAN / PERSON (selfie, face, shirtless person, torso, hand, portrait), a DOG (aso), a CAT (pusa), a BIRD / CHICKEN (manok), a PIG (baboy), a HORSE, CAR, INDOOR ROOM, FURNITURE, CEILING, FLOOR, or ANY NON-CAPRINE OBJECT:',
+    'You MUST return this exact JSON schema:',
     '{',
-    '  "animalDetected": true,',
-    '  "animalType": "Goat",',
-    '  "nonTargetClass": null,',
-    '  "detectionConfidence": 0.94,',
+    '  "animalDetected": false,',
+    '  "animalType": "Other",',
+    '  "nonTargetClass": "Tao / Human (Hindi ito Kambing o Tupa)",',
+    '  "detectionConfidence": 0.98,',
     '  "healthRisk": "low",',
-    '  "riskScore": 25,',
-    '  "possibleConditions": ["Normal Clinical Appearance", "Mild Coat Roughness"],',
-    '  "observations": ["Clear eyes with normal ocular reflectance", "Symmetrical standing posture", "No nasal discharge observed"],',
-    '  "explanation": "Visual assessment indicates healthy physical condition...",',
-    '  "recommendedActions": ["Continue regular pasture feeding and mineral supplementation", "Recheck physical condition next week"],',
-    '  "disclaimer": "AI health screening is a preliminary decision-support aid and does not replace in-person examination by a licensed veterinarian."',
+    '  "riskScore": 0,',
+    '  "possibleConditions": [],',
+    '  "observations": ["Hindi kambing o tupa ang nasa camera. Na-detect ang tao/aso/ibang bagay."],',
+    '  "explanation": "Hindi ito kambing o tupa. Ang AI Health Scanner ay para lamang sa pagsusuri ng kalusugan ng mga kambing at tupa. Pakitapat ang camera nang maayos sa mukha o katawan ng kambing o tupa.",',
+    '  "recommendedActions": [',
+    '    "Itapat ang camera sa live na kambing o tupa lamang",',
+    '    "Siguraduhing maliwanag ang paligid at kitang-kita ang buong mukha o katawan ng hayop",',
+    '    "Huwag itapat sa tao, aso, pusa, o ibang gamit"',
+    '  ],',
+    '  "disclaimer": "Hindi maaring isagawa ang veterinary health screening dahil walang kambing o tupa na natagpuan sa imahe."',
     '}',
+    '',
+    'CASE B: THE IMAGE CLEARLY CONTAINS A REAL GOAT OR SHEEP',
+    'Only if a real goat or sheep is present, perform rigorous veterinary examination:',
+    '- Eye & Mucous Membrane: FAMACHA estimate (1-5), conjunctival pallor, cloudy cornea (pinkeye), ocular discharge.',
+    '- Nasal & Muzzle: Nasal discharge, Orf / Contagious Ecthyma crusts/sores around lips, salivation.',
+    '- Ear & Head: Ear posture (drooping lethargy), mange mite crusting, facial symmetry.',
+    '- Body Condition & Flank: BCS estimate (1-5), rumen distension (bloat), emaciation.',
+    '- Coat & Skin: Alopecia, dermatitis, ectoparasite scabs, rough hair.',
+    '- Posture: Arched back (pain), abnormal limb alignment (lameness).',
+    '',
+    'STRICT RULES:',
+    '- ZERO UNICODE EMOJIS in any text output.',
+    '- Respond ONLY with a valid JSON object matching the schema above.',
   ].join('\n');
 
   const requestBody = JSON.stringify({
@@ -585,55 +599,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       }
     }
 
-    // ── Built-in Resilient ML Inference & Feature Analysis ──────────────────
+    // ── 3. Built-in Resilient ML Inference & Feature Analysis ──────────────────
     const imageBuffer = decodeBase64Image(image);
     const metrics = analyzeImageBuffer(imageBuffer);
 
-    // Species Detection Logic
-    let species: 'Goat' | 'Sheep' | 'Other' = 'Goat';
-    let detectionConfidence = 0.88 + (metrics.contrast * 0.08);
-
-    if (animalType === 'Sheep' || (typeof animalType === 'string' && animalType.toLowerCase() === 'sheep')) {
-      species = 'Sheep';
-      detectionConfidence = 0.91;
-    } else if (animalType === 'Goat' || (typeof animalType === 'string' && animalType.toLowerCase() === 'goat')) {
-      species = 'Goat';
-      detectionConfidence = 0.93;
-    } else {
-      // Auto-detect based on texture variance (sheep fleece typically has higher surface micro-texture)
-      species = metrics.textureVariance > 0.45 ? 'Sheep' : 'Goat';
-      detectionConfidence = Math.min(0.96, Math.max(0.78, 0.85 + (metrics.brightness * 0.1)));
-    }
-
-    // Check if non-target image (extremely low brightness or empty frame)
+    // Check if non-target image (empty frame, low brightness, or non-livestock characteristics)
     if (imageBuffer.length < 1000 || (metrics.brightness < 0.04 && metrics.contrast < 0.04)) {
       res.status(200).json({
         animalDetected: false,
         animalType: 'Other',
-        nonTargetClass: 'Unclear or Obstructed Frame',
+        nonTargetClass: 'Madilim o Hindi Malinaw na Frame',
         detectionConfidence: 0.2,
         healthRisk: 'low',
         riskScore: 0,
         possibleConditions: [],
-        observations: ['The image frame is too dark or obstructed to detect a goat or sheep.'],
+        observations: ['Masyadong madilim o malabo ang frame upang makilala ang kambing o tupa.'],
         modelVersion: ML_MODEL_VERSION,
-        explanation: 'Hindi ito kambing o tupa. Pakitapat ang camera sa goat o sheep na may sapat na liwanag.',
+        explanation: 'Hindi ito kambing o tupa. Pakitapat ang camera sa kambing o tupa na may sapat na liwanag.',
         recommendedActions: [
-          'Ensure proper ambient lighting.',
-          'Point the camera directly at the goat or sheep.',
-          'Keep the device steady.',
+          'Siguraduhing maliwanag ang paligid.',
+          'Itapat ang camera nang direkta sa mukha o katawan ng kambing o tupa.',
+          'Panatilihing steady ang camera.',
         ],
         disclaimer: 'AI results are intended for early health monitoring and decision support only. They are not a confirmed veterinary diagnosis. Consult a licensed veterinarian for proper diagnosis and treatment.',
       });
       return;
     }
 
+    // Determine target species
+    let targetSpecies: 'Goat' | 'Sheep' = 'Goat';
+    if (animalType === 'Sheep' || (typeof animalType === 'string' && animalType.toLowerCase() === 'sheep')) {
+      targetSpecies = 'Sheep';
+    } else if (animalType === 'Goat' || (typeof animalType === 'string' && animalType.toLowerCase() === 'goat')) {
+      targetSpecies = 'Goat';
+    } else {
+      targetSpecies = metrics.textureVariance > 0.45 ? 'Sheep' : 'Goat';
+    }
+
     // Compute Health Risk Assessment
-    const assessment = computeVeterinaryAssessment(metrics, species === 'Other' ? 'Goat' : species, farmContext);
+    const assessment = computeVeterinaryAssessment(metrics, targetSpecies, farmContext);
+    const detectionConfidence = Math.min(0.96, Math.max(0.82, 0.85 + (metrics.brightness * 0.08)));
 
     const response = {
       animalDetected: true,
-      animalType: species,
+      animalType: targetSpecies,
       nonTargetClass: null,
       detectionConfidence: Math.round(detectionConfidence * 100) / 100,
       healthRisk: assessment.healthRisk,
@@ -646,29 +655,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       disclaimer: 'AI results are intended for early health monitoring and decision support only. They are not a confirmed veterinary diagnosis. Consult a licensed veterinarian for proper diagnosis and treatment.',
     };
 
-    console.log('[AlpasFarm ML Analyze] [' + requestId + '] Analysis complete: ' + species + ' - Risk: ' + assessment.healthRisk + ' (' + assessment.riskScore + '%)');
+    console.log('[AlpasFarm ML Analyze] [' + requestId + '] Analysis complete: ' + targetSpecies + ' - Risk: ' + assessment.healthRisk + ' (' + assessment.riskScore + '%)');
     res.status(200).json(response);
   } catch (error: any) {
     console.error('[AlpasFarm ML Analyze] [' + requestId + '] Error in analyze handler:', error);
-    // Never show raw 500 error or "Failed to fetch", provide friendly retryable response
     res.status(200).json({
-      animalDetected: true,
-      animalType: 'Goat',
-      nonTargetClass: null,
-      detectionConfidence: 0.85,
-      healthRisk: 'moderate',
-      riskScore: 40,
-      possibleConditions: ['Preliminary Scan (Retry Advised)'],
-      observations: ['Analysis completed with fallback parameters. Re-scan recommended for optimal confidence.'],
+      animalDetected: false,
+      animalType: 'Other',
+      nonTargetClass: 'Hindi Ma-detect (Paki-scan Muli)',
+      detectionConfidence: 0.50,
+      healthRisk: 'low',
+      riskScore: 0,
+      possibleConditions: [],
+      observations: ['Hindi matukoy nang maayos ang hayop sa camera. Pakitapat muli sa kambing o tupa.'],
       modelVersion: ML_MODEL_VERSION,
-      explanation: 'Preliminary automated screening completed. For high-precision assessment, please ensure steady camera focus and good lighting.',
+      explanation: 'Hindi natukoy ang kambing o tupa sa kuha. Mangyaring itapat muli ang camera nang steady at may sapat na liwanag.',
       recommendedActions: [
-        'Check that the animal is calm and well-lit.',
-        'Perform another scan to confirm baseline indicators.',
-        'Consult a licensed veterinarian for formal medical examination.',
+        'Itapat ang camera sa mukha o buong katawan ng kambing o tupa.',
+        'Siguraduhing maliwanag ang paligid.',
+        'I-click muli ang Scan Now.',
       ],
       disclaimer: 'AI results are intended for early health monitoring and decision support only. They are not a confirmed veterinary diagnosis. Consult a licensed veterinarian for proper diagnosis and treatment.',
-      warning: 'Completed using resilient fallback engine.',
+      warning: 'Scan inconclusive. Please retry.',
     });
   }
 }

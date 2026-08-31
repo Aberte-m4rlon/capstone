@@ -13,19 +13,19 @@
  *   - AMBIENT    → Empty pen, low light, background → "Looking for a goat or sheep..."
  *
  * CONFIGURABLE THRESHOLDS:
- *   OBJECT_DETECTION_THRESHOLD  = 0.12  (lowered for high recall on live video)
- *   GOAT_DETECTION_THRESHOLD    = 0.14  (cumulative threshold across all ruminant classes)
- *   REQUIRED_STABLE_FRAMES      = 2     (350ms window for fast auto-capture)
+ *   OBJECT_DETECTION_THRESHOLD  = 0.10  (fast non-target rejection)
+ *   GOAT_DETECTION_THRESHOLD    = 0.15  (cumulative threshold across all ruminant classes)
+ *   REQUIRED_STABLE_FRAMES      = 2     (300ms window for fast auto-capture)
  *   SCAN_COOLDOWN_SECONDS       = 5     (seconds before auto-resuming next scan)
- *   DETECTION_INTERVAL_MS       = 180   (~5.5 FPS detection cadence)
+ *   DETECTION_INTERVAL_MS       = 140   (~7 FPS detection cadence)
  */
 
 // ── Configurable constants ────────────────────────────────────────────────────
-export const OBJECT_DETECTION_THRESHOLD = 0.12;
-export const GOAT_DETECTION_THRESHOLD   = 0.14;
+export const OBJECT_DETECTION_THRESHOLD = 0.10;
+export const GOAT_DETECTION_THRESHOLD   = 0.15;
 export const REQUIRED_STABLE_FRAMES     = 2;
 export const SCAN_COOLDOWN_SECONDS      = 5;
-export const DETECTION_INTERVAL_MS      = 180;
+export const DETECTION_INTERVAL_MS      = 140;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type Species = 'goat' | 'sheep' | 'other';
@@ -60,6 +60,7 @@ export interface DetectionResult {
 
 // ── ImageNet Classes & Synsets Mapping ────────────────────────────────────────
 const CLASS_MAP: Record<string, ClassMapping> = {
+  // Caprine (Goats)
   'goat':           { species: 'goat',  displayName: 'Goat (Kambing)' },
   'ibex':           { species: 'goat',  displayName: 'Goat (Ibex)' },
   'domestic goat':  { species: 'goat',  displayName: 'Goat (Kambing)' },
@@ -85,6 +86,7 @@ const CLASS_MAP: Record<string, ClassMapping> = {
   'hartebeest':     { species: 'goat',  displayName: 'Goat / Antelope' },
   'antelope':       { species: 'goat',  displayName: 'Goat / Antelope' },
 
+  // Ovine (Sheep)
   'sheep':          { species: 'sheep', displayName: 'Sheep (Tupa)' },
   'ram':            { species: 'sheep', displayName: 'Sheep (Ram / Barako)' },
   'tup':            { species: 'sheep', displayName: 'Sheep (Tup)' },
@@ -99,18 +101,52 @@ const CLASS_MAP: Record<string, ClassMapping> = {
   'fleece':         { species: 'sheep', displayName: 'Sheep (Fleece)' },
   'wool':           { species: 'sheep', displayName: 'Sheep (Wool)' },
 
-  'llama':          { species: 'goat',  displayName: 'Llama / Goat' },
-  'alpaca':         { species: 'sheep', displayName: 'Alpaca / Sheep' },
-  'ox':             { species: 'goat',  displayName: 'Ox / Livestock' },
-  'water buffalo':  { species: 'goat',  displayName: 'Livestock' },
-
-  'dog':            { species: 'other', displayName: 'Aso (Dog)' },
-  'cat':            { species: 'other', displayName: 'Pusa (Cat)' },
+  // Common Non-Target (Humans & Clothing)
   'person':         { species: 'other', displayName: 'Tao (Person)' },
+  'human':          { species: 'other', displayName: 'Tao (Person)' },
   'man':            { species: 'other', displayName: 'Tao (Person)' },
   'woman':          { species: 'other', displayName: 'Tao (Person)' },
-  'human':          { species: 'other', displayName: 'Tao (Person)' },
   'face':           { species: 'other', displayName: 'Mukha ng Tao' },
+  'groom':          { species: 'other', displayName: 'Tao (Person)' },
+  'scuba diver':    { species: 'other', displayName: 'Tao (Person)' },
+  'jersey':         { species: 'other', displayName: 'Damit / Tao' },
+  't-shirt':        { species: 'other', displayName: 'Damit / Tao' },
+  'sweatshirt':     { species: 'other', displayName: 'Damit / Tao' },
+  'suit':           { species: 'other', displayName: 'Damit / Tao' },
+  'jean':           { species: 'other', displayName: 'Damit / Tao' },
+  'pajama':         { species: 'other', displayName: 'Damit / Tao' },
+  'sunglasses':     { species: 'other', displayName: 'Salamin / Tao' },
+  'wig':            { species: 'other', displayName: 'Pustiso / Bagay' },
+  'mask':           { species: 'other', displayName: 'Mask / Tao' },
+
+  // Dogs (Major ImageNet Dog Breeds)
+  'dog':            { species: 'other', displayName: 'Aso (Dog)' },
+  'golden retriever': { species: 'other', displayName: 'Aso (Retriever)' },
+  'labrador retriever': { species: 'other', displayName: 'Aso (Labrador)' },
+  'german shepherd': { species: 'other', displayName: 'Aso (Shepherd)' },
+  'rottweiler':     { species: 'other', displayName: 'Aso (Rottweiler)' },
+  'chihuahua':      { species: 'other', displayName: 'Aso (Chihuahua)' },
+  'pug':            { species: 'other', displayName: 'Aso (Pug)' },
+  'bulldog':        { species: 'other', displayName: 'Aso (Bulldog)' },
+  'beagle':         { species: 'other', displayName: 'Aso (Beagle)' },
+  'poodle':         { species: 'other', displayName: 'Aso (Poodle)' },
+  'husky':          { species: 'other', displayName: 'Aso (Husky)' },
+  'dalmatian':      { species: 'other', displayName: 'Aso (Dalmatian)' },
+  'corgi':          { species: 'other', displayName: 'Aso (Corgi)' },
+  'boxer':          { species: 'other', displayName: 'Aso (Boxer)' },
+  'doberman':       { species: 'other', displayName: 'Aso (Doberman)' },
+  'shih-tzu':       { species: 'other', displayName: 'Aso (Shih-Tzu)' },
+  'maltese':        { species: 'other', displayName: 'Aso (Maltese)' },
+  'terrier':        { species: 'other', displayName: 'Aso (Terrier)' },
+  'spaniel':        { species: 'other', displayName: 'Aso (Spaniel)' },
+  'hound':          { species: 'other', displayName: 'Aso (Hound)' },
+  'collie':         { species: 'other', displayName: 'Aso (Collie)' },
+
+  // Cats & Other Animals
+  'cat':            { species: 'other', displayName: 'Pusa (Cat)' },
+  'tabby':          { species: 'other', displayName: 'Pusa (Tabby Cat)' },
+  'persian cat':    { species: 'other', displayName: 'Pusa (Cat)' },
+  'siamese cat':    { species: 'other', displayName: 'Pusa (Cat)' },
   'chicken':        { species: 'other', displayName: 'Manok (Chicken)' },
   'rooster':        { species: 'other', displayName: 'Tandang (Rooster)' },
   'hen':            { species: 'other', displayName: 'Inahin (Hen)' },
@@ -119,69 +155,146 @@ const CLASS_MAP: Record<string, ClassMapping> = {
   'pig':            { species: 'other', displayName: 'Baboy (Pig)' },
   'hog':            { species: 'other', displayName: 'Baboy (Hog)' },
   'horse':          { species: 'other', displayName: 'Kabayo (Horse)' },
+  'cow':            { species: 'other', displayName: 'Baka (Cow)' },
+  'cattle':         { species: 'other', displayName: 'Baka (Cattle)' },
+  'bull':           { species: 'other', displayName: 'Baka (Bull)' },
+  'carabao':        { species: 'other', displayName: 'Kalabaw' },
+  'water buffalo':  { species: 'other', displayName: 'Kalabaw' },
+
+  // Household & Electronics
   'car':            { species: 'other', displayName: 'Kotse (Car)' },
   'truck':          { species: 'other', displayName: 'Sasakyan' },
   'motorcycle':     { species: 'other', displayName: 'Motorsiklo' },
   'bicycle':        { species: 'other', displayName: 'Bisikleta' },
   'chair':          { species: 'other', displayName: 'Upuan / Bagay' },
   'table':          { species: 'other', displayName: 'Mesa / Bagay' },
+  'desk':           { species: 'other', displayName: 'Mesa / Bagay' },
   'cellphone':      { species: 'other', displayName: 'Telepono / Gadget' },
+  'cellular telephone': { species: 'other', displayName: 'Telepono' },
   'laptop':         { species: 'other', displayName: 'Kompyuter / Gadget' },
+  'screen':         { species: 'other', displayName: 'Screen / Monitor' },
+  'monitor':        { species: 'other', displayName: 'Monitor / Display' },
+  'television':     { species: 'other', displayName: 'TV / Display' },
   'bottle':         { species: 'other', displayName: 'Bote / Bagay' },
 };
 
 interface PartialMatch { substr: string; species: Species; displayName: string }
 const PARTIAL_MATCHES: PartialMatch[] = [
-  { substr: 'goat',      species: 'goat',  displayName: 'Goat (Kambing)' },
-  { substr: 'capra',     species: 'goat',  displayName: 'Goat (Kambing)' },
-  { substr: 'caprine',   species: 'goat',  displayName: 'Goat (Kambing)' },
-  { substr: 'ibex',      species: 'goat',  displayName: 'Goat (Ibex)' },
-  { substr: 'chamois',   species: 'goat',  displayName: 'Goat (Chamois)' },
-  { substr: 'goral',     species: 'goat',  displayName: 'Goat (Goral)' },
-  { substr: 'tahr',      species: 'goat',  displayName: 'Goat (Tahr)' },
-  { substr: 'serow',     species: 'goat',  displayName: 'Goat (Serow)' },
-  { substr: 'bezoar',    species: 'goat',  displayName: 'Goat' },
-  { substr: 'gazelle',   species: 'goat',  displayName: 'Goat / Gazelle' },
-  { substr: 'impala',    species: 'goat',  displayName: 'Goat / Impala' },
-  { substr: 'hartebeest',species: 'goat',  displayName: 'Goat / Antelope' },
-  { substr: 'antelope',  species: 'goat',  displayName: 'Goat / Antelope' },
-  { substr: 'hircus',    species: 'goat',  displayName: 'Goat (Kambing)' },
-  { substr: 'boer',      species: 'goat',  displayName: 'Boer Goat' },
-  { substr: 'sheep',     species: 'sheep', displayName: 'Sheep (Tupa)' },
-  { substr: 'lamb',      species: 'sheep', displayName: 'Sheep (Lamb)' },
-  { substr: 'ewe',       species: 'sheep', displayName: 'Sheep (Ewe)' },
-  { substr: 'ram',       species: 'sheep', displayName: 'Sheep (Ram)' },
-  { substr: 'tup',       species: 'sheep', displayName: 'Sheep (Tupa)' },
-  { substr: 'ovis',      species: 'sheep', displayName: 'Sheep (Tupa)' },
-  { substr: 'merino',    species: 'sheep', displayName: 'Merino Sheep' },
-  { substr: 'mouflon',   species: 'sheep', displayName: 'Mouflon Sheep' },
-  { substr: 'bighorn',   species: 'sheep', displayName: 'Bighorn Sheep' },
-  { substr: 'dorper',    species: 'sheep', displayName: 'Dorper Sheep' },
-  { substr: 'fleece',    species: 'sheep', displayName: 'Sheep (Fleece)' },
-  { substr: 'dog',       species: 'other', displayName: 'Aso (Dog)' },
-  { substr: 'hound',     species: 'other', displayName: 'Aso (Dog)' },
-  { substr: 'terrier',   species: 'other', displayName: 'Aso (Dog)' },
-  { substr: 'retriever', species: 'other', displayName: 'Aso (Dog)' },
-  { substr: 'cat',       species: 'other', displayName: 'Pusa (Cat)' },
-  { substr: 'feline',    species: 'other', displayName: 'Pusa (Cat)' },
-  { substr: 'person',    species: 'other', displayName: 'Tao (Person)' },
-  { substr: 'human',     species: 'other', displayName: 'Tao (Person)' },
-  { substr: 'man',       species: 'other', displayName: 'Tao (Person)' },
-  { substr: 'woman',     species: 'other', displayName: 'Tao (Person)' },
-  { substr: 'girl',      species: 'other', displayName: 'Tao (Person)' },
-  { substr: 'boy',       species: 'other', displayName: 'Tao (Person)' },
-  { substr: 'bird',      species: 'other', displayName: 'Ibon (Bird)' },
-  { substr: 'chicken',   species: 'other', displayName: 'Manok (Chicken)' },
-  { substr: 'rooster',   species: 'other', displayName: 'Tandang (Rooster)' },
-  { substr: 'hen',       species: 'other', displayName: 'Inahin (Hen)' },
-  { substr: 'pig',       species: 'other', displayName: 'Baboy (Pig)' },
-  { substr: 'swine',     species: 'other', displayName: 'Baboy (Pig)' },
-  { substr: 'horse',     species: 'other', displayName: 'Kabayo (Horse)' },
-  { substr: 'vehicle',   species: 'other', displayName: 'Sasakyan' },
-  { substr: 'car',       species: 'other', displayName: 'Kotse' },
-  { substr: 'screen',    species: 'other', displayName: 'Screen / Monitor' },
-  { substr: 'monitor',   species: 'other', displayName: 'Monitor / Display' },
-  { substr: 'keyboard',  species: 'other', displayName: 'Keyboard' },
+  // Goat Synsets
+  { substr: 'goat',       species: 'goat',  displayName: 'Goat (Kambing)' },
+  { substr: 'capra',      species: 'goat',  displayName: 'Goat (Kambing)' },
+  { substr: 'caprine',    species: 'goat',  displayName: 'Goat (Kambing)' },
+  { substr: 'ibex',       species: 'goat',  displayName: 'Goat (Ibex)' },
+  { substr: 'chamois',    species: 'goat',  displayName: 'Goat (Chamois)' },
+  { substr: 'goral',      species: 'goat',  displayName: 'Goat (Goral)' },
+  { substr: 'tahr',       species: 'goat',  displayName: 'Goat (Tahr)' },
+  { substr: 'serow',      species: 'goat',  displayName: 'Goat (Serow)' },
+  { substr: 'bezoar',     species: 'goat',  displayName: 'Goat' },
+  { substr: 'gazelle',    species: 'goat',  displayName: 'Goat / Gazelle' },
+  { substr: 'impala',     species: 'goat',  displayName: 'Goat / Impala' },
+  { substr: 'hartebeest', species: 'goat',  displayName: 'Goat / Antelope' },
+  { substr: 'antelope',   species: 'goat',  displayName: 'Goat / Antelope' },
+  { substr: 'hircus',     species: 'goat',  displayName: 'Goat (Kambing)' },
+  { substr: 'boer',       species: 'goat',  displayName: 'Boer Goat' },
+
+  // Sheep Synsets
+  { substr: 'sheep',      species: 'sheep', displayName: 'Sheep (Tupa)' },
+  { substr: 'lamb',       species: 'sheep', displayName: 'Sheep (Lamb)' },
+  { substr: 'ewe',        species: 'sheep', displayName: 'Sheep (Ewe)' },
+  { substr: 'ram',        species: 'sheep', displayName: 'Sheep (Ram)' },
+  { substr: 'tup',        species: 'sheep', displayName: 'Sheep (Tupa)' },
+  { substr: 'ovis',       species: 'sheep', displayName: 'Sheep (Tupa)' },
+  { substr: 'merino',     species: 'sheep', displayName: 'Merino Sheep' },
+  { substr: 'mouflon',    species: 'sheep', displayName: 'Mouflon Sheep' },
+  { substr: 'bighorn',    species: 'sheep', displayName: 'Bighorn Sheep' },
+  { substr: 'dorper',     species: 'sheep', displayName: 'Dorper Sheep' },
+  { substr: 'fleece',     species: 'sheep', displayName: 'Sheep (Fleece)' },
+
+  // Dog Synsets
+  { substr: 'dog',        species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'hound',      species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'terrier',    species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'retriever',  species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'shepherd',   species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'spaniel',    species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'pointer',    species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'setter',     species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'collie',     species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'husky',      species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'poodle',     species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'pug',        species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'bulldog',    species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'mastiff',    species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'corgi',      species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'chihuahua',  species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'rottweiler', species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'doberman',   species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'boxer',      species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'schnauzer',  species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'beagle',     species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'malamute',   species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'dalmatian',  species: 'other', displayName: 'Aso (Dog)' },
+  { substr: 'puppy',      species: 'other', displayName: 'Aso (Puppy)' },
+  { substr: 'canine',     species: 'other', displayName: 'Aso (Dog)' },
+
+  // Cat Synsets
+  { substr: 'cat',        species: 'other', displayName: 'Pusa (Cat)' },
+  { substr: 'feline',     species: 'other', displayName: 'Pusa (Cat)' },
+  { substr: 'tabby',      species: 'other', displayName: 'Pusa (Cat)' },
+  { substr: 'kitten',     species: 'other', displayName: 'Pusa (Kitten)' },
+
+  // Human & Clothes Synsets
+  { substr: 'person',     species: 'other', displayName: 'Tao (Person)' },
+  { substr: 'human',      species: 'other', displayName: 'Tao (Person)' },
+  { substr: 'man',        species: 'other', displayName: 'Tao (Person)' },
+  { substr: 'woman',      species: 'other', displayName: 'Tao (Person)' },
+  { substr: 'girl',       species: 'other', displayName: 'Tao (Person)' },
+  { substr: 'boy',        species: 'other', displayName: 'Tao (Person)' },
+  { substr: 'face',       species: 'other', displayName: 'Mukha ng Tao' },
+  { substr: 'selfie',     species: 'other', displayName: 'Tao (Selfie)' },
+  { substr: 'jersey',     species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'shirt',      species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'suit',       species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'coat',       species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'jacket',     species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'jean',       species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'pants',      species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'pajama',     species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'sweater',    species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'hoodie',     species: 'other', displayName: 'Damit / Tao' },
+  { substr: 'sunglasses', species: 'other', displayName: 'Salamin / Tao' },
+  { substr: 'glasses',    species: 'other', displayName: 'Salamin / Tao' },
+  { substr: 'wig',        species: 'other', displayName: 'Pustiso / Bagay' },
+
+  // Other Livestock & Poultry
+  { substr: 'bird',       species: 'other', displayName: 'Ibon (Bird)' },
+  { substr: 'chicken',    species: 'other', displayName: 'Manok (Chicken)' },
+  { substr: 'rooster',    species: 'other', displayName: 'Tandang (Rooster)' },
+  { substr: 'hen',        species: 'other', displayName: 'Inahin (Hen)' },
+  { substr: 'duck',       species: 'other', displayName: 'Bibe (Duck)' },
+  { substr: 'pig',        species: 'other', displayName: 'Baboy (Pig)' },
+  { substr: 'swine',      species: 'other', displayName: 'Baboy (Pig)' },
+  { substr: 'hog',        species: 'other', displayName: 'Baboy (Hog)' },
+  { substr: 'horse',      species: 'other', displayName: 'Kabayo (Horse)' },
+  { substr: 'cow',        species: 'other', displayName: 'Baka (Cow)' },
+  { substr: 'cattle',     species: 'other', displayName: 'Baka (Cattle)' },
+  { substr: 'bull',       species: 'other', displayName: 'Baka (Bull)' },
+  { substr: 'carabao',    species: 'other', displayName: 'Kalabaw' },
+
+  // Environment & Objects
+  { substr: 'vehicle',    species: 'other', displayName: 'Sasakyan' },
+  { substr: 'car',        species: 'other', displayName: 'Kotse' },
+  { substr: 'screen',     species: 'other', displayName: 'Screen / Monitor' },
+  { substr: 'monitor',    species: 'other', displayName: 'Monitor / Display' },
+  { substr: 'keyboard',   species: 'other', displayName: 'Keyboard' },
+  { substr: 'laptop',     species: 'other', displayName: 'Kompyuter / Laptop' },
+  { substr: 'phone',      species: 'other', displayName: 'Telepono' },
+  { substr: 'chair',      species: 'other', displayName: 'Upuan' },
+  { substr: 'table',      species: 'other', displayName: 'Mesa' },
+  { substr: 'desk',       species: 'other', displayName: 'Mesa' },
+  { substr: 'couch',      species: 'other', displayName: 'Sofa / Couch' },
+  { substr: 'wall',       species: 'other', displayName: 'Pader / Kwarto' },
+  { substr: 'room',       species: 'other', displayName: 'Kwarto / Loob ng Bahay' },
 ];
 
 let _stableFrameCount = 0;
@@ -189,7 +302,7 @@ let _lastMissedTime   = 0;
 
 function lookupClass(className: string): ClassMapping | null {
   const lower = className.toLowerCase().trim();
-  const parts = lower.split(/[,\s\/_-]+/).filter(Boolean);
+  const parts = lower.split(/[,s/_-]+/).filter(Boolean);
   for (const part of parts) {
     if (CLASS_MAP[part]) return CLASS_MAP[part];
   }
@@ -262,12 +375,33 @@ export async function detectGoatInFrame(
 
   const cumulativeRuminantProb = totalGoatProb + totalSheepProb;
   const topPred = predictions[0] ?? { className: '', probability: 0 };
+  const topMapping = lookupClass(topPred.className);
 
+  // ── PRIORITY 1: Non-Target Rejection (Person, Dog, Cat, Object) ───────────
   if (
-    cumulativeRuminantProb >= GOAT_DETECTION_THRESHOLD ||
-    totalGoatProb >= 0.10 ||
-    totalSheepProb >= 0.10 ||
-    (speciesPreference && speciesPreference !== 'auto' && cumulativeRuminantProb >= 0.08)
+    (topMapping && topMapping.species === 'other' && topPred.probability >= OBJECT_DETECTION_THRESHOLD) ||
+    (bestOther && (bestOther.confidence > cumulativeRuminantProb || totalOtherProb >= 0.25))
+  ) {
+    _stableFrameCount = 0;
+    const nonTargetName = bestOther?.mapping.displayName || topMapping?.displayName || 'Bagay / Ibang Hayop';
+    return {
+      detected: false,
+      otherDetected: true,
+      detectedSpecies: null,
+      nonTargetClass: nonTargetName,
+      detectedEmoji: '',
+      confidence: +(bestOther?.confidence || topPred.probability).toFixed(2),
+      topClass: bestOther?.rawClass || topPred.className,
+      allClasses: predictions,
+      isStable: false,
+      stableFrames: 0,
+    };
+  }
+
+  // ── PRIORITY 2: Valid Goat or Sheep Detection ──────────────────────────────
+  if (
+    cumulativeRuminantProb >= GOAT_DETECTION_THRESHOLD &&
+    cumulativeRuminantProb > totalOtherProb
   ) {
     _stableFrameCount++;
     _lastMissedTime = 0;
@@ -298,30 +432,10 @@ export async function detectGoatInFrame(
     };
   }
 
-  if (bestOther && (bestOther.confidence >= OBJECT_DETECTION_THRESHOLD || totalOtherProb >= 0.20)) {
-    _stableFrameCount = 0;
-    return {
-      detected: false,
-      otherDetected: true,
-      detectedSpecies: null,
-      nonTargetClass: bestOther.mapping.displayName,
-      detectedEmoji: '',
-      confidence: +bestOther.confidence.toFixed(2),
-      topClass: bestOther.rawClass,
-      allClasses: predictions,
-      isStable: false,
-      stableFrames: 0,
-    };
-  }
-
-  const cvFallback = fallbackDetectGoat(video, speciesPreference);
-  if (cvFallback.detected) {
-    return cvFallback;
-  }
-
+  // If MobileNet was unsure, do NOT trigger false goat
   if (_lastMissedTime === 0) {
     _lastMissedTime = Date.now();
-  } else if (Date.now() - _lastMissedTime > 450) {
+  } else if (Date.now() - _lastMissedTime > 400) {
     _stableFrameCount = 0;
     _lastMissedTime = 0;
   }
@@ -339,6 +453,9 @@ export function resetStableFrameCount(): void {
   _lastMissedTime   = 0;
 }
 
+/**
+ * Fallback Edge CV detector with Strict Human-Skin & Non-Target Rejection
+ */
 export function fallbackDetectGoat(
   video: HTMLVideoElement,
   speciesPreference?: 'goat' | 'sheep' | 'auto',
@@ -370,9 +487,9 @@ export function fallbackDetectGoat(
     const data = imgData.data;
     const totalPixels = 96 * 96;
 
-    let warmEarthyPixels = 0;
+    let humanSkinPixels = 0;
+    let coarseCoatPixels = 0;
     let whiteFleecePixels = 0;
-    let darkCoatPixels = 0;
     let totalLum = 0;
     let gradientEnergy = 0;
     let prevLum = -1;
@@ -384,12 +501,20 @@ export function fallbackDetectGoat(
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
       totalLum += lum;
 
-      if (r > 70 && g > 45 && r > g && b < r * 0.9 && lum > 40 && lum < 220) {
-        warmEarthyPixels++;
-      } else if (r > 160 && g > 160 && b > 150 && Math.abs(r - g) < 25 && Math.abs(g - b) < 25) {
+      // Human skin tone pattern in webcam: R > G > B, with typical peach/olive hue
+      const isSkinTone = r > 95 && g > 45 && b > 20 && (r - g) > 15 && (r - b) > 20 && lum > 40 && lum < 225;
+      if (isSkinTone) {
+        humanSkinPixels++;
+      }
+
+      // Animal fleece: high bright desaturated wool texture
+      if (r > 150 && g > 150 && b > 140 && Math.abs(r - g) < 20 && Math.abs(g - b) < 20) {
         whiteFleecePixels++;
-      } else if (r < 65 && g < 65 && b < 65 && lum > 15) {
-        darkCoatPixels++;
+      }
+
+      // Coarse dark/brown livestock coat (distinct from human smooth skin)
+      if (r > 40 && g > 30 && b < 50 && (r - b) > 10 && Math.abs(r - g) < 25) {
+        coarseCoatPixels++;
       }
 
       if (prevLum >= 0) {
@@ -398,27 +523,45 @@ export function fallbackDetectGoat(
       prevLum = lum;
     }
 
-    const avgLum = totalLum / totalPixels;
-    const warmRatio = warmEarthyPixels / totalPixels;
+    const skinRatio = humanSkinPixels / totalPixels;
     const fleeceRatio = whiteFleecePixels / totalPixels;
-    const darkRatio = darkCoatPixels / totalPixels;
-    const organicCoatScore = warmRatio + (fleeceRatio * 0.8) + (darkRatio * 0.5);
+    const coatRatio = coarseCoatPixels / totalPixels;
     const textureDensity = (gradientEnergy / totalPixels) / 255;
 
-    if (avgLum < 20 || avgLum > 245) {
+    // ── Reject Human / Selfie ───────────────────────────────────────────────
+    if (skinRatio > 0.25) {
+      _stableFrameCount = 0;
+      return {
+        detected: false,
+        otherDetected: true,
+        detectedSpecies: null,
+        nonTargetClass: 'Tao (Person)',
+        detectedEmoji: '',
+        confidence: 0.90,
+        topClass: 'Person (Edge CV)',
+        allClasses: [{ className: 'person', probability: 0.90 }],
+        isStable: false,
+        stableFrames: 0,
+      };
+    }
+
+    // ── Reject Empty Background / Low Quality ────────────────────────────────
+    const avgLum = totalLum / totalPixels;
+    if (avgLum < 20 || avgLum > 245 || textureDensity < 0.03) {
       return empty;
     }
 
-    const isAnimalPresent = organicCoatScore > 0.18 && textureDensity > 0.04;
+    // Valid livestock coat require real fleece or coarse livestock fur texture
+    const isAnimalPresent = (fleeceRatio > 0.20 || coatRatio > 0.25) && textureDensity > 0.06;
 
     if (isAnimalPresent) {
       _stableFrameCount++;
       const detectedSp: 'goat' | 'sheep' =
-        speciesPreference === 'sheep' || (speciesPreference === 'auto' && fleeceRatio > warmRatio * 1.5)
+        speciesPreference === 'sheep' || (speciesPreference === 'auto' && fleeceRatio > coatRatio)
           ? 'sheep'
           : 'goat';
 
-      const cvConfidence = Math.min(0.92, Math.max(0.70, 0.60 + organicCoatScore * 0.5 + textureDensity * 2));
+      const cvConfidence = Math.min(0.90, Math.max(0.70, 0.65 + textureDensity * 1.5));
 
       return {
         detected: true,
