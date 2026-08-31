@@ -216,7 +216,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!smsSent) {
       res.status(502).json({
         success: false,
-        error: providerError ? 'Failed to dispatch SMS: ' + providerError : 'SMS service is active via Firebase Phone Authentication.',
+        error: providerError ? 'Failed to dispatch SMS: ' + providerError : 'SMS service is active.',
         code: 'SMS_SEND_FAILED',
       });
       return;

@@ -96,7 +96,7 @@ export async function sendFirebasePhoneOtp(
 
     return {
       success: true,
-      message: 'SMS verification code sent to ' + phoneNumberE164 + ' via Firebase.',
+      message: 'SMS verification code sent to ' + phoneNumberE164 + '.',
       confirmationResult,
     };
   } catch (err: any) {
