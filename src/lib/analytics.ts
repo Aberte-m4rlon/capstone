@@ -62,17 +62,17 @@ export function detectEarlyIllness(input: {
 
   if (respScore >= 3) {
     conditions.push({
-      condition: 'Possible Pneumonia / Respiratory Disease',
+      condition: 'Possible Respiratory Problem (Early Warning)',
       severity: respScore >= 4 ? 'Critical' : 'Warning',
-      description: `Fever + rapid breathing + cough/nasal discharge detected. Respiratory rate: ${input.respiratory_rate ?? 'not recorded'} breaths/min (normal: 12–20).`,
-      action: 'Isolate animal. Contact veterinarian. Antibiotics may be required.',
+      description: `Fever + rapid breathing + cough/nasal discharge observed. Respiratory rate: ${input.respiratory_rate ?? 'not recorded'} breaths/min (normal: 12–20). Health screening indicator only.`,
+      action: 'Isolate animal in dry shelter. Veterinary assessment recommended. Antibiotics may be required under vet guidance.',
     });
   } else if (input.cough && input.nasal_discharge) {
     conditions.push({
-      condition: 'Early Respiratory Signs',
+      condition: 'Possible Mild Respiratory Irritation (Needs Checking)',
       severity: 'Warning',
       description: 'Cough and nasal discharge present. Monitor for fever and labored breathing.',
-      action: 'Monitor temperature every 12 hours. Ensure adequate ventilation.',
+      action: 'Monitor temperature every 12 hours. Ensure adequate ventilation. Consult vet if worsening.',
     });
   }
 
@@ -88,18 +88,18 @@ export function detectEarlyIllness(input: {
   if (anemiaScore >= 2) {
     const critical = (input.famacha_score ?? 0) >= 5 || input.mucous_membrane === 'White';
     conditions.push({
-      condition: 'Suspected Anemia / Barber Pole Worm Infestation',
+      condition: 'Possible Parasite/Worm Risk & Anemia Signs (Needs Checking)',
       severity: critical ? 'Critical' : 'Warning',
-      description: `FAMACHA score: ${input.famacha_score ?? 'not recorded'} (normal: 1–2). Mucous membrane: ${input.mucous_membrane}. Barber pole worm (Haemonchus contortus) is the leading cause of anemia in goats/sheep.`,
+      description: `FAMACHA score: ${input.famacha_score ?? 'not recorded'} (normal: 1–2). Mucous membrane: ${input.mucous_membrane}. Barber pole worm risk indicator. Non-diagnostic health screening indicator.`,
       action: critical
-        ? 'Emergency deworming required. Consult veterinarian immediately. Iron supplementation may be needed.'
-        : 'Administer appropriate dewormer. Recheck FAMACHA in 2 weeks.',
+        ? 'Emergency deworming evaluation needed. Consult veterinarian immediately. Iron supplementation may be needed.'
+        : 'Deworming evaluation recommended. Consult vet and recheck FAMACHA in 2 weeks.',
     });
   } else if (input.famacha_score !== null && input.famacha_score === 3) {
     conditions.push({
-      condition: 'Borderline Anemia (FAMACHA 3)',
+      condition: 'Borderline Anemia Signs (FAMACHA 3 - Needs Checking)',
       severity: 'Warning',
-      description: 'FAMACHA score of 3 indicates borderline anemia. Monitor closely for worm burden.',
+      description: 'FAMACHA score of 3 indicates borderline pale mucous membrane. Monitor closely for worm burden.',
       action: 'Recheck FAMACHA score in 2 weeks. Consider fecal egg count test.',
     });
   }
@@ -108,12 +108,12 @@ export function detectEarlyIllness(input: {
   // Bloat score 2–3 = dangerous; absent/reduced rumen sounds + distension
   if (input.bloat_score >= 2) {
     conditions.push({
-      condition: input.bloat_score === 3 ? 'Severe Bloat (Emergency)' : 'Moderate Bloat',
+      condition: input.bloat_score === 3 ? 'Possible Acute Bloat Risk (Urgent Attention)' : 'Possible Bloat / Digestive Disturbance',
       severity: input.bloat_score === 3 ? 'Critical' : 'Warning',
-      description: `Bloat score: ${input.bloat_score}/3. Rumen sounds: ${input.rumen_sounds}. Left flank distension may be visible. Frothy or free-gas bloat can be life-threatening.`,
+      description: `Bloat score: ${input.bloat_score}/3. Rumen sounds: ${input.rumen_sounds}. Left flank distension observed. Health screening indicator.`,
       action: input.bloat_score === 3
-        ? 'EMERGENCY: Walk the animal. Pass stomach tube. Contact veterinarian immediately. Can be fatal within hours.'
-        : 'Restrict grazing on wet legumes. Administer anti-bloat solution. Monitor closely.',
+        ? 'URGENT: Walk the animal. Restrict feed. Contact veterinarian immediately. Can worsen rapidly.'
+        : 'Restrict grazing on wet legumes/lush pasture. Administer anti-bloat drench if indicated. Monitor closely.',
     });
   } else if (input.rumen_sounds === 'Absent') {
     conditions.push({
@@ -196,10 +196,10 @@ export function detectEarlyIllness(input: {
 
   if (pprScore >= 4) {
     conditions.push({
-      condition: 'Suspected PPR (Peste des Petits Ruminants)',
+      condition: 'Severe Viral Illness Warning Signs (Urgent Vet Assessment Recommended)',
       severity: 'Critical',
-      description: 'Multiple classic PPR symptoms detected: high fever, ocular/nasal discharge, diarrhea, and loss of appetite. PPR is a highly contagious and fatal viral disease in goats and sheep.',
-      action: 'ISOLATE IMMEDIATELY. Report to local DA-BAI (Bureau of Animal Industry). Do NOT move animals. No cure — only prevention via vaccination.',
+      description: 'Multiple classic viral illness symptoms observed: high fever, ocular/nasal discharge, diarrhea, and appetite loss. Highly contagious risk pattern. Early warning screening alert.',
+      action: 'ISOLATE IMMEDIATELY in separate pen. Report to local DA-BAI or licensed veterinarian. Do not transport animals.',
     });
   }
 

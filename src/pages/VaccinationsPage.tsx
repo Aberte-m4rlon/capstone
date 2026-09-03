@@ -34,6 +34,8 @@ const emptyForm = {
   next_due_date: '',
   veterinarian: '',
   notes: '',
+  inventory_item_id: '',
+  deduct_quantity: 1,
 };
 
 /* ─── Reusable Liquid Glass Style Tokens ─────────────────────────────────── */
@@ -134,6 +136,8 @@ export function VaccinationsPage() {
       next_due_date: r.next_due_date ?? '',
       veterinarian: r.veterinarian ?? '',
       notes: r.notes ?? '',
+      inventory_item_id: '',
+      deduct_quantity: 1,
     });
     setErrors({});
     setModalOpen(true);
@@ -183,6 +187,31 @@ export function VaccinationsPage() {
           await createNotification(animal.user_id, 'Vaccination', `${animal.name} — Vaccination due in ${days} days`, `${form.vaccine_name} due ${form.next_due_date}`, 'Warning', '/vaccinations');
         }
       }
+
+      // Auto-deduct inventory if an inventory item was selected
+      if (!editing && form.inventory_item_id) {
+        const invItem = farmData.inventory.find((i) => i.id === form.inventory_item_id);
+        if (invItem) {
+          const qtyToDeduct = Number(form.deduct_quantity) || 1;
+          const newStock = Math.max(0, invItem.quantity - qtyToDeduct);
+          await supabase.from('inventory').update({ quantity: newStock }).eq('id', invItem.id);
+          await supabase.from('inventory_transactions').insert({
+            inventory_item_id: invItem.id,
+            type: 'CONSUMPTION',
+            quantity: qtyToDeduct,
+            unit: invItem.unit,
+            reason: 'Vaccination',
+            reference_type: 'animal',
+            reference_id: form.animal_id,
+            notes: `Bakuna: ${form.vaccine_name} para kay ${animal?.tag_id ?? ''} (${animal?.name ?? ''})`,
+            previous_stock: invItem.quantity,
+            new_stock: newStock,
+            cost_per_unit: invItem.cost ?? null,
+          });
+          toast(`Nai-bawas ang ${qtyToDeduct} ${invItem.unit} ng ${invItem.name} sa imbentaryo.`, 'success');
+        }
+      }
+
       setModalOpen(false);
       farmData.refresh();
     } catch (err) {
@@ -790,6 +819,59 @@ export function VaccinationsPage() {
                 placeholder="Search or type veterinarian name..."
               />
             </FormField>
+
+            {/* Optional Inventory Link */}
+            {!editing && (
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.10)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>
+                    📦 I-bawas sa Imbentaryo (Deduct from Inventory)
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Opsyonal</span>
+                </div>
+                <Select
+                  value={form.inventory_item_id}
+                  onChange={(e) => setForm({ ...form, inventory_item_id: e.target.value })}
+                  options={[
+                    { value: '', label: 'Huwag magbawas sa imbentaryo' },
+                    ...farmData.inventory.map((item) => ({
+                      value: item.id,
+                      label: `${item.name} (${item.quantity} ${item.unit} available) — ${item.category}`,
+                    })),
+                  ]}
+                />
+                {form.inventory_item_id && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dami na ibabawas (Dose/Qty):</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.deduct_quantity}
+                      onChange={(e) => setForm({ ...form, deduct_quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                      style={{
+                        width: 80,
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        background: 'rgba(0, 0, 0, 0.2)',
+                        color: 'var(--text)',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             <FormField label="Clinical Notes & Dosage">
               <textarea

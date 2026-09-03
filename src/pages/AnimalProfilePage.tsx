@@ -17,7 +17,7 @@ import {
 } from '../lib/analytics';
 import { assessBreedingReadiness } from '../lib/analytics';
 import { Line } from 'react-chartjs-2';
-import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera, Sparkles, Tag, CheckCircle2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera, Sparkles, Tag, CheckCircle2, Package } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex } from '../types';
 import { useAnimalMLPrediction, useAnimalRiskHistory } from '../lib/useMLHealth';
@@ -281,14 +281,21 @@ export function AnimalProfilePage() {
     }],
   };
 
+  const animalInventoryUsage = useMemo(() => {
+    return farmData.inventoryTransactions
+      .filter((tx) => tx.reference_type === 'animal' && tx.reference_id === animal?.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [farmData.inventoryTransactions, animal?.id]);
+
   const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'health', label: 'Health' },
-    { key: 'weight', label: 'Weight' },
-    { key: 'breeding', label: 'Breeding' },
-    { key: 'vaccination', label: 'Vaccination' },
-    { key: 'feed', label: 'Feed' },
-    { key: 'history', label: 'History' },
+    { key: 'overview', label: 'Buod (Overview)' },
+    { key: 'health', label: 'Kalusugan (Health)' },
+    { key: 'weight', label: 'Timbang (Weight)' },
+    { key: 'breeding', label: 'Pagpaparami (Breeding)' },
+    { key: 'vaccination', label: 'Bakuna (Vaccination)' },
+    { key: 'inventory', label: 'Gamit at Imbentaryo' },
+    { key: 'feed', label: 'Pakain (Feed)' },
+    { key: 'history', label: 'Kasaysayan (History)' },
     { key: 'camera', label: 'Camera Screening' },
   ] as const;
 
@@ -607,6 +614,33 @@ export function AnimalProfilePage() {
               <StatRow label="Next Due" value={formatDate(animal.next_vaccine_date)} />
             </GlassCard>
 
+            {/* Inventory Usage Mini-Card */}
+            <GlassCard>
+              <CardTitle icon={Package} title="Gamit at Imbentaryo" />
+              <StatRow label="Nagamit na Gamot/Dosis" value={`${animalInventoryUsage.length} tala`} />
+              <StatRow
+                label="Kabuuang Halaga"
+                value={`₱${animalInventoryUsage.reduce((sum, tx) => sum + (tx.quantity * (tx.cost_per_unit || 0)), 0).toFixed(2)}`}
+              />
+              <button
+                onClick={() => setTab('inventory')}
+                style={{
+                  width: '100%',
+                  marginTop: 10,
+                  padding: '7px',
+                  borderRadius: 8,
+                  border: '1px solid var(--border-light)',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  color: 'var(--text)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Tingnan ang Talaan ng Gamit
+              </button>
+            </GlassCard>
+
             {/* Notes Card — spans 2 cols on desktop */}
             <GlassCard style={{ gridColumn: 'span 2' }}>
               <CardTitle title="Notes" />
@@ -879,6 +913,61 @@ export function AnimalProfilePage() {
                         <td style={{ fontWeight: 600 }}>{f.feed_type}</td>
                         <td>{f.quantity_kg} kg</td>
                         <td>{f.cost ? `₱${f.cost}` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </GlassCard>
+        )}
+
+        {/* INVENTORY USAGE TAB */}
+        {tab === 'inventory' && (
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+              <CardTitle icon={Package} title="Gamit at Supplies mula sa Imbentaryo (Inventory Usage)" />
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+                {animalInventoryUsage.length} naitalang paggamit
+              </div>
+            </div>
+
+            {animalInventoryUsage.length === 0 ? (
+              <div className="empty-state">
+                <div className="es-icon"><Package size={24} /></div>
+                <h4>Walang gamit na naitala</h4>
+                <p>Kusang maitatala rito ang mga bakuna, gamot, o supplies na ibinawas mula sa imbentaryo para kay {animal.name}.</p>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Petsa (Date)</th>
+                      <th>Dami / Yunit</th>
+                      <th>Uri / Dahilan</th>
+                      <th>Detalye (Notes)</th>
+                      <th>Halaga (Cost)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {animalInventoryUsage.map((tx) => (
+                      <tr key={tx.id}>
+                        <td>{formatDate(tx.created_at)}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--text)' }}>
+                          {tx.quantity} {tx.unit}
+                        </td>
+                        <td>
+                          <span className="badge badge-info" style={{ fontSize: 11 }}>
+                            {tx.reason || tx.type}
+                          </span>
+                        </td>
+                        <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                          {tx.notes || '—'}
+                        </td>
+                        <td style={{ fontWeight: 600, color: '#10B981' }}>
+                          {tx.cost_per_unit ? `₱${(tx.quantity * tx.cost_per_unit).toFixed(2)}` : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

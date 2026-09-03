@@ -311,7 +311,7 @@ export function predictEarlyIllness(params: {
 
     if (isSevere || (temp && temp > NORMAL_TEMP_MAX)) {
       possibleConcerns.push({
-        condition: 'Early Respiratory Infection / Pneumonia Risk',
+        condition: 'Possible Respiratory Problem (Needs Checking)',
         severity: temp && temp >= HIGH_FEVER_THRESHOLD ? 'Critical' : 'Warning',
         description: 'Combined cough, nasal discharge, or fever is strongly associated with respiratory infection.',
         action: 'Keep in dry, well-ventilated shelter. Monitor breathing rate and consult a veterinarian if coughing persists.',
@@ -327,7 +327,7 @@ export function predictEarlyIllness(params: {
       severity: 'warning',
     });
     possibleConcerns.push({
-      condition: 'Gastrointestinal Infection / Enterotoxemia Risk',
+      condition: 'Possible Gastrointestinal Issue / Dehydration Risk',
       severity: temp && temp > NORMAL_TEMP_MAX ? 'Critical' : 'Warning',
       description: 'Diarrhea can rapidly cause dehydration and electrolyte imbalance in ruminants.',
       action: 'Provide clean water with electrolytes. Separate from other animals. Check recent feed quality.',
@@ -343,7 +343,7 @@ export function predictEarlyIllness(params: {
       details: 'Mucous membranes appear pale or white.',
     });
     possibleConcerns.push({
-      condition: 'Suspected Anemia / Barber Pole Worm (Haemonchus contortus)',
+      condition: 'Possible Parasite/Worm Risk & Anemia Signs (Needs Checking)',
       severity: 'Critical',
       description: 'Pale membranes indicate significant red blood cell loss, most commonly caused by gastrointestinal parasites.',
       action: 'Perform FAMACHA eye check. Administer appropriate dewormer and consult vet for iron support.',
@@ -358,7 +358,7 @@ export function predictEarlyIllness(params: {
       severity: 'critical',
     });
     possibleConcerns.push({
-      condition: 'Ruminal Bloat Risk',
+      condition: 'Possible Bloat / Digestive Disturbance Risk',
       severity: 'Critical',
       description: 'Distended left flank or tight rumen requires urgent attention to prevent respiratory compromise.',
       action: 'Keep animal standing and gently walk. Avoid wet legume feed. Pass stomach tube or contact vet if distension is severe.',
@@ -373,7 +373,7 @@ export function predictEarlyIllness(params: {
       severity: 'warning',
     });
     possibleConcerns.push({
-      condition: 'Foot Rot / Hoof Injury Risk',
+      condition: 'Possible Hoof Problem / Lameness Risk',
       severity: 'Warning',
       description: 'Lameness indicates possible hoof rot, overgrown hooves, joint infection, or trauma.',
       action: 'Inspect and trim hooves. Clean any wet mud or debris. Apply antiseptic hoof spray if foul odor is detected.',
