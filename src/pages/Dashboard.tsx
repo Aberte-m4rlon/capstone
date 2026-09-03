@@ -149,8 +149,8 @@ export function Dashboard() {
       const score = Math.max(a.health_risk_score ?? 0, latest?.risk_score ?? 0);
       const status = a.health_status;
 
-      const isHigh = status === 'Critical' || (status === 'At Risk' && score >= 60) || latest?.risk_level === 'Critical';
-      const isModerate = !isHigh && (status === 'At Risk' || status === 'Monitor' || latest?.risk_level === 'Warning' || score >= 30);
+      const isHigh = status === 'Critical' || (status === 'At Risk' && score >= 60) || latest?.risk_level === 'High';
+      const isModerate = !isHigh && (status === 'At Risk' || status === 'Monitor' || latest?.risk_level === 'Moderate' || score >= 30);
 
       // Primary concern text
       const rawConcern = latest?.reasons?.[0] || (isHigh ? 'Mataas ang lagnat o panganib sa kalusugan' : isModerate ? 'Nangangailangan ng pagmamanman' : '');

@@ -132,7 +132,7 @@ export function AnimalProfilePage() {
   const { user } = useAuth();
   const toast = useToast();
 
-  const [tab, setTab] = useState<'overview' | 'health' | 'weight' | 'breeding' | 'vaccination' | 'feed' | 'history' | 'camera'>('overview');
+  const [tab, setTab] = useState<'overview' | 'health' | 'weight' | 'breeding' | 'vaccination' | 'inventory' | 'feed' | 'history' | 'camera'>('overview');
   const [qrOpen, setQrOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
