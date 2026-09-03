@@ -326,7 +326,7 @@ export function Dashboard() {
               letterSpacing: '-0.02em',
             }}
           >
-            {greeting}, Farmer! 👋
+            {greeting}, Farmer!
           </h1>
           <Badge variant="primary" size="sm">
             {FARM_LABELS.dashboardTitle}
@@ -355,8 +355,9 @@ export function Dashboard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
-              🐐 {FARM_LABELS.animalsSection}
+            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Layers size={20} color="var(--color-primary, #FF6A2A)" />
+              <span>{FARM_LABELS.animalsSection}</span>
             </h2>
             <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--color-text-secondary, #64748B)' }}>
               Bilang at uri ng kambing at tupa na kasalukuyang nasa bukid
@@ -417,8 +418,8 @@ export function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                🐐 Mga Kambing (Goat)
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Layers size={16} color="var(--color-primary, #FF6A2A)" /> Mga Kambing (Goat)
               </span>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted, #64748B)' }}>
                 {herdStats.total > 0 ? `${Math.round((herdStats.goatsCount / herdStats.total) * 100)}% ng bukid` : '0%'}
@@ -452,8 +453,8 @@ export function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                🐑 Mga Tupa (Sheep)
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Layers size={16} color="#3B82F6" /> Mga Tupa (Sheep)
               </span>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted, #64748B)' }}>
                 {herdStats.total > 0 ? `${Math.round((herdStats.sheepCount / herdStats.total) * 100)}% ng bukid` : '0%'}
@@ -489,19 +490,21 @@ export function Dashboard() {
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                <span style={{ fontWeight: 800, color: '#EC4899' }}>♀ {herdStats.femaleCount}</span>
-                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>Babae</span>
+                <span style={{ fontWeight: 800, color: '#EC4899' }}>{herdStats.femaleCount}</span>
+                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>Babae (Female)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                <span style={{ fontWeight: 800, color: '#3B82F6' }}>♂ {herdStats.maleCount}</span>
-                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>Lalaki</span>
+                <span style={{ fontWeight: 800, color: '#3B82F6' }}>{herdStats.maleCount}</span>
+                <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>Lalaki (Male)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                <span style={{ fontWeight: 800, color: '#F59E0B' }}>🍼 {herdStats.pregnantCount}</span>
+                <Baby size={15} color="#F59E0B" />
+                <span style={{ fontWeight: 800, color: '#F59E0B' }}>{herdStats.pregnantCount}</span>
                 <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>Buntis</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '13px', color: 'var(--color-text-primary)' }}>
-                <span style={{ fontWeight: 800, color: '#10B981' }}>🐣 {herdStats.youngCount}</span>
+                <PawPrint size={15} color="#10B981" />
+                <span style={{ fontWeight: 800, color: '#10B981' }}>{herdStats.youngCount}</span>
                 <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>Anak (&lt;6m)</span>
               </div>
             </div>
@@ -516,8 +519,9 @@ export function Dashboard() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
-                🩺 {FARM_LABELS.healthSection}
+              <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Stethoscope size={20} color="var(--color-primary, #FF6A2A)" />
+                <span>{FARM_LABELS.healthSection}</span>
               </h2>
               <Badge variant="info" size="sm">
                 Early Warning System
@@ -643,8 +647,9 @@ export function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                ⚠ Mga Hayop na Nangangailangan ng Pagsusuri Ngayong Araw:
+              <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={16} color="#F59E0B" />
+                <span>Mga Hayop na Nangangailangan ng Pagsusuri Ngayong Araw:</span>
               </span>
               <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
                 {healthScreening.highRisk.length + healthScreening.moderateRisk.length} alaga
@@ -669,7 +674,7 @@ export function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: '16px' }}>{item.animal.species === 'Goat' ? '🐐' : '🐑'}</span>
+                        <Layers size={16} color="var(--color-primary, #FF6A2A)" />
                         <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary)' }}>
                           {item.animal.name} ({item.animal.tag_id})
                         </span>
@@ -725,8 +730,9 @@ export function Dashboard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
-              🍼 {FARM_LABELS.breedingSection}
+            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Baby size={20} color="#F59E0B" />
+              <span>{FARM_LABELS.breedingSection}</span>
             </h2>
             <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--color-text-secondary, #64748B)' }}>
               Pagbubuntis, pagpapareha, at inaasahang panganganak (150 araw na gestation)
@@ -757,7 +763,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                🍼 Mga Buntis
+                Mga Buntis
               </span>
               <Baby size={18} color="#F59E0B" />
             </div>
@@ -788,7 +794,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                💖 Handa sa Pagpapalahi
+                Handa sa Pagpapalahi
               </span>
               <PawPrint size={18} color="#EC4899" />
             </div>
@@ -817,7 +823,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                📋 May Rekord ng Pagtatalik
+                May Rekord ng Pagtatalik
               </span>
               <Activity size={18} color="#3B82F6" />
             </div>
@@ -846,7 +852,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                🐣 Bagong Panganak
+                Bagong Panganak
               </span>
               <CheckCircle2 size={18} color="#10B981" />
             </div>
@@ -898,8 +904,9 @@ export function Dashboard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
-              💉 {FARM_LABELS.vaccinationSection}
+            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Syringe size={20} color="var(--color-primary, #FF6A2A)" />
+              <span>{FARM_LABELS.vaccinationSection}</span>
             </h2>
             <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--color-text-secondary, #64748B)' }}>
               Proteksyon laban sa sakit (CDT, PPR, Hemorrhagic Septicemia, at pampurga)
@@ -930,7 +937,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                📅 Bakunang Paparating (Due Soon)
+                Bakunang Paparating (Due Soon)
               </span>
               <Clock size={18} color="#F59E0B" />
             </div>
@@ -959,7 +966,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: vaccineStats.overdue.length > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
-                🚨 Overdue na Bakuna
+                Overdue na Bakuna
               </span>
               <AlertTriangle size={18} color={vaccineStats.overdue.length > 0 ? '#EF4444' : '#64748B'} />
             </div>
@@ -988,7 +995,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                ✅ Naibigay Ngayong Buwan
+                Naibigay Ngayong Buwan
               </span>
               <CheckCircle2 size={18} color="#10B981" />
             </div>
@@ -1008,8 +1015,9 @@ export function Dashboard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
-              📦 {FARM_LABELS.inventorySection}
+            <h2 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Package size={20} color="var(--color-primary, #FF6A2A)" />
+              <span>{FARM_LABELS.inventorySection}</span>
             </h2>
             <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--color-text-secondary, #64748B)' }}>
               Bulto ng feeds, gamot, bakuna, at aktwal na gastos sa bukid
@@ -1069,7 +1077,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: inventoryStats.lowStockCount > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>
-                ⚠ Mababang Stock
+                Mababang Stock
               </span>
               <AlertTriangle size={18} color={inventoryStats.lowStockCount > 0 ? '#F59E0B' : '#64748B'} />
             </div>
@@ -1098,7 +1106,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: inventoryStats.expiringCount > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
-                ⏰ Malapit Nang Mag-expire
+                Malapit Nang Mag-expire
               </span>
               <Clock size={18} color={inventoryStats.expiringCount > 0 ? '#EF4444' : '#64748B'} />
             </div>
@@ -1331,7 +1339,12 @@ export function Dashboard() {
       {/* ── Visual Analytics & Health Activity Chart (Collapsible / Trend) ── */}
       <Card variant="default" padding="lg">
         <CardHeader
-          title="📈 Talaan ng Pagsusuri sa Kalusugan (Health Check Activity)"
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <TrendingUp size={18} color="var(--color-primary, #FF6A2A)" />
+              <span>Talaan ng Pagsusuri sa Kalusugan (Health Check Activity)</span>
+            </div>
+          }
           subtitle="Bilang ng mga pagsusuring naisagawa nitong nakaraang 30 araw"
           action={
             <Button variant="ghost" size="sm" onClick={() => navigate('/health')}>

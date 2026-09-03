@@ -22,14 +22,14 @@ export const FARM_LABELS = {
 };
 
 // ─── Species & Sex Terminology ──────────────────────────────────────────────
-export const SPECIES_LABELS: Record<string, { singular: string; plural: string; icon: string }> = {
-  Goat: { singular: 'Kambing', plural: 'Mga Kambing', icon: '🐐' },
-  Sheep: { singular: 'Tupa', plural: 'Mga Tupa', icon: '🐑' },
+export const SPECIES_LABELS: Record<string, { singular: string; plural: string }> = {
+  Goat: { singular: 'Kambing', plural: 'Mga Kambing' },
+  Sheep: { singular: 'Tupa', plural: 'Mga Tupa' },
 };
 
 export const SEX_LABELS: Record<string, { label: string; short: string; symbol: string }> = {
-  Female: { label: 'Babaeng Hayop', short: 'Babae', symbol: '♀' },
-  Male: { label: 'Lalaking Hayop', short: 'Lalaki', symbol: '♂' },
+  Female: { label: 'Babaeng Hayop', short: 'Babae', symbol: 'F' },
+  Male: { label: 'Lalaking Hayop', short: 'Lalaki', symbol: 'M' },
 };
 
 // ─── Monthly Comparison Formatter ───────────────────────────────────────────
@@ -51,7 +51,6 @@ export interface HealthTierConfig {
   color: string;
   bg: string;
   border: string;
-  icon: string;
   description: string;
 }
 
@@ -59,31 +58,28 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
   High: {
     label: 'Mataas ang Panganib (Nangangailangan ng Beterinaryo)',
     shortLabel: 'Mataas ang Panganib',
-    badgeText: '🚨 Mataas ang Panganib',
+    badgeText: 'Mataas ang Panganib',
     color: '#EF4444',
     bg: 'rgba(239, 68, 68, 0.12)',
     border: 'rgba(239, 68, 68, 0.35)',
-    icon: '🚨',
     description: 'May malubhang sintomas na nangangailangan ng agarang pansin o pagsusuri ng doktor ng hayop.',
   },
   Moderate: {
     label: 'Bantayan / Nangangailangan ng Atensyon',
     shortLabel: 'Bantayan',
-    badgeText: '⚠ Nangangailangan ng Atensyon',
+    badgeText: 'Nangangailangan ng Atensyon',
     color: '#F59E0B',
     bg: 'rgba(245, 158, 11, 0.12)',
     border: 'rgba(245, 158, 11, 0.35)',
-    icon: '⚠',
     description: 'May maagang senyales ng karamdaman na dapat obserbahan at subaybayan.',
   },
   Low: {
     label: 'Maayos ang Kalagayan (Malusog)',
     shortLabel: 'Malusog',
-    badgeText: '✓ Maayos ang Kalagayan',
+    badgeText: 'Maayos ang Kalagayan',
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.12)',
     border: 'rgba(16, 185, 129, 0.35)',
-    icon: '✓',
     description: 'Normal ang mga vital signs at masigla ang pangangatawan.',
   },
 };

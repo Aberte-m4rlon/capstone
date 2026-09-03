@@ -21,6 +21,7 @@ import {
   User,
   CheckCircle2,
   ShieldCheck,
+  Package,
 } from 'lucide-react';
 import { formatDate, daysUntil, vaccinationStatusFromDue } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
@@ -834,8 +835,8 @@ export function VaccinationsPage() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>
-                    📦 I-bawas sa Imbentaryo (Deduct from Inventory)
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Package size={15} /> I-bawas sa Imbentaryo (Deduct from Inventory)
                   </span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Opsyonal</span>
                 </div>

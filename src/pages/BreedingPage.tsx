@@ -1068,7 +1068,7 @@ export function BreedingPage() {
                     const age = a.date_of_birth ? monthsSince(a.date_of_birth) : null;
                     return {
                       value: a.id,
-                      label: `✓ ${a.name} (${a.tag_id}) — Ready ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
+                      label: `[Ready] ${a.name} (${a.tag_id}) — Ready ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
                     };
                   }),
                   // Not Ready Females (Disabled)
@@ -1077,7 +1077,7 @@ export function BreedingPage() {
                     const reason = assessment?.reasons[0] || 'Not Ready';
                     return {
                       value: a.id,
-                      label: `⛔ ${a.name} (${a.tag_id}) — [Not Ready: ${reason}]`,
+                      label: `[Not Ready] ${a.name} (${a.tag_id}) — [${reason}]`,
                       disabled: true,
                     };
                   }),
@@ -1129,7 +1129,7 @@ export function BreedingPage() {
                     const age = a.date_of_birth ? monthsSince(a.date_of_birth) : null;
                     return {
                       value: a.id,
-                      label: `✓ ${a.name} (${a.tag_id}) — Ready Sire ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
+                      label: `[Ready] ${a.name} (${a.tag_id}) — Ready Sire ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
                     };
                   }),
                   // Not Ready Males (Disabled)
@@ -1138,7 +1138,7 @@ export function BreedingPage() {
                     const reason = assessment?.reasons[0] || 'Not Ready';
                     return {
                       value: a.id,
-                      label: `⛔ ${a.name} (${a.tag_id}) — [Not Ready: ${reason}]`,
+                      label: `[Not Ready] ${a.name} (${a.tag_id}) — [${reason}]`,
                       disabled: true,
                     };
                   }),
