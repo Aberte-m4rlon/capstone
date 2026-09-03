@@ -42,3 +42,5 @@ ALPASFARM-Goat-Pose/images/
 ALPASFARM-Goat-Pose/labels/
 ALPASFARM-Goat-Pose/runs/
 ALPASFARM-Goat-Pose/*.png
+
+.vercel
