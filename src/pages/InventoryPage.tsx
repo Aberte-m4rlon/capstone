@@ -98,6 +98,7 @@ export function InventoryPage() {
   const [consumeQty, setConsumeQty] = useState('');
   const [consumeReason, setConsumeReason] = useState('');
   const [consumeDate, setConsumeDate] = useState(new Date().toISOString().split('T')[0]);
+  const [consumeAnimalId, setConsumeAnimalId] = useState('');
   const [consumeSaving, setConsumeSaving] = useState(false);
 
   // ── Stock-in modal ──────────────────────────────────────────────────────────
@@ -232,6 +233,8 @@ export function InventoryPage() {
     reason: string | null,
     notes: string | null,
     costPerUnit?: number | null,
+    referenceType?: string | null,
+    referenceId?: string | null,
   ): Promise<{ newStock: number } | null> => {
     const sign = txSign(type);
     const prevStock = Number(item.quantity);
@@ -256,6 +259,8 @@ export function InventoryPage() {
       previous_stock: prevStock,
       new_stock: newStock,
       cost_per_unit: costPerUnit ?? item.cost ?? null,
+      reference_type: referenceType ?? null,
+      reference_id: referenceId ?? null,
     });
     if (txErr) throw txErr;
 
@@ -275,6 +280,7 @@ export function InventoryPage() {
     setConsumeQty('');
     setConsumeReason('');
     setConsumeDate(new Date().toISOString().split('T')[0]);
+    setConsumeAnimalId('');
     setConsumeOpen(true);
   };
 
@@ -289,8 +295,34 @@ export function InventoryPage() {
     }
     setConsumeSaving(true);
     try {
-      const result = await recordTransaction(consumeItem, 'CONSUMPTION', qty, consumeReason || 'Usage', null);
+      const targetAnimal = consumeAnimalId ? farmData.animals.find((a) => a.id === consumeAnimalId) : null;
+      const txNotes = targetAnimal
+        ? `Ginamit para kay ${targetAnimal.tag_id} (${targetAnimal.name || 'Walang Pangalan'})`
+        : null;
+
+      const result = await recordTransaction(
+        consumeItem,
+        'CONSUMPTION',
+        qty,
+        consumeReason || 'Usage',
+        txNotes,
+        null,
+        targetAnimal ? 'animal' : null,
+        targetAnimal ? targetAnimal.id : null,
+      );
       if (!result) { setConsumeSaving(false); return; }
+
+      // Also record in health_records for complete clinical audit trail when assigned to an animal
+      if (targetAnimal) {
+        await supabase.from('health_records').insert({
+          animal_id: targetAnimal.id,
+          record_date: consumeDate || new Date().toISOString().split('T')[0],
+          reasons: [`Paggamit ng Imbentaryo: ${consumeItem.name}`],
+          notes: `Ibinigay/Ginamit ang ${qty} ${consumeItem.unit} ng ${consumeItem.name}. Dahilan: ${consumeReason || 'Gamot / Suporta sa kalusugan'}.`,
+          risk_level: 'Low',
+          risk_score: 0,
+        });
+      }
 
       const updatedItem = { ...consumeItem, quantity: result.newStock };
       const nextStatus = inventoryStatus(updatedItem, warningDays);
@@ -933,6 +965,23 @@ export function InventoryPage() {
                   />
                 </FormField>
               </div>
+
+              <FormField label="Ginamit Para sa Partikular na Hayop (Opsyonal)">
+                <select
+                  className="form-select"
+                  value={consumeAnimalId}
+                  onChange={(e) => setConsumeAnimalId(e.target.value)}
+                >
+                  <option value="">-- Pangkalahatang Gamit sa Bukid (Walang Hayop) --</option>
+                  {farmData.animals
+                    .filter((a) => !a.archived)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.tag_id} {a.name ? `(${a.name})` : ''} — {a.species === 'Goat' ? 'Kambing' : 'Tupa'}
+                      </option>
+                    ))}
+                </select>
+              </FormField>
 
               <FormField label="Reason / Usage Description">
                 <textarea

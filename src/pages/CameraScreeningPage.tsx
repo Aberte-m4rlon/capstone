@@ -333,10 +333,11 @@ export function CameraScreeningPage() {
       setSavedId(data?.id ?? null);
       toast('Veterinary assessment saved to farm health records.', 'success');
       refresh();
+      farmData.refresh();
     } catch (err: any) {
       toast(`Could not save: ${err?.message}`, 'error');
     } finally { setSaving(false); }
-  }, [autoScan.result, autoScan.capturedCanvas, user, selectedAnimalId, toast, refresh]);
+  }, [autoScan.result, autoScan.capturedCanvas, user, selectedAnimalId, toast, refresh, farmData]);
 
   // ── Trigger AI Cloud Consultation ────────────────────────────────────────
   const handleAskAICloud = (result: ScanResult, animalName?: string, tagId?: string) => {

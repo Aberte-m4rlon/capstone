@@ -137,6 +137,12 @@ export function AnimalProfilePage() {
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cameraScreeningOpen, setCameraScreeningOpen] = useState(false);
+  const [administerModalOpen, setAdministerModalOpen] = useState(false);
+  const [administerItemId, setAdministerItemId] = useState('');
+  const [administerQty, setAdministerQty] = useState('');
+  const [administerReason, setAdministerReason] = useState('');
+  const [administerNotes, setAdministerNotes] = useState('');
+  const [administerSaving, setAdministerSaving] = useState(false);
 
   const [editForm, setEditForm] = useState({
     tag_id: '', name: '', species: 'Goat' as Species, breed: '', sex: 'Female' as Sex,
@@ -223,6 +229,76 @@ export function AnimalProfilePage() {
       navigate('/animals');
     } catch {
       toast('Unable to delete animal. Please try again.', 'error');
+    }
+  };
+
+  const handleAdministerInventory = async () => {
+    if (!administerItemId || !animal) return;
+    const item = farmData.inventory.find((i) => i.id === administerItemId);
+    if (!item) {
+      toast('Pumili ng gamot o supply mula sa imbentaryo.', 'error');
+      return;
+    }
+    const qty = Number(administerQty);
+    if (!administerQty || isNaN(qty) || qty <= 0) {
+      toast('Maglagay ng wastong dami (quantity).', 'error');
+      return;
+    }
+    if (qty > Number(item.quantity)) {
+      toast(`Kulang ang stock. Kasalukuyang natitira: ${item.quantity} ${item.unit}.`, 'error');
+      return;
+    }
+
+    setAdministerSaving(true);
+    try {
+      const prevStock = Number(item.quantity);
+      const newStock = Math.max(0, prevStock - qty);
+
+      // 1. Deduct from inventory
+      const { error: invErr } = await supabase
+        .from('inventory')
+        .update({ quantity: newStock })
+        .eq('id', item.id);
+      if (invErr) throw invErr;
+
+      // 2. Insert into inventory_transactions with animal reference
+      const { error: txErr } = await supabase.from('inventory_transactions').insert({
+        inventory_item_id: item.id,
+        type: 'CONSUMPTION',
+        quantity: qty,
+        unit: item.unit,
+        reason: administerReason || 'Pangangasiwa ng Gamot / Supply',
+        notes: `Ibinigay kay ${animal.tag_id} (${animal.name || 'Walang Pangalan'}). ${administerNotes || ''}`.trim(),
+        previous_stock: prevStock,
+        new_stock: newStock,
+        cost_per_unit: item.cost ?? null,
+        reference_type: 'animal',
+        reference_id: animal.id,
+      });
+      if (txErr) throw txErr;
+
+      // 3. Insert into health_records for full clinical history
+      const { error: healthErr } = await supabase.from('health_records').insert({
+        animal_id: animal.id,
+        record_date: new Date().toISOString().split('T')[0],
+        reasons: [`Ibinigay na Gamot / Supply: ${item.name}`],
+        notes: `Dami: ${qty} ${item.unit}. Dahilan: ${administerReason || 'Gamot / Suporta'}. ${administerNotes || ''}`.trim(),
+        risk_level: 'Low',
+        risk_score: 0,
+      });
+      if (healthErr) throw healthErr;
+
+      toast(`Matagumpay na naitala ang ${qty} ${item.unit} ng ${item.name} para kay ${animal.name || animal.tag_id}!`, 'success');
+      setAdministerModalOpen(false);
+      setAdministerItemId('');
+      setAdministerQty('');
+      setAdministerReason('');
+      setAdministerNotes('');
+      farmData.refresh();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Hindi mai-save ang paggamit ng gamot.', 'error');
+    } finally {
+      setAdministerSaving(false);
     }
   };
 
@@ -927,8 +1003,18 @@ export function AnimalProfilePage() {
           <GlassCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
               <CardTitle icon={Package} title="Gamit at Supplies mula sa Imbentaryo (Inventory Usage)" />
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
-                {animalInventoryUsage.length} naitalang paggamit
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+                  {animalInventoryUsage.length} naitalang paggamit
+                </span>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Plus size={14} />}
+                  onClick={() => setAdministerModalOpen(true)}
+                >
+                  Bigyan ng Gamot / Gamit
+                </Button>
               </div>
             </div>
 
@@ -1279,6 +1365,101 @@ export function AnimalProfilePage() {
           onSaved={() => { refreshScreenings(); setCameraScreeningOpen(false); }}
         />
       )}
+
+      {/* ── Administer Medicine / Inventory Modal ── */}
+      <Modal open={administerModalOpen} onClose={() => setAdministerModalOpen(false)} size="md">
+        <ModalHeader
+          title={`Bigyan ng Gamot / Gamit mula sa Imbentaryo (${animal.tag_id})`}
+          onClose={() => setAdministerModalOpen(false)}
+        />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <FormField label="Pumili ng Gamot o Supply mula sa Imbentaryo" required>
+              <select
+                className="form-select"
+                value={administerItemId}
+                onChange={(e) => setAdministerItemId(e.target.value)}
+              >
+                <option value="">-- Piliin ang Item mula sa Imbentaryo --</option>
+                {farmData.inventory
+                  .filter((i) => Number(i.quantity) > 0)
+                  .map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name} ({i.category}) — Natitira: {i.quantity} {i.unit}
+                    </option>
+                  ))}
+              </select>
+            </FormField>
+
+            {administerItemId && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: 'var(--surface-light, rgba(255,255,255,0.05))',
+                  border: '1px solid var(--border)',
+                  fontSize: 13,
+                }}
+              >
+                {(() => {
+                  const sel = farmData.inventory.find((i) => i.id === administerItemId);
+                  if (!sel) return null;
+                  return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Kasalukuyang stock: <strong>{sel.quantity} {sel.unit}</strong></span>
+                      {sel.cost && <span>Halaga: ₱{sel.cost} / {sel.unit}</span>}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <FormField label="Dami na Ibibigay (Quantity)" required>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={administerQty}
+                  onChange={(e) => setAdministerQty(e.target.value)}
+                  placeholder="Hal. 5, 10, 1"
+                />
+              </FormField>
+
+              <FormField label="Dahilan / Karamdaman" required>
+                <Input
+                  value={administerReason}
+                  onChange={(e) => setAdministerReason(e.target.value)}
+                  placeholder="Hal. Lagnat, Ubo, Bitamina"
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Karagdagang Tala (Notes / Dosina)">
+              <textarea
+                className="form-textarea"
+                value={administerNotes}
+                onChange={(e) => setAdministerNotes(e.target.value)}
+                placeholder="Hal. 2ml intramuscular, ibinigay matapos kumain..."
+                style={{ minHeight: 70 }}
+              />
+            </FormField>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setAdministerModalOpen(false)}>
+            Kanselahin
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleAdministerInventory}
+            loading={administerSaving}
+            leftIcon={<Package size={14} />}
+          >
+            Itala at Bawasan ang Imbentaryo
+          </Button>
+        </ModalFooter>
+      </Modal>
     </>
   );
 }

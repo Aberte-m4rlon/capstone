@@ -58,6 +58,45 @@ export function Dashboard() {
 
   const activeAnimals = useMemo(() => animals.filter((a) => !a.archived), [animals]);
 
+  // ── Interactive Species Filter State: 'All' | 'Goat' | 'Sheep' ──────────────
+  const [speciesFilter, setSpeciesFilter] = useState<'All' | 'Goat' | 'Sheep'>('All');
+
+  // Displayed animals based on active species filter
+  const displayedAnimals = useMemo(() => {
+    if (speciesFilter === 'Goat') {
+      return activeAnimals.filter((a) => (a.species || '').toLowerCase() === 'goat');
+    }
+    if (speciesFilter === 'Sheep') {
+      return activeAnimals.filter((a) => (a.species || '').toLowerCase() === 'sheep');
+    }
+    return activeAnimals;
+  }, [activeAnimals, speciesFilter]);
+
+  // Dedicated Species Breakdown (always calculates both goats and sheep)
+  const speciesBreakdown = useMemo(() => {
+    const goats = activeAnimals.filter((a) => (a.species || '').toLowerCase() === 'goat');
+    const sheep = activeAnimals.filter((a) => (a.species || '').toLowerCase() === 'sheep');
+
+    return {
+      goat: {
+        total: goats.length,
+        male: goats.filter((a) => a.sex === 'Male').length,
+        female: goats.filter((a) => a.sex === 'Female').length,
+        healthy: goats.filter((a) => (a.health_status || 'Healthy') === 'Healthy').length,
+        attention: goats.filter((a) => a.health_status === 'At Risk' || a.health_status === 'Critical' || a.health_status === 'Monitor').length,
+        pregnant: goats.filter((a) => a.breeding_status === 'Pregnant').length,
+      },
+      sheep: {
+        total: sheep.length,
+        male: sheep.filter((a) => a.sex === 'Male').length,
+        female: sheep.filter((a) => a.sex === 'Female').length,
+        healthy: sheep.filter((a) => (a.health_status || 'Healthy') === 'Healthy').length,
+        attention: sheep.filter((a) => a.health_status === 'At Risk' || a.health_status === 'Critical' || a.health_status === 'Monitor').length,
+        pregnant: sheep.filter((a) => a.breeding_status === 'Pregnant').length,
+      },
+    };
+  }, [activeAnimals]);
+
   // Current Calendar Context
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -65,23 +104,23 @@ export function Dashboard() {
 
   // ── 1. Herd Overview & Demographics ─────────────────────────────────────────
   const herdStats = useMemo(() => {
-    const total = activeAnimals.length;
+    const total = displayedAnimals.length;
     const goats = activeAnimals.filter((a) => (a.species || '').toLowerCase() === 'goat');
     const sheep = activeAnimals.filter((a) => (a.species || '').toLowerCase() === 'sheep');
 
-    const females = activeAnimals.filter((a) => a.sex === 'Female');
-    const males = activeAnimals.filter((a) => a.sex === 'Male');
-    const pregnant = activeAnimals.filter((a) => a.breeding_status === 'Pregnant');
+    const females = displayedAnimals.filter((a) => a.sex === 'Female');
+    const males = displayedAnimals.filter((a) => a.sex === 'Male');
+    const pregnant = displayedAnimals.filter((a) => a.breeding_status === 'Pregnant');
 
     // Young animals (< 6 months / 180 days)
-    const young = activeAnimals.filter((a) => {
+    const young = displayedAnimals.filter((a) => {
       if (!a.date_of_birth) return false;
       const dob = new Date(a.date_of_birth);
       const diffDays = (now.getTime() - dob.getTime()) / (1000 * 60 * 60 * 24);
       return diffDays >= 0 && diffDays <= 180;
     });
 
-    const newThisMonth = activeAnimals.filter((a) => {
+    const newThisMonth = displayedAnimals.filter((a) => {
       if (!a.created_at) return false;
       const d = new Date(a.created_at);
       return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
@@ -104,7 +143,7 @@ export function Dashboard() {
 
     const avgWeight =
       total > 0
-        ? +(activeAnimals.reduce((s, a) => s + (Number(a.weight_kg) || 0), 0) / total).toFixed(1)
+        ? +(displayedAnimals.reduce((s, a) => s + (Number(a.weight_kg) || 0), 0) / total).toFixed(1)
         : 0;
 
     return {
@@ -120,7 +159,7 @@ export function Dashboard() {
       sheepBreeds,
       avgWeight,
     };
-  }, [activeAnimals, currentYear, currentMonth]);
+  }, [displayedAnimals, activeAnimals, currentYear, currentMonth]);
 
   // ── 2. Health Screening & Early Warning ─────────────────────────────────────
   const healthScreening = useMemo(() => {
@@ -140,7 +179,7 @@ export function Dashboard() {
 
     let healthyCount = 0;
 
-    activeAnimals.forEach((a) => {
+    displayedAnimals.forEach((a) => {
       const records = healthRecords
         .filter((r) => r.animal_id === a.id)
         .sort((x, y) => new Date(y.record_date).getTime() - new Date(x.record_date).getTime());
@@ -166,14 +205,14 @@ export function Dashboard() {
     });
 
     return { highRisk, moderateRisk, healthyCount };
-  }, [activeAnimals, healthRecords]);
+  }, [displayedAnimals, healthRecords]);
 
   // ── 3. Breeding & Gestation ────────────────────────────────────────────────
   const breedingStats = useMemo(() => {
-    const pregnant = activeAnimals.filter((a) => a.breeding_status === 'Pregnant');
+    const pregnant = displayedAnimals.filter((a) => a.breeding_status === 'Pregnant');
 
     // Females ready to breed (female, >=8 mos or standard weight, not pregnant)
-    const readyToBreed = activeAnimals.filter((a) => {
+    const readyToBreed = displayedAnimals.filter((a) => {
       if (a.sex !== 'Female' || a.breeding_status === 'Pregnant') return false;
       const dob = a.date_of_birth ? new Date(a.date_of_birth) : null;
       const ageMonths = dob ? (now.getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 30.4) : 12;
@@ -191,14 +230,20 @@ export function Dashboard() {
       .sort((x, y) => daysUntil(x.expected_kidding_date!) - daysUntil(y.expected_kidding_date!));
 
     // Newly kidded in the last 60 days
+    const displayedAnimalIds = new Set(displayedAnimals.map((a) => a.id));
     const recentKidding = breedingRecords.filter((b) => {
       if (b.status !== 'Kidded' || !b.actual_kidding_date) return false;
+      if (speciesFilter !== 'All' && !displayedAnimalIds.has(b.animal_id)) return false;
       const kidDate = new Date(b.actual_kidding_date);
       const diffDays = (now.getTime() - kidDate.getTime()) / (1000 * 60 * 60 * 24);
       return diffDays >= 0 && diffDays <= 60;
     });
 
-    const activeMatingCount = breedingRecords.filter((b) => b.status === 'Planned' || b.status === 'Pregnant').length;
+    const activeMatingCount = breedingRecords.filter((b) => {
+      if (b.status !== 'Planned' && b.status !== 'Pregnant') return false;
+      if (speciesFilter !== 'All' && !displayedAnimalIds.has(b.animal_id)) return false;
+      return true;
+    }).length;
 
     return {
       pregnantCount: pregnant.length,
@@ -207,26 +252,34 @@ export function Dashboard() {
       recentKiddingCount: recentKidding.length,
       activeMatingCount,
     };
-  }, [activeAnimals, breedingRecords]);
+  }, [displayedAnimals, breedingRecords, speciesFilter]);
 
   // ── 4. Vaccination Tracking ────────────────────────────────────────────────
   const vaccineStats = useMemo(() => {
-    const dueSoon = activeAnimals.filter((a) => a.vaccination_status === 'Due Soon');
-    const overdue = activeAnimals.filter((a) => a.vaccination_status === 'Overdue');
+    const dueSoon = displayedAnimals.filter((a) => a.vaccination_status === 'Due Soon');
+    const overdue = displayedAnimals.filter((a) => a.vaccination_status === 'Overdue');
+    const displayedAnimalIds = new Set(displayedAnimals.map((a) => a.id));
+
     const givenThisMonth = vaccinations.filter((v) => {
       if (!v.date_given) return false;
+      if (speciesFilter !== 'All' && !displayedAnimalIds.has(v.animal_id)) return false;
       const d = new Date(v.date_given);
       return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
     }).length;
 
     // Upcoming urgent schedule items
     const upcomingSchedule = vaccinations
-      .filter((v) => v.next_due_date && daysUntil(v.next_due_date) >= 0 && daysUntil(v.next_due_date) <= 30)
+      .filter((v) => {
+        if (!v.next_due_date) return false;
+        if (speciesFilter !== 'All' && !displayedAnimalIds.has(v.animal_id)) return false;
+        const days = daysUntil(v.next_due_date);
+        return days >= 0 && days <= 30;
+      })
       .sort((a, b) => daysUntil(a.next_due_date!) - daysUntil(b.next_due_date!))
       .slice(0, 4);
 
     return { dueSoon, overdue, givenThisMonth, upcomingSchedule };
-  }, [activeAnimals, vaccinations, currentYear, currentMonth]);
+  }, [displayedAnimals, vaccinations, speciesFilter, currentYear, currentMonth]);
 
   // ── 5. Inventory & Finances ────────────────────────────────────────────────
   const inventoryStats = useMemo(() => {
@@ -348,6 +401,91 @@ export function Dashboard() {
           { label: 'Kagamitan at Supplies', to: '/inventory', icon: <Package size={14} className="qa-plus-icon" /> },
         ]}
       />
+
+      {/* ── SPECIES QUICK FILTER TOOLBAR ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+          padding: '12px 18px',
+          borderRadius: 16,
+          background: 'var(--color-surface, #FFFFFF)',
+          border: '1px solid var(--color-border, rgba(226, 232, 240, 0.8))',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Layers size={18} color="var(--color-primary, #FF6A2A)" />
+          <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+            Salain Ayon sa Hayop (Filter by Species):
+          </span>
+        </div>
+        <div style={{ display: 'inline-flex', background: 'rgba(0, 0, 0, 0.04)', borderRadius: 12, padding: 3, gap: 4 }}>
+          <button
+            type="button"
+            onClick={() => setSpeciesFilter('All')}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 9,
+              fontSize: '13px',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              background: speciesFilter === 'All' ? 'var(--color-primary, #FF6A2A)' : 'transparent',
+              color: speciesFilter === 'All' ? '#FFFFFF' : 'var(--color-text-secondary, #475569)',
+              transition: 'all 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Layers size={14} /> Lahat (All) ({activeAnimals.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSpeciesFilter('Goat')}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 9,
+              fontSize: '13px',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              background: speciesFilter === 'Goat' ? 'var(--color-primary, #FF6A2A)' : 'transparent',
+              color: speciesFilter === 'Goat' ? '#FFFFFF' : 'var(--color-text-secondary, #475569)',
+              transition: 'all 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Layers size={14} /> Kambing ({speciesBreakdown.goat.total})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSpeciesFilter('Sheep')}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 9,
+              fontSize: '13px',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              background: speciesFilter === 'Sheep' ? 'var(--color-primary, #FF6A2A)' : 'transparent',
+              color: speciesFilter === 'Sheep' ? '#FFFFFF' : 'var(--color-text-secondary, #475569)',
+              transition: 'all 0.15s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Layers size={14} /> Tupa ({speciesBreakdown.sheep.total})
+          </button>
+        </div>
+      </div>
 
       {/* ═════════════════════════════════════════════════════════════════════ */}
       {/* SECTION 1: MGA HAYOP SA BUKID (Herd Breakdown)                      */}
@@ -506,6 +644,93 @@ export function Dashboard() {
                 <PawPrint size={15} color="#10B981" />
                 <span style={{ fontWeight: 800, color: '#10B981' }}>{herdStats.youngCount}</span>
                 <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>Anak (&lt;6m)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dedicated Species Breakdown: Goats vs Sheep Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginTop: 4 }}>
+          {/* Goat Detailed Breakdown */}
+          <div
+            onClick={() => setSpeciesFilter(speciesFilter === 'Goat' ? 'All' : 'Goat')}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 18,
+              background: 'var(--color-surface, #FFFFFF)',
+              border: speciesFilter === 'Goat' ? '2px solid var(--color-primary, #FF6A2A)' : '1px solid var(--color-border, rgba(226, 232, 240, 0.7))',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <Layers size={17} color="var(--color-primary, #FF6A2A)" />
+                Kabuuan ng mga Kambing (Goats)
+              </span>
+              <Badge variant="primary" size="sm">{speciesBreakdown.goat.total} Ulo</Badge>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: '12.5px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 800, color: '#3B82F6' }}>{speciesBreakdown.goat.male}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Lalaki (Male)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 800, color: '#EC4899' }}>{speciesBreakdown.goat.female}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Babae (Female)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 800, color: '#10B981' }}>{speciesBreakdown.goat.healthy}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Malusog</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 800, color: speciesBreakdown.goat.attention > 0 ? '#EF4444' : '#64748B' }}>{speciesBreakdown.goat.attention}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Kailangan Bantayan</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sheep Detailed Breakdown */}
+          <div
+            onClick={() => setSpeciesFilter(speciesFilter === 'Sheep' ? 'All' : 'Sheep')}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 18,
+              background: 'var(--color-surface, #FFFFFF)',
+              border: speciesFilter === 'Sheep' ? '2px solid #3B82F6' : '1px solid var(--color-border, rgba(226, 232, 240, 0.7))',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <Layers size={17} color="#3B82F6" />
+                Kabuuan ng mga Tupa (Sheep)
+              </span>
+              <Badge variant="info" size="sm">{speciesBreakdown.sheep.total} Ulo</Badge>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: '12.5px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 800, color: '#3B82F6' }}>{speciesBreakdown.sheep.male}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Lalaki (Male)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 800, color: '#EC4899' }}>{speciesBreakdown.sheep.female}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Babae (Female)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 800, color: '#10B981' }}>{speciesBreakdown.sheep.healthy}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Malusog</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontWeight: 800, color: speciesBreakdown.sheep.attention > 0 ? '#EF4444' : '#64748B' }}>{speciesBreakdown.sheep.attention}</span>
+                <span style={{ color: 'var(--color-text-secondary)' }}>Kailangan Bantayan</span>
               </div>
             </div>
           </div>

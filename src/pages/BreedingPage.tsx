@@ -384,7 +384,10 @@ export function BreedingPage() {
 
       await supabase
         .from('animals')
-        .update({ breeding_status: form.status })
+        .update({
+          breeding_status: form.status,
+          expected_kidding_date: kiddingDate,
+        })
         .eq('id', form.animal_id);
 
       setModalOpen(false);
@@ -471,6 +474,16 @@ export function BreedingPage() {
       });
 
       if (result.error) throw result.error;
+
+      if (offspringMother) {
+        await supabase
+          .from('animals')
+          .update({
+            breeding_status: 'Lactating',
+            expected_kidding_date: null,
+          })
+          .eq('id', offspringMother.id);
+      }
 
       toast(`Newborn registered successfully with ID: ${result.finalTagId}`, 'success');
       setOffspringModalOpen(false);
@@ -1125,23 +1138,27 @@ export function BreedingPage() {
                 options={[
                   { value: '', label: 'Select eligible male (Sire - Optional)...' },
                   // Ready Males
-                  ...readyMales.map((a) => {
-                    const age = a.date_of_birth ? monthsSince(a.date_of_birth) : null;
-                    return {
-                      value: a.id,
-                      label: `[Ready] ${a.name} (${a.tag_id}) — Ready Sire ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
-                    };
-                  }),
+                  ...readyMales
+                    .filter((a) => !selectedFemale || a.species === selectedFemale.species)
+                    .map((a) => {
+                      const age = a.date_of_birth ? monthsSince(a.date_of_birth) : null;
+                      return {
+                        value: a.id,
+                        label: `[Ready] ${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'} ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
+                      };
+                    }),
                   // Not Ready Males (Disabled)
-                  ...notReadyMales.map((a) => {
-                    const assessment = maleAssessments.get(a.id);
-                    const reason = assessment?.reasons[0] || 'Not Ready';
-                    return {
-                      value: a.id,
-                      label: `[Not Ready] ${a.name} (${a.tag_id}) — [${reason}]`,
-                      disabled: true,
-                    };
-                  }),
+                  ...notReadyMales
+                    .filter((a) => !selectedFemale || a.species === selectedFemale.species)
+                    .map((a) => {
+                      const assessment = maleAssessments.get(a.id);
+                      const reason = assessment?.reasons[0] || 'Not Ready';
+                      return {
+                        value: a.id,
+                        label: `[Not Ready] ${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'} [${reason}]`,
+                        disabled: true,
+                      };
+                    }),
                 ]}
               />
             </FormField>

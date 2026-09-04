@@ -199,6 +199,7 @@ function AppRoutes() {
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 import { NotificationProvider } from './context/NotificationContext';
+import { FarmDataProvider } from './lib/useFarmData';
 
 export default function App() {
   return (
@@ -206,9 +207,11 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <NotificationProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+            <FarmDataProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </FarmDataProvider>
           </NotificationProvider>
         </ToastProvider>
       </AuthProvider>
