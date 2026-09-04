@@ -85,37 +85,33 @@ function buildMessage(
     case 'idle':           return 'Camera not started.';
     case 'loading':        return 'Loading AI detection model...';
     case 'other_detected': {
-      return 'This is not a goat or sheep. Pakitapat ang camera sa goat o sheep.';
+      return 'This is not a goat or sheep. Point the camera at a goat or sheep.';
     }
     case 'detecting':
       if (!det || (!det.detected && !det.otherDetected)) {
-        return 'Naghahanap ng kambing o tupa...';
+        return 'Scanning... Point the camera at a goat or sheep.';
       }
       if (det.detected) {
-        const sp = det.detectedSpecies === 'sheep' ? 'Tupa (Sheep)' : 'Kambing (Goat)';
+        const sp = det.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
         const ang = det.angleTagalog ? ` · ${det.angleTagalog}` : '';
         const conf = Math.round(det.confidence * 100);
         if (isObserving && remainingSec > 0) {
-          return `Na-detect: ${sp}${ang} (${conf}%) — Pinagmamasdan (${remainingSec.toFixed(1)}s)... Panatilihing steady`;
+          return `Animal detected: ${sp}${ang} (${conf}%) — Hold steady (${remainingSec.toFixed(1)}s)...`;
         }
-        return `Na-detect: ${sp}${ang} (${conf}%) — Kinukumpirma ang hayop...`;
+        return `Animal detected: ${sp}${ang} (${conf}%)`;
       }
       if (det.otherDetected) {
-        if (isObserving && remainingSec > 0) {
-          return `Sinusuri ang camera feed (${remainingSec.toFixed(1)}s)... Panatilihing nakatutok`;
-        }
-        return 'This is not a goat or sheep.';
+        return 'This is not a goat or sheep. Point the camera at a goat or sheep.';
       }
-      return 'Naghahanap ng kambing o tupa...';
+      return 'Scanning... Point the camera at a goat or sheep.';
     case 'stable': {
-      const sp = det?.detectedSpecies === 'sheep' ? 'Tupa (Sheep)' : 'Kambing (Goat)';
-      const conf = Math.round((det?.confidence || 0.9) * 100);
-      return `Kumpirmado: ${sp} (${conf}%) — Isinasagawa ang AI Health Screening...`;
+      const sp = det?.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
+      return `Animal detected: ${sp} — Running AI Health Prediction...`;
     }
-    case 'scanning':       return 'Isinasagawa ang AI Health Screening...';
-    case 'result':         return 'Kumpleto ang pagsusuri.';
-    case 'cooldown':       return `Maghahanap ng panibagong hayop sa loob ng ${cd}s...`;
-    case 'error':          return 'May naganap na error sa pagsusuri.';
+    case 'scanning':       return 'Running AI Health Prediction... Analyzing visual features & records...';
+    case 'result':         return 'Screening complete. Health risk calculated & saved automatically.';
+    case 'cooldown':       return `Ready for next screening in ${cd}s... (or tap Scan Again)`;
+    case 'error':          return 'An error occurred during screening.';
     default:               return '';
   }
 }
@@ -266,12 +262,12 @@ export function useAutoScan(options: {
       stateRef.current = 'result';
       onResult?.(scanResult, canvas, species);
 
-      // Auto-transition to cooldown after 7 s
+      // Auto-transition to cooldown after 15 s
       setTimeout(() => {
         if (mountedRef.current && stateRef.current === 'result') {
           startCooldown();
         }
-      }, 7000);
+      }, 15000);
     } catch (err: any) {
       if (!mountedRef.current) { scanningRef.current = false; return; }
       setError(err?.message ?? 'Scan failed');

@@ -688,24 +688,23 @@ export function HealthPage() {
 
         <button
           className="btn btn-primary health-primary-btn"
-          onClick={() => openPredictionModal()}
-          disabled={activeAnimals.length === 0}
+          onClick={() => navigate('/camera-screening')}
         >
-          <Sparkles size={18} />
-          <span>Run Early Illness Prediction</span>
+          <Camera size={18} />
+          <span>Open AI Health Monitoring</span>
         </button>
       </div>
 
-      {/* ── 2. EARLY ILLNESS PREDICTION HERO BANNER ── */}
+      {/* ── 2. AI HEALTH MONITORING HERO BANNER ── */}
       <div className="prediction-hero-banner">
         <div className="hero-banner-content">
           <div className="hero-badge">
-            <Brain size={14} color="#FF7A18" />
-            <span>AI Predictive Health Engine</span>
+            <Camera size={14} color="#FF7A18" />
+            <span>AI Health Monitoring</span>
           </div>
-          <h2 className="hero-banner-title">Early Illness Prediction</h2>
+          <h2 className="hero-banner-title">Automatic AI Health Monitoring</h2>
           <p className="hero-banner-desc">
-            Detect potential health risks before symptoms become severe using clinical observations, computer vision screening, and historical data patterns.
+            Point your camera at a goat or sheep. The system automatically detects the animal, analyzes visual indicators, retrieves herd medical records, predicts early health risk, and saves findings immediately with zero manual typing.
           </p>
           <div className="hero-banner-actions">
             <button
@@ -719,11 +718,10 @@ export function HealthPage() {
                 alignItems: 'center',
                 gap: 8,
               }}
-              onClick={() => openPredictionModal()}
-              disabled={activeAnimals.length === 0}
+              onClick={() => navigate('/camera-screening')}
             >
-              <Sparkles size={16} />
-              <span>Run Prediction</span>
+              <Camera size={16} />
+              <span>Open AI Health Monitoring (Camera)</span>
             </button>
             <button
               className="btn btn-outline"
@@ -736,10 +734,10 @@ export function HealthPage() {
                 alignItems: 'center',
                 gap: 8,
               }}
-              onClick={() => navigate('/camera-screening')}
+              onClick={() => openPredictionModal()}
             >
-              <Camera size={16} />
-              <span>AI Health Scanner</span>
+              <Stethoscope size={16} />
+              <span>Veterinary Examination (Optional)</span>
             </button>
           </div>
         </div>
@@ -867,11 +865,14 @@ export function HealthPage() {
                         fontWeight: 700,
                         fontSize: 13,
                         padding: '6px 14px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
                       }}
-                      onClick={() => openPredictionModal(item.animal.id)}
+                      onClick={() => navigate('/camera-screening?animalId=' + item.animal.id)}
                     >
-                      <Sparkles size={14} />
-                      <span>Review & Detect</span>
+                      <Camera size={14} />
+                      <span>Point & Scan with AI</span>
                     </button>
                   </div>
                 </div>
@@ -1197,7 +1198,7 @@ export function HealthPage() {
         size="lg"
       >
         <ModalHeader
-          title="Run Early Illness Prediction"
+          title="Veterinary Clinical Examination (Optional — Authorized Vets)"
           onClose={() => {
             setModalOpen(false);
             stopCameraStream();
@@ -1205,6 +1206,24 @@ export function HealthPage() {
         />
         <ModalBody>
         <div className="modal-inner-flow">
+          {/* Professional Vet Note */}
+          <div style={{
+            display: 'flex',
+            gap: 10,
+            padding: '10px 14px',
+            borderRadius: 10,
+            background: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            fontSize: 12,
+            color: '#1E40AF',
+            lineHeight: 1.5,
+            marginBottom: 14,
+          }}>
+            <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <strong>Optional Veterinary Workflow:</strong> This clinical entry form is reserved for licensed veterinarians and sick-bay evaluations. Farmers should use the automated <strong>AI Health Monitoring</strong> point-and-scan camera workflow for regular herd screening.
+            </div>
+          </div>
           {/* STEP 1: Animal Selector */}
           <div>
             <label className="modal-step-label">

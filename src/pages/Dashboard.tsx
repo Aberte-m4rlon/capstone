@@ -188,11 +188,11 @@ export function Dashboard() {
       const score = Math.max(a.health_risk_score ?? 0, latest?.risk_score ?? 0);
       const status = a.health_status;
 
-      const isHigh = status === 'Critical' || (status === 'At Risk' && score >= 60) || latest?.risk_level === 'High';
-      const isModerate = !isHigh && (status === 'At Risk' || status === 'Monitor' || latest?.risk_level === 'Moderate' || score >= 30);
+      const isHigh = status === 'Needs Attention' || status === 'Critical' || (status === 'At Risk' && score >= 50) || latest?.risk_level === 'High' || score >= 50;
+      const isModerate = !isHigh && (status === 'Monitor' || status === 'At Risk' || latest?.risk_level === 'Moderate' || score >= 25);
 
       // Primary concern text
-      const rawConcern = latest?.reasons?.[0] || (isHigh ? 'Mataas ang lagnat o panganib sa kalusugan' : isModerate ? 'Nangangailangan ng pagmamanman' : '');
+      const rawConcern = latest?.reasons?.[0] || (isHigh ? 'Nangangailangan ng pagsusuri (Needs Attention)' : isModerate ? 'Nangangailangan ng pagmamanman (Monitor)' : '');
       const formatted = formatFarmerHealthConcern(rawConcern);
 
       if (isHigh) {
@@ -204,8 +204,11 @@ export function Dashboard() {
       }
     });
 
-    return { highRisk, moderateRisk, healthyCount };
-  }, [displayedAnimals, healthRecords]);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const screenedTodayCount = (farmData.cameraScreenings || []).filter((s) => s.created_at && s.created_at.startsWith(todayStr)).length;
+
+    return { highRisk, moderateRisk, healthyCount, screenedTodayCount };
+  }, [displayedAnimals, healthRecords, farmData.cameraScreenings]);
 
   // ── 3. Breeding & Gestation ────────────────────────────────────────────────
   const breedingStats = useMemo(() => {
@@ -762,16 +765,16 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* 3 Health Status Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          {/* High Risk Tier */}
+        {/* 4 AI Health Monitoring Status Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+          {/* Animals Screened Today */}
           <div
-            onClick={() => navigate('/health?filter=Critical')}
+            onClick={() => navigate('/camera-screening')}
             style={{
               padding: '16px 18px',
               borderRadius: 16,
-              background: HEALTH_TIERS.High.bg,
-              border: `1px solid ${HEALTH_TIERS.High.border}`,
+              background: 'linear-gradient(135deg, rgba(67, 160, 71, 0.1), rgba(46, 125, 50, 0.03))',
+              border: '1px solid rgba(67, 160, 71, 0.3)',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
@@ -780,49 +783,16 @@ export function Dashboard() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: HEALTH_TIERS.High.color }}>
-                {HEALTH_TIERS.High.shortLabel}
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#2E7D32' }}>
+                Screened Today
               </span>
-              <ShieldAlert size={18} color={HEALTH_TIERS.High.color} />
+              <Camera size={18} color="#2E7D32" />
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: HEALTH_TIERS.High.color, lineHeight: 1 }}>
-              {healthScreening.highRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: '#2E7D32', lineHeight: 1 }}>
+              {healthScreening.screenedTodayCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>scans</span>
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
-              {healthScreening.highRisk.length > 0
-                ? 'Nangangailangan ng pagsusuri ng beterinaryo'
-                : 'Walang alagang nasa kritikal na antas'}
-            </div>
-          </div>
-
-          {/* Moderate Risk Tier */}
-          <div
-            onClick={() => navigate('/health?filter=Monitor')}
-            style={{
-              padding: '16px 18px',
-              borderRadius: 16,
-              background: HEALTH_TIERS.Moderate.bg,
-              border: `1px solid ${HEALTH_TIERS.Moderate.border}`,
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: HEALTH_TIERS.Moderate.color }}>
-                {HEALTH_TIERS.Moderate.shortLabel}
-              </span>
-              <AlertTriangle size={18} color={HEALTH_TIERS.Moderate.color} />
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: HEALTH_TIERS.Moderate.color, lineHeight: 1 }}>
-              {healthScreening.moderateRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
-              {healthScreening.moderateRisk.length > 0
-                ? 'May maagang senyales na dapat obserbahan'
-                : 'Walang alagang binabantayan'}
+              AI automated camera screenings today
             </div>
           </div>
 
@@ -843,7 +813,7 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: HEALTH_TIERS.Low.color }}>
-                {HEALTH_TIERS.Low.shortLabel}
+                Low Risk
               </span>
               <HeartPulse size={18} color={HEALTH_TIERS.Low.color} />
             </div>
@@ -854,6 +824,68 @@ export function Dashboard() {
               {herdStats.total > 0
                 ? `${Math.round((healthScreening.healthyCount / herdStats.total) * 100)}% ng bukid ay malusog`
                 : 'Walang nakatalang hayop'}
+            </div>
+          </div>
+
+          {/* Moderate Risk / Monitoring Tier */}
+          <div
+            onClick={() => navigate('/health?filter=Monitor')}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 16,
+              background: HEALTH_TIERS.Moderate.bg,
+              border: `1px solid ${HEALTH_TIERS.Moderate.border}`,
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: HEALTH_TIERS.Moderate.color }}>
+                Monitoring
+              </span>
+              <AlertTriangle size={18} color={HEALTH_TIERS.Moderate.color} />
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: HEALTH_TIERS.Moderate.color, lineHeight: 1 }}>
+              {healthScreening.moderateRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
+              {healthScreening.moderateRisk.length > 0
+                ? 'May maagang senyales na dapat obserbahan'
+                : 'Walang alagang binabantayan'}
+            </div>
+          </div>
+
+          {/* High Risk / Needs Attention Tier */}
+          <div
+            onClick={() => navigate('/health?filter=Critical')}
+            style={{
+              padding: '16px 18px',
+              borderRadius: 16,
+              background: HEALTH_TIERS.High.bg,
+              border: `1px solid ${HEALTH_TIERS.High.border}`,
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: HEALTH_TIERS.High.color }}>
+                Needs Attention
+              </span>
+              <ShieldAlert size={18} color={HEALTH_TIERS.High.color} />
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: 800, color: HEALTH_TIERS.High.color, lineHeight: 1 }}>
+              {healthScreening.highRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
+              {healthScreening.highRisk.length > 0
+                ? 'Nangangailangan ng pagsusuri ng beterinaryo'
+                : 'Walang alagang nasa kritikal na antas'}
             </div>
           </div>
         </div>

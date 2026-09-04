@@ -162,7 +162,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
     },
     {
       to: '/camera-screening',
-      label: 'AI Scanner',
+      label: 'AI Health Monitoring',
       icon: <Camera size={20} strokeWidth={2} />,
       roles: ['farm_manager'],
     },

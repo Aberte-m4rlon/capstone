@@ -141,14 +141,19 @@ async function syncScreeningToAnimalHealth(
   if (!animalId || animalId === 'unlinked') return;
 
   const scoreVal = Math.round(Number(finalScore) || 0);
-  let mappedStatus: 'Healthy' | 'Monitor' | 'At Risk' | 'Critical' = 'Healthy';
+  let mappedStatus: 'Healthy' | 'Monitor' | 'Needs Attention' = 'Healthy';
+  let notificationPriority: 'Warning' | 'Critical' | null = null;
+  let notificationMsg = '';
   const rawRisk = (result.riskLevel || '').toLowerCase();
-  if (scoreVal >= 75 || rawRisk.includes('crit')) {
-    mappedStatus = 'Critical';
-  } else if (scoreVal >= 50 || rawRisk.includes('high')) {
-    mappedStatus = 'At Risk';
+
+  if (scoreVal >= 50 || rawRisk.includes('high') || rawRisk.includes('crit')) {
+    mappedStatus = 'Needs Attention';
+    notificationPriority = scoreVal >= 75 || rawRisk.includes('crit') ? 'Critical' : 'Warning';
+    notificationMsg = 'Animal requires health attention. Perform a manual health examination. Veterinary assessment recommended.';
   } else if (scoreVal >= 25 || rawRisk.includes('mod')) {
     mappedStatus = 'Monitor';
+    notificationPriority = 'Warning';
+    notificationMsg = 'Animal requires monitoring.';
   }
 
   try {
@@ -164,10 +169,10 @@ async function syncScreeningToAnimalHealth(
     // 2. Insert clinical record into health_records
     const conditionLabels = (result.indicators || []).map((i) => i.label).filter(Boolean);
     const clinicalNotes = [
-      `AI Camera Health Screening (${result.riskLevelLabel || mappedStatus}).`,
-      conditionLabels.length > 0 ? `Mga senyales/sintomas: ${conditionLabels.join(', ')}.` : null,
-      result.recommendation ? `Rekomendasyon: ${result.recommendation}` : null,
-      notes ? `Karagdagang tala: ${notes}` : null,
+      `AI Camera Health Screening (${mappedStatus} - Risk Score: ${scoreVal}/100).`,
+      conditionLabels.length > 0 ? `Visual findings: ${conditionLabels.join(', ')}.` : null,
+      result.recommendation ? `Recommendation: ${result.recommendation}` : null,
+      notes ? `Notes: ${notes}` : null,
     ].filter(Boolean).join(' ');
 
     await supabase.from('health_records').insert({
@@ -175,19 +180,19 @@ async function syncScreeningToAnimalHealth(
       record_date: new Date().toISOString().split('T')[0],
       reasons: conditionLabels.length > 0 ? conditionLabels : ['AI Camera Health Screening'],
       notes: clinicalNotes,
-      risk_level: mappedStatus === 'Critical' ? 'Critical' : mappedStatus === 'At Risk' ? 'High' : mappedStatus === 'Monitor' ? 'Moderate' : 'Low',
+      risk_level: mappedStatus === 'Needs Attention' ? 'High' : mappedStatus === 'Monitor' ? 'Moderate' : 'Low',
       risk_score: scoreVal,
       detected_conditions: conditionLabels.join(', ') || null,
     });
 
-    // 3. Notification for high/critical risk
-    if (scoreVal >= 50 || mappedStatus === 'At Risk' || mappedStatus === 'Critical') {
+    // 3. Automatic alert creation based on risk tier
+    if (notificationPriority && notificationMsg) {
       await createNotification(
         userId,
         'Health',
-        `Alerto sa Kalusugan mula sa Camera Scan`,
-        `Nakapagtala ng mataas na panganib (${scoreVal}/100) para sa hayop. Mangyaring magsagawa ng agarang pagsusuri.`,
-        mappedStatus === 'Critical' ? 'Critical' : 'High',
+        `AI Health Monitoring: ${mappedStatus}`,
+        notificationMsg,
+        notificationPriority,
         `/animals/${animalId}`,
       );
     }

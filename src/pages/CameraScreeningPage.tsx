@@ -77,6 +77,8 @@ function riskBorder(risk: string) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export function CameraScreeningPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryAnimalId = searchParams.get('animalId') || '';
   const { user } = useAuth();
   const toast    = useToast();
   const farmData = useFarmData();
@@ -88,9 +90,14 @@ export function CameraScreeningPage() {
   const [facingMode, setFacingMode]             = useState<'environment' | 'user'>('environment');
   const [saving, setSaving]                     = useState(false);
   const [savedId, setSavedId]                   = useState<string | null>(null);
-  const [selectedAnimalId, setSelectedAnimalId] = useState('');
+  const [selectedAnimalId, setSelectedAnimalId] = useState(queryAnimalId);
   const [search, setSearch]                     = useState('');
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<CameraScreening | null>(null);
+
+  useEffect(() => {
+    const qId = searchParams.get('animalId');
+    if (qId) setSelectedAnimalId(qId);
+  }, [searchParams]);
 
   const videoRef         = useRef<HTMLVideoElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -107,7 +114,31 @@ export function CameraScreeningPage() {
     animalId:          selectedAnimalId || undefined,
     animalName:        selectedAnimal?.name,
     speciesPreference: speciesMode,
-    onResult: (scanResult, _canvas, species) => {
+    onResult: async (scanResult, canvas, species) => {
+      // Automatically save result to database & update animal health status
+      if (user && scanResult.goatDetected) {
+        const targetAnimalId = selectedAnimalId || 'unlinked';
+        try {
+          setSaving(true);
+          const { data, error } = await saveScreeningResult(
+            targetAnimalId,
+            user.id,
+            scanResult,
+            canvas,
+          );
+          if (data?.id) {
+            setSavedId(data.id);
+            refresh();
+            farmData.refresh();
+            toast('AI Health Screening automatically saved to farm records.', 'success');
+          }
+        } catch (saveErr) {
+          console.warn('Auto-save error:', saveErr);
+        } finally {
+          setSaving(false);
+        }
+      }
+      
       // Auto-create health alert notification for high or critical results
       if (user && (scanResult.riskLevel === 'HIGH' || scanResult.riskLevel === 'CRITICAL')) {
         const animalName = selectedAnimal?.name ?? (species === 'sheep' ? 'Sheep' : 'Goat');
@@ -982,7 +1013,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
           {/* RIGHT: AI Veterinary Assessment Panel */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Animal Linking Selector */}
+            {/* Animal Identification Status */}
             <div style={{
               background: '#FFFFFF',
               border: '1px solid #E5EDE6',
@@ -991,8 +1022,42 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
               boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
-                Link to Animal Record (Optional)
+                Animal Identification
               </div>
+              {selectedAnimal ? (
+                <div style={{
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  marginBottom: 10,
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#15803D', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle size={15} />
+                    <span>Animal identified: {selectedAnimal.tag_id} ({selectedAnimal.name})</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#166534', marginTop: 3 }}>
+                    Historical herd medical records and weight trajectory automatically loaded.
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(234, 88, 12, 0.08)',
+                  border: '1px solid rgba(234, 88, 12, 0.25)',
+                  marginBottom: 10,
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#C2410C', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Info size={14} />
+                    <span>Animal detected, but animal identity could not be confirmed.</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#9A3412', marginTop: 2 }}>
+                    Select the animal from the herd below to merge health history:
+                  </div>
+                </div>
+              )}
+
               <select
                 value={selectedAnimalId}
                 onChange={e => { setSelectedAnimalId(e.target.value); setSavedId(null); }}
@@ -1008,22 +1073,13 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                   outline: 'none',
                 }}
               >
-                <option value="">-- Unlinked Scan (Herd-wide) --</option>
+                <option value="">-- Select Animal Identity --</option>
                 {activeAnimals.map(a => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.tag_id}) · {a.species}
                   </option>
                 ))}
               </select>
-              {selectedAnimal ? (
-                <div style={{ marginTop: 8, fontSize: 11, color: '#2E7D32', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <CheckCircle size={12} /> Linked: {selectedAnimal.name} ({selectedAnimal.tag_id}) — Vitals & history will be fused with scan.
-                </div>
-              ) : (
-                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>
-                  Select an animal to automatically merge recent vitals, weight, and history with this scan.
-                </div>
-              )}
             </div>
 
             {/* ── WAITING / SCANNING STATES ── */}
@@ -1073,6 +1129,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                 result={autoScan.result}
                 capturedUrl={autoScan.capturedUrl}
                 species={autoScan.detectedSpecies ?? 'goat'}
+                animal={selectedAnimal}
                 animalName={selectedAnimal?.name}
                 animalTag={selectedAnimal?.tag_id}
                 saving={saving}
@@ -1080,6 +1137,7 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                 onSave={handleSave}
                 onAskAICloud={() => handleAskAICloud(autoScan.result!, selectedAnimal?.name, selectedAnimal?.tag_id)}
                 onRescan={autoScan.rescan}
+                onViewHistory={selectedAnimal ? () => navigate(`/animals/${selectedAnimal.id}`) : undefined}
               />
             )}
 
@@ -1482,6 +1540,7 @@ function ScanResultCard({
   result,
   capturedUrl,
   species,
+  animal,
   animalName,
   animalTag,
   saving,
@@ -1489,10 +1548,12 @@ function ScanResultCard({
   onSave,
   onAskAICloud,
   onRescan,
+  onViewHistory,
 }: {
   result: ScanResult;
   capturedUrl: string | null;
   species: 'goat' | 'sheep';
+  animal?: any;
   animalName?: string;
   animalTag?: string;
   saving: boolean;
@@ -1500,28 +1561,29 @@ function ScanResultCard({
   onSave: () => void;
   onAskAICloud: () => void;
   onRescan: () => void;
+  onViewHistory?: () => void;
 }) {
-  // Non-target animal fallback
+  // Non-target animal fallback (Section 3 message standard)
   if (!result.goatDetected) {
     return (
       <div style={{ background: '#FFFFFF', border: '2px solid #DC2626', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 14px rgba(220, 38, 38, 0.15)' }}>
         {capturedUrl && (
           <img src={capturedUrl} alt="Screened Non-Target" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
         )}
-        <div style={{ padding: '20px 18px', textAlign: 'center' }}>
+        <div style={{ padding: '22px 20px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-            <ShieldAlert size={40} color="#DC2626" />
+            <ShieldAlert size={42} color="#DC2626" />
           </div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
-            This is not a goat or sheep!
+          <div style={{ fontSize: 17, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
+            This is not a goat or sheep.
           </div>
           <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, marginBottom: 16 }}>
-            {result.recommendation || 'Hindi ito kambing o tupa. Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
+            Point the camera at a goat or sheep.
           </div>
           <button
             onClick={onRescan}
             style={{
-              padding: '9px 18px',
+              padding: '10px 22px',
               borderRadius: 10,
               border: 'none',
               background: '#43A047',
@@ -1529,9 +1591,12 @@ function ScanResultCard({
               fontSize: 13,
               fontWeight: 700,
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
-            Scan Again
+            <RefreshCw size={14} /> Scan Again
           </button>
         </div>
       </div>
@@ -1543,13 +1608,27 @@ function ScanResultCard({
   const rBg = riskBg(rLevel);
   const rBorder = riskBorder(rLevel);
 
-  const possibleConditions = result.possibleConditions || ['Normal Clinical Appearance'];
   const observations = result.observations || [];
   const recommendedActions = result.recommendedActions || [
     'Continue standard daily feeding and clean water provisioning.',
-    'Maintain routine vaccination and deworming schedule.',
-    'Perform bi-weekly weight checks.',
+    'Maintain routine vaccination and herd monitoring schedule.',
   ];
+
+  const targetAnimal = animal;
+  const targetName = animalName || targetAnimal?.name;
+  const targetTag = animalTag || targetAnimal?.tag_id;
+
+  // Age string calculation
+  const ageDisplay = (() => {
+    if (!targetAnimal?.date_of_birth) return 'Not recorded';
+    const dob = new Date(targetAnimal.date_of_birth);
+    const diffMonths = Math.floor((new Date().getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
+    if (diffMonths < 1) return 'Less than 1 month';
+    if (diffMonths < 12) return `${diffMonths} months`;
+    const yrs = Math.floor(diffMonths / 12);
+    const mos = diffMonths % 12;
+    return mos > 0 ? `${yrs} years ${mos} months` : `${yrs} years`;
+  })();
 
   return (
     <div style={{
@@ -1584,141 +1663,132 @@ function ScanResultCard({
 
       <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-        {/* Animal Badge & Species */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 999, background: '#E8F5E9', border: '1px solid #C8E6C9', fontSize: 12, fontWeight: 700, color: '#2E7D32' }}>
-            <Activity size={13} color="#2E7D32" />
-            {species.toUpperCase()} {animalName ? `· ${animalName} (${animalTag || 'Tagged'})` : '· Unlinked Scan'}
+        {/* ── SECTION 8 LAYOUT: TITLE & SPECIES/ANIMAL IDENTIFICATION ── */}
+        <div style={{ borderBottom: '1px solid #F3F4F6', paddingBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, color: '#43A047', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Activity size={14} color="#43A047" /> AI HEALTH MONITORING
           </div>
-
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '4px 12px',
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 800,
-            background: rBg,
-            border: `1px solid ${rBorder}`,
-            color: rColor,
-          }}>
-            <Flame size={13} /> {rLevel} RISK ({result.riskScore ?? 15}%)
-          </span>
-        </div>
-
-        {/* Confidence & Model */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '10px', textAlign: 'center', border: '1px solid #F3F4F6' }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: '#1F2937' }}>{result.confidencePercent}%</div>
-            <div style={{ fontSize: 11, color: '#6B7280' }}>AI Confidence</div>
-          </div>
-          <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '10px', textAlign: 'center', border: '1px solid #F3F4F6' }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>{result.modelVersion || 'goat-health-v1.0'}</div>
-            <div style={{ fontSize: 11, color: '#6B7280' }}>Vision Model</div>
-          </div>
-        </div>
-
-        {/* Detected Viewing Angle & Morphometric Evaluation */}
-        {(result.angleLabel || result.detectedAngle) && (
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(67, 160, 71, 0.08) 0%, rgba(46, 125, 50, 0.04) 100%)',
-            border: '1px solid rgba(67, 160, 71, 0.25)',
-            borderRadius: 12,
-            padding: '12px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#2E7D32' }}>
-                <Compass size={14} color="#2E7D32" />
-                <span>Detected Angle: {result.angleLabel || result.detectedAngle} ({result.angleTagalog || 'Sinuri'})</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#1F2937' }}>
+                Species: {species === 'sheep' ? 'Sheep' : 'Goat'}
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32', background: '#E8F5E9', padding: '2px 8px', borderRadius: 6 }}>
-                Multi-Angle AI Verified
-              </span>
+              <div style={{ fontSize: 13, color: '#4B5563', marginTop: 2 }}>
+                Animal: {targetTag && targetName ? `${targetTag} (${targetName})` : targetName ? targetName : 'Goat/Sheep detected, but identity could not be confirmed.'}
+              </div>
             </div>
-            {result.angleClinicalFocus && (
-              <div style={{ fontSize: 12, color: '#374151', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                <Eye size={13} color="#43A047" style={{ marginTop: 2, flexShrink: 0 }} />
-                <span><strong>Clinical Focus:</strong> {result.angleClinicalFocus}</span>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#2563EB', background: 'rgba(37, 99, 235, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
+                Detection Confidence: {result.confidencePercent}%
               </div>
-            )}
-            {result.angleGuidance && (
-              <div style={{ fontSize: 11, color: '#6B7280', fontStyle: 'italic', paddingLeft: 19 }}>
-                {result.angleGuidance}
-              </div>
-            )}
+            </div>
           </div>
-        )}
+        </div>
 
-        {/* Possible Health Concerns */}
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            Possible Health Concerns
+        {/* ── HEALTH RISK & SCORE ── */}
+        <div style={{
+          background: rBg,
+          border: `1px solid ${rBorder}`,
+          borderRadius: 12,
+          padding: '14px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 10,
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              HEALTH RISK
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: rColor, marginTop: 2 }}>
+              {rLevel}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {possibleConditions.map((cond, i) => (
-              <div key={i} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 13,
-                fontWeight: 700,
-                color: cond.includes('Normal') ? '#16A34A' : '#EA580C',
-                background: cond.includes('Normal') ? 'rgba(22, 163, 74, 0.08)' : 'rgba(234, 88, 12, 0.08)',
-                padding: '8px 12px',
-                borderRadius: 8,
-              }}>
-                {cond.includes('Normal') ? <CheckCircle size={14} color="#16A34A" /> : <AlertTriangle size={14} color="#EA580C" />}
-                <span>{cond}</span>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Risk Score
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: rColor, marginTop: 2 }}>
+              {result.riskScore ?? 15} / 100
+            </div>
+          </div>
+        </div>
+
+        {/* ── AI FINDINGS ── */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+            AI FINDINGS:
+          </div>
+          <div style={{ background: '#F9FAFB', border: '1px solid #E5EDE6', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {(result.primaryIndicators && result.primaryIndicators.length > 0 ? result.primaryIndicators : observations).map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: 7, fontSize: 12, color: '#374151', lineHeight: 1.5 }}>
+                <span style={{ color: '#43A047', fontWeight: 800 }}>•</span>
+                <span>{item}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Why did AI give this result? */}
-        {observations.length > 0 && (
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-              Why did the AI give this result?
+        {/* ── AVAILABLE INFORMATION (MULTI-SOURCE DATA FUSION) ── */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+            AVAILABLE INFORMATION:
+          </div>
+          <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 14px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#6B7280' }}>Age:</span>
+              <span style={{ fontWeight: 600, color: '#1F2937' }}>{ageDisplay}</span>
             </div>
-            <div style={{ background: '#F9FAFB', border: '1px solid #E5EDE6', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {observations.map((obs, i) => (
-                <div key={i} style={{ display: 'flex', gap: 7, fontSize: 12, color: '#374151', lineHeight: 1.5 }}>
-                  <span style={{ color: '#43A047', fontWeight: 800 }}>•</span>
-                  <span>{obs}</span>
-                </div>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#6B7280' }}>Weight:</span>
+              <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.weight_kg ? `${targetAnimal.weight_kg} kg` : 'Not recorded'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#6B7280' }}>Vaccination:</span>
+              <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.vaccination_status || 'Up to date'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#6B7280' }}>Previous Health Risk:</span>
+              <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.health_risk_score !== undefined ? `${targetAnimal.health_status || 'Normal'} (${targetAnimal.health_risk_score})` : 'Low (0)'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #E5E7EB', paddingTop: 6 }}>
+              <span style={{ color: '#6B7280' }}>Current Temperature:</span>
+              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#6B7280' }}>Current Heart Rate:</span>
+              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#6B7280' }}>Current Respiratory Rate:</span>
+              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
+            </div>
+            <div style={{ fontSize: 11, fontStyle: 'italic', color: '#9CA3AF', marginTop: 4 }}>
+              Some measurements were unavailable during this screening.
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Recommended Actions */}
+        {/* ── RECOMMENDATION ── */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            Recommended Clinical Actions
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+            RECOMMENDATION:
           </div>
           <div style={{
             background: rBg,
             border: `1px solid ${rBorder}`,
             borderRadius: 10,
             padding: '12px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 7,
+            fontSize: 12,
+            color: '#1F2937',
+            lineHeight: 1.5,
           }}>
-            {recommendedActions.map((action, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, color: '#1F2937', lineHeight: 1.5 }}>
-                <span style={{ color: rColor, fontWeight: 800, flexShrink: 0 }}>{i + 1}.</span>
-                <span>{action}</span>
-              </div>
-            ))}
+            {result.recommendation || recommendedActions[0]}
           </div>
         </div>
 
-        {/* Mandatory Safety Disclaimer */}
+        {/* Decision-Support Notice */}
         <div style={{
           display: 'flex',
           gap: 8,
@@ -1736,14 +1806,39 @@ function ScanResultCard({
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* ── ACTION BUTTONS ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-          {/* Ask AI Cloud Button */}
+          {/* View Animal Health History Button */}
+          {onViewHistory && (
+            <button
+              onClick={onViewHistory}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: 10,
+                border: 'none',
+                background: 'linear-gradient(135deg, #FF6A2A 0%, #FF3B30 100%)',
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                boxShadow: '0 4px 12px rgba(255, 106, 42, 0.25)',
+              }}
+            >
+              <History size={16} /> View Animal Health History
+            </button>
+          )}
+
+          {/* Ask AI Farm Assistant Button */}
           <button
             onClick={onAskAICloud}
             style={{
               width: '100%',
-              padding: '12px',
+              padding: '11px',
               borderRadius: 10,
               border: 'none',
               background: 'linear-gradient(135deg, #2E7D32 0%, #43A047 100%)',
@@ -1758,52 +1853,27 @@ function ScanResultCard({
               boxShadow: '0 4px 12px rgba(46, 125, 50, 0.2)',
             }}
           >
-            <Bot size={16} /> Ask AI Cloud About This Scan
+            <Bot size={16} /> Ask AI Farm Assistant About This Scan
           </button>
 
-          {/* Save & Rescan row */}
+          {/* Automatic Save Indicator & Scan Again */}
           <div style={{ display: 'flex', gap: 8 }}>
-            {savedId ? (
-              <div style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: 10,
-                background: '#E8F5E9',
-                border: '1px solid #C8E6C9',
-                color: '#2E7D32',
-                fontWeight: 700,
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 5,
-              }}>
-                <Check size={14} /> Saved to Records
-              </div>
-            ) : (
-              <button
-                onClick={onSave}
-                disabled={saving}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: 10,
-                  border: '1px solid #43A047',
-                  background: '#FFFFFF',
-                  color: '#2E7D32',
-                  fontWeight: 700,
-                  fontSize: 12,
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 5,
-                }}
-              >
-                {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={14} />}
-                <span>Save Assessment</span>
-              </button>
-            )}
+            <div style={{
+              flex: 1,
+              padding: '10px',
+              borderRadius: 10,
+              background: '#E8F5E9',
+              border: '1px solid #C8E6C9',
+              color: '#2E7D32',
+              fontWeight: 700,
+              fontSize: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 5,
+            }}>
+              <Check size={14} /> Automatically Saved
+            </div>
 
             <button
               onClick={onRescan}

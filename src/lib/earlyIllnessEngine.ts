@@ -75,6 +75,25 @@ export interface EarlyIllnessPredictionResult {
   previousRiskScore: number | null;
   riskDelta: number | null;      // current - previous
   isSignificantIncrease: boolean; // >= 20 points jump or jump to High Risk
+  riskTrend: 'Increasing' | 'Stable' | 'Decreasing';
+  trendWarning?: string | null;
+
+  // Data transparency
+  availableData: {
+    age: string;
+    weight: string;
+    vaccination: string;
+    previousHealthRisk: string;
+    currentTemperature: string;
+    currentHeartRate: string;
+    currentRespiratoryRate: string;
+  };
+  unavailableData: string[];
+  dataSources: {
+    camera: boolean;
+    database: boolean;
+    sensors: boolean;
+  };
 
   // Context summary
   contextSummary: {
@@ -507,11 +526,50 @@ export function predictEarlyIllness(params: {
     recommendations.push('Re-screen in 7–14 days as part of routine herd health monitoring.');
   }
 
-  // 10. Check for Significant Risk Jump
+  // 10. Check for Significant Risk Jump & Trend
   const riskDelta = previousRiskScore !== null ? finalScore - previousRiskScore : null;
   const isSignificantIncrease =
     (riskDelta !== null && riskDelta >= 20) ||
     (previousRecord && previousRecord.risk_level === 'Low' && (riskLevel === 'Moderate Risk' || riskLevel === 'High Risk'));
+
+  let riskTrend: 'Increasing' | 'Stable' | 'Decreasing' = 'Stable';
+  let trendWarning: string | null = null;
+  if (previousRiskScore !== null) {
+    if (finalScore >= previousRiskScore + 5) {
+      riskTrend = 'Increasing';
+      trendWarning = 'Health risk has increased across recent screenings.';
+      possibleConcerns.unshift({
+        condition: 'Health Risk Trending Upward',
+        severity: finalScore >= 50 ? 'Critical' : 'Warning',
+        description: 'Health risk has increased across recent screenings. Closer monitoring is advised.',
+        action: 'Perform closer observation and manual veterinary examination if the condition persists.',
+      });
+    } else if (finalScore <= previousRiskScore - 5) {
+      riskTrend = 'Decreasing';
+    }
+  }
+
+  // Format verified available vs unavailable parameters
+  const weightStr = animal.weight_kg ? `${animal.weight_kg} kg` : 'Not recorded';
+  const ageStr = ageMonths >= 12 ? `${(ageMonths / 12).toFixed(1)} years` : `${ageMonths} months`;
+  const vaccStr = animal.vaccination_status || (hasOverdueVaccine ? 'Pending / Overdue' : 'Up to date');
+  const prevRiskStr = previousRiskScore !== null ? `${previousRiskScore} / 100` : 'No prior scan';
+
+  const availableData = {
+    age: ageStr,
+    weight: weightStr,
+    vaccination: vaccStr,
+    previousHealthRisk: prevRiskStr,
+    currentTemperature: 'Not measured',
+    currentHeartRate: 'Not measured',
+    currentRespiratoryRate: 'Not measured',
+  };
+
+  const unavailableData = [
+    'Internal body temperature (Sensor unavailable)',
+    'Heart rate (Sensor unavailable)',
+    'Respiratory rate (Sensor unavailable)',
+  ];
 
   return {
     animalId: animal.id,
@@ -530,6 +588,15 @@ export function predictEarlyIllness(params: {
     previousRiskScore,
     riskDelta,
     isSignificantIncrease,
+    riskTrend,
+    trendWarning,
+    availableData,
+    unavailableData,
+    dataSources: {
+      camera: hasCameraScan,
+      database: true,
+      sensors: false,
+    },
     contextSummary: {
       ageMonths,
       weightTrend,

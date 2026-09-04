@@ -171,6 +171,56 @@ export function AnimalProfilePage() {
   const { dates: riskDates, probabilities: riskProbs, riskScores } = useAnimalRiskHistory(animal?.id ?? null);
   const { screenings: animalScreenings, refresh: refreshScreenings } = useAnimalScreenings(animal?.id ?? null);
 
+  const lastScreening = animalScreenings[0] ?? null;
+  const lastScreeningDate = useMemo(() => {
+    if (!lastScreening?.created_at) return 'No scan recorded';
+    const isToday = new Date(lastScreening.created_at).toDateString() === new Date().toDateString();
+    return isToday ? 'Today' : formatDate(lastScreening.created_at);
+  }, [lastScreening]);
+
+  const riskTrendInfo = useMemo(() => {
+    if (animalScreenings.length >= 2) {
+      const curr = animalScreenings[0].risk_score ?? 0;
+      const prev = animalScreenings[1].risk_score ?? 0;
+      if (curr > prev + 5) {
+        return {
+          trend: 'Increasing' as const,
+          color: '#DC2626',
+          bg: 'rgba(220, 38, 38, 0.1)',
+          warning: 'Health risk has increased across recent screenings. Recommend closer monitoring.',
+        };
+      }
+      if (curr < prev - 5) {
+        return {
+          trend: 'Decreasing' as const,
+          color: '#16A34A',
+          bg: 'rgba(22, 163, 74, 0.1)',
+          warning: null,
+        };
+      }
+      return {
+        trend: 'Stable' as const,
+        color: '#2563EB',
+        bg: 'rgba(37, 99, 235, 0.1)',
+        warning: null,
+      };
+    }
+    if (animalScreenings.length === 1) {
+      return {
+        trend: 'Stable' as const,
+        color: '#2563EB',
+        bg: 'rgba(37, 99, 235, 0.1)',
+        warning: null,
+      };
+    }
+    return {
+      trend: 'No screening yet' as const,
+      color: '#64748B',
+      bg: 'rgba(100, 116, 139, 0.1)',
+      warning: null,
+    };
+  }, [animalScreenings]);
+
   useEffect(() => {
     if (animal) {
       setEditForm({
@@ -468,7 +518,7 @@ export function AnimalProfilePage() {
                 {/* Action buttons */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setQrOpen(true)} variant="neutral" />
-                  <ActionBtn icon={<Camera size={14} />} label="Screen" onClick={() => setCameraScreeningOpen(true)} variant="orange" />
+                  <ActionBtn icon={<Camera size={14} />} label="AI Health Scan" onClick={() => navigate(`/camera-screening?animalId=${animal.id}`)} variant="orange" />
                   <ActionBtn icon={<Pencil size={14} />} label="Edit" onClick={() => setEditOpen(true)} variant="orange" />
                   <ActionBtn icon={<Trash2 size={14} />} label="Delete" onClick={() => setConfirmDelete(true)} variant="red" />
                 </div>
@@ -532,9 +582,9 @@ export function AnimalProfilePage() {
 
             {/* Health Risk Card */}
             <GlassCard>
-              <CardTitle icon={Activity} title="Health Risk" />
+              <CardTitle icon={Activity} title="AI Health Risk Status" />
               {/* Score ring */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
                 <div style={{
                   width: 72, height: 72, borderRadius: '50%', flexShrink: 0,
                   background: `conic-gradient(${scoreColor} ${animal.health_risk_score * 3.6}deg, rgba(255,255,255,0.08) 0deg)`,
@@ -548,21 +598,56 @@ export function AnimalProfilePage() {
                     alignItems: 'center', justifyContent: 'center',
                   }}>
                     <span style={{ fontSize: 20, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{animal.health_risk_score}</span>
-                    <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>SCORE</span>
+                    <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>/ 100</span>
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 800, color: scoreColor, marginBottom: 2 }}>
-                    {levelFromScore(animal.health_risk_score)} Risk
+                    {animal.health_status || `${levelFromScore(animal.health_risk_score)} Risk`}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    {animal.health_risk_score >= 60 ? 'Needs immediate attention' : 'Within normal range'}
+                    {animal.health_risk_score >= 50 ? 'Needs Attention' : animal.health_risk_score >= 25 ? 'Requires Monitoring' : 'Healthy / Low Risk'}
                   </div>
                 </div>
               </div>
-              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 12 }}>
-                <StatRow label="Temperature" value={animal.current_temperature ? `${animal.current_temperature}°C` : '—'} />
-                <StatRow label="Heart Rate" value={animal.current_heart_rate ? `${animal.current_heart_rate} BPM` : '—'} />
+
+              {/* Status details & trend */}
+              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <StatRow label="Health Status" value={animal.health_status} />
+                <StatRow label="AI Risk Score" value={`${animal.health_risk_score ?? 0} / 100`} />
+                <StatRow label="Last AI Screening" value={lastScreeningDate} />
+                <StatRow
+                  label="Risk Trend"
+                  value={riskTrendInfo.trend}
+                  valueStyle={{ color: riskTrendInfo.color, fontWeight: 800 }}
+                />
+              </div>
+
+              {/* Risk Trend Warning Banner if Increasing */}
+              {riskTrendInfo.warning && (
+                <div style={{
+                  marginTop: 10,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: 'rgba(220, 38, 38, 0.1)',
+                  border: '1px solid rgba(220, 38, 38, 0.3)',
+                  color: '#DC2626',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                }}>
+                  {riskTrendInfo.warning}
+                </div>
+              )}
+
+              {/* Vitals with strict transparency */}
+              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 10, marginTop: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Vital Signs (Sensor Status)
+                </div>
+                <StatRow label="Temperature" value={animal.current_temperature ? `${animal.current_temperature}°C` : 'Not measured'} />
+                <StatRow label="Heart Rate" value={animal.current_heart_rate ? `${animal.current_heart_rate} BPM` : 'Not measured'} />
+                <StatRow label="Respiratory Rate" value="Not measured" />
               </div>
             </GlassCard>
 
