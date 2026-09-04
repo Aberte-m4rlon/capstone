@@ -1,19 +1,27 @@
 /**
- * CameraScreeningPage.tsx — AlpasFarm Professional AI Veterinary Assistant & Health Scanner
+ * CameraScreeningPage.tsx — AlpasFarm Professional AI Health Scanner Camera
  *
- * FULL VETERINARY AI WORKFLOW:
- *   Camera -> Detect Animal -> Verify Goat/Sheep -> Analyze ML -> Predict Health Risk -> AI Veterinary Explanation -> Recommended Actions
+ * FULL-SCREEN NATIVE MOBILE CAMERA SCANNER EXPERIENCE:
+ *   Top Bar:       [← AI Health Scanner]             [⚙️ Settings]
+ *   Center:        LIVE CAMERA PREVIEW + Real-time AI Dynamic Bounding Box
+ *   Bottom:        [Gallery]       [Capture (◯)]      [Switch Camera]
  *
- * Design System: Farm & Nature (Green #43A047, #2E7D32, #E8F5E9, #F5F8F5)
- * Strict 0 Emojis rule: 100% Lucide-React SVG Icons.
+ * AUTOMATIC HEALTH SCREENING WORKFLOW:
+ *   Camera Opens -> Farmer Points at Goat/Sheep -> AI Detects Animal ->
+ *   Bounding Box Follows Animal -> System Automatically Identifies Animal & Loads Records ->
+ *   AI Visual Health Analysis -> Risk Score & Guidance -> Automatically Saves Result -> Clean Result Screen
+ *
+ * Zero manual typing required.
+ * Strict 0 Emojis rule: 100% Lucide-React SVG Icons with farmer-friendly labels.
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Camera, AlertTriangle, CheckCircle, RefreshCw,
   Loader2, Search, Info, WifiOff, ScanLine, History,
   Save, Ban, Zap, Upload, ShieldAlert, Activity, Check,
-  Bot, Sparkles, Stethoscope, Flame, SwitchCamera, X, Compass, Eye
+  Bot, Sparkles, Stethoscope, SwitchCamera, X, Compass,
+  ArrowLeft, Settings, Image, Volume2, VolumeX, SlidersHorizontal
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -30,6 +38,7 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CameraPermission = 'pending' | 'granted' | 'denied' | 'unavailable' | 'https_required';
+type DetectionAccuracy = 'standard' | 'high' | 'maximum';
 
 // ── Color Helpers (Farm & Nature Palette) ──────────────────────────────────────
 function stateColor(s: ScanState): string {
@@ -84,6 +93,7 @@ export function CameraScreeningPage() {
   const farmData = useFarmData();
   const { screenings, loading: histLoading, refresh } = useAllScreenings();
 
+  // Active view tab ('scan' is the primary native camera, 'attention' & 'history' accessible via Settings)
   const [tab, setTab]                           = useState<'scan' | 'attention' | 'history'>('scan');
   const [speciesMode, setSpeciesMode]           = useState<'auto' | 'goat' | 'sheep'>('auto');
   const [permission, setPermission]             = useState<CameraPermission>('pending');
@@ -93,6 +103,16 @@ export function CameraScreeningPage() {
   const [selectedAnimalId, setSelectedAnimalId] = useState(queryAnimalId);
   const [search, setSearch]                     = useState('');
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<CameraScreening | null>(null);
+
+  // Settings & Native Camera Controls State
+  const [settingsOpen, setSettingsOpen]               = useState(false);
+  const [hasMultipleCameras, setHasMultipleCameras]   = useState(true);
+  const [torchSupported, setTorchSupported]           = useState(false);
+  const [torchOn, setTorchOn]                         = useState(false);
+  const [soundEnabled, setSoundEnabled]               = useState(true);
+  const [autoScanEnabled, setAutoScanEnabled]         = useState(true);
+  const [detectionAccuracy, setDetectionAccuracy]     = useState<DetectionAccuracy>('standard');
+  const [flashActive, setFlashActive]                 = useState(false);
 
   useEffect(() => {
     const qId = searchParams.get('animalId');
@@ -138,7 +158,7 @@ export function CameraScreeningPage() {
           setSaving(false);
         }
       }
-      
+
       // Auto-create health alert notification for high or critical results
       if (user && (scanResult.riskLevel === 'HIGH' || scanResult.riskLevel === 'CRITICAL')) {
         const animalName = selectedAnimal?.name ?? (species === 'sheep' ? 'Sheep' : 'Goat');
@@ -155,43 +175,102 @@ export function CameraScreeningPage() {
     },
   });
 
-  // ── File upload handler ───────────────────────────────────────────────────
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast('Please select a valid image file.', 'error');
-      return;
-    }
+  // ── Shutter Sound Feedback ────────────────────────────────────────────────
+  const playShutterSound = useCallback(() => {
+    if (!soundEnabled) return;
     try {
-      toast('Analyzing image with AI Veterinary Core...', 'info');
-      const canvas = await fileToCanvas(file);
-      await autoScan.triggerManualScan(canvas);
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(600, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.09);
     } catch {
-      toast('Could not read image file.', 'error');
-    } finally {
-      if (e.target) e.target.value = '';
+      // Audio context blocked or unsupported
     }
-  }, [autoScan, toast]);
+  }, [soundEnabled]);
 
-  // ── Camera management ─────────────────────────────────────────────────────
+  // ── Hardware Camera & Torch Detection ─────────────────────────────────────
+  useEffect(() => {
+    const detectDevices = async () => {
+      if (navigator.mediaDevices?.enumerateDevices) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(d => d.kind === 'videoinput');
+          setHasMultipleCameras(videoDevices.length > 1);
+        } catch {
+          setHasMultipleCameras(false);
+        }
+      }
+    };
+    detectDevices();
+  }, []);
+
+  const checkTorchCapabilities = (stream: MediaStream) => {
+    try {
+      const track = stream.getVideoTracks()[0];
+      const capabilities = (track?.getCapabilities?.() || {}) as any;
+      setTorchSupported(Boolean(capabilities?.torch));
+    } catch {
+      setTorchSupported(false);
+    }
+  };
+
+  const toggleTorch = async () => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (track && 'applyConstraints' in track) {
+      try {
+        const nextTorch = !torchOn;
+        await (track as any).applyConstraints({
+          advanced: [{ torch: nextTorch }],
+        });
+        setTorchOn(nextTorch);
+      } catch (err) {
+        console.warn('Torch constraint error:', err);
+      }
+    }
+  };
+
+  // ── Camera Management & Lifecycle ─────────────────────────────────────────
   const startCamera = useCallback(async (mode: 'environment' | 'user' = facingMode) => {
     setPermission('pending');
     if (
       window.location.protocol !== 'https:' &&
       window.location.hostname !== 'localhost' &&
       window.location.hostname !== '127.0.0.1'
-    ) { setPermission('https_required'); return; }
-    if (!navigator.mediaDevices?.getUserMedia) { setPermission('unavailable'); return; }
+    ) {
+      setPermission('https_required');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setPermission('unavailable');
+      return;
+    }
 
     try {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current.getTracks().forEach(t => {
+          try { t.stop(); } catch {}
+        });
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: mode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          facingMode: { ideal: mode },
+          width: { ideal: 1920, min: 640 },
+          height: { ideal: 1080, min: 480 },
+        },
       });
       streamRef.current = stream;
+      checkTorchCapabilities(stream);
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -206,22 +285,125 @@ export function CameraScreeningPage() {
 
   const stopCamera = useCallback(() => {
     autoScan.stopAutoScan();
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => {
+        try { t.stop(); } catch {}
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setTorchOn(false);
   }, [autoScan]);
 
   const toggleCameraFacing = useCallback(() => {
     const nextMode = facingMode === 'environment' ? 'user' : 'environment';
     setFacingMode(nextMode);
+    stopCamera();
     startCamera(nextMode);
-  }, [facingMode, startCamera]);
+  }, [facingMode, startCamera, stopCamera]);
 
+  // Clean lifecycle: start on enter, stop on exit or unmount
   useEffect(() => {
-    if (tab === 'scan' && permission === 'pending') startCamera();
-    return () => { if (tab !== 'scan') stopCamera(); };
+    if (tab === 'scan' && permission === 'pending') {
+      startCamera();
+    }
+    return () => {
+      if (tab !== 'scan') stopCamera();
+    };
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => () => stopCamera(), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
+
+  // ── Manual Capture Handler ────────────────────────────────────────────────
+  const handleManualCapture = useCallback(async () => {
+    if (autoScan.state === 'scanning') return;
+    setFlashActive(true);
+    playShutterSound();
+    if (navigator.vibrate) {
+      try { navigator.vibrate(50); } catch {}
+    }
+    setTimeout(() => setFlashActive(false), 160);
+
+    // Trigger instant frame capture and screening
+    await autoScan.triggerManualScan();
+  }, [autoScan, playShutterSound]);
+
+  // ── Gallery Upload Handler ────────────────────────────────────────────────
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast('Please select a valid image file.', 'error');
+      return;
+    }
+    try {
+      toast('Analyzing uploaded image with AI Veterinary Core...', 'info');
+      const canvas = await fileToCanvas(file);
+      await autoScan.triggerManualScan(canvas);
+    } catch {
+      toast('Could not read image file.', 'error');
+    } finally {
+      if (e.target) e.target.value = '';
+    }
+  }, [autoScan, toast]);
+
+  // ── Save Assessment Manually ──────────────────────────────────────────────
+  const handleSave = useCallback(async () => {
+    if (!autoScan.result || !user) return;
+    if (!autoScan.result.goatDetected) {
+      toast('Cannot save screening because animal is not a goat or sheep.', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      const animalId = selectedAnimalId || 'unlinked';
+      const { data, error } = await saveScreeningResult(
+        animalId, user.id, autoScan.result, autoScan.capturedCanvas,
+      );
+      if (error) throw new Error(error);
+      setSavedId(data?.id ?? null);
+      toast('Veterinary assessment saved to farm health records.', 'success');
+      refresh();
+      farmData.refresh();
+    } catch (err: any) {
+      toast(`Could not save: ${err?.message}`, 'error');
+    } finally { setSaving(false); }
+  }, [autoScan.result, autoScan.capturedCanvas, user, selectedAnimalId, toast, refresh, farmData]);
+
+  // ── Trigger AI Cloud Consultation ────────────────────────────────────────
+  const handleAskAICloud = (result: ScanResult, animalName?: string, tagId?: string) => {
+    const animalLabel = animalName ? `${animalName} (${tagId || 'Tag ID'})` : 'the scanned animal';
+    const conditions = result.possibleConditions?.join(', ') || result.primaryIndicators.join(', ') || 'Normal';
+    const risk = result.riskLevel || 'MODERATE';
+    const observations = result.observations?.join('. ') || result.explanation || '';
+
+    const promptText = `Hello AI Cloud. I performed an AI Camera Health Scan for ${animalLabel}.
+
+Scan Findings:
+- Species: ${result.species ? result.species.toUpperCase() : 'GOAT/SHEEP'}
+- Health Risk Level: ${risk} (Score: ${result.riskScore}/100)
+- Possible Conditions: ${conditions}
+- Visual Observations: ${observations}
+
+What are the recommended early livestock interventions, supportive veterinary care, or isolation steps recommended before the licensed veterinarian examines the animal?`;
+
+    const snapshotUrl = autoScan.capturedCanvas ? autoScan.capturedCanvas.toDataURL('image/jpeg', 0.8) : undefined;
+
+    window.dispatchEvent(new CustomEvent('alpas:consult-vet-ai', {
+      detail: {
+        prompt: promptText,
+        animalId: selectedAnimalId,
+        scanResult: result,
+        image: snapshotUrl,
+      }
+    }));
+  };
 
   // ── Live 60 FPS Bounding Box Canvas Overlay Renderer ─────────────────────
   useEffect(() => {
@@ -251,24 +433,24 @@ export function CameraScreeningPage() {
             const [x1Norm, y1Norm, x2Norm, y2Norm] = animal.smoothedBox;
             const x = x1Norm * W;
             const y = y1Norm * H;
-            const w = Math.max(20, (x2Norm - x1Norm) * W);
-            const h = Math.max(20, (y2Norm - y1Norm) * H);
+            const w = Math.max(30, (x2Norm - x1Norm) * W);
+            const h = Math.max(30, (y2Norm - y1Norm) * H);
 
             const isSelected = selectedId ? animal.id === selectedId : animal.isSelected;
-            const strokeColor = isSelected ? '#43A047' : 'rgba(255, 255, 255, 0.7)';
-            const fillColor = isSelected ? 'rgba(67, 160, 71, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+            const strokeColor = isSelected ? '#43A047' : 'rgba(255, 255, 255, 0.85)';
+            const fillColor = isSelected ? 'rgba(67, 160, 71, 0.14)' : 'rgba(255, 255, 255, 0.06)';
 
             // Fill bounding box
             ctx.fillStyle = fillColor;
             ctx.fillRect(x, y, w, h);
 
-            // Border
+            // Bounding box border
             ctx.strokeStyle = strokeColor;
             ctx.lineWidth = isSelected ? 2.5 : 1.5;
             ctx.strokeRect(x, y, w, h);
 
             // Sleek Corner Accents
-            const cornerLen = Math.min(22, w * 0.25, h * 0.25);
+            const cornerLen = Math.min(24, w * 0.25, h * 0.25);
             ctx.strokeStyle = isSelected ? '#81C784' : '#FFFFFF';
             ctx.lineWidth = 3.5;
             ctx.lineCap = 'round';
@@ -306,34 +488,39 @@ export function CameraScreeningPage() {
               const cx = x + w / 2;
               const cy = y + h / 2;
               const r = Math.min(16, w * 0.15, h * 0.15);
-              ctx.strokeStyle = 'rgba(67, 160, 71, 0.8)';
+              ctx.strokeStyle = 'rgba(67, 160, 71, 0.85)';
               ctx.lineWidth = 1.5;
               ctx.beginPath();
               ctx.arc(cx, cy, r, 0, Math.PI * 2);
               ctx.stroke();
             }
 
-            // Label Badge: GOAT · SIDE VIEW (94%) / SHEEP · FRONT VIEW (91%)
-            const angleSuffix = animal.angleLabel ? ` · ${animal.angleLabel.toUpperCase()}` : (autoScan.angleLabel ? ` · ${autoScan.angleLabel.toUpperCase()}` : '');
-            const labelText = `${animal.species.toUpperCase()}${angleSuffix} (${Math.round(animal.confidence * 100)}%)`;
-            ctx.font = 'bold 11px Inter, system-ui, sans-serif';
-            const textWidth = ctx.measureText(labelText).width;
-            const tagH = 22;
-            const tagW = textWidth + 16;
-            const tagX = Math.max(6, Math.min(W - tagW - 6, x));
-            const tagY = Math.max(tagH + 4, y - 6);
+            // High-legibility species label badge: GOAT 96% / SHEEP 94%
+            const confPct = Math.round(animal.confidence * 100);
+            const speciesText = animal.species.toUpperCase();
+            const badgeText = `${speciesText}   ${confPct}%`;
 
-            ctx.fillStyle = isSelected ? '#2E7D32' : 'rgba(15, 23, 42, 0.88)';
+            ctx.font = 'bold 12px Plus Jakarta Sans, Inter, system-ui, sans-serif';
+            const textWidth = ctx.measureText(badgeText).width;
+            const tagH = 26;
+            const tagW = textWidth + 20;
+            const tagX = Math.max(8, Math.min(W - tagW - 8, x));
+            const tagY = Math.max(tagH + 8, y - 8);
+
+            // Badge Background
+            ctx.fillStyle = isSelected ? '#2E7D32' : 'rgba(15, 23, 42, 0.9)';
             ctx.beginPath();
-            ctx.roundRect(tagX, tagY - tagH, tagW, tagH, 6);
+            ctx.roundRect(tagX, tagY - tagH, tagW, tagH, 8);
             ctx.fill();
 
-            ctx.strokeStyle = isSelected ? '#43A047' : 'rgba(255,255,255,0.2)';
+            // Badge Border
+            ctx.strokeStyle = isSelected ? '#43A047' : 'rgba(255, 255, 255, 0.25)';
             ctx.lineWidth = 1;
             ctx.stroke();
 
+            // Badge Text
             ctx.fillStyle = '#FFFFFF';
-            ctx.fillText(labelText, tagX + 8, tagY - 7);
+            ctx.fillText(badgeText, tagX + 10, tagY - 8);
           }
         }
       }
@@ -347,67 +534,13 @@ export function CameraScreeningPage() {
     };
   }, [autoScan.trackedAnimals, autoScan.selectedTargetId, autoScan.state, permission]);
 
-  // ── Save Assessment ───────────────────────────────────────────────────────
-  const handleSave = useCallback(async () => {
-    if (!autoScan.result || !user) return;
-    if (!autoScan.result.goatDetected) {
-      toast('Hindi maaring i-save ang screening dahil hindi ito kambing o tupa.', 'error');
-      return;
-    }
-    setSaving(true);
-    try {
-      const animalId = selectedAnimalId || 'unlinked';
-      const { data, error } = await saveScreeningResult(
-        animalId, user.id, autoScan.result, autoScan.capturedCanvas,
-      );
-      if (error) throw new Error(error);
-      setSavedId(data?.id ?? null);
-      toast('Veterinary assessment saved to farm health records.', 'success');
-      refresh();
-      farmData.refresh();
-    } catch (err: any) {
-      toast(`Could not save: ${err?.message}`, 'error');
-    } finally { setSaving(false); }
-  }, [autoScan.result, autoScan.capturedCanvas, user, selectedAnimalId, toast, refresh, farmData]);
+  // Derived detection variables
+  const det = autoScan.detection;
+  const speciesLabel = autoScan.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
+  const confidenceThreshold = detectionAccuracy === 'maximum' ? 0.85 : detectionAccuracy === 'high' ? 0.75 : 0.65;
+  const isLowConfidence = det?.detected && det.confidence < confidenceThreshold;
 
-  // ── Trigger AI Cloud Consultation ────────────────────────────────────────
-  const handleAskAICloud = (result: ScanResult, animalName?: string, tagId?: string) => {
-    const animalLabel = animalName ? `${animalName} (${tagId || 'Tag ID'})` : 'ang na-scan na hayop';
-    const conditions = result.possibleConditions?.join(', ') || result.primaryIndicators.join(', ') || 'Normal';
-    const risk = result.riskLevel || 'MODERATE';
-    const observations = result.observations?.join('. ') || result.explanation || '';
-
-    const promptText = `Kumusta AI Cloud. Nagsagawa ako ng AI Camera Health Scan para kay ${animalLabel}.
-
-Resulta ng Scan:
-- Uri ng Hayop: ${result.species ? result.species.toUpperCase() : 'GOAT/SHEEP'}
-- Antas ng Panganib (Risk Level): ${risk} (Score: ${result.riskScore}/100)
-- Posibleng Kondisyon: ${conditions}
-- Mga Visual Observation: ${observations}
-
-Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para sa kambing/tupa na ito bago dumating ang lisensyadong beterinaryo?`;
-
-    const snapshotUrl = autoScan.capturedCanvas ? autoScan.capturedCanvas.toDataURL('image/jpeg', 0.8) : undefined;
-
-    window.dispatchEvent(new CustomEvent('alpas:consult-vet-ai', {
-      detail: {
-        prompt: promptText,
-        animalId: selectedAnimalId,
-        scanResult: result,
-        image: snapshotUrl,
-      }
-    }));
-  };
-
-  // ── Metrics Computation ───────────────────────────────────────────────────
-  const todayStr = new Date().toISOString().split('T')[0];
-  const scannedToday = screenings.filter(s => s.created_at && s.created_at.startsWith(todayStr)).length;
-  const criticalCases = screenings.filter(s => (s.risk_level === 'CRITICAL' || (s.risk_score != null && s.risk_score >= 75))).length;
-  const highRiskCases = screenings.filter(s => (s.risk_level === 'HIGH' || (s.risk_score != null && s.risk_score >= 50 && s.risk_score < 75))).length;
-  const moderateRiskCases = screenings.filter(s => (s.risk_level === 'MODERATE' || (s.risk_score != null && s.risk_score >= 28 && s.risk_score < 50))).length;
-  const lowRiskCases = screenings.filter(s => (s.risk_level === 'LOW' || (s.risk_score != null && s.risk_score < 28))).length;
-
-  // Animals Requiring Attention (High or Critical)
+  // Compute metrics for attention list
   const attentionList = screenings
     .filter(s => s.risk_level === 'CRITICAL' || s.risk_level === 'HIGH' || s.prediction === 'possible_health_concern')
     .slice(0, 10)
@@ -419,18 +552,15 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
     }));
 
   const activeAnimals = farmData.animals;
-  const det           = autoScan.detection;
-  const speciesLabel  = autoScan.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
-  const borderColor   = permission === 'granted' ? stateColor(autoScan.state) : '#E5EDE6';
 
-  // History enrichment
-  const enriched = screenings.map(s => ({
+  // History filtering
+  const enrichedHistory = screenings.map(s => ({
     ...s,
     animalName: farmData.animals.find(a => a.id === s.animal_id)?.name ?? 'Unlinked Scan',
     animalTag:  farmData.animals.find(a => a.id === s.animal_id)?.tag_id ?? '',
     animalType: farmData.animals.find(a => a.id === s.animal_id)?.species ?? 'Goat',
   }));
-  const filtered = enriched.filter(s =>
+  const filteredHistory = enrichedHistory.filter(s =>
     !search.trim() ||
     s.animalName.toLowerCase().includes(search.toLowerCase()) ||
     s.animalTag.toLowerCase().includes(search.toLowerCase()) ||
@@ -439,751 +569,907 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
   );
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', paddingBottom: 40 }}>
-
-      {/* ── TOP HEADER: Veterinary AI Center ── */}
-      <div style={{
-        background: 'linear-gradient(135deg, #2E7D32 0%, #43A047 100%)',
-        borderRadius: 20,
-        padding: '24px 28px',
-        color: '#FFFFFF',
-        marginBottom: 24,
-        boxShadow: '0 8px 24px rgba(46, 125, 50, 0.2)',
+    <div
+      className="fullscreen-camera-page"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: '#000000',
         display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-      }}>
-        <div style={{ maxWidth: 640 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>
-            <Sparkles size={13} /> AI Clinical Decision Support
-          </div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>
-            Veterinary AI Center & Health Scanner
-          </h1>
-          <p style={{ margin: '8px 0 0', fontSize: 13, opacity: 0.9, lineHeight: 1.5 }}>
-            Real-time computer vision camera scanning, multimodal vital health analysis, and AI-assisted veterinary guidance for goats and sheep.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        flexDirection: 'column',
+        overflow: 'hidden',
+        color: '#FFFFFF',
+        fontFamily: 'Plus Jakarta Sans, Inter, system-ui, sans-serif',
+      }}
+    >
+      {/* ═══════════════════════════════════════════════════════════════════════
+          TOP BAR (TRANSLUCENT / GLASS EFFECT)
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 64,
+          zIndex: 35,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 16px',
+          background: 'linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.35) 65%, rgba(0, 0, 0, 0) 100%)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}
+      >
+        {/* LEFT: Back Button + Title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             onClick={() => {
-              const prompt = 'Kumusta AI Cloud! Nais kong kumonsulta tungkol sa pangkalahatang kalusugan at herd disease prevention para sa aking mga kambing at tupa.';
-              window.dispatchEvent(new CustomEvent('alpas:consult-vet-ai', { detail: { prompt } }));
+              stopCamera();
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/health');
+              }
             }}
+            aria-label="Back"
             style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              background: 'rgba(255, 255, 255, 0.16)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              background: '#FFFFFF',
-              color: '#2E7D32',
-              border: 'none',
-              borderRadius: 12,
-              padding: '10px 18px',
-              fontSize: 13,
-              fontWeight: 700,
+              justifyContent: 'center',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              backdropFilter: 'blur(10px)',
+              transition: 'background 0.15s ease',
             }}
           >
-            <Bot size={16} color="#2E7D32" />
-            <span>Ask AI Cloud</span>
+            <ArrowLeft size={22} />
+          </button>
+
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>AI Health Scanner</span>
+              {selectedAnimal && (
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: 'rgba(67, 160, 71, 0.35)',
+                  border: '1px solid rgba(67, 160, 71, 0.6)',
+                  color: '#A7F3D0',
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                }}>
+                  {selectedAnimal.tag_id}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: Quick Torch (if supported) + Settings Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {torchSupported && (
+            <button
+              onClick={toggleTorch}
+              title="Toggle Flash / Torch"
+              aria-label="Toggle Torch"
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 21,
+                background: torchOn ? '#F59E0B' : 'rgba(255, 255, 255, 0.16)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                color: torchOn ? '#000000' : '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <Zap size={20} />
+            </button>
+          )}
+
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              background: 'rgba(255, 255, 255, 0.16)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              backdropFilter: 'blur(10px)',
+              transition: 'background 0.15s ease',
+            }}
+          >
+            <Settings size={20} />
           </button>
         </div>
       </div>
 
-      {/* ── METRIC CARDS ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 24 }}>
-        <SummaryCard label="Scanned Today" value={scannedToday} subLabel="Today's activity" color="#43A047" icon={<Camera size={18} />} />
-        <SummaryCard label="Low Risk" value={lowRiskCases} subLabel="Normal appearance" color="#16A34A" icon={<CheckCircle size={18} />} />
-        <SummaryCard label="Moderate Risk" value={moderateRiskCases} subLabel="Monitor within 24h" color="#D97706" icon={<Activity size={18} />} />
-        <SummaryCard label="High Risk" value={highRiskCases} subLabel="Requires isolation" color="#EA580C" icon={<AlertTriangle size={18} />} />
-        <SummaryCard label="Critical Cases" value={criticalCases} subLabel="Immediate vet care" color="#DC2626" icon={<ShieldAlert size={18} />} />
-      </div>
+      {/* ═══════════════════════════════════════════════════════════════════════
+          CENTER: LIVE CAMERA PREVIEW & AI DETECTION OVERLAY
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div
+        style={{
+          flex: 1,
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          background: '#000000',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* Real Live Video Feed */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: permission === 'granted' ? 'block' : 'none',
+          }}
+        />
 
-      {/* ── TAB BAR ── */}
-      <div style={{
-        display: 'flex',
-        gap: 6,
-        marginBottom: 20,
-        background: '#FFFFFF',
-        border: '1px solid #E5EDE6',
-        borderRadius: 14,
-        padding: 5,
-        width: 'fit-content',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
-      }}>
-        {[
-          { key: 'scan',      label: 'Live AI Scanner',                icon: <ScanLine size={15} /> },
-          { key: 'attention', label: `Attention List (${attentionList.length})`, icon: <AlertTriangle size={15} /> },
-          { key: 'history',   label: 'Screening History',              icon: <History size={15} /> },
-        ].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key as any)}
+        {/* Real-time Dynamic AI Bounding Box Canvas Overlay */}
+        <canvas
+          ref={overlayCanvasRef}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            display: permission === 'granted' ? 'block' : 'none',
+          }}
+        />
+
+        {/* Shutter Flash Animation */}
+        {flashActive && (
+          <div
             style={{
+              position: 'absolute',
+              inset: 0,
+              background: '#FFFFFF',
+              zIndex: 40,
+              animation: 'cameraFlash 160ms ease-out forwards',
+            }}
+          />
+        )}
+
+        {/* ── CAMERA PERMISSION & LOADING STATES ── */}
+        {permission !== 'granted' && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              gap: 7,
-              padding: '8px 18px',
-              borderRadius: 10,
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 700,
-              background: tab === t.key ? '#43A047' : 'transparent',
-              color: tab === t.key ? '#FFFFFF' : '#4B5563',
-              boxShadow: tab === t.key ? '0 4px 12px rgba(67, 160, 71, 0.25)' : 'none',
-              transition: 'all 0.2s',
+              justifyContent: 'center',
+              gap: 14,
+              textAlign: 'center',
+              padding: 24,
+              zIndex: 20,
+              background: '#0B1520',
             }}
           >
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ═════════════════════════════════════════════════════════════════════════
-          TAB 1: LIVE AI HEALTH SCANNER
-         ═════════════════════════════════════════════════════════════════════════ */}
-      {tab === 'scan' && (
-        <div className="scanner-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: 20, alignItems: 'start' }}>
-
-          {/* LEFT: Camera Viewport */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-            {/* Species Detection Mode Guidance */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: '#FFFFFF',
-              border: '1px solid #E5EDE6',
-              borderRadius: 14,
-              padding: '8px 14px',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-              gap: 8,
-              flexWrap: 'wrap',
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#2E7D32', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Sparkles size={14} color="#43A047" /> Target Species:
-              </span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {[
-                  { key: 'auto',  label: 'Auto Detect' },
-                  { key: 'goat',  label: 'Goat (Kambing)' },
-                  { key: 'sheep', label: 'Sheep (Tupa)' },
-                ].map((item) => (
-                  <button
-                    key={item.key}
-                    onClick={() => setSpeciesMode(item.key as any)}
-                    style={{
-                      padding: '5px 12px',
-                      borderRadius: 8,
-                      border: speciesMode === item.key ? '1px solid #43A047' : '1px solid #E5EDE6',
-                      background: speciesMode === item.key ? '#E8F5E9' : '#FFFFFF',
-                      color: speciesMode === item.key ? '#2E7D32' : '#6B7280',
-                      fontSize: 12,
-                      fontWeight: speciesMode === item.key ? 700 : 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Multi-Animal Target Selection Chips */}
-            {permission === 'granted' && autoScan.trackedAnimals && autoScan.trackedAnimals.length > 0 && autoScan.state !== 'other_detected' && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-                background: '#FFFFFF',
-                border: '1px solid #E5EDE6',
-                borderRadius: 14,
-                padding: '8px 14px',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-              }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  {autoScan.trackedAnimals.length > 1 ? `Target Animal (${autoScan.trackedAnimals.length} detected):` : 'Target Lock:'}
-                </span>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {autoScan.trackedAnimals.map((animal) => {
-                    const isSelected = autoScan.selectedTargetId ? animal.id === autoScan.selectedTargetId : animal.isSelected;
-                    return (
-                      <button
-                        key={animal.id}
-                        onClick={() => autoScan.setSelectedTarget(animal.id)}
-                        className={`target-animal-chip ${isSelected ? 'active' : ''}`}
-                        style={{
-                          padding: '5px 12px',
-                          borderRadius: 999,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          border: isSelected ? '2px solid #43A047' : '1px solid #D1D5DB',
-                          background: isSelected ? '#E8F5E9' : '#FFFFFF',
-                          color: isSelected ? '#2E7D32' : '#4B5563',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5,
-                          transition: 'all 0.15s ease',
-                          boxShadow: isSelected ? '0 2px 8px rgba(67,160,71,0.25)' : 'none',
-                        }}
-                      >
-                        <Activity size={12} color={isSelected ? '#2E7D32' : '#9CA3AF'} />
-                        <span>{animal.label} ({Math.round(animal.confidence * 100)}%)</span>
-                        {isSelected && <Check size={12} color="#2E7D32" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            {permission === 'pending' && (
+              <>
+                <Loader2 size={44} color="#43A047" style={{ animation: 'spin 1s linear infinite' }} />
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>Starting camera...</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Initializing AI vision core...</div>
+              </>
             )}
 
-            {/* 9:16 Vertical Portrait Camera Viewport */}
-            <div
-              className="camera-container"
-              style={{
-                position: 'relative',
-                width: '100%',
-                maxWidth: 420,
-                aspectRatio: '9 / 16',
-                margin: '0 auto',
-                overflow: 'hidden',
-                borderRadius: 24,
-                background: '#000000',
-                border: `2px solid ${borderColor}`,
-                boxShadow: permission === 'granted' ? `0 0 28px ${borderColor}33` : '0 4px 16px rgba(0,0,0,0.1)',
-                transition: 'border-color 0.4s, box-shadow 0.4s',
-              }}
-            >
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: permission === 'granted' ? 'block' : 'none',
-                }}
-              />
-
-              {/* Real-time Dynamic Bounding Box Canvas Overlay */}
-              <canvas
-                ref={overlayCanvasRef}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
-                  display: permission === 'granted' ? 'block' : 'none',
-                }}
-              />
-
-              {/* No-camera states */}
-              {permission !== 'granted' && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, textAlign: 'center' }}>
-                  {permission === 'pending'        && <Loader2 size={36} color="#43A047" style={{ animation: 'spin 1s linear infinite' }} />}
-                  {permission === 'denied'         && <WifiOff size={38} color="#DC2626" />}
-                  {permission === 'unavailable'    && <Camera size={38} color="#9CA3AF" />}
-                  {permission === 'https_required' && <Camera size={38} color="#9CA3AF" />}
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF' }}>
-                    {permission === 'pending'        && 'Starting camera stream...'}
-                    {permission === 'denied'         && 'Camera access denied'}
-                    {permission === 'unavailable'    && 'No camera device detected'}
-                    {permission === 'https_required' && 'HTTPS is required for camera'}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6, maxWidth: 300 }}>
-                    {permission === 'denied'         && 'Camera permission is required for automatic health screening. Please enable camera permissions in your browser settings.'}
-                    {permission === 'unavailable'    && 'No active camera was found on this device. You can still upload photos.'}
-                    {permission === 'https_required' && 'Camera access requires a secure connection (HTTPS).'}
-                  </div>
-                  {(permission === 'denied' || permission === 'unavailable') && (
-                    <button
-                      onClick={() => startCamera()}
-                      style={{
-                        padding: '10px 22px',
-                        borderRadius: 10,
-                        border: 'none',
-                        background: '#43A047',
-                        color: '#fff',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        marginTop: 4,
-                      }}
-                    >
-                      Retry Camera
-                    </button>
-                  )}
+            {permission === 'denied' && (
+              <>
+                <WifiOff size={46} color="#DC2626" />
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>
+                  Camera access is required for AI Health Scanning.
                 </div>
-              )}
-
-              {/* Live HUD Overlay Elements */}
-              {permission === 'granted' && (
-                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-
-                  {/* NON-TARGET WARNING BANNER */}
-                  {autoScan.state === 'other_detected' && (
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: 'rgba(15, 23, 42, 0.88)',
-                      backdropFilter: 'blur(6px)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 12,
-                      padding: 24,
-                      textAlign: 'center',
-                      zIndex: 20,
-                    }}>
-                      <div style={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: 30,
-                        background: 'rgba(220, 38, 38, 0.2)',
-                        border: '2px solid #DC2626',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        <ShieldAlert size={32} color="#DC2626" />
-                      </div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626' }}>
-                        This is not a goat or sheep!
-                      </div>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: '#FFFFFF',
-                        background: 'rgba(220, 38, 38, 0.25)',
-                        border: '1px solid rgba(220, 38, 38, 0.5)',
-                        borderRadius: 10,
-                        padding: '8px 18px',
-                      }}>
-                        Hindi ito kambing o tupa
-                      </div>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, maxWidth: 300 }}>
-                        Pakitapat ang camera sa kambing o tupa. Ang AI Health Scanner ay para lamang sa mga kambing at tupa.
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Scan line effect during health scanning */}
-                  {autoScan.state === 'scanning' && (
-                    <div style={{
-                      position: 'absolute',
-                      left: '4%',
-                      right: '4%',
-                      height: 3,
-                      background: 'linear-gradient(90deg, transparent, #2563EB, #60A5FA, transparent)',
-                      boxShadow: '0 0 12px #2563EB',
-                      animation: 'scanLine 1.5s ease-in-out infinite',
-                      zIndex: 10,
-                    }} />
-                  )}
-
-                  {/* Top-left Angle Indicator Pill */}
-                  {autoScan.angleLabel && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 12,
-                      left: 12,
-                      pointerEvents: 'none',
-                      zIndex: 15,
-                      background: 'rgba(15, 23, 42, 0.88)',
-                      backdropFilter: 'blur(8px)',
-                      border: '1px solid rgba(67, 160, 71, 0.5)',
-                      borderRadius: 10,
-                      padding: '5px 12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      color: '#FFFFFF',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                    }}>
-                      <Compass size={13} color="#4ADE80" />
-                      <span>{autoScan.angleLabel} ({autoScan.angleTagalog})</span>
-                    </div>
-                  )}
-
-                  {/* Top-right camera flip button */}
-                  <div style={{ position: 'absolute', top: 12, right: 12, pointerEvents: 'auto', zIndex: 15 }}>
-                    <button
-                      onClick={toggleCameraFacing}
-                      title="Switch Camera (Front/Rear)"
-                      style={{
-                        background: 'rgba(0,0,0,0.6)',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: 10,
-                        color: '#FFFFFF',
-                        padding: 8,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <SwitchCamera size={16} />
-                    </button>
-                  </div>
-
-                  {/* Bottom status pill */}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 14,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'rgba(15, 23, 42, 0.88)',
-                    backdropFilter: 'blur(8px)',
-                    borderRadius: 999,
-                    padding: '6px 18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    whiteSpace: 'nowrap',
-                    maxWidth: 'calc(100% - 32px)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    zIndex: 15,
-                  }}>
-                    {autoScan.state === 'loading'        && <Loader2 size={13} color="#43A047" style={{ animation: 'spin 1s linear infinite' }} />}
-                    {autoScan.state === 'scanning'       && <Loader2 size={13} color="#2563EB" style={{ animation: 'spin 1s linear infinite' }} />}
-                    {autoScan.state === 'result'         && <CheckCircle size={13} color="#16A34A" />}
-                    {autoScan.state === 'cooldown'       && <RefreshCw size={13} color="#0284C7" />}
-                    {autoScan.state === 'other_detected' && <Ban size={13} color="#DC2626" />}
-                    {(autoScan.state === 'detecting' || autoScan.state === 'stable') && det?.detected && (
-                      <Activity size={13} color="#43A047" />
-                    )}
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {autoScan.message}
-                    </span>
-                  </div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', maxWidth: 320, lineHeight: 1.5 }}>
+                  Camera access is required for AI Health Scanning. Please allow camera permissions in your browser or device settings.
                 </div>
-              )}
-            </div>
-
-            {/* 2.0-Second Stability & Auto-Scan Verification Progress */}
-            {permission === 'granted' && (autoScan.state === 'detecting' || autoScan.state === 'stable') && (
-              <div style={{
-                background: '#FFFFFF',
-                border: '1px solid #E5EDE6',
-                borderRadius: 14,
-                padding: '12px 16px',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-                maxWidth: 420,
-                width: '100%',
-                margin: '0 auto',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#4B5563', marginBottom: 6 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 700, color: det?.detected ? '#2E7D32' : det?.otherDetected ? '#D97706' : '#6B7280' }}>
-                    {det?.detected ? (
-                      <><Check size={13} color="#43A047" /> {speciesLabel} detected / Ready for health scan</>
-                    ) : det?.otherDetected ? (
-                      <><Activity size={13} color="#D97706" /> Sinusuri ang feed...</>
-                    ) : (
-                      'Naghahanap ng kambing o tupa...'
-                    )}
-                  </span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: autoScan.isObserving ? '#2E7D32' : '#9CA3AF' }}>
-                    {autoScan.isObserving ? `${autoScan.stabilityRemainingSeconds.toFixed(1)}s (Hold Steady)` : '2.0s Hold Stability'}
-                  </span>
-                </div>
-                <div style={{ height: 8, borderRadius: 999, background: '#F3F4F6', overflow: 'hidden', marginBottom: 8 }}>
-                  <div
-                    style={{
-                      height: '100%',
-                      borderRadius: 999,
-                      background: det?.detected
-                        ? 'linear-gradient(90deg, #43A047, #2E7D32)'
-                        : det?.otherDetected
-                        ? 'linear-gradient(90deg, #F59E0B, #D97706)'
-                        : '#E5E7EB',
-                      width: `${autoScan.isObserving ? autoScan.stabilityProgress : 0}%`,
-                      transition: 'width 0.15s linear',
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: 11, color: '#6B7280', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>
-                    {autoScan.isObserving
-                      ? `Panatilihing nakatutok sa hayop (${autoScan.stabilityProgress}% tapos)...`
-                      : 'Itutok ang camera sa kambing o tupa nang 2.0 segundo para sa auto health scan.'}
-                  </span>
-                  {autoScan.isObserving && (
-                    <span style={{ fontWeight: 800, color: det?.detected ? '#2E7D32' : '#D97706' }}>
-                      {autoScan.stabilityRemainingSeconds.toFixed(1)}s
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Action Bar */}
-            {permission === 'granted' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420, width: '100%', margin: '0 auto' }}>
-                {/* Instant Scan Button */}
                 <button
-                  onClick={() => autoScan.triggerManualScan()}
-                  disabled={autoScan.state === 'scanning'}
+                  onClick={() => startCamera()}
                   style={{
-                    width: '100%',
-                    padding: '13px',
+                    padding: '12px 28px',
                     borderRadius: 12,
                     border: 'none',
-                    background: autoScan.state === 'scanning' ? '#9CA3AF' : 'linear-gradient(135deg, #43A047 0%, #2E7D32 100%)',
+                    background: '#43A047',
                     color: '#FFFFFF',
                     fontSize: 14,
                     fontWeight: 800,
-                    cursor: autoScan.state === 'scanning' ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    boxShadow: autoScan.state === 'scanning' ? 'none' : '0 4px 14px rgba(46, 125, 50, 0.25)',
-                    transition: 'all 0.2s',
+                    cursor: 'pointer',
+                    marginTop: 6,
                   }}
                 >
-                  <Zap size={16} /> Instant Health Scan (Scan Now)
+                  Allow Camera
                 </button>
+              </>
+            )}
 
-                {/* Secondary Actions */}
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      border: '1px solid #E5EDE6',
-                      background: '#FFFFFF',
-                      color: '#1F2937',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <Upload size={14} color="#43A047" /> Upload Photo
-                  </button>
-
-                  <button
-                    onClick={autoScan.rescan}
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      border: '1px solid #E5EDE6',
-                      background: '#FFFFFF',
-                      color: '#1F2937',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    <RefreshCw size={14} color="#43A047" /> Rescan Camera
-                  </button>
+            {permission === 'unavailable' && (
+              <>
+                <Camera size={46} color="#9CA3AF" />
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>No camera device detected</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', maxWidth: 320, lineHeight: 1.5 }}>
+                  No active camera device was found on this device. You can still scan photos using the Gallery button below.
                 </div>
-                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
-              </div>
+                <button
+                  onClick={() => startCamera()}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: 12,
+                    border: 'none',
+                    background: '#43A047',
+                    color: '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    marginTop: 6,
+                  }}
+                >
+                  Retry Camera
+                </button>
+              </>
+            )}
+
+            {permission === 'https_required' && (
+              <>
+                <Camera size={46} color="#9CA3AF" />
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>HTTPS is required for camera</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', maxWidth: 320, lineHeight: 1.5 }}>
+                  Camera access requires a secure connection (HTTPS).
+                </div>
+              </>
             )}
           </div>
+        )}
 
-          {/* RIGHT: AI Veterinary Assessment Panel */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* ── STATE 1: SCANNING (Floating HUD Pill) ── */}
+        {permission === 'granted' && autoScan.state === 'detecting' && !det?.detected && !det?.otherDetected && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 76,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(15, 23, 42, 0.8)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: 999,
+              padding: '7px 20px',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              zIndex: 25,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            }}
+          >
+            <Activity size={14} color="#4ADE80" />
+            <span style={{ fontSize: 12, fontWeight: 700 }}>
+              Scanning... Point the camera at a goat or sheep.
+            </span>
+          </div>
+        )}
 
-            {/* Animal Identification Status */}
-            <div style={{
-              background: '#FFFFFF',
-              border: '1px solid #E5EDE6',
+        {/* ── STATE 4: WRONG OBJECT BANNER ── */}
+        {permission === 'granted' && autoScan.state === 'other_detected' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 76,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(220, 38, 38, 0.92)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.35)',
               borderRadius: 14,
-              padding: '14px 16px',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
-                Animal Identification
-              </div>
-              {selectedAnimal ? (
-                <div style={{
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  background: 'rgba(34, 197, 94, 0.1)',
-                  border: '1px solid rgba(34, 197, 94, 0.3)',
-                  marginBottom: 10,
-                }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#15803D', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <CheckCircle size={15} />
-                    <span>Animal identified: {selectedAnimal.tag_id} ({selectedAnimal.name})</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#166534', marginTop: 3 }}>
-                    Historical herd medical records and weight trajectory automatically loaded.
-                  </div>
-                </div>
-              ) : (
-                <div style={{
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  background: 'rgba(234, 88, 12, 0.08)',
-                  border: '1px solid rgba(234, 88, 12, 0.25)',
-                  marginBottom: 10,
-                }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#C2410C', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Info size={14} />
-                    <span>Animal detected, but animal identity could not be confirmed.</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#9A3412', marginTop: 2 }}>
-                    Select the animal from the herd below to merge health history:
-                  </div>
-                </div>
-              )}
+              padding: '10px 20px',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              boxShadow: '0 8px 24px rgba(220, 38, 38, 0.4)',
+              zIndex: 25,
+              maxWidth: 'calc(100% - 32px)',
+              textAlign: 'center',
+            }}
+          >
+            <ShieldAlert size={20} color="#FFFFFF" />
+            <span style={{ fontSize: 13, fontWeight: 800 }}>
+              This is not a goat or sheep. Point the camera at a goat or sheep.
+            </span>
+          </div>
+        )}
 
-              <select
-                value={selectedAnimalId}
-                onChange={e => { setSelectedAnimalId(e.target.value); setSavedId(null); }}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: 9,
-                  border: '1px solid #D1D5DB',
-                  background: '#F9FAFB',
-                  color: '#1F2937',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  outline: 'none',
-                }}
-              >
-                <option value="">-- Select Animal Identity --</option>
-                {activeAnimals.map(a => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({a.tag_id}) · {a.species}
-                  </option>
-                ))}
-              </select>
+        {/* ── STATE 5: LOW CONFIDENCE BANNER ── */}
+        {permission === 'granted' && isLowConfidence && autoScan.state === 'detecting' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 76,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(217, 119, 6, 0.92)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.35)',
+              borderRadius: 14,
+              padding: '8px 18px',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              zIndex: 25,
+              maxWidth: 'calc(100% - 32px)',
+              boxShadow: '0 8px 20px rgba(217, 119, 6, 0.35)',
+            }}
+          >
+            <AlertTriangle size={16} />
+            <span style={{ fontSize: 12, fontWeight: 700 }}>
+              Animal not clearly detected. Move the camera closer or improve lighting.
+            </span>
+          </div>
+        )}
+
+        {/* ── STATE 6: STABLE DETECTION & AUTO-SCREENING COUNTDOWN ── */}
+        {permission === 'granted' && autoScan.isObserving && det?.detected && autoScanEnabled && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 76,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(46, 125, 50, 0.92)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(129, 199, 132, 0.6)',
+              borderRadius: 16,
+              padding: '10px 20px',
+              color: '#FFFFFF',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 8px 24px rgba(46, 125, 50, 0.45)',
+              zIndex: 25,
+              minWidth: 270,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CheckCircle size={16} color="#A7F3D0" />
+                {speciesLabel} detected ({Math.round(det.confidence * 100)}%)
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#A7F3D0' }}>
+                {autoScan.stabilityRemainingSeconds.toFixed(1)}s
+              </span>
             </div>
-
-            {/* ── WAITING / SCANNING STATES ── */}
-            {(autoScan.state === 'idle' || autoScan.state === 'loading' || autoScan.state === 'detecting' || autoScan.state === 'stable') && !autoScan.result && (
-              <div style={{
-                background: '#FFFFFF',
-                border: '1px solid #E5EDE6',
-                borderRadius: 16,
-                padding: '36px 20px',
-                textAlign: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                  <Stethoscope size={40} color="#43A047" style={{ opacity: 0.85 }} />
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937', marginBottom: 6 }}>
-                  Ready for AI Health Screening
-                </div>
-                <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.6, maxWidth: 300, margin: '0 auto' }}>
-                  Point your camera at a goat or sheep in good lighting. The AI system will detect the animal, analyze visual indicators, and produce clinical recommendations.
-                </div>
-              </div>
-            )}
-
-            {autoScan.state === 'scanning' && (
-              <div style={{
-                background: '#FFFFFF',
-                border: '1px solid rgba(37, 99, 235, 0.3)',
-                borderRadius: 16,
-                padding: '36px 20px',
-                textAlign: 'center',
-                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)',
-              }}>
-                <Loader2 size={36} color="#2563EB" style={{ animation: 'spin 1s linear infinite', marginBottom: 14 }} />
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937', marginBottom: 6 }}>
-                  Analyzing Health Condition...
-                </div>
-                <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.6 }}>
-                  Extracting posture, facial discharge signatures, and coat texture metrics...
-                </div>
-              </div>
-            )}
-
-            {/* ── ASSESSMENT RESULT CARD ── */}
-            {(autoScan.state === 'result' || autoScan.state === 'cooldown') && autoScan.result && (
-              <ScanResultCard
-                result={autoScan.result}
-                capturedUrl={autoScan.capturedUrl}
-                species={autoScan.detectedSpecies ?? 'goat'}
-                animal={selectedAnimal}
-                animalName={selectedAnimal?.name}
-                animalTag={selectedAnimal?.tag_id}
-                saving={saving}
-                savedId={savedId}
-                onSave={handleSave}
-                onAskAICloud={() => handleAskAICloud(autoScan.result!, selectedAnimal?.name, selectedAnimal?.tag_id)}
-                onRescan={autoScan.rescan}
-                onViewHistory={selectedAnimal ? () => navigate(`/animals/${selectedAnimal.id}`) : undefined}
+            <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  background: '#A7F3D0',
+                  width: `${autoScan.stabilityProgress}%`,
+                  transition: 'width 0.12s linear',
+                }}
               />
-            )}
+            </div>
+          </div>
+        )}
 
+        {/* Scan line effect during AI health feature extraction */}
+        {autoScan.state === 'scanning' && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              height: 3,
+              background: 'linear-gradient(90deg, transparent, #4ADE80, #22C55E, transparent)',
+              boxShadow: '0 0 16px #22C55E',
+              animation: 'scanLine 1.5s ease-in-out infinite',
+              zIndex: 25,
+            }}
+          />
+        )}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          BOTTOM CAMERA CONTROLS (GALLERY, CAPTURE, SWITCH)
+         ═══════════════════════════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '16px 24px 28px',
+          zIndex: 35,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-around',
+          background: 'linear-gradient(0deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.55) 60%, rgba(0, 0, 0, 0) 100%)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}
+      >
+        {/* LEFT: Gallery Button */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 68 }}>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Upload photo from Gallery"
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 26,
+              background: 'rgba(255, 255, 255, 0.16)',
+              border: '1.5px solid rgba(255, 255, 255, 0.3)',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              backdropFilter: 'blur(12px)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Image size={24} />
+          </button>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
+            Gallery
+          </span>
+        </div>
+
+        {/* CENTER: Capture Button (Large circular shutter) */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 88 }}>
+          <button
+            onClick={handleManualCapture}
+            disabled={autoScan.state === 'scanning'}
+            aria-label="Capture and Scan Animal"
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              background: 'transparent',
+              border: '4px solid #FFFFFF',
+              padding: 4,
+              cursor: autoScan.state === 'scanning' ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
+              transition: 'transform 0.1s ease',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: 999,
+                background: autoScan.state === 'scanning' ? '#9CA3AF' : '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#2E7D32',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.15)',
+              }}
+            >
+              <Camera size={30} color="#2E7D32" />
+            </div>
+          </button>
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
+            Capture
+          </span>
+        </div>
+
+        {/* RIGHT: Switch Camera Button */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 68 }}>
+          <button
+            onClick={toggleCameraFacing}
+            disabled={!hasMultipleCameras}
+            aria-label="Switch Camera (Front/Rear)"
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 26,
+              background: hasMultipleCameras ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.05)',
+              border: hasMultipleCameras ? '1.5px solid rgba(255, 255, 255, 0.3)' : '1.5px solid rgba(255, 255, 255, 0.1)',
+              color: hasMultipleCameras ? '#FFFFFF' : 'rgba(255, 255, 255, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: hasMultipleCameras ? 'pointer' : 'not-allowed',
+              backdropFilter: 'blur(12px)',
+              opacity: hasMultipleCameras ? 1 : 0.35,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <SwitchCamera size={24} />
+          </button>
+          <span style={{ fontSize: 12, fontWeight: 700, color: hasMultipleCameras ? '#FFFFFF' : 'rgba(255, 255, 255, 0.4)', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
+            Switch
+          </span>
+        </div>
+
+        {/* Hidden File Input for Gallery */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleFileUpload}
+        />
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          CLEAN HEALTH SCREENING RESULT SCREEN MODAL / OVERLAY (SECTION 14)
+         ═══════════════════════════════════════════════════════════════════════ */}
+      {(autoScan.state === 'result' || autoScan.state === 'cooldown') && autoScan.result && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 50,
+            background: 'rgba(6, 18, 32, 0.85)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            overflowY: 'auto',
+            padding: '20px 16px 40px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: 540, marginTop: 24, marginBottom: 40 }}>
+            <ScanResultCard
+              result={autoScan.result}
+              capturedUrl={autoScan.capturedUrl}
+              species={autoScan.detectedSpecies ?? 'goat'}
+              animal={selectedAnimal}
+              animalName={selectedAnimal?.name}
+              animalTag={selectedAnimal?.tag_id}
+              saving={saving}
+              savedId={savedId}
+              onSave={handleSave}
+              onAskAICloud={() => handleAskAICloud(autoScan.result!, selectedAnimal?.name, selectedAnimal?.tag_id)}
+              onRescan={autoScan.rescan}
+              onViewHistory={selectedAnimal ? () => navigate(`/animals/${selectedAnimal.id}`) : undefined}
+            />
           </div>
         </div>
       )}
 
-      {/* ═════════════════════════════════════════════════════════════════════════
-          TAB 2: ANIMALS REQUIRING ATTENTION
-         ═════════════════════════════════════════════════════════════════════════ */}
-      {tab === 'attention' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5EDE6', borderRadius: 16, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <AlertTriangle size={20} color="#EA580C" />
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1F2937' }}>
-                  Animals Requiring Veterinary Attention
-                </h3>
-                <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>
-                  High and critical risk cases identified by recent AI camera screenings and vital checks.
-                </p>
+      {/* ═══════════════════════════════════════════════════════════════════════
+          CAMERA SETTINGS MODAL (⚙️)
+         ═══════════════════════════════════════════════════════════════════════ */}
+      {settingsOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 60,
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            animation: 'fadeIn 0.15s ease-out',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 460,
+              background: '#FFFFFF',
+              borderRadius: 20,
+              padding: '24px 20px',
+              color: '#1F2937',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Settings size={20} color="#2E7D32" />
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1F2937' }}>
+                  Camera Scanner Settings
+                </h2>
               </div>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                aria-label="Close Settings"
+                style={{
+                  background: '#F3F4F6',
+                  border: 'none',
+                  borderRadius: 10,
+                  width: 34,
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#4B5563',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Herd Animal Identity Selector */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Animal Identity (Herd Record)
+                </label>
+                <select
+                  value={selectedAnimalId}
+                  onChange={e => { setSelectedAnimalId(e.target.value); setSavedId(null); }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid #D1D5DB',
+                    background: '#F9FAFB',
+                    color: '#1F2937',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">-- Unlinked Scan (Identify Later) --</option>
+                  {activeAnimals.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({a.tag_id}) · {a.species}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>
+                  Linking an animal automatically merges herd weight trajectories and health history.
+                </div>
+              </div>
+
+              {/* Target Species */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Target Species Preference
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                  {[
+                    { key: 'auto',  label: 'Auto Detect' },
+                    { key: 'goat',  label: 'Goat' },
+                    { key: 'sheep', label: 'Sheep' },
+                  ].map(item => (
+                    <button
+                      key={item.key}
+                      onClick={() => setSpeciesMode(item.key as any)}
+                      style={{
+                        padding: '9px 6px',
+                        borderRadius: 10,
+                        border: speciesMode === item.key ? '2px solid #2E7D32' : '1px solid #E5EDE6',
+                        background: speciesMode === item.key ? '#E8F5E9' : '#FFFFFF',
+                        color: speciesMode === item.key ? '#2E7D32' : '#4B5563',
+                        fontSize: 12,
+                        fontWeight: speciesMode === item.key ? 800 : 600,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Detection Accuracy (Farmer-Friendly Label) */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Detection Accuracy
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                  {[
+                    { key: 'standard', label: 'Standard' },
+                    { key: 'high',     label: 'High' },
+                    { key: 'maximum',  label: 'Maximum' },
+                  ].map(acc => (
+                    <button
+                      key={acc.key}
+                      onClick={() => setDetectionAccuracy(acc.key as DetectionAccuracy)}
+                      style={{
+                        padding: '9px 6px',
+                        borderRadius: 10,
+                        border: detectionAccuracy === acc.key ? '2px solid #2E7D32' : '1px solid #E5EDE6',
+                        background: detectionAccuracy === acc.key ? '#E8F5E9' : '#FFFFFF',
+                        color: detectionAccuracy === acc.key ? '#2E7D32' : '#4B5563',
+                        fontSize: 12,
+                        fontWeight: detectionAccuracy === acc.key ? 800 : 600,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {acc.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Auto Scan Toggle */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #F3F4F6' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>Auto Health Screening</div>
+                  <div style={{ fontSize: 11, color: '#6B7280' }}>Automatically analyze animal after 2.0 seconds of steady camera hold.</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={autoScanEnabled}
+                  onChange={e => setAutoScanEnabled(e.target.checked)}
+                  style={{ width: 20, height: 20, accentColor: '#2E7D32', cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Sound Feedback Toggle */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #F3F4F6' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>Shutter Sound Feedback</div>
+                  <div style={{ fontSize: 11, color: '#6B7280' }}>Play audio sound upon taking capture or completing scan.</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={soundEnabled}
+                  onChange={e => setSoundEnabled(e.target.checked)}
+                  style={{ width: 20, height: 20, accentColor: '#2E7D32', cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* History & Attention List Navigation */}
+              <div style={{ display: 'flex', gap: 10, paddingTop: 10, borderTop: '1px solid #F3F4F6' }}>
+                <button
+                  onClick={() => {
+                    setSettingsOpen(false);
+                    setTab('attention');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid #E5EDE6',
+                    background: '#FFFFFF',
+                    color: '#C2410C',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <AlertTriangle size={14} /> Attention List ({attentionList.length})
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSettingsOpen(false);
+                    setTab('history');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid #E5EDE6',
+                    background: '#FFFFFF',
+                    color: '#2563EB',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <History size={14} /> Screening History
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          ATTENTION LIST MODAL VIEW (ACCESSIBLE FROM SETTINGS)
+         ═══════════════════════════════════════════════════════════════════════ */}
+      {tab === 'attention' && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 55,
+            background: '#F9FAFB',
+            color: '#1F2937',
+            overflowY: 'auto',
+            padding: '20px 16px',
+          }}
+        >
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <button
+                onClick={() => setTab('scan')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 16px',
+                  borderRadius: 10,
+                  border: '1px solid #E5EDE6',
+                  background: '#FFFFFF',
+                  color: '#1F2937',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                <ArrowLeft size={16} /> Back to Live Camera
+              </button>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Animals Requiring Attention</h2>
             </div>
 
             {attentionList.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#6B7280' }}>
-                <CheckCircle size={36} color="#16A34A" style={{ marginBottom: 8 }} />
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937' }}>All Scanned Animals in Good Condition</div>
-                <div style={{ fontSize: 13, marginTop: 4 }}>No high or critical health concerns detected recently.</div>
+              <div style={{ background: '#FFFFFF', border: '1px solid #E5EDE6', borderRadius: 16, padding: '40px 20px', textAlign: 'center' }}>
+                <CheckCircle size={40} color="#16A34A" style={{ marginBottom: 10 }} />
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>All Scanned Animals in Normal Condition</div>
+                <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>No high or critical health concerns detected recently.</div>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
                 {attentionList.map(item => {
                   const rRisk = item.risk_level || 'HIGH';
                   return (
-                    <div key={item.id} style={{
-                      border: `1px solid ${riskBorder(rRisk)}`,
-                      background: riskBg(rRisk),
-                      borderRadius: 14,
-                      padding: 16,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: 12,
-                    }}>
+                    <div
+                      key={item.id}
+                      style={{
+                        border: `1px solid ${riskBorder(rRisk)}`,
+                        background: riskBg(rRisk),
+                        borderRadius: 14,
+                        padding: 16,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                      }}
+                    >
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                           <div>
@@ -1201,11 +1487,9 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                             {rRisk} RISK ({item.risk_score || 70}%)
                           </span>
                         </div>
-
                         <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.5, marginBottom: 8 }}>
                           {item.notes || 'Visual indicators show possible respiratory or postural discomfort.'}
                         </div>
-
                         <div style={{ fontSize: 11, color: '#6B7280' }}>
                           Scanned on {formatDate(item.created_at)}
                         </div>
@@ -1235,10 +1519,9 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
                         >
                           <Camera size={13} /> Scan Again
                         </button>
-
                         <button
                           onClick={() => {
-                            const prompt = `Kumusta AI Cloud! Nais kong magtanong tungkol sa kalagayan ni ${item.animalName} (${item.animalTag}). Ang nakaraang AI scan result ay nagpahiwatig ng ${rRisk} RISK. Ano ang dapat kong agarang gawin?`;
+                            const prompt = `Hello AI Cloud. I would like advice for ${item.animalName} (${item.animalTag}). The recent AI scan indicated ${rRisk} RISK. What clinical steps should I prepare before the vet arrives?`;
                             window.dispatchEvent(new CustomEvent('alpas:consult-vet-ai', { detail: { prompt, animalId: item.animal_id } }));
                           }}
                           style={{
@@ -1269,273 +1552,193 @@ Ano ang mga inirerekomendang veterinary first-aid at clinical action plan para s
         </div>
       )}
 
-      {/* ═════════════════════════════════════════════════════════════════════════
-          TAB 3: SCREENING HISTORY
-         ═════════════════════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          SCREENING HISTORY VIEW (ACCESSIBLE FROM SETTINGS)
+         ═══════════════════════════════════════════════════════════════════════ */}
       {tab === 'history' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 55,
+            background: '#F9FAFB',
+            color: '#1F2937',
+            overflowY: 'auto',
+            padding: '20px 16px',
+          }}
+        >
+          <div style={{ maxWidth: 840, margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <button
+                onClick={() => setTab('scan')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 16px',
+                  borderRadius: 10,
+                  border: '1px solid #E5EDE6',
+                  background: '#FFFFFF',
+                  color: '#1F2937',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                <ArrowLeft size={16} /> Back to Live Camera
+              </button>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Screening History</h2>
+            </div>
 
-          {/* Search bar */}
-          <div style={{
-            display: 'flex',
-            gap: 10,
-            background: '#FFFFFF',
-            border: '1px solid #E5EDE6',
-            borderRadius: 14,
-            padding: '10px 16px',
-            alignItems: 'center',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-          }}>
-            <Search size={16} color="#9CA3AF" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by animal name, tag ID, or clinical symptom..."
-              style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: '#1F2937', flex: 1 }}
-            />
-            <button
-              onClick={refresh}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 8,
-                border: '1px solid #E5EDE6',
-                background: '#F9FAFB',
-                color: '#1F2937',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-              }}
-            >
-              <RefreshCw size={13} /> Refresh
-            </button>
-          </div>
+            {/* Search */}
+            <div style={{
+              display: 'flex',
+              gap: 10,
+              background: '#FFFFFF',
+              border: '1px solid #E5EDE6',
+              borderRadius: 14,
+              padding: '10px 16px',
+              alignItems: 'center',
+              marginBottom: 16,
+            }}>
+              <Search size={16} color="#9CA3AF" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search history by animal name, tag ID, or findings..."
+                style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: '#1F2937', flex: 1 }}
+              />
+              <button
+                onClick={refresh}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #E5EDE6',
+                  background: '#F9FAFB',
+                  color: '#4B5563',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <RefreshCw size={12} /> Refresh
+              </button>
+            </div>
 
-          {/* History Table */}
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5EDE6', borderRadius: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-            {histLoading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '48px', color: '#6B7280', fontSize: 13 }}>
-                <Loader2 size={18} color="#43A047" style={{ animation: 'spin 1s linear infinite' }} /> Loading screening records...
-              </div>
-            ) : filtered.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px 20px', color: '#6B7280' }}>
-                <Camera size={38} color="#D1D5DB" style={{ marginBottom: 12 }} />
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginBottom: 4 }}>No screening records found</div>
-                <div style={{ fontSize: 13 }}>Saved AI health screenings will appear here.</div>
+            {filteredHistory.length === 0 ? (
+              <div style={{ background: '#FFFFFF', border: '1px solid #E5EDE6', borderRadius: 16, padding: '40px 20px', textAlign: 'center' }}>
+                <History size={36} color="#9CA3AF" style={{ marginBottom: 8 }} />
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937' }}>No Screening Records Found</div>
+                <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>Complete your first AI Camera screening to view records here.</div>
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5EDE6' }}>
-                      {['Date', 'Animal', 'Risk Level', 'Confidence', 'Model Version', 'Actions'].map(h => (
-                        <th key={h} style={{ padding: '12px 18px', textAlign: 'left', fontWeight: 700, color: '#6B7280', fontSize: 11, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map(s => {
-                      const rRisk = s.risk_level || (s.prediction === 'possible_health_concern' ? 'HIGH' : 'LOW');
-                      return (
-                        <tr
-                          key={s.id}
-                          style={{ borderBottom: '1px solid #F3F4F6' }}
-                          onMouseEnter={e => e.currentTarget.style.background = '#F9FAFB'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <td style={{ padding: '12px 18px', color: '#6B7280', whiteSpace: 'nowrap' }}>
-                            {formatDate(s.created_at)}
-                          </td>
-                          <td style={{ padding: '12px 18px' }}>
-                            <div style={{ fontWeight: 700, color: '#1F2937' }}>{s.animalName}</div>
-                            <div style={{ fontSize: 11, color: '#9CA3AF' }}>{s.animalTag || 'Unlinked'} · {s.animalType}</div>
-                          </td>
-                          <td style={{ padding: '12px 18px' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 5,
-                              padding: '3px 10px',
-                              borderRadius: 999,
-                              fontSize: 11,
-                              fontWeight: 800,
-                              background: riskBg(rRisk),
-                              color: riskColor(rRisk),
-                            }}>
-                              <Activity size={11} /> {rRisk} RISK ({s.risk_score || (rRisk === 'LOW' ? 15 : 65)}%)
-                            </span>
-                          </td>
-                          <td style={{ padding: '12px 18px', fontWeight: 700, color: '#1F2937' }}>
-                            {Math.round(s.confidence * 100)}%
-                          </td>
-                          <td style={{ padding: '12px 18px', color: '#6B7280', fontSize: 12 }}>
-                            {s.model_version || 'goat-health-v1.0'}
-                          </td>
-                          <td style={{ padding: '12px 18px' }}>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button
-                                onClick={() => setSelectedHistoryItem(s)}
-                                style={{
-                                  padding: '5px 12px',
-                                  borderRadius: 7,
-                                  border: '1px solid #E5EDE6',
-                                  background: '#FFFFFF',
-                                  color: '#2E7D32',
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                }}
-                              >
-                                View Report
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {filteredHistory.map(item => {
+                  const rRisk = item.risk_level || 'LOW';
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedHistoryItem(item)}
+                      style={{
+                        background: '#FFFFFF',
+                        border: '1px solid #E5EDE6',
+                        borderRadius: 12,
+                        padding: '14px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.15s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          background: riskBg(rRisk),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          <Activity size={18} color={riskColor(rRisk)} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: '#1F2937' }}>{item.animalName}</div>
+                          <div style={{ fontSize: 12, color: '#6B7280' }}>
+                            Tag: {item.animalTag || 'Unlinked'} · {item.animalType} · {formatDate(item.created_at)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{
+                          padding: '4px 10px',
+                          borderRadius: 999,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          background: riskBg(rRisk),
+                          color: riskColor(rRisk),
+                          border: `1px solid ${riskBorder(rRisk)}`,
+                        }}>
+                          {rRisk} ({item.risk_score ?? 15}%)
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ── DETAIL MODAL FOR HISTORY REPORT ── */}
+      {/* History Detail Modal */}
       {selectedHistoryItem && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: 16,
-        }}>
-          <div style={{
-            background: '#FFFFFF',
-            borderRadius: 20,
-            maxWidth: 580,
-            width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            padding: 24,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Stethoscope size={20} color="#43A047" />
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1F2937' }}>
-                  Veterinary AI Screening Report
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedHistoryItem(null)}
-                style={{ background: 'none', border: 'none', padding: 4, color: '#9CA3AF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <X size={18} />
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 70,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div style={{ width: '100%', maxWidth: 500, background: '#FFFFFF', borderRadius: 16, padding: 20, color: '#1F2937', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Screening Details</h3>
+              <button onClick={() => setSelectedHistoryItem(null)} style={{ border: 'none', background: '#F3F4F6', borderRadius: 8, padding: 6, cursor: 'pointer' }}>
+                <X size={16} />
               </button>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#F9FAFB', padding: '12px 16px', borderRadius: 12 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: '#6B7280' }}>Date & Time</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1F2937' }}>{formatDate(selectedHistoryItem.created_at)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: '#6B7280' }}>Risk Assessment</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: riskColor(selectedHistoryItem.risk_level || 'LOW') }}>
-                    {selectedHistoryItem.risk_level || 'LOW'} ({selectedHistoryItem.risk_score || 20}%)
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', marginBottom: 4 }}>CLINICAL SUMMARY</div>
-                <div style={{ fontSize: 13, color: '#1F2937', lineHeight: 1.6, background: '#F9FAFB', padding: '12px 16px', borderRadius: 12 }}>
-                  {selectedHistoryItem.notes || 'Normal clinical observations recorded.'}
-                </div>
-              </div>
-
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.08)',
-                border: '1px solid rgba(59, 130, 246, 0.2)',
-                borderRadius: 12,
-                padding: '12px 14px',
-                fontSize: 11,
-                color: '#1E40AF',
-                lineHeight: 1.5,
-              }}>
-                <Info size={14} style={{ marginBottom: 4 }} />
-                <div>AI results are intended for early health monitoring and decision support only. They are not a confirmed veterinary diagnosis. Consult a licensed veterinarian for proper diagnosis and treatment.</div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <button
-                  onClick={() => setSelectedHistoryItem(null)}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    borderRadius: 10,
-                    border: '1px solid #E5EDE6',
-                    background: '#FFFFFF',
-                    color: '#1F2937',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    const item = selectedHistoryItem;
-                    setSelectedHistoryItem(null);
-                    const prompt = `Kumusta AI Cloud. Nais kong kumonsulta tungkol sa screening record na ito: ${item.notes || 'Normal screening'}. Ano ang inirerekomendang veterinary follow-up?`;
-                    window.dispatchEvent(new CustomEvent('alpas:consult-vet-ai', { detail: { prompt } }));
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    borderRadius: 10,
-                    border: 'none',
-                    background: '#43A047',
-                    color: '#FFFFFF',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <Bot size={15} /> Ask AI Cloud
-                </button>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
+              <div><strong>Risk Level:</strong> {selectedHistoryItem.risk_level} (Score: {selectedHistoryItem.risk_score}%)</div>
+              <div><strong>Notes:</strong> {selectedHistoryItem.notes || 'Standard screening record.'}</div>
+              <div><strong>Recommendation:</strong> {selectedHistoryItem.recommendations || 'Continue standard herd observation.'}</div>
+              <div><strong>Date:</strong> {formatDate(selectedHistoryItem.created_at)}</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── CSS Keyframes ── */}
+      {/* ── CSS Animations ── */}
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes scanLine { 0% { top: 15%; opacity: 0.8; } 50% { top: 80%; opacity: 0.4; } 100% { top: 15%; opacity: 0.8; } }
-        @media (max-width: 768px) { .scanner-grid { grid-template-columns: 1fr !important; } }
+        @keyframes scanLine { 0% { top: 15%; opacity: 0.85; } 50% { top: 82%; opacity: 0.4; } 100% { top: 15%; opacity: 0.85; } }
+        @keyframes cameraFlash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   );
 }
 
-// ── Scan Result Card Component ────────────────────────────────────────────────
+// ── Scan Result Card Component (Section 14 Standard Layout) ───────────────────
 function ScanResultCard({
   result,
   capturedUrl,
@@ -1563,40 +1766,41 @@ function ScanResultCard({
   onRescan: () => void;
   onViewHistory?: () => void;
 }) {
-  // Non-target animal fallback (Section 3 message standard)
+  // Non-target fallback
   if (!result.goatDetected) {
     return (
-      <div style={{ background: '#FFFFFF', border: '2px solid #DC2626', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 14px rgba(220, 38, 38, 0.15)' }}>
+      <div style={{ background: '#FFFFFF', border: '2px solid #DC2626', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 30px rgba(220, 38, 38, 0.2)' }}>
         {capturedUrl && (
-          <img src={capturedUrl} alt="Screened Non-Target" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+          <img src={capturedUrl} alt="Screened Non-Target" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
         )}
-        <div style={{ padding: '22px 20px', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-            <ShieldAlert size={42} color="#DC2626" />
+        <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <ShieldAlert size={44} color="#DC2626" />
           </div>
-          <div style={{ fontSize: 17, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
+          <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
             This is not a goat or sheep.
           </div>
-          <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, marginBottom: 16 }}>
-            Point the camera at a goat or sheep.
+          <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, marginBottom: 20 }}>
+            Point the camera at a goat or sheep to scan health indicators.
           </div>
           <button
             onClick={onRescan}
             style={{
-              padding: '10px 22px',
-              borderRadius: 10,
+              padding: '12px 26px',
+              borderRadius: 12,
               border: 'none',
               background: '#43A047',
               color: '#FFFFFF',
-              fontSize: 13,
-              fontWeight: 700,
+              fontSize: 14,
+              fontWeight: 800,
               cursor: 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 8,
+              boxShadow: '0 4px 14px rgba(67, 160, 71, 0.3)',
             }}
           >
-            <RefreshCw size={14} /> Scan Again
+            <RefreshCw size={16} /> Scan Again
           </button>
         </div>
       </div>
@@ -1631,77 +1835,82 @@ function ScanResultCard({
   })();
 
   return (
-    <div style={{
-      background: '#FFFFFF',
-      border: '1px solid #E5EDE6',
-      borderRadius: 16,
-      overflow: 'hidden',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-    }}>
+    <div
+      style={{
+        background: '#FFFFFF',
+        border: '1px solid #E5EDE6',
+        borderRadius: 20,
+        overflow: 'hidden',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.25)',
+      }}
+    >
       {capturedUrl && (
-        <div style={{ position: 'relative', width: '100%', maxHeight: 180, overflow: 'hidden' }}>
-          <img src={capturedUrl} alt="Captured scan" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
-          <div style={{
-            position: 'absolute',
-            bottom: 8,
-            left: 8,
-            background: 'rgba(0,0,0,0.7)',
-            backdropFilter: 'blur(4px)',
-            color: '#FFFFFF',
-            fontSize: 11,
-            fontWeight: 700,
-            padding: '3px 10px',
-            borderRadius: 6,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-          }}>
+        <div style={{ position: 'relative', width: '100%', maxHeight: 200, overflow: 'hidden' }}>
+          <img src={capturedUrl} alt="Captured scan" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 8,
+              left: 8,
+              background: 'rgba(0,0,0,0.7)',
+              backdropFilter: 'blur(4px)',
+              color: '#FFFFFF',
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '3px 10px',
+              borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
             <Camera size={12} /> Live Capture
           </div>
         </div>
       )}
 
-      <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-        {/* ── SECTION 8 LAYOUT: TITLE & SPECIES/ANIMAL IDENTIFICATION ── */}
+      <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* ── HEADER: TITLE & SPECIES/ANIMAL IDENTIFICATION ── */}
         <div style={{ borderBottom: '1px solid #F3F4F6', paddingBottom: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 900, color: '#43A047', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Activity size={14} color="#43A047" /> AI HEALTH MONITORING
+            <Activity size={14} color="#43A047" /> AI HEALTH SCREENING
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#1F2937' }}>
-                Species: {species === 'sheep' ? 'Sheep' : 'Goat'}
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>
+                {species === 'sheep' ? 'Sheep Detected' : 'Goat Detected'}
               </div>
               <div style={{ fontSize: 13, color: '#4B5563', marginTop: 2 }}>
-                Animal: {targetTag && targetName ? `${targetTag} (${targetName})` : targetName ? targetName : 'Goat/Sheep detected, but identity could not be confirmed.'}
+                Animal: {targetTag && targetName ? `${targetTag} (${targetName})` : targetName ? targetName : 'Animal detected, but identity could not be confirmed.'}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#2563EB', background: 'rgba(37, 99, 235, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
-                Detection Confidence: {result.confidencePercent}%
+                Detection: {result.confidencePercent}%
               </div>
             </div>
           </div>
         </div>
 
         {/* ── HEALTH RISK & SCORE ── */}
-        <div style={{
-          background: rBg,
-          border: `1px solid ${rBorder}`,
-          borderRadius: 12,
-          padding: '14px 16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 10,
-        }}>
+        <div
+          style={{
+            background: rBg,
+            border: `1px solid ${rBorder}`,
+            borderRadius: 14,
+            padding: '14px 18px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               HEALTH RISK
             </div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: rColor, marginTop: 2 }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: rColor, marginTop: 2 }}>
               {rLevel}
             </div>
           </div>
@@ -1709,7 +1918,7 @@ function ScanResultCard({
             <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Risk Score
             </div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: rColor, marginTop: 2 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: rColor, marginTop: 2 }}>
               {result.riskScore ?? 15} / 100
             </div>
           </div>
@@ -1775,31 +1984,35 @@ function ScanResultCard({
           <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
             RECOMMENDATION:
           </div>
-          <div style={{
-            background: rBg,
-            border: `1px solid ${rBorder}`,
-            borderRadius: 10,
-            padding: '12px 14px',
-            fontSize: 12,
-            color: '#1F2937',
-            lineHeight: 1.5,
-          }}>
+          <div
+            style={{
+              background: rBg,
+              border: `1px solid ${rBorder}`,
+              borderRadius: 10,
+              padding: '12px 14px',
+              fontSize: 12,
+              color: '#1F2937',
+              lineHeight: 1.5,
+            }}
+          >
             {result.recommendation || recommendedActions[0]}
           </div>
         </div>
 
         {/* Decision-Support Notice */}
-        <div style={{
-          display: 'flex',
-          gap: 8,
-          padding: '10px 12px',
-          borderRadius: 10,
-          background: 'rgba(59, 130, 246, 0.08)',
-          border: '1px solid rgba(59, 130, 246, 0.2)',
-          fontSize: 11,
-          color: '#1E40AF',
-          lineHeight: 1.5,
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            padding: '10px 12px',
+            borderRadius: 10,
+            background: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            fontSize: 11,
+            color: '#1E40AF',
+            lineHeight: 1.5,
+          }}
+        >
           <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
             <strong>Decision-Support Notice:</strong> AI results are intended for early health monitoring and decision support only. They are not a confirmed veterinary diagnosis. Consult a licensed veterinarian for proper diagnosis and treatment.
@@ -1838,7 +2051,7 @@ function ScanResultCard({
             onClick={onAskAICloud}
             style={{
               width: '100%',
-              padding: '11px',
+              padding: '12px',
               borderRadius: 10,
               border: 'none',
               background: 'linear-gradient(135deg, #2E7D32 0%, #43A047 100%)',
@@ -1858,20 +2071,22 @@ function ScanResultCard({
 
           {/* Automatic Save Indicator & Scan Again */}
           <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{
-              flex: 1,
-              padding: '10px',
-              borderRadius: 10,
-              background: '#E8F5E9',
-              border: '1px solid #C8E6C9',
-              color: '#2E7D32',
-              fontWeight: 700,
-              fontSize: 12,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 5,
-            }}>
+            <div
+              style={{
+                flex: 1,
+                padding: '10px',
+                borderRadius: 10,
+                background: '#E8F5E9',
+                border: '1px solid #C8E6C9',
+                color: '#2E7D32',
+                fontWeight: 700,
+                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+              }}
+            >
               <Check size={14} /> Automatically Saved
             </div>
 
@@ -1897,63 +2112,6 @@ function ScanResultCard({
             </button>
           </div>
         </div>
-
-      </div>
-    </div>
-  );
-}
-
-// ── Metric Card Component ─────────────────────────────────────────────────────
-function SummaryCard({
-  label,
-  value,
-  subLabel,
-  color,
-  icon,
-}: {
-  label: string;
-  value: number | string;
-  subLabel?: string;
-  color: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div style={{
-      background: '#FFFFFF',
-      border: '1px solid #E5EDE6',
-      borderRadius: 16,
-      padding: '16px 18px',
-      boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 14,
-    }}>
-      <div style={{
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        background: `${color}18`,
-        border: `${color}30 1px solid`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color,
-        flexShrink: 0,
-      }}>
-        {icon}
-      </div>
-      <div>
-        <div style={{ fontSize: 22, fontWeight: 900, color: '#1F2937', lineHeight: 1.1 }}>
-          {value}
-        </div>
-        <div style={{ fontSize: 12, color: '#4B5563', fontWeight: 700, marginTop: 2 }}>
-          {label}
-        </div>
-        {subLabel && (
-          <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 1 }}>
-            {subLabel}
-          </div>
-        )}
       </div>
     </div>
   );
