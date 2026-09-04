@@ -188,6 +188,11 @@ export function predictEarlyIllness(params: {
   // 4. Check for Insufficient Evidence
   // If no observations entered, no camera scan, and no previous records exist
   if (!hasFarmerObservations && !hasCameraScan) {
+    const ageStr = ageMonths >= 12 ? `${(ageMonths / 12).toFixed(1)} years` : `${ageMonths} months`;
+    const weightStr = animal.weight_kg ? `${animal.weight_kg} kg` : 'Not recorded';
+    const vaccStr = animal.vaccination_status || (hasOverdueVaccine ? 'Pending / Overdue' : 'Up to date');
+    const prevRiskStr = previousRiskScore !== null ? `${previousRiskScore} / 100` : 'No prior scan';
+
     return {
       animalId: animal.id,
       animalName: animal.name,
@@ -208,6 +213,27 @@ export function predictEarlyIllness(params: {
       previousRiskScore,
       riskDelta: null,
       isSignificantIncrease: false,
+      riskTrend: 'Stable',
+      trendWarning: null,
+      availableData: {
+        age: ageStr,
+        weight: weightStr,
+        vaccination: vaccStr,
+        previousHealthRisk: prevRiskStr,
+        currentTemperature: 'Not measured',
+        currentHeartRate: 'Not measured',
+        currentRespiratoryRate: 'Not measured',
+      },
+      unavailableData: [
+        'Internal body temperature (Sensor unavailable)',
+        'Heart rate (Sensor unavailable)',
+        'Respiratory rate (Sensor unavailable)',
+      ],
+      dataSources: {
+        camera: false,
+        database: true,
+        sensors: false,
+      },
       contextSummary: {
         ageMonths,
         weightTrend,

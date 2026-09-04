@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
+import { useAllScreenings } from '../lib/useCameraScreenings';
 import { generateRecommendations } from '../lib/recommendations';
 import {
   inventoryStatus,
@@ -17,7 +18,7 @@ import {
   Plus, Brain, TrendingUp, AlertCircle, Layers,
   HeartPulse, PawPrint, Scale, Baby, Package, AlertTriangle,
   Lightbulb, Activity, CheckCircle2, ChevronRight, Syringe,
-  ShieldAlert, Clock, Stethoscope, ArrowRight, DollarSign,
+  ShieldAlert, Clock, Stethoscope, ArrowRight, DollarSign, Camera,
 } from 'lucide-react';
 import { useMLInsights } from '../lib/mlHooks';
 import { Line, Doughnut } from 'react-chartjs-2';
@@ -52,6 +53,7 @@ ChartJS.register(
 
 export function Dashboard() {
   const farmData = useFarmData();
+  const { screenings: cameraScreenings } = useAllScreenings();
   const navigate = useNavigate();
   const { animals, healthRecords, weightRecords, vaccinations, inventory, breedingRecords, settings } = farmData;
   const mlInsights = useMLInsights();
@@ -188,7 +190,7 @@ export function Dashboard() {
       const score = Math.max(a.health_risk_score ?? 0, latest?.risk_score ?? 0);
       const status = a.health_status;
 
-      const isHigh = status === 'Needs Attention' || status === 'Critical' || (status === 'At Risk' && score >= 50) || latest?.risk_level === 'High' || score >= 50;
+      const isHigh = status === 'Critical' || (status === 'At Risk' && score >= 50) || latest?.risk_level === 'High' || score >= 50;
       const isModerate = !isHigh && (status === 'Monitor' || status === 'At Risk' || latest?.risk_level === 'Moderate' || score >= 25);
 
       // Primary concern text
@@ -205,10 +207,10 @@ export function Dashboard() {
     });
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const screenedTodayCount = (farmData.cameraScreenings || []).filter((s) => s.created_at && s.created_at.startsWith(todayStr)).length;
+    const screenedTodayCount = (cameraScreenings || []).filter((s) => s.created_at && s.created_at.startsWith(todayStr)).length;
 
     return { highRisk, moderateRisk, healthyCount, screenedTodayCount };
-  }, [displayedAnimals, healthRecords, farmData.cameraScreenings]);
+  }, [displayedAnimals, healthRecords, cameraScreenings]);
 
   // ── 3. Breeding & Gestation ────────────────────────────────────────────────
   const breedingStats = useMemo(() => {

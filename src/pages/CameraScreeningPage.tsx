@@ -1704,7 +1704,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
               <div><strong>Risk Level:</strong> {selectedHistoryItem.risk_level} (Score: {selectedHistoryItem.risk_score}%)</div>
               <div><strong>Notes:</strong> {selectedHistoryItem.notes || 'Standard screening record.'}</div>
-              <div><strong>Recommendation:</strong> {selectedHistoryItem.recommendations || 'Continue standard herd observation.'}</div>
+              <div><strong>Recommendation:</strong> {selectedHistoryItem.recommendation || 'Continue standard herd observation.'}</div>
               <div><strong>Date:</strong> {formatDate(selectedHistoryItem.created_at)}</div>
             </div>
           </div>
