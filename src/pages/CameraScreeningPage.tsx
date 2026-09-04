@@ -18,41 +18,25 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Camera, AlertTriangle, CheckCircle, RefreshCw,
-  Loader2, Search, Info, WifiOff, ScanLine, History,
-  Save, Ban, Zap, Upload, ShieldAlert, Activity, Check,
-  Bot, Sparkles, Stethoscope, SwitchCamera, X, Compass,
-  ArrowLeft, Settings, Image, Volume2, VolumeX, SlidersHorizontal
+  Loader2, Search, Info, WifiOff, History,
+  Zap, ShieldAlert, Activity, Check,
+  Bot, SwitchCamera, X,
+  ArrowLeft, Settings, Image
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../components/ui/Toast';
-import { useAutoScan, type ScanState } from '../lib/useAutoScan';
+import { useAutoScan } from '../lib/useAutoScan';
 import { formatDate } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import { fileToCanvas, type ScanResult } from '../lib/cameraML';
-import {
-  GOAT_DETECTION_THRESHOLD,
-  STABILITY_DURATION_MS,
-} from '../lib/goatDetector';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CameraPermission = 'pending' | 'granted' | 'denied' | 'unavailable' | 'https_required';
 type DetectionAccuracy = 'standard' | 'high' | 'maximum';
 
 // ── Color Helpers (Farm & Nature Palette) ──────────────────────────────────────
-function stateColor(s: ScanState): string {
-  switch (s) {
-    case 'other_detected': return '#DC2626';
-    case 'stable':         return '#43A047';
-    case 'scanning':       return '#2563EB';
-    case 'result':         return '#2E7D32';
-    case 'cooldown':       return '#0284C7';
-    case 'error':          return '#DC2626';
-    default:               return 'rgba(67, 160, 71, 0.4)';
-  }
-}
-
 function riskColor(risk: string) {
   switch (risk?.toLowerCase()) {
     case 'critical': return '#DC2626';
@@ -91,7 +75,7 @@ export function CameraScreeningPage() {
   const { user } = useAuth();
   const toast    = useToast();
   const farmData = useFarmData();
-  const { screenings, loading: histLoading, refresh } = useAllScreenings();
+  const { screenings, refresh } = useAllScreenings();
 
   // Active view tab ('scan' is the primary native camera, 'attention' & 'history' accessible via Settings)
   const [tab, setTab]                           = useState<'scan' | 'attention' | 'history'>('scan');
@@ -140,7 +124,7 @@ export function CameraScreeningPage() {
         const targetAnimalId = selectedAnimalId || 'unlinked';
         try {
           setSaving(true);
-          const { data, error } = await saveScreeningResult(
+          const { data } = await saveScreeningResult(
             targetAnimalId,
             user.id,
             scanResult,
@@ -377,8 +361,8 @@ export function CameraScreeningPage() {
   }, [autoScan.result, autoScan.capturedCanvas, user, selectedAnimalId, toast, refresh, farmData]);
 
   // ── Trigger AI Cloud Consultation ────────────────────────────────────────
-  const handleAskAICloud = (result: ScanResult, animalName?: string, tagId?: string) => {
-    const animalLabel = animalName ? `${animalName} (${tagId || 'Tag ID'})` : 'the scanned animal';
+  const handleAskAICloud = (result: ScanResult, aName?: string, tagId?: string) => {
+    const animalLabel = aName ? `${aName} (${tagId || 'Tag ID'})` : 'the scanned animal';
     const conditions = result.possibleConditions?.join(', ') || result.primaryIndicators.join(', ') || 'Normal';
     const risk = result.riskLevel || 'MODERATE';
     const observations = result.observations?.join('. ') || result.explanation || '';
@@ -429,14 +413,14 @@ What are the recommended early livestock interventions, supportive veterinary ca
         const selectedId = autoScan.selectedTargetId;
 
         if (autoScan.state !== 'other_detected' && tracked && tracked.length > 0) {
-          for (const animal of tracked) {
-            const [x1Norm, y1Norm, x2Norm, y2Norm] = animal.smoothedBox;
+          for (const a of tracked) {
+            const [x1Norm, y1Norm, x2Norm, y2Norm] = a.smoothedBox;
             const x = x1Norm * W;
             const y = y1Norm * H;
             const w = Math.max(30, (x2Norm - x1Norm) * W);
             const h = Math.max(30, (y2Norm - y1Norm) * H);
 
-            const isSelected = selectedId ? animal.id === selectedId : animal.isSelected;
+            const isSelected = selectedId ? a.id === selectedId : a.isSelected;
             const strokeColor = isSelected ? '#43A047' : 'rgba(255, 255, 255, 0.85)';
             const fillColor = isSelected ? 'rgba(67, 160, 71, 0.14)' : 'rgba(255, 255, 255, 0.06)';
 
@@ -496,8 +480,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
             }
 
             // High-legibility species label badge: GOAT 96% / SHEEP 94%
-            const confPct = Math.round(animal.confidence * 100);
-            const speciesText = animal.species.toUpperCase();
+            const confPct = Math.round(a.confidence * 100);
+            const speciesText = a.species.toUpperCase();
             const badgeText = `${speciesText}   ${confPct}%`;
 
             ctx.font = 'bold 12px Plus Jakarta Sans, Inter, system-ui, sans-serif';
