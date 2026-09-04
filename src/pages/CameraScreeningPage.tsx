@@ -20,7 +20,7 @@ import {
   Camera, AlertTriangle, CheckCircle, RefreshCw,
   Loader2, Search, Info, WifiOff, History,
   Zap, ShieldAlert, Activity, Check,
-  Bot, SwitchCamera, X,
+  Bot, SwitchCamera, X, Play,
   ArrowLeft, Settings, Image
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
@@ -159,6 +159,13 @@ export function CameraScreeningPage() {
     },
   });
 
+  const autoScanRef = useRef(autoScan);
+  useEffect(() => {
+    autoScanRef.current = autoScan;
+  }, [autoScan]);
+
+  const [isStreamActive, setIsStreamActive] = useState(false);
+
   // ── Shutter Sound Feedback ────────────────────────────────────────────────
   const playShutterSound = useCallback(() => {
     if (!soundEnabled) return;
@@ -227,8 +234,26 @@ export function CameraScreeningPage() {
   };
 
   // ── Camera Management & Lifecycle ─────────────────────────────────────────
+  const stopCamera = useCallback(() => {
+    try {
+      autoScanRef.current?.stopAutoScan();
+    } catch {}
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => {
+        try { t.stop(); } catch {}
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setTorchOn(false);
+    setIsStreamActive(false);
+  }, []); // Strictly empty dependency array so this reference never changes!
+
   const startCamera = useCallback(async (mode: 'environment' | 'user' = facingMode) => {
     setPermission('pending');
+    setIsStreamActive(false);
     if (
       window.location.protocol !== 'https:' &&
       window.location.hostname !== 'localhost' &&
@@ -253,12 +278,15 @@ export function CameraScreeningPage() {
       // Progressive constraint fallback to guarantee mobile compatibility
       const constraintCandidates: MediaTrackConstraints[] = [
         {
-          facingMode: mode === 'user' ? 'user' : { ideal: 'environment' },
+          facingMode: { ideal: mode },
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
         {
-          facingMode: mode === 'user' ? 'user' : { ideal: 'environment' },
+          facingMode: { ideal: mode },
+        },
+        {
+          facingMode: mode,
         },
         {},
       ];
@@ -302,32 +330,15 @@ export function CameraScreeningPage() {
         video.setAttribute('webkit-playsinline', 'true');
         video.srcObject = stream;
 
-        // Wait for loadedmetadata or canplay so video decoder buffer is ready
-        await new Promise<void>((resolve) => {
-          let resolved = false;
-          const done = () => {
-            if (!resolved) {
-              resolved = true;
-              resolve();
-            }
-          };
-          if (video.readyState >= 2) {
-            done();
-            return;
-          }
-          video.addEventListener('loadedmetadata', done, { once: true });
-          video.addEventListener('canplay', done, { once: true });
-          setTimeout(done, 1000);
-        });
-
-        // Trigger playback with muted fallback for iOS Safari / Android Chrome
         try {
           await video.play();
+          setIsStreamActive(true);
         } catch (playErr) {
           console.warn('[Camera] Initial play failed, retrying muted play:', playErr);
           video.muted = true;
           try {
             await video.play();
+            setIsStreamActive(true);
           } catch (err2) {
             console.error('[Camera] Play retry error:', err2);
           }
@@ -335,27 +346,13 @@ export function CameraScreeningPage() {
       }
 
       setPermission('granted');
-      autoScan.startAutoScan();
+      autoScanRef.current?.startAutoScan();
     } catch (err: any) {
       console.error('[Camera] startCamera error:', err);
       const msg = (err?.message ?? '').toLowerCase();
       setPermission(msg.includes('permission') || err?.name === 'NotAllowedError' ? 'denied' : 'unavailable');
     }
-  }, [autoScan, facingMode]);
-
-  const stopCamera = useCallback(() => {
-    autoScan.stopAutoScan();
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => {
-        try { t.stop(); } catch {}
-      });
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setTorchOn(false);
-  }, [autoScan]);
+  }, [facingMode]);
 
   const toggleCameraFacing = useCallback(() => {
     const nextMode = facingMode === 'environment' ? 'user' : 'environment';
@@ -364,16 +361,14 @@ export function CameraScreeningPage() {
     startCamera(nextMode);
   }, [facingMode, startCamera, stopCamera]);
 
-  // Clean lifecycle: start on enter, stop on exit or unmount
+  // Clean lifecycle: start on enter
   useEffect(() => {
     if (tab === 'scan' && permission === 'pending') {
       startCamera();
     }
-    return () => {
-      if (tab !== 'scan') stopCamera();
-    };
-  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab, permission, startCamera]);
 
+  // Stop camera strictly on unmount
   useEffect(() => {
     return () => {
       stopCamera();
@@ -391,7 +386,7 @@ export function CameraScreeningPage() {
       video.setAttribute('playsinline', 'true');
       video.setAttribute('webkit-playsinline', 'true');
       video.srcObject = stream;
-      video.play().catch(e => console.warn('[Camera] Sync play error:', e));
+      video.play().then(() => setIsStreamActive(true)).catch(e => console.warn('[Camera] Sync play error:', e));
     }
   }, [permission]);
 
@@ -401,7 +396,7 @@ export function CameraScreeningPage() {
       if (document.visibilityState === 'visible' && tab === 'scan') {
         const v = videoRef.current;
         if (v && v.srcObject && (v.paused || v.ended)) {
-          v.play().catch(console.warn);
+          v.play().then(() => setIsStreamActive(true)).catch(console.warn);
         }
       }
     };
@@ -800,7 +795,9 @@ What are the recommended early livestock interventions, supportive veterinary ca
           // Tap video container to resume playback if suspended by mobile OS
           const v = videoRef.current;
           if (v && v.srcObject && (v.paused || v.ended)) {
-            v.play().catch(console.warn);
+            v.play().then(() => setIsStreamActive(true)).catch(console.warn);
+          } else if (!streamRef.current && permission === 'granted') {
+            startCamera();
           }
         }}
         style={{
@@ -823,6 +820,15 @@ What are the recommended early livestock interventions, supportive veterinary ca
           muted
           // @ts-ignore
           webkit-playsinline="true"
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            v.play().then(() => setIsStreamActive(true)).catch(err => console.warn('[Video] onLoadedMetadata play catch:', err));
+          }}
+          onCanPlay={(e) => {
+            const v = e.currentTarget;
+            v.play().then(() => setIsStreamActive(true)).catch(err => console.warn('[Video] onCanPlay play catch:', err));
+          }}
+          onPlaying={() => setIsStreamActive(true)}
           style={{
             position: 'absolute',
             inset: 0,
@@ -848,6 +854,46 @@ What are the recommended early livestock interventions, supportive veterinary ca
             display: permission === 'granted' ? 'block' : 'none',
           }}
         />
+
+        {/* Manual Tap-to-Wake Camera button if auto-play was blocked or stream waiting */}
+        {permission === 'granted' && !isStreamActive && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              const v = videoRef.current;
+              if (v && v.srcObject) {
+                v.muted = true;
+                v.play().then(() => setIsStreamActive(true)).catch(() => startCamera());
+              } else {
+                startCamera();
+              }
+            }}
+            style={{
+              position: 'absolute',
+              zIndex: 26,
+              background: 'rgba(15, 23, 42, 0.88)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              borderRadius: 16,
+              padding: '14px 22px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 10,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#4ADE80', fontSize: 14, fontWeight: 800 }}>
+              <Play size={18} fill="#4ADE80" />
+              <span>Simulan ang Camera Feed</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center', maxWidth: 220 }}>
+              Pindutin dito kung hindi pa lumalabas ang video ng camera
+            </div>
+          </div>
+        )}
 
         {/* Shutter Flash Animation */}
         {flashActive && (
