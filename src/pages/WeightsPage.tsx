@@ -85,9 +85,9 @@ export function WeightsPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.animal_id) e.animal_id = 'Please select an animal.';
+    if (!form.animal_id) e.animal_id = 'Pumili ng hayop.';
     if (!form.weight_kg || isNaN(Number(form.weight_kg)) || Number(form.weight_kg) <= 0)
-      e.weight_kg = 'Please enter a valid weight greater than 0.';
+      e.weight_kg = 'Maglagay ng wastong timbang na higit sa 0.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -128,11 +128,11 @@ export function WeightsPage() {
       if (editing) {
         const { error } = await supabase.from('weight_records').update(payload).eq('id', editing.id);
         if (error) throw error;
-        toast('Weight record updated.', 'success');
+        toast('Na-update na ang rekord ng timbang.', 'success');
       } else {
         const { error } = await supabase.from('weight_records').insert(payload);
         if (error) throw error;
-        toast('Weight record created.', 'success');
+        toast('Nai-save na ang rekord ng timbang.', 'success');
       }
 
       await supabase
@@ -143,7 +143,7 @@ export function WeightsPage() {
       setModalOpen(false);
       farmData.refresh();
     } catch {
-      toast('Unable to save weight record. Please try again.', 'danger');
+      toast('Hindi mai-save ang rekord ng timbang. Pakisubukang muli.', 'danger');
     } finally {
       setSaving(false);
     }
@@ -154,17 +154,17 @@ export function WeightsPage() {
     try {
       const { error } = await supabase.from('weight_records').delete().eq('id', confirmDelete.id);
       if (error) throw error;
-      toast('Weight record deleted.', 'success');
+      toast('Nabura na ang rekord ng timbang.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Unable to delete weight record. Please try again.', 'danger');
+      toast('Hindi mabura ang rekord ng timbang. Pakisubukang muli.', 'danger');
     }
   };
 
   const animalName = (id: string) => {
     const a = farmData.animals.find((x) => x.id === id);
-    return a ? `${a.name} (${a.tag_id})` : 'Unknown';
+    return a ? `${a.name} (${a.tag_id})` : 'Hindi Natukoy';
   };
 
   const growthSummaries = useMemo(() => {
@@ -186,7 +186,7 @@ export function WeightsPage() {
       labels: records.map((r) => formatDate(r.record_date)),
       datasets: [
         {
-          label: 'Weight (kg)',
+          label: 'Timbang (kg)',
           data: records.map((r) => Number(r.weight_kg)),
           borderColor: '#FF7A18',
           backgroundColor: 'rgba(255,122,24,0.08)',
@@ -205,14 +205,14 @@ export function WeightsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', letterSpacing: '-0.02em' }}>
-            Weight & Growth Tracking
+            Pagsubaybay sa Timbang at Paglaki
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
-            {filtered.length} weight records · Daily gain and growth trends auto-calculated
+            {filtered.length} talaan ng timbang · Awtomatikong kinalkula ang dagdag na timbang at takbo ng paglaki
           </p>
         </div>
         <Button variant="primary" onClick={openAdd} disabled={activeAnimals.length === 0} leftIcon={<Plus size={16} />}>
-          Record Weight
+          Magtala ng Timbang
         </Button>
       </div>
 
@@ -220,26 +220,26 @@ export function WeightsPage() {
       <Card variant="default">
         <CardContent>
           <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)', marginBottom: 14 }}>
-            Growth Summary
+            Buod ng Paglaki (Growth Summary)
           </div>
           {growthSummaries.length === 0 ? (
             <EmptyState
               icon={<Icons.Scale size={32} />}
-              title="No weight data yet"
-              description="Record weigh-ins to see growth predictions."
+              title="Wala pang datos ng timbang"
+              description="Magtala ng timbang upang makita ang pagtaya sa paglaki."
             />
           ) : (
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Animal</th>
-                    <th>Current</th>
-                    <th>Previous</th>
-                    <th>Change</th>
-                    <th>Daily Gain</th>
-                    <th>Trend</th>
-                    <th>Days to Target</th>
+                    <th>Hayop</th>
+                    <th>Kasalukuyan</th>
+                    <th>Nakaraan</th>
+                    <th>Pagbabago</th>
+                    <th>Arawang Dagdag</th>
+                    <th>Takbo (Trend)</th>
+                    <th>Araw Bago ang Target</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -266,7 +266,7 @@ export function WeightsPage() {
                           : '—'}
                       </td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
-                        {growth.dailyGain !== null ? `${growth.dailyGain} kg/day` : '—'}
+                        {growth.dailyGain !== null ? `${growth.dailyGain} kg/araw` : '—'}
                       </td>
                       <td>
                         <Badge
@@ -281,11 +281,11 @@ export function WeightsPage() {
                           }
                           size="sm"
                         >
-                          {growth.trend}
+                          {growth.trend === 'Good' ? 'Maganda' : growth.trend === 'Declining' ? 'Bumababa' : growth.trend === 'Slow' ? 'Mabagal' : growth.trend}
                         </Badge>
                       </td>
                       <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>
-                        {growth.daysToTarget !== null ? `${growth.daysToTarget} days` : '—'}
+                        {growth.daysToTarget !== null ? `${growth.daysToTarget} araw` : '—'}
                       </td>
                     </tr>
                   ))}
@@ -301,7 +301,7 @@ export function WeightsPage() {
         <Card variant="default">
           <CardContent>
             <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)', marginBottom: 14 }}>
-              Weight Chart — {animalName(fAnimal)}
+              Tsart ng Timbang — {animalName(fAnimal)}
             </div>
             <Line data={chartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
           </CardContent>
@@ -315,27 +315,27 @@ export function WeightsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
               <Brain size={18} color="#43A047" />
               <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #1F2933)' }}>
-                ML Growth Prediction — Polynomial Regression
+                Pagtataya sa Paglaki ng Hayop — ML Growth Prediction
               </span>
               <Badge variant="warning" size="sm">
                 R² = {mlGrowth.rSquared.toFixed(3)}
               </Badge>
               <Badge variant="primary" size="sm">
-                {mlGrowth.confidence}% confidence
+                {mlGrowth.confidence}% kumpyansa (confidence)
               </Badge>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  Projected Daily Gain
+                  Arawang Dagdag sa Timbang
                 </div>
                 <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.projectedDailyGain > 0 ? 'var(--color-success, #2E7D32)' : 'var(--color-danger, #EF4444)' }}>
-                  {mlGrowth.projectedDailyGain} kg/day
+                  {mlGrowth.projectedDailyGain} kg/araw
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  30-Day Projection
+                  30-Araw na Tinatayang Timbang
                 </div>
                 <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #1F2933)' }}>
                   {mlGrowth.projectedWeights[Math.min(4, mlGrowth.projectedWeights.length - 1)]?.weight ?? '—'} kg
@@ -343,15 +343,15 @@ export function WeightsPage() {
               </div>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  Market Ready Date
+                  Tinatayang Petsa ng Target na Timbang
                 </div>
                 <div style={{ fontSize: '16px', fontWeight: 700, paddingTop: 4, color: 'var(--color-primary, #43A047)' }}>
-                  {mlGrowth.marketReadyDate ?? 'Already at target'}
+                  {mlGrowth.marketReadyDate ?? 'Nasa target na timbang na'}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  Model Fit (R²)
+                  Katumpakan ng Modelo (R²)
                 </div>
                 <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.rSquared >= 0.7 ? 'var(--color-success, #2E7D32)' : mlGrowth.rSquared >= 0.4 ? 'var(--color-warning, #F59E0B)' : 'var(--color-danger, #EF4444)' }}>
                   {mlGrowth.rSquared.toFixed(3)}
@@ -361,14 +361,14 @@ export function WeightsPage() {
             {mlGrowth.projectedWeights.length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary, #667085)' }}>
-                  Projected Growth Curve with Confidence Interval
+                  Tinatayang Kurba ng Paglaki na may Saklaw ng Kumpyansa
                 </div>
                 <Line
                   data={{
                     labels: mlGrowth.projectedWeights.map((p) => p.date),
                     datasets: [
                       {
-                        label: 'Projected Weight',
+                        label: 'Tinatayang Timbang',
                         data: mlGrowth.projectedWeights.map((p) => p.weight),
                         borderColor: '#43A047',
                         backgroundColor: 'rgba(67, 160, 71, 0.1)',
@@ -377,7 +377,7 @@ export function WeightsPage() {
                         pointRadius: 2,
                       },
                       {
-                        label: 'Upper Bound',
+                        label: 'Mataas na Saklaw (Upper Bound)',
                         data: mlGrowth.projectedWeights.map((p) => p.upper),
                         borderColor: 'rgba(255,106,42,0.3)',
                         borderDash: [5, 5],
@@ -386,7 +386,7 @@ export function WeightsPage() {
                         pointRadius: 0,
                       },
                       {
-                        label: 'Lower Bound',
+                        label: 'Mababang Saklaw (Lower Bound)',
                         data: mlGrowth.projectedWeights.map((p) => p.lower),
                         borderColor: 'rgba(255,106,42,0.3)',
                         borderDash: [5, 5],
@@ -405,7 +405,7 @@ export function WeightsPage() {
               </div>
             )}
             <p style={{ fontSize: '12px', color: 'var(--color-text-muted, #64748B)', marginTop: 8, margin: 0 }}>
-              This model fits a polynomial curve to your weight history and projects forward 90 days. The dashed lines show the confidence interval based on historical variance.
+              Tinatantiya ng modelong ito ang takbo ng timbang ng hayop sa susunod na 90 araw batay sa nakaraang mga tala ng timbang. Ang putol-putol na linya ay nagpapakita ng posibleng saklaw batay sa datos.
             </p>
           </CardContent>
         </Card>
@@ -417,10 +417,10 @@ export function WeightsPage() {
           value={fAnimal}
           onChange={setFAnimal}
           options={[
-            { value: 'All', label: 'All Animals' },
+            { value: 'All', label: 'Lahat ng Hayop' },
             ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
           ]}
-          ariaLabel="Filter Animal"
+          ariaLabel="Salain ayon sa Hayop"
           minWidth={180}
         />
       </FilterToolbar>
@@ -432,9 +432,9 @@ export function WeightsPage() {
             <div style={{ padding: 32 }}>
               <EmptyState
                 icon={<Icons.Scale size={32} />}
-                title="No weight records"
-                description="Record a weigh-in to start tracking growth."
-                actionLabel="Record Weight"
+                title="Walang talaan ng timbang"
+                description="Magtala ng timbang upang simulan ang pagsubaybay sa paglaki."
+                actionLabel="Magtala ng Timbang"
                 onAction={openAdd}
               />
             </div>
@@ -443,13 +443,13 @@ export function WeightsPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Animal</th>
-                    <th>Weight</th>
-                    <th>Previous</th>
-                    <th>Change</th>
-                    <th>Daily Gain</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
+                    <th>Petsa</th>
+                    <th>Hayop</th>
+                    <th>Timbang</th>
+                    <th>Nakaraan</th>
+                    <th>Pagbabago</th>
+                    <th>Arawang Dagdag</th>
+                    <th style={{ textAlign: 'right' }}>Mga Aksyon</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -477,14 +477,14 @@ export function WeightsPage() {
                         {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
                       </td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
-                        {w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}
+                        {w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/araw` : '—'}
                       </td>
                       <td>
                         <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(w)}>
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(w)} title="I-edit ang rekord ng timbang">
                             <Pencil size={15} />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(w)}>
+                          <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(w)} title="Burahin ang rekord ng timbang">
                             <Trash2 size={15} />
                           </Button>
                         </div>
@@ -501,24 +501,24 @@ export function WeightsPage() {
       {/* Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
         <ModalHeader
-          title={editing ? 'Edit Weight Record' : 'Record Weight'}
+          title={editing ? 'I-edit ang Rekord ng Timbang' : 'Magtala ng Timbang'}
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Animal" required error={errors.animal_id}>
+            <FormField label="Hayop" required error={errors.animal_id}>
               <Select
                 value={form.animal_id}
                 onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Select animal...' },
+                  { value: '', label: 'Pumili ng hayop...' },
                   ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
                 ]}
               />
             </FormField>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Date" required>
+              <FormField label="Petsa" required>
                 <Input
                   type="date"
                   value={form.record_date}
@@ -526,23 +526,23 @@ export function WeightsPage() {
                 />
               </FormField>
 
-              <FormField label="Weight (kg)" required error={errors.weight_kg}>
+              <FormField label="Timbang (kg)" required error={errors.weight_kg}>
                 <Input
                   type="number"
                   step="0.1"
                   value={form.weight_kg}
                   onChange={(e) => setForm({ ...form, weight_kg: e.target.value })}
-                  placeholder="35.5"
+                  placeholder="Hal. 35.5"
                 />
               </FormField>
             </div>
 
-            <FormField label="Notes">
+            <FormField label="Mga Tala / Obserbasyon (Notes)">
               <textarea
                 className="form-textarea"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Weight observation notes..."
+                placeholder="Obserbasyon sa kondisyon ng katawan, gana sa pagkain..."
                 style={{ minHeight: 80 }}
               />
             </FormField>
@@ -550,10 +550,10 @@ export function WeightsPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            Cancel
+            Huwag Muna
           </Button>
           <Button variant="primary" onClick={handleSave} loading={saving}>
-            {editing ? 'Save Changes' : 'Save Record'}
+            {editing ? 'I-save ang mga Pagbabago' : 'I-save ang Rekord'}
           </Button>
         </ModalFooter>
       </Modal>
@@ -561,9 +561,10 @@ export function WeightsPage() {
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Delete Weight Record"
-        message="Are you sure you want to delete this weight record? This cannot be undone."
-        confirmLabel="Delete"
+        title="Burahin ang Rekord ng Timbang"
+        message="Sigurado ka bang nais mong burahin ang rekord na ito ng timbang? Hindi na ito maibabalik kapag nabura."
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

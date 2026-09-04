@@ -8,6 +8,7 @@ import {
   Bell,
   Settings,
   LogOut,
+  User,
   X,
   CheckCircle2,
   HeartPulse,
@@ -97,9 +98,9 @@ export function AppHeader({
       .slice(0, 5)
       .forEach((a) =>
         results.push({
-          type: 'Animals',
+          type: 'Mga Hayop',
           label: `${a.name} — ${a.tag_id}`,
-          sub: `${a.species} · ${a.breed ?? 'Unknown breed'}`,
+          sub: `${a.species === 'Goat' ? 'Kambing' : 'Tupa'} · ${a.breed ?? 'Walang lahi'}`,
           link: `/animals/${a.id}`,
         })
       );
@@ -109,7 +110,7 @@ export function AppHeader({
       .slice(0, 3)
       .forEach((i) =>
         results.push({
-          type: 'Inventory',
+          type: 'Mga Gamit at Stock',
           label: i.name,
           sub: `${i.category} · ${i.quantity} ${i.unit}`,
           link: '/inventory',
@@ -122,7 +123,7 @@ export function AppHeader({
       .forEach((v) => {
         const animal = animals.find((a) => a.id === v.animal_id);
         results.push({
-          type: 'Vaccinations',
+          type: 'Mga Bakuna',
           label: v.vaccine_name,
           sub: animal ? `${animal.name} · ${v.date_given}` : v.date_given,
           link: '/vaccinations',
@@ -227,7 +228,7 @@ export function AppHeader({
           <input
             type="text"
             className="search-input"
-            placeholder="Maghanap ng animal, ID, breed o item..."
+            placeholder="Maghanap ng hayop, ID, gamit, o record..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
@@ -466,6 +467,17 @@ export function AppHeader({
                 <p>{user?.user_metadata?.full_name || user?.email || 'User'}</p>
                 <span>{role ? role.replace('_', ' ').toUpperCase() : 'FARM USER'}</span>
               </div>
+              <button
+                type="button"
+                className="pd-item"
+                onClick={() => {
+                  navigate('/settings');
+                  setProfileOpen(false);
+                }}
+              >
+                <User size={16} />
+                <span>Aking Profile</span>
+              </button>
               <button
                 type="button"
                 className="pd-item"

@@ -420,11 +420,11 @@ export function BreedingPage() {
     try {
       const { error } = await supabase.from('breeding_records').delete().eq('id', confirmDelete.id);
       if (error) throw error;
-      toast('Matagumpay na na-delete ang record ng breeding.', 'success');
+      toast('Matagumpay na nabura ang record ng breeding.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Hindi ma-delete ang record ng breeding. Pakisubukang muli.', 'danger');
+      toast('Hindi mabura ang record ng breeding. Pakisubukang muli.', 'danger');
     }
   };
 
@@ -438,13 +438,13 @@ export function BreedingPage() {
     setOffspringFather(father || null);
     setOffspringForm({
       tag_id: candidateId,
-      name: mother ? `${mother.name}'s Kid` : 'Newborn',
+      name: mother ? `${mother.name}'s Kid` : 'Bagong Silang',
       species,
       breed: mother?.breed || '',
       sex: 'Female',
       date_of_birth: record?.expected_kidding_date || new Date().toISOString().split('T')[0],
       weight_kg: species === 'Goat' ? '3.0' : '3.5',
-      notes: mother ? `Dam: ${mother.name} (${mother.tag_id})${father ? `, Sire: ${father.name} (${father.tag_id})` : ''}` : '',
+      notes: mother ? `Ina: ${mother.name} (${mother.tag_id})${father ? `, Ama: ${father.name} (${father.tag_id})` : ''}` : '',
     });
     setOffspringModalOpen(true);
 
@@ -467,7 +467,7 @@ export function BreedingPage() {
 
   const handleSaveOffspring = async () => {
     if (!offspringForm.name.trim()) {
-      toast('Please enter a name for the newborn animal.', 'warning');
+      toast('Pakilagay ang pangalan ng bagong silang na hayop.', 'warning');
       return;
     }
     setSavingOffspring(true);
@@ -501,11 +501,11 @@ export function BreedingPage() {
           .eq('id', offspringMother.id);
       }
 
-      toast(`Newborn registered successfully with ID: ${result.finalTagId}`, 'success');
+      toast(`Matagumpay na nairehistro ang supling na may Tag ID: ${result.finalTagId}`, 'success');
       setOffspringModalOpen(false);
       farmData.refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unable to register newborn.';
+      const msg = err instanceof Error ? err.message : 'Hindi mairehistro ang supling.';
       toast(msg, 'danger');
     } finally {
       setSavingOffspring(false);
@@ -518,19 +518,19 @@ export function BreedingPage() {
 
     if (status === 'Pregnant') {
       className += 'breeding-status-pregnant';
-      label = 'Pregnant / Buntis';
+      label = 'Buntis';
     } else if (status === 'Kidded' || status === 'Delivered') {
       className += 'breeding-status-kidded';
-      label = 'Completed / Nanganak na';
+      label = 'Nanganak na';
     } else if (status === 'Failed') {
       className += 'breeding-status-failed';
-      label = 'Hindi Buntis / Failed';
+      label = 'Hindi Nabuntis';
     } else if (status === 'Monitor') {
       className += 'breeding-status-monitor';
-      label = 'Pending / Naghihintay';
+      label = 'Naghihintay';
     } else {
       className += 'breeding-status-planned';
-      label = 'Pending / Nakaplano';
+      label = 'Nakaplano';
     }
 
     return <span className={className}>{label}</span>;
@@ -948,11 +948,11 @@ export function BreedingPage() {
             <table className="breeding-table">
               <thead>
                 <tr>
-                  <th className="breeding-col-female">Female / Babae</th>
-                  <th className="breeding-col-partner">Male / Lalaki</th>
-                  <th className="breeding-col-date">Mating Date</th>
-                  <th className="breeding-col-kidding">Expected Kidding Date</th>
-                  <th className="breeding-col-status">Breeding Status</th>
+                  <th className="breeding-col-female">Babae (Inahin)</th>
+                  <th className="breeding-col-partner">Lalaki (Barako)</th>
+                  <th className="breeding-col-date">Araw ng Pagpapalahi</th>
+                  <th className="breeding-col-kidding">Inaasahang Panganganak</th>
+                  <th className="breeding-col-status">Katayuan sa Pagpapalahi</th>
                   <th className="breeding-col-actions">Aksyon</th>
                 </tr>
               </thead>
@@ -1035,8 +1035,8 @@ export function BreedingPage() {
                             type="button"
                             className="breeding-action-btn delete"
                             onClick={() => setConfirmDelete(b)}
-                            title="I-delete ang Record"
-                            aria-label="I-delete ang Record"
+                            title="Burahin ang Record"
+                            aria-label="Burahin ang Record"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -1093,7 +1093,7 @@ export function BreedingPage() {
                 <div className="breeding-card-body">
                   {/* Partner Sire */}
                   <div className="breeding-card-field">
-                    <span className="breeding-card-label">Male / Lalaki</span>
+                    <span className="breeding-card-label">Lalaki (Barako)</span>
                     <span className="breeding-card-value">
                       {male ? (
                         <span>
@@ -1108,7 +1108,7 @@ export function BreedingPage() {
                   {/* 2-Column Grid: Mating Date & Expected Kidding */}
                   <div className="breeding-card-grid">
                     <div className="breeding-card-field">
-                      <span className="breeding-card-label">Mating Date</span>
+                      <span className="breeding-card-label">Araw ng Pagpapalahi</span>
                       <span className="breeding-card-value" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Calendar size={13} color="var(--color-text-secondary, #64748B)" />
                         {formatDate(b.mating_date)}
@@ -1116,7 +1116,7 @@ export function BreedingPage() {
                     </div>
 
                     <div className="breeding-card-field">
-                      <span className="breeding-card-label">Expected Kidding Date</span>
+                      <span className="breeding-card-label">Inaasahang Panganganak</span>
                       {renderKiddingInfo(b.expected_kidding_date, b.status)}
                     </div>
                   </div>
@@ -1158,7 +1158,7 @@ export function BreedingPage() {
                     leftIcon={<Trash2 size={15} color="#DC2626" />}
                     style={{ minHeight: 40, border: '1px solid rgba(239, 68, 68, 0.2)', color: '#DC2626' }}
                   >
-                    I-delete
+                    Burahin
                   </Button>
                 </div>
               </div>
@@ -1170,14 +1170,14 @@ export function BreedingPage() {
       {/* Breeding Record Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
         <ModalHeader
-          title={editing ? 'I-edit ang Record ng Breeding' : 'Magtala ng Mating at Breeding'}
+          title={editing ? 'I-edit ang Record ng Breeding' : 'Magtala ng Pagpapalahi (Mating)'}
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Female Selection (Only Ready Females Enabled) */}
             <FormField
-              label="Female / Babae"
+              label="Babae (Inahin)"
               required
               error={errors.animal_id}
               helperText={readyFemales.length === 0 ? 'Walang babaeng hayop na kasalukuyang pasok sa edad at timbang para sa mating.' : undefined}
@@ -1242,12 +1242,12 @@ export function BreedingPage() {
             )}
 
             {/* Partner Selection (Only Ready Males Enabled) */}
-            <FormField label="Male / Lalaki (Opsyonal)" error={errors.partner_id}>
+            <FormField label="Lalaki (Barako - Opsyonal)" error={errors.partner_id}>
               <Select
                 value={form.partner_id}
                 onChange={(e) => setForm({ ...form, partner_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Pumili ng lalaki (Sire - Opsyonal)...' },
+                  { value: '', label: 'Pumili ng lalaking barako (Sire - Opsyonal)...' },
                   // Ready Males
                   ...readyMales
                     .filter((a) => !selectedFemale || a.species === selectedFemale.species)
@@ -1327,7 +1327,7 @@ export function BreedingPage() {
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Mating Date" required error={errors.mating_date}>
+              <FormField label="Araw ng Pagpapalahi (Mating Date)" required error={errors.mating_date}>
                 <Input
                   type="date"
                   value={form.mating_date}
@@ -1335,16 +1335,16 @@ export function BreedingPage() {
                 />
               </FormField>
 
-              <FormField label="Breeding Status">
+              <FormField label="Katayuan (Breeding Status)">
                 <Select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
                   options={[
-                    { value: 'Planned', label: 'Pending / Nakaplano' },
-                    { value: 'Pregnant', label: 'Pregnant / Buntis' },
-                    { value: 'Kidded', label: 'Completed / Nanganak na' },
-                    { value: 'Failed', label: 'Hindi Buntis / Failed' },
-                    { value: 'Monitor', label: 'Pending / Naghihintay' },
+                    { value: 'Planned', label: 'Nakaplano pa lamang' },
+                    { value: 'Pregnant', label: 'Buntis (Pregnant)' },
+                    { value: 'Kidded', label: 'Nanganak na (Kidded)' },
+                    { value: 'Failed', label: 'Hindi Nabuntis (Failed)' },
+                    { value: 'Monitor', label: 'Naghihintay ng Resulta' },
                   ]}
                 />
               </FormField>
@@ -1388,7 +1388,7 @@ export function BreedingPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            I-cancel
+            Kanselahin
           </Button>
           <Button
             variant="primary"
@@ -1465,31 +1465,31 @@ export function BreedingPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-              <FormField label="Species" required>
+              <FormField label="Uri ng Hayop (Species)" required>
                 <Select
                   value={offspringForm.species}
                   onChange={(e) => handleSpeciesChangeOffspring(e.target.value as Species)}
                   options={[
-                    { value: 'Goat', label: 'Goat / Kambing' },
-                    { value: 'Sheep', label: 'Sheep / Tupa' },
+                    { value: 'Goat', label: 'Kambing (Goat)' },
+                    { value: 'Sheep', label: 'Tupa (Sheep)' },
                   ]}
                 />
               </FormField>
 
-              <FormField label="Sex" required>
+              <FormField label="Kasarian (Sex)" required>
                 <Select
                   value={offspringForm.sex}
                   onChange={(e) => setOffspringForm({ ...offspringForm, sex: e.target.value as Sex })}
                   options={[
-                    { value: 'Female', label: 'Female / Babae' },
-                    { value: 'Male', label: 'Male / Lalaki' },
+                    { value: 'Female', label: 'Babae (Female)' },
+                    { value: 'Male', label: 'Lalaki (Male)' },
                   ]}
                 />
               </FormField>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-              <FormField label="Date of Birth" required>
+              <FormField label="Petsa ng Kapanganakan (Date of Birth)" required>
                 <Input
                   type="date"
                   value={offspringForm.date_of_birth}
@@ -1497,7 +1497,7 @@ export function BreedingPage() {
                 />
               </FormField>
 
-              <FormField label="Birth Weight / Timbang (kg)">
+              <FormField label="Timbang sa Kapanganakan (kg)">
                 <Input
                   type="number"
                   step="0.1"
@@ -1508,7 +1508,7 @@ export function BreedingPage() {
               </FormField>
             </div>
 
-            <FormField label="Pedigree / Mga Tala">
+            <FormField label="Mga Tala / Magulang">
               <Input
                 value={offspringForm.notes}
                 onChange={(e) => setOffspringForm({ ...offspringForm, notes: e.target.value })}
@@ -1519,7 +1519,7 @@ export function BreedingPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setOffspringModalOpen(false)}>
-            I-cancel
+            Kanselahin
           </Button>
           <Button variant="primary" onClick={handleSaveOffspring} loading={savingOffspring}>
             I-rehistro ang Supling
@@ -1530,9 +1530,10 @@ export function BreedingPage() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         open={Boolean(confirmDelete)}
-        title="I-delete ang Record ng Breeding"
-        message="Sigurado ka bang nais mong i-delete ang record na ito ng breeding? Hindi na ito maibabalik."
-        confirmLabel="I-delete"
+        title="Burahin ang Record ng Breeding"
+        message="Sigurado ka bang nais mong burahin ang record na ito ng breeding? Hindi na ito maibabalik kapag nabura."
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

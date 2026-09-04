@@ -228,11 +228,11 @@ export function VaccinationsPage() {
     try {
       const { error } = await supabase.from('vaccinations').delete().eq('id', confirmDelete.id);
       if (error) throw error;
-      toast('Matagumpay na na-delete ang record ng bakuna.', 'success');
+      toast('Matagumpay na nabura ang record ng bakuna.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Hindi mai-delete ang record.', 'error');
+      toast('Hindi mabura ang record ng bakuna.', 'error');
     }
   };
 
@@ -242,9 +242,9 @@ export function VaccinationsPage() {
 
   const filterTabs = [
     { id: 'All', label: 'Lahat ng Records', count: farmData.vaccinations.length },
-    { id: 'Up to Date', label: 'Up to Date / Updated', count: upToDate },
-    { id: 'Due Soon', label: 'Due Soon / Malapit na', count: dueSoon },
-    { id: 'Overdue', label: 'Overdue / Lampas na sa Schedule', count: overdue },
+    { id: 'Up to Date', label: 'Up to Date', count: upToDate },
+    { id: 'Due Soon', label: 'Due Soon', count: dueSoon },
+    { id: 'Overdue', label: 'Lampas sa Schedule (Overdue)', count: overdue },
     { id: 'No Due Date', label: 'Walang Due Date', count: null },
   ];
 
@@ -608,12 +608,12 @@ export function VaccinationsPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Vaccination Date</th>
-                  <th>Animal</th>
-                  <th>Vaccine</th>
-                  <th>Next Due Date</th>
-                  <th>Status</th>
-                  <th>Veterinarian</th>
+                  <th>Petsa ng Bakuna</th>
+                  <th>Hayop</th>
+                  <th>Pangalan ng Bakuna</th>
+                  <th>Susunod na Bakuna</th>
+                  <th>Katayuan</th>
+                  <th>Beterinaryo / Kawani</th>
                   <th style={{ textAlign: 'right' }}>Aksyon</th>
                 </tr>
               </thead>
@@ -716,11 +716,11 @@ export function VaccinationsPage() {
                           {status === 'Due Soon' && <Clock size={11} />}
                           {status === 'Overdue' && <AlertTriangle size={11} />}
                           {status === 'Up to Date'
-                            ? 'Up to Date / Updated'
+                            ? 'Up to Date'
                             : status === 'Due Soon'
-                            ? 'Due Soon / Malapit na'
+                            ? 'Due Soon'
                             : status === 'Overdue'
-                            ? 'Overdue / Lampas na sa Schedule'
+                            ? 'Lampas na (Overdue)'
                             : 'Walang Due Date'}
                         </span>
                       </td>
@@ -753,8 +753,8 @@ export function VaccinationsPage() {
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => setConfirmDelete(v)}
-                            title="I-delete ang Record"
-                            aria-label="I-delete ang Record"
+                            title="Burahin ang Record"
+                            aria-label="Burahin ang Record"
                             style={{
                               padding: '6px 10px',
                               borderRadius: 8,
@@ -900,7 +900,7 @@ export function VaccinationsPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            I-cancel
+            Kanselahin
           </Button>
           <Button variant="primary" onClick={handleSave} loading={saving}>
             {editing ? 'I-save ang mga Pagbabago' : 'I-save ang Record'}
@@ -911,9 +911,10 @@ export function VaccinationsPage() {
       {/* ── Confirm Deletion Dialog ────────────────────────────────── */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="I-delete ang Record ng Bakuna"
-        message="Sigurado ka bang nais mong i-delete ang record na ito ng bakuna? Hindi na ito maibabalik."
-        confirmLabel="I-delete"
+        title="Burahin ang Record ng Bakuna"
+        message="Sigurado ka bang nais mong burahin ang record na ito ng bakuna? Hindi na ito maibabalik kapag nabura."
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

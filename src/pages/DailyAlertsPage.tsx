@@ -101,9 +101,9 @@ export function DailyAlertsPage() {
     setSending(true);
     try {
       await sendPushNotifications(rawAlerts);
-      toast('Push notifications sent', 'success');
+      toast('Naipadala na ang mga alerto sa notipikasyon.', 'success');
     } catch (err) {
-      toast((err as Error).message || 'Failed to send notifications', 'danger');
+      toast((err as Error).message || 'Hindi maipadala ang mga notipikasyon.', 'danger');
     } finally {
       setSending(false);
     }
@@ -112,9 +112,9 @@ export function DailyAlertsPage() {
   const handleCopySummary = async () => {
     try {
       await copyAlertSummaryToClipboard(rawAlerts, farmData.settings?.farm_name ?? 'AlpasFarm');
-      toast('Summary copied to clipboard', 'success');
-    } catch (err) {
-      toast('Failed to copy summary', 'danger');
+      toast('Nakopya na ang buod sa clipboard.', 'success');
+    } catch {
+      toast('Hindi makopya ang buod.', 'danger');
     }
   };
 
@@ -129,7 +129,7 @@ export function DailyAlertsPage() {
   };
 
   if (farmData.loading) {
-    return <LoadingSpinner text="Loading daily alerts..." fullScreen />;
+    return <LoadingSpinner text="Kinakarga ang mga paalala..." fullScreen />;
   }
 
   const badgeVariant = (priority: string) => {
@@ -162,7 +162,7 @@ export function DailyAlertsPage() {
 
   const priorityLabel = (priority: string) => {
     const pr = priority.toLowerCase();
-    if (pr === 'critical') return 'Urgent';
+    if (pr === 'critical') return 'Kailangan ng Aksyon';
     if (pr === 'warning' || pr === 'high') return 'Mahalaga';
     if (pr === 'info') return 'Paalala';
     return 'Normal';
@@ -171,7 +171,7 @@ export function DailyAlertsPage() {
   const priorityPills = [
     { id: 'All', label: 'Lahat' },
     { id: 'Unread', label: 'Hindi pa Nababasa' },
-    { id: 'Critical', label: 'Urgent' },
+    { id: 'Critical', label: 'Kailangan ng Aksyon' },
     { id: 'Warning', label: 'Mahalaga' },
     { id: 'Info', label: 'Paalala' },
   ];
@@ -234,7 +234,7 @@ export function DailyAlertsPage() {
         >
           <div className="alpas-stat-header">
             <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
-              Lahat (All)
+              Lahat
             </span>
             <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Bell size={15} />
@@ -261,7 +261,7 @@ export function DailyAlertsPage() {
         >
           <div className="alpas-stat-header">
             <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
-              Unread
+              Hindi pa Nababasa
             </span>
             <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Mail size={15} />
@@ -288,7 +288,7 @@ export function DailyAlertsPage() {
         >
           <div className="alpas-stat-header">
             <span className="stat-card-label" style={{ fontWeight: 700, color: '#EF4444' }}>
-              Urgent
+              Kailangan ng Aksyon
             </span>
             <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <AlertTriangle size={15} />
@@ -299,7 +299,7 @@ export function DailyAlertsPage() {
               {urgentCount}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
-              Kailangang aksyon
+              Kailangang aksyonan
             </div>
           </div>
         </div>

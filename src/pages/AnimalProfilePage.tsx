@@ -415,13 +415,13 @@ export function AnimalProfilePage() {
 
   const tabs = [
     { key: 'overview', label: 'Buod ng Hayop' },
-    { key: 'health', label: 'Health Monitoring' },
+    { key: 'health', label: 'Kalusugan' },
     { key: 'weight', label: 'Timbang' },
     { key: 'breeding', label: 'Breeding' },
     { key: 'vaccination', label: 'Mga Bakuna' },
-    { key: 'inventory', label: 'Farm Inventory' },
+    { key: 'inventory', label: 'Mga Gamot at Stock' },
     { key: 'feed', label: 'Pakain' },
-    { key: 'history', label: 'Kasaysayan' },
+    { key: 'history', label: 'Mga Record' },
     { key: 'camera', label: 'AI Health Scanner' },
   ] as const;
 
@@ -520,7 +520,7 @@ export function AnimalProfilePage() {
                   <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setQrOpen(true)} variant="neutral" />
                   <ActionBtn icon={<Camera size={14} />} label="AI Health Scan" onClick={() => navigate(`/camera-screening?animalId=${animal.id}`)} variant="orange" />
                   <ActionBtn icon={<Pencil size={14} />} label="I-edit" onClick={() => setEditOpen(true)} variant="orange" />
-                  <ActionBtn icon={<Trash2 size={14} />} label="I-delete" onClick={() => setConfirmDelete(true)} variant="red" />
+                  <ActionBtn icon={<Trash2 size={14} />} label="Burahin" onClick={() => setConfirmDelete(true)} variant="red" />
                 </div>
               </div>
             </div>
@@ -1399,17 +1399,18 @@ export function AnimalProfilePage() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="secondary" onClick={() => setEditOpen(false)}>I-cancel</Button>
-          <Button variant="primary" onClick={handleSaveEdit} loading={saving}>I-update</Button>
+          <Button variant="secondary" onClick={() => setEditOpen(false)}>Kanselahin</Button>
+          <Button variant="primary" onClick={handleSaveEdit} loading={saving}>I-save ang Pagbabago</Button>
         </ModalFooter>
       </Modal>
 
       {/* ── Confirm Delete ── */}
       <ConfirmDialog
         open={confirmDelete}
-        title="I-delete ang Hayop"
-        message={`Sigurado ka bang nais mong i-delete si ${animal.name}? Mabubura din ang lahat ng kaugnay na rekord nito.`}
-        confirmLabel="I-delete"
+        title="Burahin ang Hayop"
+        message={`Sigurado ka bang nais mong burahin si ${animal.name} (${animal.tag_id})? Mabubura din ang lahat ng kaugnay na talaan nito sa bukid. Hindi na ito maibabalik kapag nabura.`}
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}

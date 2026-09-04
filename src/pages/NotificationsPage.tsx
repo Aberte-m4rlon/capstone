@@ -46,7 +46,7 @@ export function NotificationsPage() {
 
   const priorityLabel = (p: string) => {
     const pr = (p || '').toLowerCase();
-    if (pr === 'critical') return 'Urgent';
+    if (pr === 'critical') return 'Kailangan ng Aksyon';
     if (pr === 'warning' || pr === 'high') return 'Mahalaga';
     if (pr === 'info') return 'Paalala';
     return 'Normal';

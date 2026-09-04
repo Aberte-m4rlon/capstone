@@ -21,7 +21,7 @@ import {
   Loader2, Search, Info, WifiOff, History,
   Zap, ShieldAlert, Activity, Check,
   Bot, SwitchCamera, X, Play,
-  ArrowLeft, Settings, Image
+  ArrowLeft, Settings, Image, Thermometer
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -31,6 +31,7 @@ import { useAutoScan } from '../lib/useAutoScan';
 import { formatDate } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import { fileToCanvas, type ScanResult } from '../lib/cameraML';
+import { FARM_LABELS, simplifyHealthObservation } from '../lib/farmerTerminology';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CameraPermission = 'pending' | 'granted' | 'denied' | 'unavailable' | 'https_required';
@@ -928,8 +929,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
             {permission === 'pending' && (
               <>
                 <Loader2 size={44} color="#43A047" style={{ animation: 'spin 1s linear infinite' }} />
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>Starting camera...</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Initializing AI vision core...</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>Sinisimulan ang camera...</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Inihahanda ang AI vision scanner...</div>
               </>
             )}
 
@@ -937,10 +938,10 @@ What are the recommended early livestock interventions, supportive veterinary ca
               <>
                 <WifiOff size={46} color="#DC2626" />
                 <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>
-                  Camera access is required for AI Health Scanning.
+                  Kailangan ang pahintulot sa camera para makapag-scan ng hayop.
                 </div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', maxWidth: 320, lineHeight: 1.5 }}>
-                  Camera access is required for AI Health Scanning. Please allow camera permissions in your browser or device settings.
+                  Pahintulutan ang camera sa iyong browser o device settings upang magamit ang AI Health Scanner.
                 </div>
                 <button
                   onClick={() => startCamera()}
@@ -956,7 +957,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                     marginTop: 6,
                   }}
                 >
-                  Allow Camera
+                  Pahintulutan ang Camera
                 </button>
               </>
             )}
@@ -964,9 +965,9 @@ What are the recommended early livestock interventions, supportive veterinary ca
             {permission === 'unavailable' && (
               <>
                 <Camera size={46} color="#9CA3AF" />
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>No camera device detected</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>Walang nakitang camera sa device</div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', maxWidth: 320, lineHeight: 1.5 }}>
-                  No active camera device was found on this device. You can still scan photos using the Gallery button below.
+                  Walang aktibong camera na nakita sa device. Maaari mo pa ring gamitin ang litrato mula sa Gallery sa ibaba.
                 </div>
                 <button
                   onClick={() => startCamera()}
@@ -982,7 +983,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                     marginTop: 6,
                   }}
                 >
-                  Retry Camera
+                  Subukan Ulit ang Camera
                 </button>
               </>
             )}
@@ -990,12 +991,44 @@ What are the recommended early livestock interventions, supportive veterinary ca
             {permission === 'https_required' && (
               <>
                 <Camera size={46} color="#9CA3AF" />
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>HTTPS is required for camera</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>Kailangan ang HTTPS para sa camera</div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', maxWidth: 320, lineHeight: 1.5 }}>
-                  Camera access requires a secure connection (HTTPS).
+                  Ang access sa camera ay nangangailangan ng ligtas na koneksyon (HTTPS).
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* ── MANDATE 12: THERMAL CAMERA STATUS PILL ── */}
+        {permission === 'granted' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 122,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(15, 23, 42, 0.78)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.18)',
+              borderRadius: 999,
+              padding: '4px 14px',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              zIndex: 24,
+              whiteSpace: 'nowrap',
+              fontSize: 11,
+              fontWeight: 600,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+            }}
+          >
+            <Thermometer size={13} color="#94A3B8" />
+            <span>Thermal Camera: Hindi Nakakonekta</span>
+            <span style={{ opacity: 0.4 }}>•</span>
+            <span style={{ color: '#E2E8F0' }}>Surface Temperature: {selectedAnimal?.current_temperature ? `${selectedAnimal.current_temperature}°C` : 'Hindi nasukat'}</span>
           </div>
         )}
 
@@ -1029,7 +1062,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
           </div>
         )}
 
-        {/* ── STATE 1: SCANNING (Floating HUD Pill) ── */}
+        {/* ── STATE 1: SCANNING / PROMPT GUIDANCE (Floating HUD Pill) ── */}
         {permission === 'granted' && autoScan.state === 'detecting' && !det?.detected && !det?.otherDetected && (
           <div
             style={{
@@ -1054,12 +1087,12 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <Activity size={14} color="#4ADE80" />
             <span style={{ fontSize: 12, fontWeight: 700 }}>
-              Scanning... Itutok ang camera sa kambing o tupa.
+              Itutok ang camera sa kambing o tupa.
             </span>
           </div>
         )}
 
-        {/* ── STATE 4: WRONG OBJECT BANNER ── */}
+        {/* ── STATE 4: WRONG OBJECT BANNER (MANDATE 11) ── */}
         {permission === 'granted' && autoScan.state === 'other_detected' && (
           <div
             style={{
@@ -1085,12 +1118,12 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <ShieldAlert size={20} color="#FFFFFF" />
             <span style={{ fontSize: 13, fontWeight: 800 }}>
-              Goat o Sheep lang ang maaaring i-scan. Itutok ang camera sa kambing o tupa.
+              Hindi ito kambing o tupa.
             </span>
           </div>
         )}
 
-        {/* ── STATE 5: LOW CONFIDENCE BANNER ── */}
+        {/* ── STATE 5: LOW CONFIDENCE BANNER (MANDATE 11) ── */}
         {permission === 'granted' && isLowConfidence && autoScan.state === 'detecting' && (
           <div
             style={{
@@ -1115,12 +1148,12 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <AlertTriangle size={16} />
             <span style={{ fontSize: 12, fontWeight: 700 }}>
-              Walang hayop na nakita. Itutok ang camera sa kambing o tupa.
+              Mahina ang pagkakakita. Lumapit nang kaunti at tiyaking malinaw ang hayop.
             </span>
           </div>
         )}
 
-        {/* ── STATE 6: STABLE DETECTION & AUTO-SCREENING COUNTDOWN ── */}
+        {/* ── STATE 6: STABLE DETECTION & AUTO-SCREENING COUNTDOWN (STEP 3) ── */}
         {permission === 'granted' && autoScan.isObserving && det?.detected && autoScanEnabled && (
           <div
             style={{
@@ -1147,7 +1180,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 12 }}>
               <span style={{ fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CheckCircle size={16} color="#A7F3D0" />
-                {speciesLabel === 'Sheep' ? 'Tupa detected' : 'Kambing detected'} ({Math.round(det.confidence * 100)}%)
+                {speciesLabel === 'Sheep' ? 'Tupa ang nakita.' : 'Kambing ang nakita.'} ({Math.round(det.confidence * 100)}%)
               </span>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#A7F3D0' }}>
                 {autoScan.stabilityRemainingSeconds.toFixed(1)}s
@@ -1386,12 +1419,12 @@ What are the recommended early livestock interventions, supportive veterinary ca
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Settings size={20} color="#2E7D32" />
                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1F2937' }}>
-                  Camera Scanner Settings
+                  Mga Setting ng Camera Scanner
                 </h2>
               </div>
               <button
                 onClick={() => setSettingsOpen(false)}
-                aria-label="Close Settings"
+                aria-label="Isara ang Settings"
                 style={{
                   background: '#F3F4F6',
                   border: 'none',
@@ -1413,7 +1446,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
               {/* Herd Animal Identity Selector */}
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Animal Identity (Herd Record)
+                  Pangalan / Tag ng Hayop
                 </label>
                 <select
                   value={selectedAnimalId}
@@ -1430,28 +1463,28 @@ What are the recommended early livestock interventions, supportive veterinary ca
                     outline: 'none',
                   }}
                 >
-                  <option value="">-- Unlinked Scan (Identify Later) --</option>
+                  <option value="">-- Walang Napiling Hayop (I-link Mamaya) --</option>
                   {activeAnimals.map(a => (
                     <option key={a.id} value={a.id}>
-                      {a.name} ({a.tag_id}) · {a.species}
+                      {a.name} ({a.tag_id}) · {a.species === 'Sheep' ? 'Tupa' : 'Kambing'}
                     </option>
                   ))}
                 </select>
                 <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4 }}>
-                  Linking an animal automatically merges herd weight trajectories and health history.
+                  Ang pagpili ng hayop ay awtomatikong mag-uugnay sa timbang at kasaysayan ng kalusugan nito.
                 </div>
               </div>
 
               {/* Target Species */}
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Target Species Preference
+                  Uri ng Hayop (Species)
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                   {[
                     { key: 'auto',  label: 'Auto Detect' },
-                    { key: 'goat',  label: 'Goat' },
-                    { key: 'sheep', label: 'Sheep' },
+                    { key: 'goat',  label: 'Kambing' },
+                    { key: 'sheep', label: 'Tupa' },
                   ].map(item => (
                     <button
                       key={item.key}
@@ -1477,13 +1510,13 @@ What are the recommended early livestock interventions, supportive veterinary ca
               {/* Detection Accuracy (Farmer-Friendly Label) */}
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Detection Accuracy
+                  Linaw ng Pagsusuri
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                   {[
                     { key: 'standard', label: 'Standard' },
-                    { key: 'high',     label: 'High' },
-                    { key: 'maximum',  label: 'Maximum' },
+                    { key: 'high',     label: 'Mataas' },
+                    { key: 'maximum',  label: 'Pinakamataas' },
                   ].map(acc => (
                     <button
                       key={acc.key}
@@ -1509,8 +1542,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
               {/* Auto Scan Toggle */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #F3F4F6' }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>Auto Health Screening</div>
-                  <div style={{ fontSize: 11, color: '#6B7280' }}>Automatically analyze animal after 2.0 seconds of steady camera hold.</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>Kusang Pag-scan (Auto-Scan)</div>
+                  <div style={{ fontSize: 11, color: '#6B7280' }}>Awtomatikong susuriin ang hayop kapag steady ang camera nang 2 segundo.</div>
                 </div>
                 <input
                   type="checkbox"
@@ -1523,8 +1556,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
               {/* Sound Feedback Toggle */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: '1px solid #F3F4F6' }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>Shutter Sound Feedback</div>
-                  <div style={{ fontSize: 11, color: '#6B7280' }}>Play audio sound upon taking capture or completing scan.</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1F2937' }}>Tunog ng Shutter</div>
+                  <div style={{ fontSize: 11, color: '#6B7280' }}>Magpatunog kapag kumuha ng litrato o natapos ang pagsusuri.</div>
                 </div>
                 <input
                   type="checkbox"
@@ -1557,7 +1590,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                     gap: 6,
                   }}
                 >
-                  <AlertTriangle size={14} /> Attention List ({attentionList.length})
+                  <AlertTriangle size={14} /> Mga Kailangang Bantayan ({attentionList.length})
                 </button>
 
                 <button
@@ -1581,7 +1614,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                     gap: 6,
                   }}
                 >
-                  <History size={14} /> Screening History
+                  <History size={14} /> Kasaysayan ng Screening
                 </button>
               </div>
             </div>
@@ -1622,16 +1655,16 @@ What are the recommended early livestock interventions, supportive veterinary ca
                   cursor: 'pointer',
                 }}
               >
-                <ArrowLeft size={16} /> Back to Live Camera
+                <ArrowLeft size={16} /> Bumalik sa Live Camera
               </button>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Animals Requiring Attention</h2>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Mga Hayop na Kailangang Bantayan</h2>
             </div>
 
             {attentionList.length === 0 ? (
               <div style={{ background: '#FFFFFF', border: '1px solid #E5EDE6', borderRadius: 16, padding: '40px 20px', textAlign: 'center' }}>
                 <CheckCircle size={40} color="#16A34A" style={{ marginBottom: 10 }} />
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>All Scanned Animals in Normal Condition</div>
-                <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>No high or critical health concerns detected recently.</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>Maayos ang Kalagayan ng Lahat ng Na-scan</div>
+                <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>Walang napansing seryosong problema sa kalusugan kamakailan.</div>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
@@ -1655,7 +1688,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                           <div>
                             <div style={{ fontSize: 15, fontWeight: 800, color: '#1F2937' }}>{item.animalName}</div>
-                            <div style={{ fontSize: 11, color: '#6B7280' }}>Tag: {item.animalTag} · {item.species}</div>
+                            <div style={{ fontSize: 11, color: '#6B7280' }}>Tag: {item.animalTag} · {item.species === 'Sheep' ? 'Tupa' : 'Kambing'}</div>
                           </div>
                           <span style={{
                             padding: '3px 10px',
@@ -1665,14 +1698,14 @@ What are the recommended early livestock interventions, supportive veterinary ca
                             background: riskColor(rRisk),
                             color: '#FFFFFF',
                           }}>
-                            {rRisk} RISK ({item.risk_score || 70}%)
+                            {rRisk === 'CRITICAL' ? 'Mataas ang Risk' : rRisk === 'HIGH' ? 'Kailangan ng Atensyon' : rRisk === 'MODERATE' ? 'Bantayan' : 'Maayos'} ({item.risk_score || 70}%)
                           </span>
                         </div>
                         <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.5, marginBottom: 8 }}>
-                          {item.notes || 'Visual indicators show possible respiratory or postural discomfort.'}
+                          {item.notes || 'May napansing kakaibang senyales sa kilos o tindig.'}
                         </div>
                         <div style={{ fontSize: 11, color: '#6B7280' }}>
-                          Scanned on {formatDate(item.created_at)}
+                          Na-scan noong {formatDate(item.created_at)}
                         </div>
                       </div>
 
@@ -1698,11 +1731,11 @@ What are the recommended early livestock interventions, supportive veterinary ca
                             gap: 4,
                           }}
                         >
-                          <Camera size={13} /> Scan Again
+                          <Camera size={13} /> I-scan Ulit
                         </button>
                         <button
                           onClick={() => {
-                            const prompt = `Hello AI Cloud. I would like advice for ${item.animalName} (${item.animalTag}). The recent AI scan indicated ${rRisk} RISK. What clinical steps should I prepare before the vet arrives?`;
+                            const prompt = `Kamusta AI Farm Assistant. Nais kong humingi ng payo para kay ${item.animalName} (${item.animalTag}). Ang resulta ng AI scan ay ${rRisk}. Anong paunang lunas o pag-aalaga ang dapat ihanda bago dumating ang beterinaryo?`;
                             window.dispatchEvent(new CustomEvent('alpas:consult-vet-ai', { detail: { prompt, animalId: item.animal_id } }));
                           }}
                           style={{
@@ -1721,7 +1754,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                             gap: 4,
                           }}
                         >
-                          <Bot size={13} /> Ask AI Cloud
+                          <Bot size={13} /> Itanong sa AI
                         </button>
                       </div>
                     </div>
@@ -1766,9 +1799,9 @@ What are the recommended early livestock interventions, supportive veterinary ca
                   cursor: 'pointer',
                 }}
               >
-                <ArrowLeft size={16} /> Back to Live Camera
+                <ArrowLeft size={16} /> Bumalik sa Live Camera
               </button>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Screening History</h2>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Kasaysayan ng Screening</h2>
             </div>
 
             {/* Search */}
@@ -1786,7 +1819,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search history by animal name, tag ID, or findings..."
+                placeholder="Maghanap ayon sa pangalan, tag ID, o nakita sa scan..."
                 style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: '#1F2937', flex: 1 }}
               />
               <button
@@ -1959,10 +1992,10 @@ function ScanResultCard({
             <ShieldAlert size={44} color="#DC2626" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
-            Goat o Sheep lang ang maaaring i-scan.
+            Hindi ito kambing o tupa.
           </div>
           <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, marginBottom: 20 }}>
-            Itutok ang camera sa kambing o tupa para masuri ang kalusugan.
+            Ang AI Health Scanner ay para lamang sa mga kambing at tupa. Pakiharap ang camera sa kambing o tupa.
           </div>
           <button
             onClick={onRescan}
@@ -1981,7 +2014,7 @@ function ScanResultCard({
               boxShadow: '0 4px 14px rgba(67, 160, 71, 0.3)',
             }}
           >
-            <RefreshCw size={16} /> I-scan Ulit
+            <RefreshCw size={16} /> Subukang Mag-scan Ulit
           </button>
         </div>
       </div>
@@ -1993,11 +2026,14 @@ function ScanResultCard({
   const rBg = riskBg(rLevel);
   const rBorder = riskBorder(rLevel);
 
-  const observations = result.observations || [];
-  const recommendedActions = result.recommendedActions || [
-    'Ipagpatuloy ang regular na pagpapakain at malinis na tubig.',
-    'Panatilihin ang routine na pagbabakuna at pag-monitor sa kawan.',
-  ];
+  const riskLabel =
+    rLevel === 'CRITICAL' ? 'Mataas ang Risk / High Risk' :
+    rLevel === 'HIGH' ? 'Mataas ang Risk / High Risk' :
+    rLevel === 'MODERATE' ? 'Bantayan / Under Observation' :
+    'Maayos / Healthy';
+
+  const rawObservations = result.observations || [];
+  const displayObservations = (result.primaryIndicators && result.primaryIndicators.length > 0 ? result.primaryIndicators : rawObservations).map(simplifyHealthObservation);
 
   const targetAnimal = animal;
   const targetName = animalName || targetAnimal?.name;
@@ -2059,7 +2095,7 @@ function ScanResultCard({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>
-                {species === 'sheep' ? 'Tupa Detected' : 'Kambing Detected'}
+                {species === 'sheep' ? 'Tupa ang nakita.' : 'Kambing ang nakita.'}
               </div>
               <div style={{ fontSize: 13, color: '#4B5563', marginTop: 2 }}>
                 Hayop: {targetTag && targetName ? `${targetTag} (${targetName})` : targetName ? targetName : 'May hayop na nakita ngunit hindi pa kumpirmado ang tag.'}
@@ -2089,10 +2125,10 @@ function ScanResultCard({
         >
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              HEALTH STATUS
+              KALAGAYAN NG KALUSUGAN
             </div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: rColor, marginTop: 2 }}>
-              {rLevel}
+            <div style={{ fontSize: 18, fontWeight: 900, color: rColor, marginTop: 2 }}>
+              {riskLabel}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -2111,7 +2147,7 @@ function ScanResultCard({
             MGA NAKITA SA SCAN:
           </div>
           <div style={{ background: '#F9FAFB', border: '1px solid #E5EDE6', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {(result.primaryIndicators && result.primaryIndicators.length > 0 ? result.primaryIndicators : observations).map((item, idx) => (
+            {displayObservations.map((item, idx) => (
               <div key={idx} style={{ display: 'flex', gap: 7, fontSize: 12, color: '#374151', lineHeight: 1.5 }}>
                 <span style={{ color: '#43A047', fontWeight: 800 }}>•</span>
                 <span>{item}</span>
@@ -2143,16 +2179,16 @@ function ScanResultCard({
               <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.health_risk_score !== undefined ? `${targetAnimal.health_status || 'Normal'} (${targetAnimal.health_risk_score})` : 'Low (0)'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #E5E7EB', paddingTop: 6 }}>
-              <span style={{ color: '#6B7280' }}>Kasalukuyang Temperatura:</span>
-              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
+              <span style={{ color: '#6B7280' }}>Surface Temperature:</span>
+              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Hindi nasukat</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Kasalukuyang Heart Rate:</span>
-              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
+              <span style={{ color: '#6B7280' }}>Heart Rate:</span>
+              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Hindi nasukat</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Kasalukuyang Respiratory Rate:</span>
-              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
+              <span style={{ color: '#6B7280' }}>Respiratory Rate:</span>
+              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Hindi nasukat</span>
             </div>
             <div style={{ fontSize: 11, fontStyle: 'italic', color: '#9CA3AF', marginTop: 4 }}>
               Hindi sinukat ang ibang vital signs sa visual screening na ito.
@@ -2160,10 +2196,10 @@ function ScanResultCard({
           </div>
         </div>
 
-        {/* ── RECOMMENDATION ── */}
+        {/* ── RECOMMENDATION (MANDATE 13) ── */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            REKOMENDASYON:
+            {rLevel === 'LOW' ? 'GABAY SA PAG-AALAGA:' : 'POSIBLENG PROBLEMA SA KALUSUGAN AT GABAY:'}
           </div>
           <div
             style={{
@@ -2176,7 +2212,9 @@ function ScanResultCard({
               lineHeight: 1.5,
             }}
           >
-            {result.recommendation || recommendedActions[0]}
+            {rLevel !== 'LOW'
+              ? (result.recommendation ? simplifyHealthObservation(result.recommendation) : 'May napansing posibleng problema sa kalusugan. Obserbahan muna ang hayop at tingnan kung may iba pang sintomas. Kumonsulta sa lisensyadong beterinaryo kung lumala ang sintomas.')
+              : 'Maayos ang nakitang pangkalahatang kalagayan ng hayop. Ipagpatuloy ang regular na pagpapakain, malinis na inumin, at pagmamasid sa kawan.'}
           </div>
         </div>
 

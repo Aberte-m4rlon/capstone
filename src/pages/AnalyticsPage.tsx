@@ -36,12 +36,12 @@ ChartJS.register(
 type RangeKey = '7d' | '30d' | '3m' | '6m' | '1y' | 'all';
 
 const RANGES: { key: RangeKey; label: string; days: number }[] = [
-  { key: '7d', label: '7 Days', days: 7 },
-  { key: '30d', label: '30 Days', days: 30 },
-  { key: '3m', label: '3 Months', days: 90 },
-  { key: '6m', label: '6 Months', days: 180 },
-  { key: '1y', label: '1 Year', days: 365 },
-  { key: 'all', label: 'All Time', days: 9999 },
+  { key: '7d', label: '7 Araw', days: 7 },
+  { key: '30d', label: '30 Araw', days: 30 },
+  { key: '3m', label: '3 Buwan', days: 90 },
+  { key: '6m', label: '6 Buwan', days: 180 },
+  { key: '1y', label: '1 Taon', days: 365 },
+  { key: 'all', label: 'Lahat', days: 9999 },
 ];
 
 export function AnalyticsPage() {
@@ -151,7 +151,7 @@ export function AnalyticsPage() {
     }).filter(Boolean) as { name: string; feed: number; cost: number; gain: number }[];
   }, [activeAnimals, farmData.feedRecords, farmData.weightRecords]);
 
-  if (farmData.loading) return <LoadingSpinner fullScreen text="Loading analytics..." />;
+  if (farmData.loading) return <LoadingSpinner fullScreen text="Ikinakarga ang pagsusuri..." />;
 
   const hasData = activeAnimals.length > 0;
 
@@ -159,9 +159,9 @@ export function AnalyticsPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Analytics</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Pagsusuri at Ulat ng Bukid (Analytics)</h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-            Farm performance insights from real data
+            Pagsusuri sa pagganap ng bukid batay sa totoong datos
           </p>
         </div>
         <FilterToolbar>
@@ -180,23 +180,23 @@ export function AnalyticsPage() {
         <Card variant="glass" padding="none">
           <EmptyState
             icon={<Activity size={32} />}
-            title="No data to analyze yet"
-            description="Add animals and records to see analytics."
+            title="Wala pang sapat na datos para suriin"
+            description="Magdagdag ng alagang hayop at mga rekord upang makita ang buong pagsusuri."
           />
         </Card>
       ) : (
         <>
           <div className="dashboard-charts-grid" style={{ marginBottom: 16 }}>
             <Card variant="glass" padding="md">
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Health Check Activity</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Dalas ng Pagsusuri sa Kalusugan</div>
               {healthTrend.counts.every((c) => c === 0) ? (
-                <EmptyState title="No health records" description="No health checks recorded in this period." />
+                <EmptyState title="Walang rekord sa kalusugan" description="Walang naitalang pagsusuri sa panahong ito." />
               ) : (
                 <Line 
                   data={{ 
                     labels: healthTrend.labels, 
                     datasets: [{ 
-                      label: 'Records', 
+                      label: 'Mga Tala', 
                       data: healthTrend.counts, 
                       borderColor: '#FF7A18', 
                       backgroundColor: 'rgba(255,122,24,0.15)', 
@@ -217,11 +217,11 @@ export function AnalyticsPage() {
             </Card>
 
             <Card variant="glass" padding="md">
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Health Status Distribution</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Distribusyon ng Kalusugan ng mga Hayop</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
-                    labels: ['Healthy', 'Monitor', 'At Risk', 'Critical'], 
+                    labels: ['Malusog', 'Binabantayan', 'Nasa Panganib', 'Kritikal'], 
                     datasets: [{ 
                       data: healthDist, 
                       backgroundColor: ['#FFB340', '#FF9F0A', '#FF7A18', '#FF3B30'], 
@@ -247,15 +247,15 @@ export function AnalyticsPage() {
 
           <div className="dashboard-charts-grid" style={{ marginBottom: 16 }}>
             <Card variant="glass" padding="md">
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Weight Growth Trend</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Takbo ng Paglaki ng Timbang</div>
               {weightTrend.avgWeights.every((w) => w === 0) ? (
-                <EmptyState title="No weight records" description="No weight records in this period." />
+                <EmptyState title="Walang rekord ng timbang" description="Walang naitalang timbang sa panahong ito." />
               ) : (
                 <Line 
                   data={{ 
                     labels: weightTrend.labels, 
                     datasets: [{ 
-                      label: 'Avg Weight (kg)', 
+                      label: 'Karaniwang Timbang (kg)', 
                       data: weightTrend.avgWeights, 
                       borderColor: '#FF7A18', 
                       backgroundColor: 'rgba(255,122,24,0.15)', 
@@ -276,11 +276,11 @@ export function AnalyticsPage() {
             </Card>
 
             <Card variant="glass" padding="md">
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Species Distribution</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Distribusyon ayon sa Uri (Species)</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
-                    labels: ['Goats', 'Sheep'], 
+                    labels: ['Kambing', 'Tupa'], 
                     datasets: [{ 
                       data: speciesDist, 
                       backgroundColor: ['#FF3B30', '#FF9F0A'], 
@@ -306,11 +306,11 @@ export function AnalyticsPage() {
 
           <div className="dashboard-charts-grid" style={{ marginBottom: 16 }}>
             <Card variant="glass" padding="md">
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Breeding Overview</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Pangkalahatang Kalagayan sa Breeding</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
-                    labels: ['Pregnant', 'Open', 'Ready', 'Other'], 
+                    labels: ['Buntis', 'Bukas (Open)', 'Handa (Ready)', 'Iba pa'], 
                     datasets: [{ 
                       data: breedingOverview, 
                       backgroundColor: ['#FF7A18', '#A7B8CC', '#FFB340', '#475569'], 
@@ -334,11 +334,11 @@ export function AnalyticsPage() {
             </Card>
 
             <Card variant="glass" padding="md">
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Vaccination Compliance</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Pagsunod sa Bakuna (Vaccination)</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
-                    labels: ['Up to Date', 'Due Soon', 'Overdue', 'None'], 
+                    labels: ['Kumpleto', 'Kailangan Na', 'Lampas Na sa Araw', 'Wala'], 
                     datasets: [{ 
                       data: vaccCompliance, 
                       backgroundColor: ['#FFB340', '#FF9F0A', '#FF3B30', '#475569'], 
@@ -363,15 +363,15 @@ export function AnalyticsPage() {
           </div>
 
           <Card variant="glass" padding="md" style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Inventory by Category</div>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Imbentaryo ayon sa Kategorya</div>
             {invByCategory.every((c) => c === 0) ? (
-              <EmptyState title="No inventory items" description="Add inventory items to see distribution." />
+              <EmptyState title="Walang gamit o supply" description="Magdagdag ng gamit o supply sa imbentaryo upang makita ang bilang." />
             ) : (
               <Bar 
                 data={{ 
-                  labels: ['Feed', 'Medicine', 'Vaccines', 'Supplies', 'Equipment', 'Other'], 
+                  labels: ['Pakain', 'Gamot', 'Bakuna', 'Mga Kagamitan', 'Makinarya', 'Iba pa'], 
                   datasets: [{ 
-                    label: 'Items', 
+                    label: 'Bilang ng Gamit', 
                     data: invByCategory, 
                     backgroundColor: '#FF7A18', 
                     borderRadius: 6 
@@ -391,12 +391,12 @@ export function AnalyticsPage() {
 
           {feedEfficiencyData.length > 0 && (
             <Card variant="glass" padding="md" style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Feed Consumption by Animal</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Pagkonsumo ng Pakain bawat Hayop</div>
               <Bar 
                 data={{ 
                   labels: feedEfficiencyData.map((d) => d.name), 
                   datasets: [{ 
-                    label: 'Feed (kg)', 
+                    label: 'Pakain (kg)', 
                     data: feedEfficiencyData.map((d) => d.feed), 
                     backgroundColor: '#FF9F0A', 
                     borderRadius: 6 
@@ -418,28 +418,28 @@ export function AnalyticsPage() {
           <Card variant="glass" padding="md" style={{ marginBottom: 16, borderLeft: '4px solid #FF3B30' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
               <AlertCircle size={20} color="#FF3B30" />
-              <span style={{ fontWeight: 800, fontSize: 15 }}>ML Anomaly Detection — Z-Score + IQR</span>
+              <span style={{ fontWeight: 800, fontSize: 15 }}>Pagtukoy sa Hindi Pangkaraniwang Datos — ML Anomaly Detection</span>
               <Badge variant={anomalies.length > 0 ? 'danger' : 'warning'}>
-                {anomalies.length} {anomalies.length === 1 ? 'anomaly' : 'anomalies'} detected
+                {anomalies.length} {anomalies.length === 1 ? 'hindi pangkaraniwang datos' : 'mga hindi pangkaraniwang datos'} ang napansin
               </Badge>
             </div>
             {anomalies.length === 0 ? (
               <EmptyState
                 icon={<CheckCircle size={28} color="#FFB340" />}
-                title="No anomalies detected"
-                description="All vitals are within expected ranges based on historical data."
+                title="Walang napansing abnormal na datos"
+                description="Lahat ng vital signs ay pasok sa karaniwang saklaw batay sa nakaraang datos."
               />
             ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))', color: 'var(--color-text-secondary, #475569)' }}>
-                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Animal</th>
-                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Metric</th>
-                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Value</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Hayop</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Metriko</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Halaga</th>
                       <th style={{ padding: '10px 8px', fontWeight: 600 }}>Z-Score</th>
-                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Severity</th>
-                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Assessment</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Lala (Severity)</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Pagsusuri</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -458,12 +458,12 @@ export function AnalyticsPage() {
                       return anomalyRows.map((row, i) => (
                         <tr key={`${row.animal}-${row.anomaly.metric}-${i}`} style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.04))' }}>
                           <td style={{ padding: '10px 8px', fontWeight: 700 }}>{row.animal}</td>
-                          <td style={{ padding: '10px 8px' }}>{row.anomaly.metric === 'temperature' ? 'Temperature' : 'Heart Rate'}</td>
-                          <td style={{ padding: '10px 8px' }}>{row.anomaly.metric === 'temperature' ? (row.anomaly.zScore > 0 ? 'High' : 'Low') : (row.anomaly.zScore > 0 ? 'High' : 'Low')}</td>
+                          <td style={{ padding: '10px 8px' }}>{row.anomaly.metric === 'temperature' ? 'Surface Temperature' : 'Tibok ng Puso (Heart Rate)'}</td>
+                          <td style={{ padding: '10px 8px' }}>{row.anomaly.metric === 'temperature' ? (row.anomaly.zScore > 0 ? 'Mataas' : 'Mababa') : (row.anomaly.zScore > 0 ? 'Mabilis' : 'Mabagal')}</td>
                           <td style={{ padding: '10px 8px', fontWeight: 800, color: Math.abs(row.anomaly.zScore) > 3 ? '#FF3B30' : '#FF9F0A' }}>{row.anomaly.zScore.toFixed(2)}</td>
                           <td style={{ padding: '10px 8px' }}>
                             <Badge variant={row.anomaly.severity === 'severe' ? 'danger' : row.anomaly.severity === 'moderate' ? 'warning' : 'neutral'} size="sm">
-                              {row.anomaly.severity}
+                              {row.anomaly.severity === 'severe' ? 'Malala' : row.anomaly.severity === 'moderate' ? 'Katamtaman' : 'Mababa'}
                             </Badge>
                           </td>
                           <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{row.anomaly.message}</td>
@@ -481,8 +481,8 @@ export function AnalyticsPage() {
             <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #FF7A18', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                 <Layers size={20} color="#FF7A18" />
-                <span style={{ fontWeight: 800, fontSize: 15 }}>ML Animal Clustering — K-Means</span>
-                <Badge variant="warning">{clusters.k} clusters · {clusters.converged ? 'converged' : 'max iterations'}</Badge>
+                <span style={{ fontWeight: 800, fontSize: 15 }}>Pagpapangkat ng mga Hayop — ML Animal Clustering</span>
+                <Badge variant="warning">{clusters.k} pangkat · {clusters.converged ? 'nakumpleto' : 'natapos ang mga pagsusuri'}</Badge>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
                 {clusters.clusterLabels.map((label, c) => {
@@ -493,7 +493,7 @@ export function AnalyticsPage() {
                         <span style={{ width: 10, height: 10, borderRadius: '50%', background: ['#FFB340', '#FF7A18', '#FF9F0A', '#FF3B30'][c % 4] }} />
                         {label}
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{animalsInCluster.length} {animalsInCluster.length === 1 ? 'animal' : 'animals'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{animalsInCluster.length} {animalsInCluster.length === 1 ? 'hayop' : 'mga hayop'}</div>
                       <div style={{ fontSize: 12, marginTop: 8, wordBreak: 'break-word', lineHeight: 1.4 }}>
                         {animalsInCluster.map((a) => a.name).join(', ')}
                       </div>
@@ -502,7 +502,7 @@ export function AnalyticsPage() {
                 })}
               </div>
               <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 14, lineHeight: 1.5 }}>
-                K-means clustering groups animals by similarity in weight, age, health risk, and species. Animals in the same cluster share similar characteristics and may need similar management strategies.
+                Pinapangkat ng modelong ito ang mga hayop ayon sa pagkakapareho sa timbang, edad, kalusugan, at uri upang mas maging angkop ang paraan ng pag-aalaga.
               </p>
             </Card>
           )}

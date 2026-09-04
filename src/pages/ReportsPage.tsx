@@ -10,15 +10,15 @@ import { EmptyState } from '../components/ui/EmptyState';
 type ReportType = 'animal' | 'health' | 'breeding' | 'weight' | 'vaccination' | 'inventory' | 'feed' | 'milk' | 'performance';
 
 const REPORT_LABELS: Record<ReportType, string> = {
-  animal: 'Animal Report',
-  health: 'Health Report',
-  breeding: 'Breeding Report',
-  vaccination: 'Vaccination Report',
-  inventory: 'Inventory Report',
-  performance: 'Farm Summary',
-  weight: 'Weight Growth Report',
-  feed: 'Feed Report',
-  milk: 'Milk Production Report',
+  animal: 'Ulat ng mga Hayop',
+  health: 'Ulat sa Kalusugan',
+  breeding: 'Ulat sa Pagpapalahi (Breeding)',
+  vaccination: 'Ulat sa Pagbabakuna',
+  inventory: 'Ulat sa Imbentaryo',
+  performance: 'Pangkalahatang Buod ng Bukid',
+  weight: 'Ulat sa Timbang at Paglaki',
+  feed: 'Ulat sa Pakain',
+  milk: 'Ulat sa Produksyon ng Gatas',
 };
 
 export function ReportsPage() {
@@ -173,7 +173,7 @@ export function ReportsPage() {
         >
           <div className="alpas-stat-header">
             <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
-              Animals
+              Mga Hayop
             </span>
             <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
@@ -200,7 +200,7 @@ export function ReportsPage() {
         >
           <div className="alpas-stat-header">
             <span className="stat-card-label" style={{ fontWeight: 700, color: '#EF4444' }}>
-              Health
+              Kalusugan
             </span>
             <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <HeartPulse size={15} />
@@ -227,7 +227,7 @@ export function ReportsPage() {
         >
           <div className="alpas-stat-header">
             <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
-              Inventory
+              Imbentaryo
             </span>
             <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Package size={15} />

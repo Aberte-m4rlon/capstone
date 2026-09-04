@@ -327,11 +327,11 @@ export function AdminPage() {
                         <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
                         <td onClick={e => e.stopPropagation()}>
                           <div className="row-actions">
-                            <Button variant="ghost" size="sm" title="Send password reset" onClick={() => sendPasswordReset(u.email)}>
+                            <Button variant="ghost" size="sm" title="Ipadala ang password reset" onClick={() => sendPasswordReset(u.email)}>
                               <Mail size={14} />
                             </Button>
                             {!isMe && !isAdminUser && (
-                              <Button variant="ghost" size="sm" title="Delete user" onClick={() => setConfirmDelete(u)} style={{ color: '#EF4444' }}>
+                              <Button variant="ghost" size="sm" title="Burahin ang user" onClick={() => setConfirmDelete(u)} style={{ color: '#EF4444' }}>
                                 <Trash2 size={14} />
                               </Button>
                             )}

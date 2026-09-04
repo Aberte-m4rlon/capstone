@@ -387,14 +387,14 @@ export function Dashboard() {
               letterSpacing: '-0.02em',
             }}
           >
-            {greeting}, Farmer!
+            {FARM_LABELS.dashboardQuestion}
           </h1>
           <Badge variant="primary" size="sm">
             {FARM_LABELS.dashboardTitle}
           </Badge>
         </div>
         <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-text-secondary, #475569)' }}>
-          {FARM_LABELS.dashboardSubtitle}
+          {greeting}, Farmer! Narito ang pangkalahatang kalagayan at mga gawain sa iyong bukid ngayong araw.
         </p>
       </div>
 
@@ -529,7 +529,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
-                Kambing
+                {FARM_LABELS.cardGoats}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Layers size={16} />
@@ -557,7 +557,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
-                Tupa
+                {FARM_LABELS.cardSheep}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Layers size={16} />
@@ -585,7 +585,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: '#2E7D32' }}>
-                Kabuuan
+                {FARM_LABELS.cardTotalAnimals}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(67, 160, 71, 0.15)', color: '#2E7D32', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <PawPrint size={16} />
@@ -596,7 +596,7 @@ export function Dashboard() {
                 {herdStats.total}
               </div>
               <div className="alpas-stat-footer" style={{ color: herdStats.newThisMonth > 0 ? '#10B981' : 'var(--color-text-muted, #64748B)' }}>
-                {herdStats.newThisMonth > 0 ? `+${herdStats.newThisMonth} ngayong buwan` : 'Lahat ng hayop'}
+                {formatMonthlyAnimalGrowth(herdStats.newThisMonth)}
               </div>
             </div>
           </div>
@@ -846,7 +846,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: HEALTH_TIERS.Moderate.color }}>
-                Monitor
+                {FARM_LABELS.cardMonitoring}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: HEALTH_TIERS.Moderate.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AlertTriangle size={16} />
@@ -874,7 +874,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: HEALTH_TIERS.High.color }}>
-                High Risk
+                {FARM_LABELS.cardNeedsAttention}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: HEALTH_TIERS.High.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <ShieldAlert size={16} />
@@ -1046,7 +1046,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: '#EC4899' }}>
-                Handa sa Lahi
+                Handa sa Pagpapalahi
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <PawPrint size={16} />
@@ -1074,7 +1074,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
-                May Rekord
+                May Rekord ng Pagtatalik
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Activity size={16} />
@@ -1206,7 +1206,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: '#F59E0B' }}>
-                Vaccines Due
+                {FARM_LABELS.cardVaccineDueSoon}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Clock size={16} />
@@ -1234,7 +1234,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: '#EF4444' }}>
-                Low Stock
+                {FARM_LABELS.cardLowStock}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AlertTriangle size={16} />
@@ -1262,7 +1262,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
-                Expiring
+                {FARM_LABELS.cardExpiringSoon}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Package size={16} />
@@ -1342,7 +1342,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: inventoryStats.lowStockCount > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>
-                Low Stock
+                {FARM_LABELS.cardLowStock}
               </span>
               <div className="stat-card-icon" style={{ background: inventoryStats.lowStockCount > 0 ? 'rgba(245, 158, 11, 0.20)' : 'rgba(100, 116, 139, 0.12)', color: inventoryStats.lowStockCount > 0 ? '#F59E0B' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AlertTriangle size={16} />
@@ -1370,7 +1370,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: inventoryStats.expiringCount > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
-                Expiring
+                {FARM_LABELS.cardExpiringSoon}
               </span>
               <div className="stat-card-icon" style={{ background: inventoryStats.expiringCount > 0 ? 'rgba(239, 68, 68, 0.20)' : 'rgba(100, 116, 139, 0.12)', color: inventoryStats.expiringCount > 0 ? '#EF4444' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Clock size={16} />

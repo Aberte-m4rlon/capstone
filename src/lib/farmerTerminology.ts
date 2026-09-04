@@ -2,6 +2,7 @@
  * ALPASFARM - Farmer-Friendly Terminology & Formatting Helpers
  * Standardized Filipino/Taglish terms for ordinary Filipino goat & sheep farmers.
  * Consistent across Dashboard, Animals, Health, Breeding, Vaccinations, Inventory, and Alerts.
+ * Strictly adheres to non-diagnostic veterinary advisory language and non-invasive surface temperature measurement.
  */
 
 // ─── Main Navigation Labels ─────────────────────────────────────────────────
@@ -20,61 +21,85 @@ export const NAV_LABELS = {
   users: 'Mga User',
   settings: 'Mga Setting',
   logout: 'Mag-logout',
+  profile: 'Aking Profile',
+  more: 'Iba Pa',
 };
 
-// ─── Farm & General Labels ──────────────────────────────────────────────────
+// ─── Mobile Bottom Navigation (Strict 5 items) ──────────────────────────────
+export const MOBILE_NAV_LABELS = {
+  dashboard: 'Buod',
+  animals: 'Mga Hayop',
+  add: '+',
+  alerts: 'Mga Paalala',
+  more: 'Iba Pa',
+};
+
+// ─── Farm & General Dashboard Labels ─────────────────────────────────────────
 export const FARM_LABELS = {
   appName: 'ALPASFARM',
   tagline: 'Smart Farm, Healthy Herd - Sistema ng Pamamahala sa Kambing at Tupa',
   dashboardTitle: 'Buod ng Bukid',
+  dashboardQuestion: 'Kamusta ang bukid ko ngayon?',
   dashboardSubtitle: 'Pangkalahatang kalagayan at mga gawain sa iyong bukid ngayong araw',
   animalsSection: 'Mga Hayop sa Bukid',
   healthSection: 'Kalagayan ng mga Hayop',
   healthSubtitle: 'Subaybayan ang kalagayan ng bawat kambing at tupa.',
   healthDisclaimer:
     'Ang sistemang ito ay gabay lamang sa maagang pagsusuri (decision support). Hindi ito opisyal na diagnosis ng beterinaryo.',
-  breedingSection: 'Breeding Records',
+  breedingSection: 'Breeding',
   vaccinationSection: 'Mga Bakuna',
   inventorySection: 'Farm Inventory',
   alertsSection: 'Mga Paalala',
+
+  // Stat KPI Cards
+  cardTotalAnimals: 'Mga Hayop sa Bukid',
+  cardGoats: 'Mga Kambing',
+  cardSheep: 'Mga Tupa',
+  cardHealthy: 'Healthy',
+  cardMonitoring: 'Bantayan',
+  cardNeedsAttention: 'Kailangan ng Atensyon',
+  cardPregnant: 'Mga Buntis',
+  cardVaccineDueSoon: 'Bakunang Malapit na',
+  cardLowStock: 'Mababa ang Stock',
+  cardExpiringSoon: 'Malapit nang Mag-expire',
 };
 
 // ─── Species & Sex Terminology ──────────────────────────────────────────────
 export const SPECIES_LABELS: Record<string, { singular: string; plural: string; bilingual: string }> = {
-  Goat: { singular: 'Kambing', plural: 'Mga Kambing', bilingual: 'Goat / Kambing' },
-  Sheep: { singular: 'Tupa', plural: 'Mga Tupa', bilingual: 'Sheep / Tupa' },
+  Goat: { singular: 'Kambing', plural: 'Mga Kambing', bilingual: 'Kambing (Goat)' },
+  Sheep: { singular: 'Tupa', plural: 'Mga Tupa', bilingual: 'Tupa (Sheep)' },
 };
 
 export const SEX_LABELS: Record<string, { label: string; short: string; symbol: string; bilingual: string }> = {
-  Female: { label: 'Babaeng Hayop', short: 'Babae', symbol: 'F', bilingual: 'Female / Babae' },
-  Male: { label: 'Lalaking Hayop', short: 'Lalaki', symbol: 'M', bilingual: 'Male / Lalaki' },
+  Female: { label: 'Babaeng Hayop', short: 'Babae', symbol: 'F', bilingual: 'Babae (Female)' },
+  Male: { label: 'Lalaking Hayop', short: 'Lalaki', symbol: 'M', bilingual: 'Lalaki (Male)' },
 };
 
 // ─── Animal Lifecycle Statuses ──────────────────────────────────────────────
 export const ANIMAL_STATUS_LABELS: Record<string, { label: string; badge: string; color: string; bg: string; border: string }> = {
   Active: {
-    label: 'Active / Kasalukuyan sa Bukid',
-    badge: 'Active / Kasalukuyan',
+    label: 'Kasalukuyan sa Bukid (Active)',
+    badge: 'Kasalukuyan sa Bukid',
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.12)',
     border: 'rgba(16, 185, 129, 0.35)',
   },
   Sold: {
-    label: 'Sold / Naibenta',
+    label: 'Naibenta (Sold)',
     badge: 'Naibenta',
     color: '#3B82F6',
     bg: 'rgba(59, 130, 246, 0.12)',
     border: 'rgba(59, 130, 246, 0.35)',
   },
   Transferred: {
-    label: 'Transferred / Nailipat',
+    label: 'Nailipat (Transferred)',
     badge: 'Nailipat',
     color: '#8B5CF6',
     bg: 'rgba(139, 92, 246, 0.12)',
     border: 'rgba(139, 92, 246, 0.35)',
   },
   Deceased: {
-    label: 'Deceased / Namatay',
+    label: 'Namatay (Deceased)',
     badge: 'Namatay',
     color: '#EF4444',
     bg: 'rgba(239, 68, 68, 0.12)',
@@ -112,7 +137,7 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
     color: '#EF4444',
     bg: 'rgba(239, 68, 68, 0.12)',
     border: 'rgba(239, 68, 68, 0.35)',
-    description: 'Nangangailangan ng agarang pagsusuri ng beterinaryo o mabilisang paghiwalay.',
+    description: 'Nangangailangan ng atensyon o mabilisang paghiwalay at pagsusuri ng beterinaryo.',
   },
   Moderate: {
     label: 'Bantayan / Under Observation',
@@ -121,7 +146,7 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
     color: '#F59E0B',
     bg: 'rgba(245, 158, 11, 0.12)',
     border: 'rgba(245, 158, 11, 0.35)',
-    description: 'May maagang senyales ng karamdaman na dapat obserbahan at subaybayan.',
+    description: 'May maagang senyales na dapat obserbahan at subaybayan sa susunod na mga araw.',
   },
   Low: {
     label: 'Maayos / Healthy',
@@ -130,7 +155,7 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.12)',
     border: 'rgba(16, 185, 129, 0.35)',
-    description: 'Normal ang mga visual indicators at masigla ang pangangatawan.',
+    description: 'Normal ang mga visual indicators, masigla, at maayos ang pangangatawan.',
   },
 };
 
@@ -145,241 +170,303 @@ export const HEALTH_STATUS_BILINGUAL: Record<string, string> = {
   Sick: 'Mataas ang Risk / High Risk',
 };
 
+// ─── Simple Explanations for Health Signs (Replacing Medical Jargon) ─────────
+export function simplifyHealthObservation(rawText: string | null | undefined): string {
+  if (!rawText || !rawText.trim()) return 'Normal ang hitsura at masigla ang hayop.';
+  const lower = rawText.toLowerCase();
+
+  if (lower.includes('respiratory') || lower.includes('breathing') || lower.includes('cough') || lower.includes('hinga')) {
+    return 'May napansing kakaiba sa paghinga ng hayop.';
+  }
+  if (lower.includes('appetite') || lower.includes('pagkain') || lower.includes('reduced feed')) {
+    return 'Mas kaunti ang pagkain kaysa dati.';
+  }
+  if (lower.includes('nasal') || lower.includes('discharge') || lower.includes('sipon')) {
+    return 'May lumalabas na sipon o discharge sa ilong.';
+  }
+  if (lower.includes('dehydration') || lower.includes('kulang sa tubig') || lower.includes('panunuyo')) {
+    return 'Posibleng kulang sa tubig ang hayop.';
+  }
+  if (lower.includes('poor body condition') || lower.includes('emaciat') || lower.includes('payat') || lower.includes('low bcs')) {
+    return 'Medyo payat o mababa ang body condition.';
+  }
+  if (lower.includes('lameness') || lower.includes('pilay') || lower.includes('limp') || lower.includes('paa')) {
+    return 'May napansing pilay o hirap sa pagtayo o paglakad.';
+  }
+  if (lower.includes('bloat') || lower.includes('kabag') || lower.includes('rumen') || lower.includes('tiyan')) {
+    return 'May napansing pamamaga o kabag sa kaliwang tagiliran.';
+  }
+  if (lower.includes('fever') || lower.includes('lagnat') || lower.includes('temperature')) {
+    return 'Mataas ang surface temperature ng hayop.';
+  }
+  if (lower.includes('diarrhea') || lower.includes('pagtatae') || lower.includes('scour')) {
+    return 'May napansing basang dumi o pagtatae.';
+  }
+  if (lower.includes('pale') || lower.includes('putla') || lower.includes('anemia') || lower.includes('famacha')) {
+    return 'Medyo maputla ang talukap ng mata (posibleng bulate o anemia).';
+  }
+  if (lower.includes('letharg') || lower.includes('matamlay') || lower.includes('isolated') || lower.includes('nakabukod')) {
+    return 'Matamlay o nakabukod sa kawan.';
+  }
+
+  return rawText;
+}
+
 // ─── Non-Diagnostic Health Condition Formatter ──────────────────────────────
 export function formatFarmerHealthConcern(concern: string): { farmerText: string; actionText: string } {
   const lower = (concern || '').toLowerCase();
 
   if (lower.includes('pneumonia') || lower.includes('respiratory') || lower.includes('cough') || lower.includes('sipon') || lower.includes('nasal')) {
     return {
-      farmerText: 'Posibleng Health Problem: Paghinga (ubo / sipon / mabilis na paghinga)',
-      actionText: 'Manual Health Check Recommended: Ihiwalay muna ang hayop sa tuyong silungan at kumonsulta sa beterinaryo.',
+      farmerText: 'May napansing kakaiba sa paghinga ng hayop (ubo / sipon / mabilis na paghinga)',
+      actionText: 'Ihiwalay muna ang hayop sa tuyong silungan at kumonsulta sa beterinaryo kung magpatuloy.',
     };
   }
 
   if (lower.includes('anemia') || lower.includes('famacha') || lower.includes('barber pole') || lower.includes('worm') || lower.includes('pale') || lower.includes('mucous')) {
     return {
-      farmerText: 'Posibleng Health Problem: Bulate o Anemia (maputlang talukap ng mata)',
-      actionText: 'Manual Health Check Recommended: Suriin ang talukap ng mata (FAMACHA) at maghanda ng pampurga.',
+      farmerText: 'May senyales ng anemia o posibleng bulate (maputlang talukap ng mata)',
+      actionText: 'Suriin ang talukap ng mata (FAMACHA) at maghanda ng angkop na pampurga.',
     };
   }
 
   if (lower.includes('bloat') || lower.includes('kabag') || lower.includes('rumen') || lower.includes('digestive')) {
     return {
-      farmerText: 'Posibleng Health Problem: Kabag o Tiyan (namamagang kaliwang tagiliran)',
-      actionText: 'Needs Further Observation: Huwag munang pakainin ng basang feeds; lakarin ang hayop at humingi ng tulong.',
+      farmerText: 'May napansing pamamaga o kabag sa tiyan (kaliwang tagiliran)',
+      actionText: 'Huwag munang pakainin ng basang damo o feeds; lakarin ang hayop at humingi ng payo.',
     };
   }
 
   if (lower.includes('fever') || lower.includes('lagnat') || lower.includes('temperature') || lower.includes('infection')) {
     return {
-      farmerText: 'Posibleng Health Problem: Mataas ang temperatura o lagnat',
-      actionText: 'Veterinary Assessment Recommended: Ilayo sa matinding init, bigyan ng tubig, at obserbahan ang temperatura.',
+      farmerText: 'Mataas ang naitalang surface temperature',
+      actionText: 'Ilayo sa matinding sikat ng araw, bigyan ng sariwang tubig, at suriing muli ang temperatura.',
     };
   }
 
   if (lower.includes('diarrhea') || lower.includes('pagtatae') || lower.includes('enterotoxemia')) {
     return {
-      farmerText: 'Posibleng Health Problem: Pagtatae / Dehydration Risk',
-      actionText: 'Manual Health Check Recommended: Bigyan ng electrolytes upang maiwasan ang panunuyo at humingi ng payo sa gamot.',
+      farmerText: 'May napansing pagtatae (posibleng kulang sa tubig)',
+      actionText: 'Bigyan ng malinis na tubig na may electrolytes upang maiwasan ang panunuyo at humingi ng payo.',
     };
   }
 
   if (lower.includes('lame') || lower.includes('pilay') || lower.includes('gait') || lower.includes('foot rot') || lower.includes('kuko') || lower.includes('scald')) {
     return {
-      farmerText: 'Posibleng Health Problem: Pilay o problema sa kuko',
-      actionText: 'Manual Health Check Recommended: Linisin ang ilalim ng kuko at suriin kung may sugat o dumi.',
+      farmerText: 'May napansing pilay o problema sa kuko',
+      actionText: 'Linisin ang ilalim ng kuko at suriin kung may sugat, tinik, o dumi.',
     };
   }
 
   if (lower.includes('ppr') || lower.includes('viral')) {
     return {
-      farmerText: 'Posibleng Health Problem: Sintomas ng viral infection',
-      actionText: 'Veterinary Assessment Recommended: Agarang ihiwalay (isolate) ang hayop at ipagbigay-alam sa beterinaryo.',
+      farmerText: 'May napansing posibleng impeksyon o matamlay na kalagayan',
+      actionText: 'Agarang ihiwalay (isolate) ang hayop sa ibang kawan at ipagbigay-alam sa beterinaryo.',
     };
   }
 
   return {
-    farmerText: `Posibleng Health Problem: ${concern}`,
-    actionText: 'Needs Further Observation: Magsagawa ng regular na obserbasyon sa hayop.',
+    farmerText: `May napansing posibleng problema sa kalusugan: ${simplifyHealthObservation(concern)}`,
+    actionText: 'Obserbahan muna ang hayop at tingnan kung may iba pang sintomas.',
   };
 }
 
-// ─── AI Health Scanner Safety Labels ────────────────────────────────────────
+// ─── AI Health Scanner Safety & Guidance Labels ─────────────────────────────
 export const AI_SCANNER_LABELS = {
   title: 'AI Health Scanner',
   instruction: 'Itutok ang camera sa kambing o tupa.',
-  scanning: 'Scanning...',
-  searching: 'Hanahanap ang kambing o tupa...',
-  goatDetected: 'Kambing detected',
-  sheepDetected: 'Tupa detected',
-  wrongObject: 'Goat o Sheep lang ang maaaring i-scan.',
-  noAnimal: 'Walang hayop na nakita. Itutok ang camera sa kambing o tupa.',
-  resultTitle: 'Health Screening Result',
-  possibleConcern: 'Possible Health Concern',
-  healthStatus: 'Health Status',
-  visualFindings: 'Visual Findings',
-  recommendedAction: 'Recommended Action',
-  confidence: 'Confidence',
-  scanAgain: 'Scan Again',
-  saveResult: 'Save Result',
-  notMeasured: 'Not measured',
+  step1: 'Itutok ang camera sa kambing o tupa.',
+  step2: 'Hinahanap ang hayop...',
+  searching: 'Hinahanap ang hayop...',
+  goatDetected: 'Kambing ang nakita.',
+  sheepDetected: 'Tupa ang nakita.',
+  wrongObject: 'Hindi ito kambing o tupa.',
+  noAnimal: 'Pakiharap ang camera sa kambing o tupa.',
+  lowConfidence: 'Mahina ang pagkakakita. Lumapit nang kaunti at tiyaking malinaw ang hayop.',
+  blurryImage: 'Malabo ang kuha. Subukang lumapit at iwasan ang sobrang liwanag.',
+
+  // Thermal Camera Status (Strictly Non-Invasive Surface Temperature)
+  thermalConnected: 'Thermal Camera: Connected',
+  thermalDisconnected: 'Thermal Camera: Hindi Nakakonekta',
+  thermalMeasuring: 'Kinukuha ang surface temperature...',
+  surfaceTemperature: 'Surface Temperature',
+  tempNotMeasured: 'Temperature: Hindi nasukat',
+
+  // Non-Diagnostic Advisory Results
+  resultTitle: 'Possible Health Concern',
+  resultSummaryTagalog: 'May napansing posibleng problema sa kalusugan.',
+  observationNotice: 'May ilang senyales na kailangan bantayan.',
+  defaultFarmerAdvice: 'Obserbahan muna ang hayop at tingnan kung may iba pang sintomas.',
   disclaimer:
-    'Ang resulta ay gabay lamang para sa maagang pagmamasid. Kumonsulta sa beterinaryo para sa pormal na diagnosis.',
+    'Ang resulta ay gabay lamang para sa maagang pagmamasid. Hindi ito opisyal na diagnosis ng beterinaryo.',
+  scanAgain: 'Mag-scan Ulit',
+  saveResult: 'I-save ang Resulta',
 };
 
 // ─── Breeding Terminology ───────────────────────────────────────────────────
 export const BREEDING_LABELS = {
-  title: 'Breeding Records',
+  title: 'Breeding',
   subtitle: 'Talaan ng pagpaparami, pagbubuntis, at panganganak sa bukid',
-  female: 'Female',
-  male: 'Male',
-  matingDate: 'Mating Date',
-  expectedKiddingDate: 'Expected Kidding Date',
-  expectedKiddingBilingual: 'Expected Kidding Date (Estimated na panganganak)',
-  pregnancyStatus: 'Pregnancy Status',
-  breedingStatus: 'Breeding Status',
-  pregnant: 'Pregnant / Buntis',
-  notPregnant: 'Not Pregnant / Hindi Buntis',
-  completed: 'Completed / Tapos na',
-  pending: 'Pending / Naghihintay',
+  pregnantList: 'Mga Buntis',
   readyToBreed: 'Handa sa Pagpapalahi',
-  activeBreeding: 'May Nakatalang Pagpapalahi',
-  nearKidding: 'Malapit Nang Manganak',
+  hasMatingRecord: 'May Rekord ng Pagtatalik',
   recentKidding: 'Bagong Panganak',
-  expectedDatePrefix: 'Inaasahang Panganganak',
+  pregnant: 'Buntis',
+  kiddingSoon: 'Posibleng Manganganak sa loob ng 30 araw',
+  matingRecord: 'Rekord ng Pagpapalahi',
+  expectedKidding: 'Inaasahang Panganganak',
+  expectedKiddingShort: 'Inaasahang Panganganak',
+  female: 'Babae',
+  male: 'Lalaki',
+  matingDate: 'Petsa ng Pagtatalik (Mating Date)',
+  status: 'Kalagayan sa Pagpapalahi',
+  notes: 'Mga Tala',
+  saveRecord: 'I-save ang Pagpapalahi',
 };
 
 // ─── Vaccination Terminology ────────────────────────────────────────────────
 export const VACCINE_LABELS = {
   title: 'Mga Bakuna',
-  subtitle: 'Iskedyul ng bakuna at kaligtasan ng mga alagang kambing at tupa',
+  subtitle: 'Iskedyul ng bakuna at proteksyon ng mga alagang kambing at tupa',
+  given: 'Bakunang Naibigay',
+  nextDue: 'Susunod na Bakuna',
+  dueSoon: 'Bakuna na Malapit nang Due',
+  dueNow: 'Bakuna na Due na',
+  status: 'Kalagayan ng Bakuna',
   recordVaccineBtn: 'Mag-record ng Bakuna',
-  animal: 'Animal',
-  vaccine: 'Vaccine',
-  vaccinationDate: 'Vaccination Date',
-  nextDueDate: 'Next Due Date',
-  status: 'Status',
-  veterinarian: 'Veterinarian',
-  notes: 'Notes',
+  animal: 'Hayop',
+  vaccine: 'Pangalan ng Bakuna',
+  vaccinationDate: 'Petsa ng Bakuna',
+  nextDueDate: 'Petsa ng Susunod na Bakuna',
+  veterinarian: 'Beterinaryo o Nagbakuna',
+  notes: 'Mga Tala',
   upToDate: 'Up to Date / Updated',
-  dueSoon: 'Due Soon / Malapit na',
-  overdue: 'Overdue / Lampas na sa Schedule',
-  upcoming: 'Bakunang Paparating',
-  overdueTitle: 'Overdue na Bakuna',
-  thisMonth: 'Bakunang Naibigay Ngayong Buwan',
+  overdue: 'Due na / Lampas sa Schedule',
   emptyUpcoming: 'Walang bakunang nakatakda sa susunod na 30 araw.',
-  emptyOverdue: 'Lahat ng alaga ay updated sa bakuna.',
-  emptyRecords: 'Wala pang vaccination records.',
+  emptyOverdue: 'Walang bakuna na due ngayon.',
+  emptyRecords: 'Wala pang rekord ng bakuna.',
 };
 
 // ─── Farm Inventory Terminology ─────────────────────────────────────────────
 export const GENERAL_INVENTORY_LABELS = {
   title: 'Farm Inventory',
-  englishTitle: 'General Farm Inventory',
-  summarySubtitle: 'Buod ng lahat ng mayroon sa bukid.',
-  livestockSection: 'Mga Hayop sa Bukid (Livestock Overview)',
-  livestockSubtitle: 'Kasalukuyang bilang ng mga alagang kambing at tupa ayon sa lahi, kasarian, edad, at kalusugan',
-  stocksSection: 'Farm Stocks & Resources',
-  stocksSubtitle: 'Pisikal na supply ng pakain, gamot, bakuna, kagamitan, at mga kasangkapan',
-  totalLivestock: 'Kabuuang Hayop',
-  goats: 'Mga Kambing',
-  sheep: 'Mga Tupa',
-  feeds: 'Feed',
-  healthSupplies: 'Health Supplies',
-  equipment: 'Equipment',
-  young: 'Young (< 12 buwan)',
-  adult: 'Adult (≥ 12 buwan)',
-  pregnant: 'Pregnant (Buntis)',
-  healthy: 'Healthy (Maayos)',
-  monitoring: 'Under Observation (Bantayan)',
-  needsAttention: 'Needs Attention (Atensyon)',
+  friendlyTitle: 'Mga Gamit at Stock',
+  question: 'Anong mayroon at kulang sa bukid?',
+  totalItems: 'Kabuuang Gamit',
+  lowStock: 'Mababa ang Stock',
+  expiringSoon: 'Malapit nang Mag-expire',
+  stockValue: 'Halagang Natitira sa Stock',
+
+  // 5 Canonical Categories
+  categories: {
+    animals: 'Mga Hayop',
+    feed: 'Pakain',
+    health: 'Gamot at Health Supplies',
+    supplies: 'Mga Gamit sa Bukid',
+    tools: 'Tools at Equipment',
+  },
+
+  // Stock status
+  inStock: 'Sapat ang Stock',
+  lowStockLabel: 'Mababa na ang stock',
+  expiredLabel: 'Expired na',
+
+  // Actions
   addItem: 'Magdagdag ng Item',
   addStock: 'Magdagdag ng Stock',
-  recordUsage: 'Record Usage',
+  recordUsage: 'Mag-record ng Paggamit',
   editItem: 'I-edit',
-  viewDetails: 'Tingnan ang Details',
-  inStock: 'In Stock',
-  lowStock: 'Mababa na ang Stock',
-  expiringSoon: 'Malapit nang Mag-expire',
-  expired: 'Expired na',
-  outOfStock: 'Out of Stock',
+  viewDetails: 'Tingnan ang Detalye',
+
+  // Transactions
+  txStockIn: 'Dagdag Stock',
+  txConsumption: 'Nagamit',
+  txRemoval: 'Inalis',
+  txAdjIn: 'Dagdag Ayos (+)',
+  txAdjOut: 'Bawas Ayos (−)',
+  txReturn: 'Isinauli',
 };
 
 export const INVENTORY_LABELS = GENERAL_INVENTORY_LABELS;
 
-// ─── Alerts & Notifications Terminology ─────────────────────────────────────
+// ─── Alerts & Notifications Terminology (WHAT happened, WHAT needs attention, WHAT to do) ───
 export const ALERT_LABELS = {
   title: 'Mga Paalala',
-  subtitle: 'Mga alerto, paalala sa bakuna, mababang stock, at kalusugan sa bukid',
-  normal: 'Normal',
-  paalaala: 'Paalaala',
-  mahalaga: 'Mahalaga',
-  urgent: 'Urgent',
-  vaccineDueSoon: 'May bakuna na malapit nang due.',
-  lowStockFeed: 'Mababa na ang stock ng feed.',
-  itemExpiring: 'May item na malapit nang mag-expire.',
-  animalNeedsAttention: 'May hayop na nangangailangan ng atensyon.',
-  checkBreeding: 'May breeding record na kailangang i-check.',
+  subtitle: 'Alamin kung ano ang nangyari, ano ang dapat bantayan, at ano ang kailangang gawin.',
   markAllRead: 'I-marka Lahat bilang Nabasa',
-  emptyAlerts: 'Wala pang alerts.',
+  emptyAlerts: 'Walang kailangang aksyunan ngayon.',
+  allGood: 'Lahat ay maayos sa bukid.',
 };
 
 // ─── Reports Terminology ────────────────────────────────────────────────────
 export const REPORT_LABELS = {
   title: 'Mga Ulat',
-  subtitle: 'Pagsusuri at mga ulat sa hayop, kalusugan, bakuna, at imbentaryo',
-  animalReport: 'Animal Report',
-  healthReport: 'Health Report',
-  breedingReport: 'Breeding Report',
-  vaccinationReport: 'Vaccination Report',
-  inventoryReport: 'Inventory Report',
-  farmSummary: 'Farm Summary',
-  viewReport: 'Tingnan ang Ulat',
+  subtitle: 'Tingnan, i-download, o i-print ang buod ng impormasyon sa bukid',
+  animalReport: 'Ulat sa mga Hayop',
+  healthReport: 'Ulat sa Kalusugan',
+  breedingReport: 'Ulat sa Pagpapalahi / Breeding',
+  weightReport: 'Ulat sa Timbang',
+  vaccinationReport: 'Ulat sa Bakuna',
+  inventoryReport: 'Ulat sa Gamot at Stock',
+  farmSummary: 'Pangkalahatang Buod ng Bukid',
   download: 'I-download',
   print: 'I-print',
-  export: 'Export',
+  export: 'I-export',
 };
 
-// ─── Common Action Verbs & Placeholders ──────────────────────────────────────
+// ─── Common Action Verbs ────────────────────────────────────────────────────
 export const COMMON_ACTIONS = {
-  addAnimal: 'Magdagdag ng Hayop',
-  viewProfile: 'View Profile',
-  edit: 'I-edit',
-  viewRecords: 'Tingnan ang Records',
-  update: 'I-update',
   save: 'I-save',
-  cancel: 'I-cancel',
+  edit: 'I-edit',
   delete: 'Burahin',
-  search: 'Maghanap',
-  filter: 'I-filter',
-  export: 'I-export',
+  cancel: 'Kanselahin',
+  back: 'Bumalik',
+  viewDetails: 'Tingnan ang Detalye',
+  add: 'Magdagdag',
+  record: 'Mag-record',
   download: 'I-download',
   print: 'I-print',
+  search: 'Maghanap',
+  searchPlaceholder: 'Maghanap ng hayop, ID, gamit, o record...',
   all: 'Lahat',
-  searchPlaceholder: 'Maghanap ng animal, ID, breed, o item...',
+  addAnimal: 'Magdagdag ng Hayop',
+  saveAnimal: 'I-save ang Hayop',
 };
 
 // ─── Standard Empty States ──────────────────────────────────────────────────
 export const EMPTY_STATES = {
-  animals: 'Wala pang animal records.',
-  health: 'Wala pang health records.',
-  vaccinations: 'Wala pang vaccination records.',
-  breeding: 'Wala pang breeding records.',
-  inventory: 'Wala pang inventory items.',
-  alerts: 'Wala pang alerts.',
+  animals: 'Wala pang hayop na nakalagay.',
+  health: 'Wala pang health record para sa hayop na ito.',
+  vaccinations: 'Walang bakuna na due ngayon.',
+  breeding: 'Wala pang rekord ng pagpapalahi.',
+  inventory: 'Lahat ng stock ay nasa maayos na dami.',
+  alerts: '🎉 Walang kailangang aksyunan ngayon.',
+  noData: 'Walang nahanap na record.',
 };
 
-// ─── Form Validation Messages ───────────────────────────────────────────────
+// ─── Form Validation & Feedback Messages ───────────────────────────────────
 export const VALIDATION_MESSAGES = {
-  requiredField: 'Kailangan ang field na ito.',
-  checkInfo: 'Pakicheck ang inilagay na impormasyon.',
-  savedSuccess: 'Matagumpay na na-save ang record.',
-  addedSuccess: 'Matagumpay na naidagdag.',
-  updatedSuccess: 'Na-update na ang animal record.',
-  vaccineRecorded: 'Na-record na ang vaccination.',
-  screeningSaved: 'Na-save na ang health screening.',
-  saveError: 'May problema sa pag-save. Pakisubukan ulit.',
-  missingInfo: 'May kulang na impormasyon.',
-  animalNotFound: 'Animal ID not found.',
+  fetchError: 'May problema sa pagkuha ng data. Subukan ulit.',
+  saveError: 'Hindi mai-save ang impormasyon. Pakitingnan ang mga nilagay na detalye.',
+  nameOrTagRequired: 'Pakilagay ang pangalan o Tag ID ng hayop.',
+  savedSuccess: 'Matagumpay na na-save ang impormasyon.',
+  deletedSuccess: 'Matagumpay na nabura ang rekord.',
+  updatedSuccess: 'Na-update na ang rekord.',
+};
+
+// ─── Confirmation Dialogs ───────────────────────────────────────────────────
+export const CONFIRMATION_MESSAGES = {
+  deleteAnimalTitle: 'Sigurado ka bang nais mong burahin ang hayop na ito?',
+  deleteAnimalDesc: 'Hindi na ito maibabalik kapag nabura.',
+  confirmDelete: 'Oo, Burahin',
+  cancelDelete: 'Huwag Muna',
+};
+
+// ─── Tooltips & Helpful Explanations ────────────────────────────────────────
+export const TOOLTIPS_HELP = {
+  famacha: 'Pagsusuri sa kulay ng talukap ng mata para malaman kung may anemia o bulate.',
+  bcs: 'Pagsusuri kung payat, tama lang, o mataba ang hayop.',
+  temperature: 'Surface temperature ng hayop gamit ang thermal sensor o thermometer.',
+  kiddingDate: 'Tinatayang petsa kung kailan manganganak ang hayop.',
 };
 

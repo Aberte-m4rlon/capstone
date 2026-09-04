@@ -58,9 +58,10 @@ import {
   type FarmerObservations,
 } from '../lib/earlyIllnessEngine';
 import { runCameraScreening, fileToCanvas, type ScanResult } from '../lib/cameraML';
+import { simplifyHealthObservation } from '../lib/farmerTerminology';
 import type { HealthRecord, Animal } from '../types';
 
-// Symptom Chip Definition (100% Professional English)
+// Symptom Chip Definition
 interface SymptomChip {
   id: string;
   label: string;
@@ -80,7 +81,7 @@ const AVAILABLE_SYMPTOMS: SymptomChip[] = [
 
 
 /**
- * Cleans and formats raw AI/database symptoms and observation reasons into readable farm summaries.
+ * Cleans and formats raw AI/database symptoms and observation reasons into readable farm summaries in Taglish.
  * Removes raw technical prefixes like [Observation], [Database History], etc. and prevents UI overflow.
  */
 export function formatHealthReasons(
@@ -89,8 +90,8 @@ export function formatHealthReasons(
 ): { summary: string; items: string[]; totalCount: number } {
   if (!rawText || !rawText.trim()) {
     return {
-      summary: 'Normal clinical parameters • No acute distress noted',
-      items: ['Normal clinical parameters'],
+      summary: 'Maayos ang kalagayan • Walang napansing kakaiba',
+      items: ['Maayos ang kalagayan'],
       totalCount: 1,
     };
   }
@@ -116,7 +117,8 @@ export function formatHealthReasons(
 
     if (!cleaned) continue;
 
-    // Capitalize cleanly
+    // Convert clinical symptom to plain farmer Taglish
+    cleaned = simplifyHealthObservation(cleaned);
     cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 
     const lowerKey = cleaned.toLowerCase();
@@ -128,8 +130,8 @@ export function formatHealthReasons(
 
   if (cleanedItems.length === 0) {
     return {
-      summary: 'Routine health check • Standard vital signs',
-      items: ['Routine health check'],
+      summary: 'Karaniwang health check • Normal ang sigla',
+      items: ['Karaniwang health check'],
       totalCount: 1,
     };
   }
@@ -139,7 +141,7 @@ export function formatHealthReasons(
 
   let summary = displayed.join(' • ');
   if (remaining > 0) {
-    summary += ` • +${remaining} more`;
+    summary += ` • +${remaining} pa`;
   }
 
   return {
@@ -159,7 +161,7 @@ export function getRecordRiskMeta(r: HealthRecord) {
   if (score >= 85 || level === 'critical') {
     return {
       key: 'critical',
-      label: 'Kritikal na Risk',
+      label: 'Mataas ang Risk / High Risk',
       score,
       badgeClass: 'risk-badge-critical',
       cardClass: 'record-card-critical',
@@ -171,7 +173,7 @@ export function getRecordRiskMeta(r: HealthRecord) {
   if (score >= 60 || level === 'high') {
     return {
       key: 'high',
-      label: 'Mataas ang Risk',
+      label: 'Nangangailangan ng Atensyon / Needs Attention',
       score,
       badgeClass: 'risk-badge-high',
       cardClass: 'record-card-high',
@@ -183,7 +185,7 @@ export function getRecordRiskMeta(r: HealthRecord) {
   if (score >= 35 || level === 'moderate' || level === 'medium') {
     return {
       key: 'moderate',
-      label: 'Bantayan / Observation',
+      label: 'Bantayan / Under Observation',
       score,
       badgeClass: 'risk-badge-mod',
       cardClass: 'record-card-mod',
@@ -194,7 +196,7 @@ export function getRecordRiskMeta(r: HealthRecord) {
   }
   return {
     key: 'low',
-    label: 'Maayos / Low Risk',
+    label: 'Maayos / Healthy',
     score,
     badgeClass: 'risk-badge-low',
     cardClass: 'record-card-low',
@@ -1803,7 +1805,7 @@ export function HealthPage() {
               }}
             >
               <Trash2 size={15} />
-              <span>I-delete ang Record</span>
+              <span>Burahin ang Record</span>
             </button>
             <button
               type="button"
@@ -1822,9 +1824,10 @@ export function HealthPage() {
       {/* ── CONFIRM DELETE DIALOG ── */}
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Delete Health Record"
-        message="Are you sure you want to permanently delete this health assessment record?"
-        confirmLabel="Delete"
+        title="Burahin ang Health Record"
+        message="Sigurado ka bang nais mong burahin ang health record na ito? Hindi na ito maibabalik kapag nabura."
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDeleteRecord}
         onCancel={() => setConfirmDelete(null)}

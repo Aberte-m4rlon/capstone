@@ -18,6 +18,7 @@ import { useAuth } from '../lib/auth';
 import { useToast } from '../lib/toast';
 import { supabase } from '../lib/supabase';
 import type { Animal } from '../types';
+import { FARM_LABELS, simplifyHealthObservation } from '../lib/farmerTerminology';
 
 interface Props {
   animalId: string;
@@ -323,16 +324,23 @@ export function CameraScreeningModal({
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                           <div style={{ border: '2px dashed rgba(67,160,71,0.8)', borderRadius: 16, width: '75%', height: '65%' }} />
                         </div>
+                        {/* Mandate 12: Thermal camera status pill */}
+                        <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 999, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, zIndex: 10 }}>
+                          <Activity size={11} color="#94A3B8" />
+                          <span>Thermal Camera: Hindi Nakakonekta</span>
+                          <span style={{ opacity: 0.4 }}>•</span>
+                          <span>Surface Temp: Hindi nasukat</span>
+                        </div>
                         {multiAngle && (
-                          <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(46,125,50,0.9)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 14px', borderRadius: 999 }}>
+                          <div style={{ position: 'absolute', top: 40, left: '50%', transform: 'translateX(-50%)', background: 'rgba(46,125,50,0.9)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 14px', borderRadius: 999, zIndex: 10 }}>
                             Capture: {ANGLE_LABELS[currentAngle]}
                           </div>
                         )}
-                        <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '5px 14px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                        <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '5px 14px', borderRadius: 999, whiteSpace: 'nowrap', zIndex: 10 }}>
                           Itutok ang camera sa kambing o tupa
                         </div>
                         {/* Flip button */}
-                        <button onClick={handleFlipCamera} style={{ position: 'absolute', top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }} title="Magpalit ng camera">
+                        <button onClick={handleFlipCamera} style={{ position: 'absolute', top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', zIndex: 11 }} title="Magpalit ng camera">
                           <RotateCcw size={15} />
                         </button>
                       </div>
@@ -458,24 +466,29 @@ function ScanResultCard({
             <XCircle size={48} color="#EF4444" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
-            Goat o Sheep lang ang maaaring i-scan.
+            Hindi ito kambing o tupa.
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
-            {result.recommendation || 'Hindi ito kambing o tupa. Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
+            Ang AI Health Screening ay para lamang sa mga alagang kambing at tupa. Pakiharap ang camera o mag-upload ng litrato ng kambing o tupa.
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
-            <AlertTriangle size={14} /> Hindi maaaring i-save ang screening record na ito.
+            <AlertTriangle size={14} /> Hindi maaaring i-save ang screening dahil hindi ito kambing o tupa.
           </div>
         </div>
 
         <button onClick={onRetake} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 4px 14px rgba(255,59,48,0.3)' }}>
-          <RefreshCw size={14} /> I-scan Ulit
+          <RefreshCw size={14} /> Subukang Mag-scan Ulit
         </button>
       </div>
     );
   }
 
   const finalScore = result.combinedRiskScore ?? result.riskScore;
+  const displayRiskLabel =
+    result.riskLevel === 'CRITICAL' ? 'Mataas ang Risk / High Risk' :
+    result.riskLevel === 'HIGH' ? 'Nangangailangan ng Atensyon / Needs Attention' :
+    result.riskLevel === 'MODERATE' ? 'Bantayan / Under Observation' :
+    'Maayos / Healthy';
 
   return (
     <div>
@@ -545,7 +558,7 @@ function ScanResultCard({
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 16, fontWeight: 900, color: result.riskLevelColor }}>{result.riskLevelLabel}</span>
+              <span style={{ fontSize: 16, fontWeight: 900, color: result.riskLevelColor }}>{displayRiskLabel}</span>
               <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: result.detectionEngine === 'yolov8' ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)', color: result.detectionEngine === 'yolov8' ? '#16A34A' : '#3B82F6', border: `1px solid ${result.detectionEngine === 'yolov8' ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)'}` }}>
                 {result.detectionEngine === 'yolov8' ? 'YOLOv8 Vision Scanner' : 'MobileNetV2 Engine'}
               </span>
@@ -554,7 +567,7 @@ function ScanResultCard({
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 26, fontWeight: 900, color: result.riskLevelColor, lineHeight: 1 }}>{finalScore}%</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Health Status</div>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Score ng Kalusugan</div>
           </div>
         </div>
 
@@ -594,8 +607,8 @@ function ScanResultCard({
                   ? <CheckCircle size={14} color="#16A34A" />
                   : <AlertTriangle size={14} color="#EF4444" />}
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{ind.label}</div>
-                  {ind.indicator !== 'NORMAL' && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{ind.description}</div>}
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{simplifyHealthObservation(ind.label)}</div>
+                  {ind.indicator !== 'NORMAL' && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{simplifyHealthObservation(ind.description)}</div>}
                 </div>
                 {ind.indicator !== 'NORMAL' && (
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#EF4444', flexShrink: 0 }}>+{ind.riskPoints} pts</div>
@@ -620,17 +633,19 @@ function ScanResultCard({
           </div>
         )}
 
-        {/* Recommendation */}
+        {/* Recommendation (Mandate 13 Non-diagnostic) */}
         <div style={{ background: 'var(--surface)', borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>REKOMENDASYON</div>
-          <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>{result.recommendation}</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+            {result.riskLevel !== 'LOW' ? 'POSIBLENG PROBLEMA SA KALUSUGAN AT GABAY' : 'GABAY SA PAG-AALAGA'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>{simplifyHealthObservation(result.recommendation)}</div>
         </div>
 
         {/* Actions */}
         {result.recommendedActions.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {result.recommendedActions.map((a, i) => (
-              <div key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 8 }}>· {a}</div>
+              <div key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 8 }}>· {simplifyHealthObservation(a)}</div>
             ))}
           </div>
         )}

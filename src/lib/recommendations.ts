@@ -90,20 +90,20 @@ export function generateDailyAlerts(
       alerts.push({
         id: `vacc-overdue-${animal.id}`,
         type: 'Vaccination',
-        title: `${animal.name} vaccination is overdue`,
-        description: 'Schedule the next vaccination before the risk of illness rises.',
+        title: `${animal.name} — Lampas na sa schedule ng bakuna`,
+        description: `Lampas na sa takdang petsa ang bakuna ni ${animal.name}. Bantayan ang posibleng sintomas ng sakit at mag-iskedyul agad ng pagbabakuna upang maprotektahan ang kawan.`,
         priority: 'Critical',
-        dueLabel: 'Urgent',
+        dueLabel: 'Kailangan ng Aksyon',
         link: '/vaccinations',
       });
     } else if (animal.vaccination_status === 'Due Soon') {
       alerts.push({
         id: `vacc-soon-${animal.id}`,
         type: 'Vaccination',
-        title: `${animal.name} vaccination is due soon`,
-        description: 'Plan the visit and prepare the required vaccine stock.',
+        title: `${animal.name} — Malapit na ang schedule ng bakuna`,
+        description: `Nalalapit na ang takdang araw ng bakuna ni ${animal.name}. Ihanda ang gamot sa imbentaryo at planuhin ang pag-inject sa loob ng linggong ito.`,
         priority: 'Warning',
-        dueLabel: 'This week',
+        dueLabel: 'Ngayong Linggo',
         link: '/vaccinations',
       });
     }
@@ -114,10 +114,10 @@ export function generateDailyAlerts(
       alerts.push({
         id: `health-${animal.id}`,
         type: 'Health',
-        title: `${animal.name} needs a health check`,
-        description: 'A routine health review will keep early warning signs from being missed.',
+        title: `${animal.name} — Kailangan ng regular na pagsusuri`,
+        description: `Matagal nang walang naitalang health check para kay ${animal.name}. Obserbahan ang gana sa pagkain, kilos, at temperatura upang maagapan ang anumang problema.`,
         priority: 'Normal',
-        dueLabel: 'Within 3 days',
+        dueLabel: 'Sa loob ng 3 araw',
         link: `/animals/${animal.id}`,
       });
     }
@@ -128,10 +128,10 @@ export function generateDailyAlerts(
       alerts.push({
         id: `weight-${animal.id}`,
         type: 'Weight',
-        title: `${animal.name} is due for a weigh-in`,
-        description: 'Update the body weight to keep growth and feed efficiency accurate.',
+        title: `${animal.name} — Oras na para timbangin muli`,
+        description: `Mahigit isang buwan nang hindi natitimbang si ${animal.name}. Timbangin upang matiyak na tama ang dagdag-timbang at maayos ang sustansya ng pakain.`,
         priority: 'Normal',
-        dueLabel: 'This week',
+        dueLabel: 'Ngayong Linggo',
         link: '/weights',
       });
     }
@@ -142,10 +142,10 @@ export function generateDailyAlerts(
         alerts.push({
           id: `kidding-${animal.id}`,
           type: 'Breeding',
-          title: `${animal.name} is due to kid soon`,
-          description: `Expected kidding date is ${animal.expected_kidding_date}. Prepare supplies and monitor closely.`,
+          title: `${animal.name} — Malapit nang manganak`,
+          description: `Inaasahang petsa ng panganganak: ${animal.expected_kidding_date}. Ihanda ang malinis at tuyong kulungan, bantayan ang kilos ng inahin, at maghanda sa panganganak.`,
           priority: remaining <= 7 ? 'Critical' : 'Warning',
-          dueLabel: remaining <= 7 ? 'Critical window' : `${remaining} days`,
+          dueLabel: remaining <= 7 ? 'Kritikal na Araw' : `${remaining} araw`,
           link: `/animals/${animal.id}`,
         });
       }
@@ -154,21 +154,51 @@ export function generateDailyAlerts(
 
   inventory.forEach((item) => {
     const status = inventoryStatus(item, settings.expiry_warning_days);
-    if (status.status === 'Expired' || status.status === 'Expiring Soon' || status.status === 'Low Stock' || status.status === 'Out of Stock') {
+    if (status.status === 'Expired') {
       alerts.push({
         id: `inventory-${item.id}`,
         type: 'Inventory',
-        title: `${item.name} needs attention`,
-        description: `${status.label} — ${item.quantity} ${item.unit} remaining.`,
-        priority: status.status === 'Expired' || status.status === 'Out of Stock' ? 'Critical' : 'Warning',
-        dueLabel: status.status === 'Expired' ? 'Immediate' : 'Soon',
+        title: `${item.name} — Nag-expire na ang stock`,
+        description: `Paso o expired na ang gamit na ito. Huwag nang gagamitin sa mga hayop upang maiwasan ang pinsala, at itapon o palitan agad.`,
+        priority: 'Critical',
+        dueLabel: 'Aksyonan Agad',
+        link: '/inventory',
+      });
+    } else if (status.status === 'Out of Stock') {
+      alerts.push({
+        id: `inventory-${item.id}`,
+        type: 'Inventory',
+        title: `${item.name} — Ubos na ang stock`,
+        description: `Wala nang natitirang stock sa bodega. Mag-order o magdagdag agad upang hindi maantala ang pag-aalaga sa kawan.`,
+        priority: 'Critical',
+        dueLabel: 'Aksyonan Agad',
+        link: '/inventory',
+      });
+    } else if (status.status === 'Expiring Soon') {
+      alerts.push({
+        id: `inventory-${item.id}`,
+        type: 'Inventory',
+        title: `${item.name} — Malapit nang mag-expire`,
+        description: `Malapit nang mapaso ang stock na ito (${item.quantity} ${item.unit} ang natitira). Unahing gamitin o magplano ng bagong stock.`,
+        priority: 'Warning',
+        dueLabel: 'Malapit na',
+        link: '/inventory',
+      });
+    } else if (status.status === 'Low Stock') {
+      alerts.push({
+        id: `inventory-${item.id}`,
+        type: 'Inventory',
+        title: `${item.name} — Mababa na ang stock`,
+        description: `Mababa na sa minimum limit ang ${item.name} (${item.quantity} ${item.unit} na lamang). Mag-stock in na bago maubusan.`,
+        priority: 'Warning',
+        dueLabel: 'Malapit na',
         link: '/inventory',
       });
     }
   });
 
   const priorityOrder: Record<Priority, number> = { Critical: 0, Warning: 1, Normal: 2, Success: 3 };
-  alerts.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  alerts.sort((a, b) => priorityOrder[a.priority] - priorityOrder[a.priority]);
 
   return alerts;
 }
@@ -193,8 +223,8 @@ export function generateRecommendations(
   criticalAnimals.forEach((a) => {
     recs.push({
       category: 'Health',
-      title: `${a.name} — Critical health risk`,
-      description: `Health risk score is ${a.health_risk_score}. Immediate veterinary attention recommended.`,
+      title: `${a.name} — May napansing posibleng problema sa kalusugan`,
+      description: `Mataas ang risk score (${a.health_risk_score}). Ihiwalay pansamantala at ikonsulta agad sa beterinaryo o kawani ng bukid.`,
       priority: 'Critical',
       severity_color: 'red',
       link: `/animals/${a.id}`,
@@ -203,8 +233,8 @@ export function generateRecommendations(
       id: `crit-${a.id}`,
       severity: 'critical',
       icon: 'AlertTriangle',
-      title: `${a.name} — Critical health risk`,
-      description: `Risk score ${a.health_risk_score} — needs immediate attention`,
+      title: `${a.name} — May posibleng problema sa kalusugan`,
+      description: `Risk score: ${a.health_risk_score} — kailangan ng agarang atensyon`,
       link: `/animals/${a.id}`,
     });
   });
@@ -215,8 +245,8 @@ export function generateRecommendations(
   if (atRiskAnimals.length > 0) {
     recs.push({
       category: 'Health',
-      title: `${atRiskAnimals.length} ${atRiskAnimals.length === 1 ? 'animal has' : 'animals have'} elevated health risk`,
-      description: atRiskAnimals.map((a) => `${a.name} (${a.health_risk_score})`).join(', '),
+      title: `${atRiskAnimals.length} hayop ang may binabantayang kalusugan`,
+      description: atRiskAnimals.map((a) => `${a.name} (Score: ${a.health_risk_score})`).join(', '),
       priority: 'Warning',
       severity_color: 'orange',
       link: '/health',
@@ -230,7 +260,7 @@ export function generateRecommendations(
   if (overdueVacc.length > 0) {
     recs.push({
       category: 'Vaccination',
-      title: `${overdueVacc.length} ${overdueVacc.length === 1 ? 'animal is' : 'animals are'} overdue for vaccination`,
+      title: `${overdueVacc.length} hayop ang lampas na sa iskedyul ng bakuna`,
       description: overdueVacc.map((a) => a.name).join(', '),
       priority: 'Critical',
       severity_color: 'red',
@@ -240,7 +270,7 @@ export function generateRecommendations(
       id: 'vacc-overdue',
       severity: 'urgent',
       icon: 'Syringe',
-      title: `${overdueVacc.length} vaccination${overdueVacc.length === 1 ? '' : 's'} overdue`,
+      title: `${overdueVacc.length} hayop ang lampas sa bakuna`,
       description: overdueVacc.map((a) => a.name).join(', '),
       link: '/vaccinations',
     });
@@ -248,7 +278,7 @@ export function generateRecommendations(
   if (dueSoonVacc.length > 0) {
     recs.push({
       category: 'Vaccination',
-      title: `${dueSoonVacc.length} ${dueSoonVacc.length === 1 ? 'animal has' : 'animals have'} vaccinations due soon`,
+      title: `${dueSoonVacc.length} hayop ang may paparating na iskedyul ng bakuna`,
       description: dueSoonVacc.map((a) => a.name).join(', '),
       priority: 'Warning',
       severity_color: 'yellow',
@@ -266,8 +296,8 @@ export function generateRecommendations(
       const urgency = days <= 3 ? 'critical' : days <= 7 ? 'urgent' : days <= 14 ? 'attention' : 'upcoming';
       recs.push({
         category: 'Breeding',
-        title: `${a.name} — Kidding due in ${days} ${days === 1 ? 'day' : 'days'}`,
-        description: `Expected kidding date: ${a.expected_kidding_date}`,
+        title: `${a.name} — Manganganak sa loob ng ${days} ${days === 1 ? 'araw' : 'araw'}`,
+        description: `Inaasahang petsa ng panganganak: ${a.expected_kidding_date}. Ihanda ang kulungan ng panganganak.`,
         priority: days <= 7 ? 'Critical' : 'Warning',
         severity_color: days <= 7 ? 'red' : 'orange',
         link: `/animals/${a.id}`,
@@ -276,8 +306,8 @@ export function generateRecommendations(
         id: `kidding-${a.id}`,
         severity: urgency,
         icon: 'Baby',
-        title: `${a.name} expected to kid in ${days} ${days === 1 ? 'day' : 'days'}`,
-        description: `Due ${a.expected_kidding_date}`,
+        title: `${a.name} — inaasahang manganganak sa ${days} araw`,
+        description: `Takda: ${a.expected_kidding_date}`,
         link: `/animals/${a.id}`,
       });
     }
@@ -298,7 +328,7 @@ export function generateRecommendations(
   if (expiredItems.length > 0) {
     recs.push({
       category: 'Inventory',
-      title: `${expiredItems.length} ${expiredItems.length === 1 ? 'item has' : 'items have'} expired`,
+      title: `${expiredItems.length} gamit ang nag-expire na sa imbentaryo`,
       description: expiredItems.map((i) => i.name).join(', '),
       priority: 'Critical',
       severity_color: 'red',
@@ -308,7 +338,7 @@ export function generateRecommendations(
   if (expiringItems.length > 0) {
     recs.push({
       category: 'Inventory',
-      title: `${expiringItems.length} ${expiringItems.length === 1 ? 'item expires' : 'items expire'} soon`,
+      title: `${expiringItems.length} gamit ang malapit nang mag-expire`,
       description: expiringItems.map((i) => `${i.name} (${inventoryStatus(i, settings.expiry_warning_days).label})`).join(', '),
       priority: 'Warning',
       severity_color: 'orange',
@@ -318,7 +348,7 @@ export function generateRecommendations(
   if (outOfStock.length > 0) {
     recs.push({
       category: 'Inventory',
-      title: `${outOfStock.length} ${outOfStock.length === 1 ? 'item is' : 'items are'} out of stock`,
+      title: `${outOfStock.length} gamit ang ubos na sa imbentaryo`,
       description: outOfStock.map((i) => i.name).join(', '),
       priority: 'Critical',
       severity_color: 'red',
@@ -328,7 +358,7 @@ export function generateRecommendations(
       id: 'inv-out',
       severity: 'urgent',
       icon: 'PackageX',
-      title: `${outOfStock.length} item${outOfStock.length === 1 ? '' : 's'} out of stock`,
+      title: `${outOfStock.length} gamit ang ubos na sa stock`,
       description: outOfStock.map((i) => i.name).join(', '),
       link: '/inventory',
     });
@@ -336,7 +366,7 @@ export function generateRecommendations(
   if (lowStockItems.length > 0) {
     recs.push({
       category: 'Inventory',
-      title: `${lowStockItems.length} ${lowStockItems.length === 1 ? 'item is' : 'items are'} below minimum stock`,
+      title: `${lowStockItems.length} gamit ang mababa na ang stock`,
       description: lowStockItems.map((i) => i.name).join(', '),
       priority: 'Warning',
       severity_color: 'orange',
@@ -356,8 +386,8 @@ export function generateRecommendations(
   if (animalsNoRecentWeight.length > 0) {
     recs.push({
       category: 'Weight',
-      title: `${animalsNoRecentWeight.length} ${animalsNoRecentWeight.length === 1 ? 'animal has' : 'animals have'} no recent weight record`,
-      description: 'Record a weigh-in to keep growth tracking accurate.',
+      title: `${animalsNoRecentWeight.length} hayop ang kailangang timbangin muli`,
+      description: 'Magtala ng bagong timbang upang masubaybayan ang paglaki at dami ng pakain.',
       priority: 'Normal',
       severity_color: 'blue',
       link: '/weights',
@@ -366,8 +396,8 @@ export function generateRecommendations(
       id: 'weight-routine',
       severity: 'routine',
       icon: 'Scale',
-      title: `${animalsNoRecentWeight.length} animal${animalsNoRecentWeight.length === 1 ? '' : 's'} due for weight check`,
-      description: 'No weigh-in in over 30 days',
+      title: `${animalsNoRecentWeight.length} hayop ang dapat nang timbangin`,
+      description: 'Mahigit 30 araw nang walang bagong timbang',
       link: '/weights',
     });
   }
@@ -384,8 +414,8 @@ export function generateRecommendations(
   if (animalsNoRecentHealth.length > 0) {
     recs.push({
       category: 'Health',
-      title: `${animalsNoRecentHealth.length} ${animalsNoRecentHealth.length === 1 ? 'animal has' : 'animals have'} not had a health check recently`,
-      description: 'Schedule a routine health check.',
+      title: `${animalsNoRecentHealth.length} hayop ang matagal nang walang health check`,
+      description: 'Magsagawa ng regular na obserbasyon upang matiyak na malusog ang mga hayop.',
       priority: 'Normal',
       severity_color: 'blue',
       link: '/health',
@@ -399,8 +429,8 @@ export function generateRecommendations(
     if (growth.trend === 'Declining') {
       recs.push({
         category: 'Weight',
-        title: `${a.name}'s weight is declining`,
-        description: `Latest trend shows weight loss. Review feed and health.`,
+        title: `Bumababa ang timbang ni ${a.name}`,
+        description: `Bumaba ang timbang sa pinakahuling tala. Suriin ang pakain at obserbahan kung may senyales ng sipon o uod.`,
         priority: 'Warning',
         severity_color: 'orange',
         link: `/animals/${a.id}`,
@@ -409,8 +439,8 @@ export function generateRecommendations(
         id: `decline-${a.id}`,
         severity: 'attention',
         icon: 'TrendingDown',
-        title: `${a.name} has declining weight`,
-        description: 'Weight trend is going down',
+        title: `${a.name} — bumababa ang timbang`,
+        description: 'Bumaba ang timbang sa pinakahuling rekord',
         link: `/animals/${a.id}`,
       });
     }
@@ -427,7 +457,7 @@ export function generateRecommendations(
   if (femalesReady.length > 0) {
     recs.push({
       category: 'Breeding',
-      title: `${femalesReady.length} ${femalesReady.length === 1 ? 'female may be' : 'females may be'} ready for breeding`,
+      title: `${femalesReady.length} inahin ang handa na sa pagpapalahi (breeding)`,
       description: femalesReady.map((a) => a.name).join(', '),
       priority: 'Normal',
       severity_color: 'green',
@@ -437,8 +467,8 @@ export function generateRecommendations(
       id: 'breeding-ready',
       severity: 'upcoming',
       icon: 'Heart',
-      title: `${femalesReady.length} female${femalesReady.length === 1 ? '' : 's'} approaching breeding window`,
-      description: 'Healthy and meets breeding criteria',
+      title: `${femalesReady.length} inahin ang handa na sa breeding`,
+      description: 'Nasa wastong edad at timbang para sa pagpapalahi',
       link: '/breeding',
     });
   }
@@ -477,8 +507,8 @@ export function generateRecommendations(
           if (prediction.probability >= 0.7 && a.health_risk_score < 50) {
             recs.push({
               category: 'ML Prediction',
-              title: `AI predicts ${a.name} is at elevated risk (${Math.round(prediction.probability * 100)}% probability)`,
-              description: `ML model confidence: ${prediction.confidence}%. Top contributing factors: ${prediction.featureImportance.slice(0, 3).map((f) => f.feature).join(', ')}`,
+              title: `May napansing posibleng problema sa kalusugan ni ${a.name} (${Math.round(prediction.probability * 100)}% probabilidad)`,
+              description: `Pangunahing dahilan: ${prediction.featureImportance.slice(0, 3).map((f) => f.feature).join(', ')}. Obserbahan ang hayop o kumonsulta sa beterinaryo.`,
               priority: 'Warning',
               severity_color: 'orange',
               link: `/animals/${a.id}`,
@@ -498,7 +528,7 @@ export function generateRecommendations(
         if (anomaly.isAnomaly && anomaly.severity !== 'mild') {
           recs.push({
             category: 'ML Anomaly',
-            title: `${a.name}: anomalous temperature detected (z-score: ${anomaly.zScore})`,
+            title: `${a.name}: may napansing kakaibang temperatura`,
             description: anomaly.message,
             priority: anomaly.severity === 'severe' ? 'Critical' : 'Warning',
             severity_color: anomaly.severity === 'severe' ? 'red' : 'orange',
@@ -530,7 +560,7 @@ export function generateRecommendations(
       if (pred.probability >= 0.7) {
         recs.push({
           category: 'ML Breeding',
-          title: `AI predicts high breeding success for ${a.name} (${Math.round(pred.probability * 100)}%)`,
+          title: `Mataas ang tsansa ng tagumpay sa pagpapalahi kay ${a.name} (${Math.round(pred.probability * 100)}%)`,
           description: pred.recommendation,
           priority: 'Normal',
           severity_color: 'green',

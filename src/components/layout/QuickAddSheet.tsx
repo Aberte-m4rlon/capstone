@@ -60,8 +60,8 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
   const actions: QuickAction[] = [
     {
       id: 'add-animal',
-      title: 'Add New Animal',
-      subtitle: 'Register goat or sheep with ID & breed',
+      title: 'Magdagdag ng Hayop',
+      subtitle: 'Magrehistro ng bagong kambing o tupa',
       icon: <GoatIcon size={22} color="#43A047" strokeWidth={2.2} />,
       to: '/animals?action=add',
       color: '#43A047',
@@ -69,8 +69,8 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
     },
     {
       id: 'record-health',
-      title: 'Record Health Check',
-      subtitle: 'Log symptoms, vitals, or clinical treatment',
+      title: 'Mag-record ng Health Check',
+      subtitle: 'Itala ang obserbasyon, sintomas, o gamot',
       icon: <HeartPulse size={22} color="#EF4444" strokeWidth={2.2} />,
       to: '/health?action=add',
       color: '#EF4444',
@@ -78,8 +78,8 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
     },
     {
       id: 'record-weight',
-      title: 'Record Weight & Growth',
-      subtitle: 'Log weigh-in and compute ADG metrics',
+      title: 'Mag-record ng Timbang',
+      subtitle: 'Itala ang timbang at paglaki ng hayop',
       icon: <Scale size={22} color="#3B82F6" strokeWidth={2.2} />,
       to: '/weights?action=add',
       color: '#3B82F6',
@@ -87,8 +87,8 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
     },
     {
       id: 'add-vaccination',
-      title: 'Schedule Vaccination',
-      subtitle: 'Record immunizations and booster alerts',
+      title: 'Mag-record ng Bakuna',
+      subtitle: 'Itala ang naibigay o susunod na bakuna',
       icon: <Syringe size={22} color="#8B5CF6" strokeWidth={2.2} />,
       to: '/vaccinations?action=add',
       color: '#8B5CF6',
@@ -96,8 +96,8 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
     },
     {
       id: 'add-inventory',
-      title: 'Add Inventory Item',
-      subtitle: 'Restock medicines, feed bags, or supplies',
+      title: 'Magdagdag ng Stock',
+      subtitle: 'Magdagdag ng pakain, gamot, o gamit sa bukid',
       icon: <Package size={22} color="#F59E0B" strokeWidth={2.2} />,
       to: '/inventory?action=add',
       color: '#F59E0B',
@@ -105,8 +105,8 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
     },
     {
       id: 'record-breeding',
-      title: 'Record Breeding / Mating',
-      subtitle: 'Log pairing, pregnancy checks, or kiddings',
+      title: 'Mag-record ng Breeding',
+      subtitle: 'Itala ang pagtatalik o inaasahang panganganak',
       icon: <Heart size={22} color="#EC4899" strokeWidth={2.2} />,
       to: '/breeding?action=add',
       color: '#EC4899',
@@ -114,8 +114,8 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
     },
     {
       id: 'ai-scanner',
-      title: 'AI Health Camera Scan',
-      subtitle: 'Real-time preliminary livestock screening',
+      title: 'AI Health Scanner',
+      subtitle: 'Suriin ang kalusugan ng hayop gamit ang camera',
       icon: <Camera size={22} color="#10B981" strokeWidth={2.2} />,
       to: '/camera-screening',
       color: '#10B981',
@@ -140,14 +140,14 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
         {/* Header */}
         <div className="bottom-sheet-header">
           <div>
-            <h2 className="bottom-sheet-title">Quick Actions</h2>
-            <p className="bottom-sheet-subtitle">Select an action to record farm data</p>
+            <h2 className="bottom-sheet-title">Mga Mabilisang Aksyon</h2>
+            <p className="bottom-sheet-subtitle">Pumili ng nais gawin o i-record sa bukid</p>
           </div>
           <button
             type="button"
             className="bottom-sheet-close-btn"
             onClick={onClose}
-            aria-label="Close menu"
+            aria-label="Isara ang menu"
           >
             <X size={20} />
           </button>
@@ -184,7 +184,7 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
             className="bottom-sheet-cancel-btn"
             onClick={onClose}
           >
-            Cancel
+            Kanselahin
           </button>
         </div>
       </div>

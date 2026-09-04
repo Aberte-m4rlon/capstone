@@ -31,6 +31,17 @@ interface ActivityEntry {
   color: string;
 }
 
+const CATEGORY_TAGLISH: Record<ActivityCategory, string> = {
+  Animal:      'Hayop',
+  Health:      'Kalusugan',
+  Weight:      'Timbang',
+  Breeding:    'Breeding',
+  Vaccination: 'Bakuna',
+  Feed:        'Pakain',
+  Milk:        'Gatas',
+  Inventory:   'Imbentaryo',
+};
+
 const CATEGORY_COLORS: Record<ActivityCategory, string> = {
   Animal:      '#FF7A18',
   Health:      '#FF3B30',
@@ -64,7 +75,7 @@ export function ActivityLogPage() {
   // ── Build activity log from all records ─────────────────────────────────────
   const allActivities = useMemo((): ActivityEntry[] => {
     const entries: ActivityEntry[] = [];
-    const animalName = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Unknown';
+    const animalName = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Hindi Natukoy';
 
     // Animals
     farmData.animals.forEach((a) => {
@@ -72,8 +83,8 @@ export function ActivityLogPage() {
         id: `animal-${a.id}`,
         date: a.created_at.split('T')[0],
         category: 'Animal',
-        action: a.archived ? 'Animal Archived' : 'Animal Added',
-        description: `${a.name} (${a.tag_id}) — ${a.species}, ${a.sex}${a.breed ? `, ${a.breed}` : ''}`,
+        action: a.archived ? 'Nai-archive ang Hayop' : 'Naidagdag ang Hayop',
+        description: `${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'}, ${a.sex === 'Male' ? 'Lalaki' : 'Babae'}${a.breed ? `, ${a.breed}` : ''}`,
         animal: a.name,
         icon: 'PawPrint',
         color: CATEGORY_COLORS.Animal,
@@ -82,12 +93,13 @@ export function ActivityLogPage() {
 
     // Health records
     farmData.healthRecords.forEach((r) => {
+      const riskLabel = r.risk_level === 'Critical' ? 'Kritikal' : r.risk_level === 'High' ? 'Mataas' : r.risk_level === 'Moderate' ? 'Katamtaman' : 'Mababa';
       entries.push({
         id: `health-${r.id}`,
         date: r.record_date,
         category: 'Health',
-        action: 'Health Check Recorded',
-        description: `${animalName(r.animal_id)} — Risk: ${r.risk_level} (${r.risk_score})${r.reasons ? ` · ${r.reasons.split(';')[0].trim()}` : ''}`,
+        action: 'Naitala ang Pagsusuri sa Kalusugan',
+        description: `${animalName(r.animal_id)} — Antas ng Panganib: ${riskLabel} (${r.risk_score})${r.reasons ? ` · ${r.reasons.split(';')[0].trim()}` : ''}`,
         animal: animalName(r.animal_id),
         icon: 'HeartPulse',
         color: r.risk_level === 'Critical' ? '#FF3B30' : r.risk_level === 'High' ? '#FF7A18' : r.risk_level === 'Moderate' ? '#FF9F0A' : '#FFB340',
@@ -100,8 +112,8 @@ export function ActivityLogPage() {
         id: `weight-${r.id}`,
         date: r.record_date,
         category: 'Weight',
-        action: 'Weight Recorded',
-        description: `${animalName(r.animal_id)} — ${r.weight_kg} kg${r.weight_change_kg !== null ? ` (${r.weight_change_kg > 0 ? '+' : ''}${r.weight_change_kg} kg change)` : ''}`,
+        action: 'Naitala ang Timbang',
+        description: `${animalName(r.animal_id)} — ${r.weight_kg} kg${r.weight_change_kg !== null ? ` (${r.weight_change_kg > 0 ? '+' : ''}${r.weight_change_kg} kg pagbabago)` : ''}`,
         animal: animalName(r.animal_id),
         icon: 'Scale',
         color: CATEGORY_COLORS.Weight,
@@ -116,8 +128,8 @@ export function ActivityLogPage() {
         id: `breeding-${r.id}`,
         date: r.mating_date,
         category: 'Breeding',
-        action: 'Breeding Record Added',
-        description: `${female}${partner ? ` × ${partner}` : ''} — Status: ${r.status}${r.expected_kidding_date ? ` · Expected kidding: ${formatDate(r.expected_kidding_date)}` : ''}`,
+        action: 'Naitala ang Breeding',
+        description: `${female}${partner ? ` × ${partner}` : ''} — Katayuan: ${r.status}${r.expected_kidding_date ? ` · Tinatayang Panganganak: ${formatDate(r.expected_kidding_date)}` : ''}`,
         animal: female,
         icon: 'Heart',
         color: CATEGORY_COLORS.Breeding,
@@ -130,8 +142,8 @@ export function ActivityLogPage() {
         id: `vacc-${v.id}`,
         date: v.date_given,
         category: 'Vaccination',
-        action: 'Vaccination Given',
-        description: `${animalName(v.animal_id)} — ${v.vaccine_name}${v.veterinarian ? ` · By: ${v.veterinarian}` : ''}${v.next_due_date ? ` · Next due: ${formatDate(v.next_due_date)}` : ''}`,
+        action: 'Naibigay ang Bakuna',
+        description: `${animalName(v.animal_id)} — ${v.vaccine_name}${v.veterinarian ? ` · Nagbigay: ${v.veterinarian}` : ''}${v.next_due_date ? ` · Susunod: ${formatDate(v.next_due_date)}` : ''}`,
         animal: animalName(v.animal_id),
         icon: 'Syringe',
         color: CATEGORY_COLORS.Vaccination,
@@ -144,7 +156,7 @@ export function ActivityLogPage() {
         id: `feed-${f.id}`,
         date: f.record_date,
         category: 'Feed',
-        action: 'Feed Recorded',
+        action: 'Naitala ang Pakain',
         description: `${animalName(f.animal_id)} — ${f.feed_type}, ${f.quantity_kg} kg${f.cost ? ` · ₱${f.cost}` : ''}`,
         animal: animalName(f.animal_id),
         icon: 'Wheat',
@@ -158,8 +170,8 @@ export function ActivityLogPage() {
         id: `milk-${m.id}`,
         date: m.record_date,
         category: 'Milk',
-        action: 'Milk Yield Recorded',
-        description: `${animalName(m.animal_id)} — ${m.yield_litres} litres`,
+        action: 'Naitala ang Gatas',
+        description: `${animalName(m.animal_id)} — ${m.yield_litres} litro`,
         animal: animalName(m.animal_id),
         icon: 'Milk',
         color: CATEGORY_COLORS.Milk,
@@ -172,7 +184,7 @@ export function ActivityLogPage() {
         id: `inv-${i.id}`,
         date: i.created_at.split('T')[0],
         category: 'Inventory',
-        action: 'Inventory Item Added',
+        action: 'Naidagdag sa Imbentaryo',
         description: `${i.name} — ${i.category}, ${i.quantity} ${i.unit}${i.supplier ? ` · Supplier: ${i.supplier}` : ''}`,
         icon: 'Package',
         color: CATEGORY_COLORS.Inventory,
@@ -263,7 +275,7 @@ export function ActivityLogPage() {
   };
 
   if (farmData.loading) {
-    return <LoadingSpinner fullScreen text="Loading activity log..." />;
+    return <LoadingSpinner fullScreen text="Ikinakarga ang talaan ng mga gawain..." />;
   }
 
   const CATEGORIES: ActivityCategory[] = ['Animal', 'Health', 'Weight', 'Breeding', 'Vaccination', 'Feed', 'Milk', 'Inventory'];
@@ -274,9 +286,9 @@ export function ActivityLogPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Activity Log</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Talaan ng mga Gawain (Activity Log)</h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-            {filtered.length} of {allActivities.length} activities · All farm actions in one place
+            {filtered.length} sa {allActivities.length} mga gawain · Lahat ng aktibidad sa bukid sa iisang lugar
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -285,14 +297,14 @@ export function ActivityLogPage() {
             onClick={handleDownloadCSV}
             leftIcon={<Download size={16} />}
           >
-            Download CSV
+            I-download ang CSV
           </Button>
           <Button
             variant="primary"
             onClick={handlePrint}
             leftIcon={<Printer size={16} />}
           >
-            Print
+            I-print
           </Button>
         </div>
       </div>
@@ -320,7 +332,7 @@ export function ActivityLogPage() {
             >
               <IconComp size={14} color={CATEGORY_COLORS[cat]} />
               <span style={{ fontSize: 12, fontWeight: 600, color: isSelected ? CATEGORY_COLORS[cat] : 'inherit' }}>
-                {cat}
+                {CATEGORY_TAGLISH[cat]}
               </span>
               <span style={{ fontSize: 11, background: 'var(--color-surface-elevated, rgba(0,0,0,0.06))', borderRadius: 20, padding: '1px 6px', color: 'var(--color-text-secondary, #475569)' }}>
                 {categoryCounts[cat] ?? 0}
@@ -333,7 +345,7 @@ export function ActivityLogPage() {
       {/* One-Row Filters */}
       <FilterToolbar>
         <FilterSearch
-          placeholder="Search activities..."
+          placeholder="Maghanap sa talaan ng gawain..."
           value={search}
           onChange={setSearch}
         />
@@ -341,10 +353,10 @@ export function ActivityLogPage() {
           value={filterAnimal}
           onChange={setFilterAnimal}
           options={[
-            { value: 'All', label: 'All Animals' },
+            { value: 'All', label: 'Lahat ng Hayop' },
             ...animalNames.map((n) => ({ value: n, label: n })),
           ]}
-          ariaLabel="Filter Animal"
+          ariaLabel="Salain ayon sa Hayop"
           minWidth={150}
         />
         <FilterDateRange
@@ -371,19 +383,19 @@ export function ActivityLogPage() {
         {filtered.length === 0 ? (
           <EmptyState
             icon={<Activity size={32} />}
-            title="No activities found"
-            description="Try adjusting your filters or add some farm records."
+            title="Walang nahanap na gawain"
+            description="Subukang baguhin ang mga filter o magtala ng bagong gawain sa bukid."
           />
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))', color: 'var(--color-text-secondary, #475569)' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Date</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Category</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Action</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Animal</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Description</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Petsa</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Kategorya</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Gawain / Aksyon</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Hayop</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Deskripsyon</th>
                 </tr>
               </thead>
               <tbody>
@@ -407,7 +419,7 @@ export function ActivityLogPage() {
                           fontWeight: 700,
                         }}>
                           <IconComp size={11} />
-                          {e.category}
+                          {CATEGORY_TAGLISH[e.category]}
                         </span>
                       </td>
                       <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: 13 }}>{e.action}</td>

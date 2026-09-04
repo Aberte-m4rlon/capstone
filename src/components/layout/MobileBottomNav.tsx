@@ -53,7 +53,7 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
         {/* 1. Dashboard */}
         <MobileNavItem
           to="/dashboard"
-          label="Buod ng Bukid"
+          label="Buod"
           icon={<LayoutDashboard size={20} strokeWidth={2.2} />}
           isActive={isDashboardActive && !quickAddOpen && !moreMenuOpen}
         />
@@ -94,7 +94,7 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
 
         {/* 5. More */}
         <MobileNavItem
-          label="Iba pa"
+          label="Iba Pa"
           icon={<MoreHorizontal size={22} strokeWidth={2.4} />}
           isActive={moreMenuOpen}
           onClick={handleToggleMoreMenu}

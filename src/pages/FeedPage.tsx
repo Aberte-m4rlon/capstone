@@ -85,10 +85,10 @@ export function FeedPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.animal_id) e.animal_id = 'Please select an animal.';
-    if (!form.feed_type.trim()) e.feed_type = 'Feed type is required.';
+    if (!form.animal_id) e.animal_id = 'Pumili ng hayop.';
+    if (!form.feed_type.trim()) e.feed_type = 'Kailangang ilagay ang uri ng pakain.';
     if (!form.quantity_kg || isNaN(Number(form.quantity_kg)) || Number(form.quantity_kg) <= 0)
-      e.quantity_kg = 'Please enter a valid quantity greater than 0.';
+      e.quantity_kg = 'Maglagay ng wastong dami na higit sa 0.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -110,16 +110,16 @@ export function FeedPage() {
       if (editing) {
         const { error } = await supabase.from('feed_records').update(payload).eq('id', editing.id);
         if (error) throw error;
-        toast('Feed record updated.', 'success');
+        toast('Na-update na ang rekord ng pakain.', 'success');
       } else {
         const { error } = await supabase.from('feed_records').insert(payload);
         if (error) throw error;
-        toast('Feed record created.', 'success');
+        toast('Nai-save na ang rekord ng pakain.', 'success');
       }
       setModalOpen(false);
       farmData.refresh();
     } catch {
-      toast('Unable to save feed record. Please try again.', 'danger');
+      toast('Hindi mai-save ang rekord ng pakain. Pakisubukang muli.', 'danger');
     } finally {
       setSaving(false);
     }
@@ -130,19 +130,19 @@ export function FeedPage() {
     try {
       const { error } = await supabase.from('feed_records').delete().eq('id', confirmDelete.id);
       if (error) throw error;
-      toast('Feed record deleted.', 'success');
+      toast('Nabura na ang rekord ng pakain.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Unable to delete feed record. Please try again.', 'danger');
+      toast('Hindi mabura ang rekord ng pakain. Pakisubukang muli.', 'danger');
     }
   };
 
   const handleMilkSave = async () => {
     const e: Record<string, string> = {};
-    if (!milkForm.animal_id) e.animal_id = 'Please select an animal.';
+    if (!milkForm.animal_id) e.animal_id = 'Pumili ng inahin.';
     if (!milkForm.yield_litres || isNaN(Number(milkForm.yield_litres)) || Number(milkForm.yield_litres) <= 0)
-      e.yield_litres = 'Please enter a valid yield greater than 0.';
+      e.yield_litres = 'Maglagay ng wastong dami ng gatas na higit sa 0.';
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
@@ -155,12 +155,12 @@ export function FeedPage() {
         notes: milkForm.notes.trim() || null,
       });
       if (error) throw error;
-      toast('Milk yield record created.', 'success');
+      toast('Nai-save na ang rekord ng ani ng gatas.', 'success');
       setMilkModalOpen(false);
       setMilkForm(emptyMilkForm);
       farmData.refresh();
     } catch {
-      toast('Unable to save milk yield record. Please try again.', 'danger');
+      toast('Hindi mai-save ang rekord ng gatas. Pakisubukang muli.', 'danger');
     } finally {
       setSaving(false);
     }
@@ -170,10 +170,10 @@ export function FeedPage() {
     try {
       const { error } = await supabase.from('milk_records').delete().eq('id', m.id);
       if (error) throw error;
-      toast('Milk record deleted.', 'success');
+      toast('Nabura na ang rekord ng gatas.', 'success');
       farmData.refresh();
     } catch {
-      toast('Unable to delete milk record. Please try again.', 'danger');
+      toast('Hindi mabura ang rekord ng gatas. Pakisubukang muli.', 'danger');
     }
   };
 
@@ -227,18 +227,18 @@ export function FeedPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', letterSpacing: '-0.02em' }}>
-            Feed & Milk Management
+            Pamamahala sa Pakain at Gatas
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
             {tab === 'feed'
-              ? `${filteredFeed.length} feed records · Feed conversion ratio auto-calculated`
-              : `${filteredMilk.length} milk records · Monthly forecast auto-calculated`}
+              ? `${filteredFeed.length} talaan ng pakain · Awtomatikong kinalkula ang Feed Conversion Ratio (FCR)`
+              : `${filteredMilk.length} talaan ng gatas · Awtomatikong buwanang forecast`}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {tab === 'feed' ? (
             <Button variant="primary" onClick={openAdd} disabled={activeAnimals.length === 0} leftIcon={<Plus size={16} />}>
-              Record Feed
+              Magtala ng Pakain
             </Button>
           ) : (
             <Button
@@ -251,7 +251,7 @@ export function FeedPage() {
               disabled={females.length === 0}
               leftIcon={<Plus size={16} />}
             >
-              Record Milk
+              Magtala ng Gatas
             </Button>
           )}
         </div>
@@ -265,7 +265,7 @@ export function FeedPage() {
           onClick={() => setTab('feed')}
           leftIcon={<Icons.Wheat size={15} />}
         >
-          Feed Records ({farmData.feedRecords.length})
+          Mga Rekord ng Pakain ({farmData.feedRecords.length})
         </Button>
         <Button
           variant={tab === 'milk' ? 'primary' : 'secondary'}
@@ -273,7 +273,7 @@ export function FeedPage() {
           onClick={() => setTab('milk')}
           leftIcon={<Icons.Milk size={15} />}
         >
-          Milk Yield ({farmData.milkRecords.length})
+          Produksyon ng Gatas ({farmData.milkRecords.length})
         </Button>
       </div>
 
@@ -283,25 +283,25 @@ export function FeedPage() {
           <Card variant="default">
             <CardContent>
               <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)', marginBottom: 14 }}>
-                Feed Conversion Efficiency
+                Episyensya sa Pagkain (Feed Conversion Efficiency)
               </div>
               {efficiencies.length === 0 ? (
                 <EmptyState
                   icon={<Icons.Wheat size={32} />}
-                  title="No efficiency data yet"
-                  description="Record both feed and weight entries to calculate Feed Conversion Ratio (FCR)."
+                  title="Wala pang datos ng episyensya"
+                  description="Magtala ng pakain at timbang upang makalkula ang Feed Conversion Ratio (FCR)."
                 />
               ) : (
                 <div className="table-wrap">
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Animal</th>
-                        <th>Total Feed</th>
-                        <th>Total Cost</th>
-                        <th>Weight Gain</th>
+                        <th>Hayop</th>
+                        <th>Kabuuang Pakain</th>
+                        <th>Kabuuang Gastos</th>
+                        <th>Dagdag sa Timbang</th>
                         <th>Feed Conversion (FCR)</th>
-                        <th>Efficiency</th>
+                        <th>Episyensya</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -320,16 +320,16 @@ export function FeedPage() {
                             <Badge
                               variant={
                                 eff.efficiencyRating === 'High'
-                                  ? 'success'
-                                  : eff.efficiencyRating === 'Low'
-                                  ? 'danger'
-                                  : eff.efficiencyRating === 'Moderate'
-                                  ? 'warning'
-                                  : 'default'
+                                    ? 'success'
+                                    : eff.efficiencyRating === 'Low'
+                                    ? 'danger'
+                                    : eff.efficiencyRating === 'Moderate'
+                                    ? 'warning'
+                                    : 'default'
                               }
                               size="sm"
                             >
-                              {eff.efficiencyRating}
+                              {eff.efficiencyRating === 'High' ? 'Mataas (Maganda)' : eff.efficiencyRating === 'Low' ? 'Mababa' : eff.efficiencyRating === 'Moderate' ? 'Katamtaman' : eff.efficiencyRating}
                             </Badge>
                           </td>
                         </tr>
@@ -348,24 +348,24 @@ export function FeedPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                   <Brain size={18} color="#43A047" />
                   <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #1F2933)' }}>
-                    ML Feed Requirement Forecast — 30-Day Projection
+                    Pagtataya sa Pangangailangan sa Pakain — 30-Araw na Projection
                   </span>
                   <Badge variant="primary" size="sm">
-                    {feedForecast.confidence}% confidence
+                    {feedForecast.confidence}% kumpyansa (confidence)
                   </Badge>
                 </div>
                 <div className="dashboard-stats stats-grid" style={{ marginBottom: 12 }}>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                      Daily Herd Requirement
+                      Pang-araw-araw ng Kawan
                     </div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #1F2933)' }}>
-                      {feedForecast.dailyHerdRequirementKg} kg/day
+                      {feedForecast.dailyHerdRequirementKg} kg/araw
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                      30-Day Projected Total
+                      30-Araw na Tinatayang Dami
                     </div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-primary, #43A047)' }}>
                       {feedForecast.projectedMonthlyKg} kg
@@ -373,7 +373,7 @@ export function FeedPage() {
                   </div>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                      Estimated Monthly Cost
+                      Tinatayang Buwanang Gastos
                     </div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
                       ₱{feedForecast.estimatedMonthlyCost.toFixed(2)}
@@ -381,7 +381,7 @@ export function FeedPage() {
                   </div>
                   <div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                      Average Cost per Kg
+                      Average na Halaga bawat Kilo
                     </div>
                     <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
                       ₱{feedForecast.avgCostPerKg.toFixed(2)}/kg
@@ -389,7 +389,7 @@ export function FeedPage() {
                   </div>
                 </div>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-muted, #64748B)', marginTop: 12, margin: 0 }}>
-                  Based on current herd size ({feedForecast.animalCount} active animals), species weight averages, and historical intake.
+                  Batay sa kasalukuyang dami ng alaga ({feedForecast.animalCount} aktibong hayop), average na timbang, at nakaraang konsumo.
                 </p>
               </CardContent>
             </Card>
@@ -400,10 +400,10 @@ export function FeedPage() {
               value={fAnimal}
               onChange={setFAnimal}
               options={[
-                { value: 'All', label: 'All Animals' },
+                { value: 'All', label: 'Lahat ng Hayop' },
                 ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
               ]}
-              ariaLabel="Filter Animal"
+              ariaLabel="Salain ayon sa Hayop"
               minWidth={180}
             />
           </FilterToolbar>
@@ -415,9 +415,9 @@ export function FeedPage() {
                 <div style={{ padding: 32 }}>
                   <EmptyState
                     icon={<Icons.Wheat size={32} />}
-                    title="No feed records"
-                    description="Record a feed distribution to track consumption."
-                    actionLabel="Record Feed"
+                    title="Walang talaan ng pakain"
+                    description="Magtala ng pagpapakain upang masubaybayan ang konsumo."
+                    actionLabel="Magtala ng Pakain"
                     onAction={openAdd}
                   />
                 </div>
@@ -426,13 +426,13 @@ export function FeedPage() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Date</th>
-                        <th>Animal</th>
-                        <th>Feed Type</th>
-                        <th>Quantity (kg)</th>
-                        <th>Cost (₱)</th>
-                        <th>Notes</th>
-                        <th style={{ textAlign: 'right' }}>Actions</th>
+                        <th>Petsa</th>
+                        <th>Hayop</th>
+                        <th>Uri ng Pakain</th>
+                        <th>Dami (kg)</th>
+                        <th>Halaga (₱)</th>
+                        <th>Mga Tala (Notes)</th>
+                        <th style={{ textAlign: 'right' }}>Mga Aksyon</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -473,13 +473,13 @@ export function FeedPage() {
           <Card variant="default">
             <CardContent>
               <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #0F172A)', marginBottom: 14 }}>
-                Milk Yield Forecast
+                Pagtataya sa Ani ng Gatas (Milk Yield Forecast)
               </div>
               {milkForecasts.length === 0 ? (
                 <EmptyState
                   icon={<Icons.Milk size={32} />}
-                  title="No female animals found"
-                  description="Add female animals to track lactation and milk yields."
+                  title="Walang babaeng hayop na nahanap"
+                  description="Magdagdag ng inahin upang masubaybayan ang paggagatas at ani ng gatas."
                 />
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
@@ -498,21 +498,21 @@ export function FeedPage() {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '13px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Current:</span>
-                          <strong>{forecast.current} L/day</strong>
+                          <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Kasalukuyan:</span>
+                          <strong>{forecast.current} L/araw</strong>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Average:</span>
-                          <strong>{forecast.average} L/day</strong>
+                          <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Karaniwan:</span>
+                          <strong>{forecast.average} L/araw</strong>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Trend:</span>
-                          <strong>{forecast.trend}</strong>
+                          <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Takbo ng Dami:</span>
+                          <strong>{forecast.trend === 'Up' ? 'Tumataas' : forecast.trend === 'Down' ? 'Bumababa' : 'Pantay / Matatag'}</strong>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--color-border, #E5EDE6)', paddingTop: 4, marginTop: 2 }}>
-                          <span style={{ color: 'var(--color-primary, #43A047)', fontWeight: 600 }}>Next Month Forecast:</span>
+                          <span style={{ color: 'var(--color-primary, #43A047)', fontWeight: 600 }}>Tantiya sa Susunod na Buwan:</span>
                           <strong style={{ color: 'var(--color-primary, #43A047)' }}>
-                            {forecast.forecastNextMonth !== null ? `${forecast.forecastNextMonth} L/day` : 'Need more data'}
+                            {forecast.forecastNextMonth !== null ? `${forecast.forecastNextMonth} L/araw` : 'Kailangan ng dagdag na tala'}
                           </strong>
                         </div>
                       </div>
@@ -530,9 +530,9 @@ export function FeedPage() {
                 <div style={{ padding: 32 }}>
                   <EmptyState
                     icon={<Icons.Milk size={32} />}
-                    title="No milk records"
-                    description="Record daily milk yield to track production."
-                    actionLabel="Record Milk"
+                    title="Walang talaan ng gatas"
+                    description="Magtala ng pang-araw-araw na gatas upang masubaybayan ang ani."
+                    actionLabel="Magtala ng Gatas"
                     onAction={() => {
                       setMilkForm({ ...emptyMilkForm, animal_id: females[0]?.id ?? '' });
                       setErrors({});
@@ -545,10 +545,10 @@ export function FeedPage() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Date</th>
-                        <th>Animal</th>
-                        <th>Yield (L)</th>
-                        <th style={{ textAlign: 'right' }}>Actions</th>
+                        <th>Petsa</th>
+                        <th>Hayop</th>
+                        <th>Dami ng Gatas (Litro)</th>
+                        <th style={{ textAlign: 'right' }}>Mga Aksyon</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -563,7 +563,7 @@ export function FeedPage() {
                           </td>
                           <td>
                             <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
-                              <Button variant="ghost" size="sm" onClick={() => handleMilkDelete(m)}>
+                              <Button variant="ghost" size="sm" onClick={() => handleMilkDelete(m)} title="Burahin ang talaan ng gatas">
                                 <Trash2 size={15} />
                               </Button>
                             </div>
@@ -582,32 +582,32 @@ export function FeedPage() {
       {/* Feed Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
         <ModalHeader
-          title={editing ? 'Edit Feed Record' : 'Record Feed'}
+          title={editing ? 'I-edit ang Rekord ng Pakain' : 'Magtala ng Pakain'}
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Animal" required error={errors.animal_id}>
+            <FormField label="Hayop" required error={errors.animal_id}>
               <Select
                 value={form.animal_id}
                 onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Select animal...' },
+                  { value: '', label: 'Pumili ng hayop...' },
                   ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
                 ]}
               />
             </FormField>
 
-            <FormField label="Feed Type" required error={errors.feed_type}>
+            <FormField label="Uri ng Pakain" required error={errors.feed_type}>
               <Input
                 value={form.feed_type}
                 onChange={(e) => setForm({ ...form, feed_type: e.target.value })}
-                placeholder="Rice bran, grass, pellets..."
+                placeholder="Darak, damo, napier, commercial pellets..."
               />
             </FormField>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Quantity (kg)" required error={errors.quantity_kg}>
+              <FormField label="Dami (kg)" required error={errors.quantity_kg}>
                 <Input
                   type="number"
                   step="0.1"
@@ -616,7 +616,7 @@ export function FeedPage() {
                 />
               </FormField>
 
-              <FormField label="Cost (₱)">
+              <FormField label="Halaga / Gastos (₱)">
                 <Input
                   type="number"
                   step="0.01"
@@ -626,7 +626,7 @@ export function FeedPage() {
               </FormField>
             </div>
 
-            <FormField label="Date">
+            <FormField label="Petsa">
               <Input
                 type="date"
                 value={form.record_date}
@@ -634,12 +634,12 @@ export function FeedPage() {
               />
             </FormField>
 
-            <FormField label="Notes">
+            <FormField label="Mga Tala / Obserbasyon (Notes)">
               <textarea
                 className="form-textarea"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Feed observations..."
+                placeholder="Karagdagang detalye o obserbasyon sa pagkain..."
                 style={{ minHeight: 80 }}
               />
             </FormField>
@@ -647,32 +647,32 @@ export function FeedPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            Cancel
+            Huwag Muna
           </Button>
           <Button variant="primary" onClick={handleSave} loading={saving}>
-            {editing ? 'Save Changes' : 'Save'}
+            {editing ? 'I-save ang mga Pagbabago' : 'I-save'}
           </Button>
         </ModalFooter>
       </Modal>
 
       {/* Milk Modal */}
       <Modal open={milkModalOpen} onClose={() => setMilkModalOpen(false)} size="md">
-        <ModalHeader title="Record Milk Yield" onClose={() => setMilkModalOpen(false)} />
+        <ModalHeader title="Magtala ng Ani ng Gatas" onClose={() => setMilkModalOpen(false)} />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Animal" required error={errors.animal_id}>
+            <FormField label="Inahin (Hayop)" required error={errors.animal_id}>
               <Select
                 value={milkForm.animal_id}
                 onChange={(e) => setMilkForm({ ...milkForm, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Select female...' },
+                  { value: '', label: 'Pumili ng inahin...' },
                   ...females.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
                 ]}
               />
             </FormField>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Date">
+              <FormField label="Petsa">
                 <Input
                   type="date"
                   value={milkForm.record_date}
@@ -680,7 +680,7 @@ export function FeedPage() {
                 />
               </FormField>
 
-              <FormField label="Yield (Litres)" required error={errors.yield_litres}>
+              <FormField label="Ani ng Gatas (Litro)" required error={errors.yield_litres}>
                 <Input
                   type="number"
                   step="0.01"
@@ -690,12 +690,12 @@ export function FeedPage() {
               </FormField>
             </div>
 
-            <FormField label="Notes">
+            <FormField label="Mga Tala / Obserbasyon (Notes)">
               <textarea
                 className="form-textarea"
                 value={milkForm.notes}
                 onChange={(e) => setMilkForm({ ...milkForm, notes: e.target.value })}
-                placeholder="Milk notes..."
+                placeholder="Obserbasyon sa gatas o kalusugan ng inahin..."
                 style={{ minHeight: 80 }}
               />
             </FormField>
@@ -703,10 +703,10 @@ export function FeedPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setMilkModalOpen(false)}>
-            Cancel
+            Huwag Muna
           </Button>
           <Button variant="primary" onClick={handleMilkSave} loading={saving}>
-            Save
+            I-save
           </Button>
         </ModalFooter>
       </Modal>
@@ -714,9 +714,10 @@ export function FeedPage() {
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Delete Feed Record"
-        message="Are you sure you want to delete this feed record?"
-        confirmLabel="Delete"
+        title="Burahin ang Rekord ng Pakain"
+        message="Sigurado ka bang nais mong burahin ang rekord na ito ng pakain? Hindi na ito maibabalik kapag nabura."
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

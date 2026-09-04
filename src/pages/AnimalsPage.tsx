@@ -678,7 +678,7 @@ export function AnimalsPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-              <FormField label="Species" required>
+              <FormField label="Uri ng Hayop (Species)" required>
                 <Select
                   value={form.species}
                   onChange={(e) => handleSpeciesChange(e.target.value as Species)}
@@ -688,7 +688,7 @@ export function AnimalsPage() {
                   ]}
                 />
               </FormField>
-              <FormField label="Sex" required>
+              <FormField label="Kasarian (Sex)" required>
                 <Select
                   value={form.sex}
                   onChange={(e) => setForm({ ...form, sex: e.target.value as Sex })}
@@ -698,7 +698,7 @@ export function AnimalsPage() {
                   ]}
                 />
               </FormField>
-              <FormField label="Breed">
+              <FormField label="Lahi (Breed)">
                 <ComboBox
                   value={form.breed}
                   onChange={(v) => setForm({ ...form, breed: v })}
@@ -709,14 +709,14 @@ export function AnimalsPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Birth Date">
+              <FormField label="Petsa ng Kapanganakan (Birth Date)">
                 <Input
                   type="date"
                   value={form.date_of_birth}
                   onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
                 />
               </FormField>
-              <FormField label="Weight (kg)" error={errors.weight_kg}>
+              <FormField label="Timbang (kg)" error={errors.weight_kg}>
                 <Input
                   type="number"
                   step="0.1"
@@ -727,7 +727,7 @@ export function AnimalsPage() {
               </FormField>
             </div>
 
-            <FormField label="Color / Markings">
+            <FormField label="Kulay at Marka (Color / Markings)">
               <ComboBox
                 value={form.color_markings}
                 onChange={(v) => setForm({ ...form, color_markings: v })}
@@ -736,7 +736,7 @@ export function AnimalsPage() {
               />
             </FormField>
 
-            <FormField label="Notes">
+            <FormField label="Karagdagang Tala (Notes)">
               <textarea
                 className="form-textarea"
                 value={form.notes}
@@ -749,10 +749,10 @@ export function AnimalsPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            I-cancel
+            Kanselahin
           </Button>
           <Button variant="primary" onClick={handleSave} loading={saving}>
-            {editing ? 'I-update' : 'I-save'}
+            {editing ? 'I-save ang Pagbabago' : 'I-save ang Hayop'}
           </Button>
         </ModalFooter>
       </Modal>
@@ -792,9 +792,10 @@ export function AnimalsPage() {
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="I-delete ang Hayop"
-        message={`Sigurado ka bang nais mong i-delete si ${confirmDelete?.name}? Matatanggal din ang lahat ng kaugnay na health, weight, breeding, at vaccination records nito. Hindi na ito maibabalik.`}
-        confirmLabel="I-delete"
+        title="Burahin ang Hayop"
+        message={`Sigurado ka bang nais mong burahin si ${confirmDelete?.name} (${confirmDelete?.tag_id})? Matatanggal din ang lahat ng kaugnay na talaan nito sa bukid. Hindi na ito maibabalik kapag nabura.`}
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

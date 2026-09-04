@@ -689,8 +689,9 @@ export function SuperAdminPage() {
       <ConfirmDialog
         open={!!confirmDeleteUser}
         title="Burahin ang User"
-        message={`Sigurado ka bang nais mong burahin si ${confirmDeleteUser?.email}? Permanenteng mabubura ang user at LAHAT ng datos ng kanilang bukid. Hindi na ito maibabalik kailanman.`}
-        confirmLabel="Burahin ang User"
+        message={`Sigurado ka bang nais mong burahin si ${confirmDeleteUser?.email}? Permanenteng mabubura ang user at lahat ng datos ng kanilang bukid. Hindi na ito maibabalik kapag nabura.`}
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDeleteUser}
         onCancel={() => setConfirmDeleteUser(null)}

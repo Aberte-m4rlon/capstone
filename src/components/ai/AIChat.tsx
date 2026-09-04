@@ -108,8 +108,8 @@ function CopyBtn({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      title="Copy response"
-      aria-label="Copy response"
+      title="Kopyahin ang sagot"
+      aria-label="Kopyahin ang sagot"
       style={{
         background: 'none',
         border: 'none',
@@ -392,7 +392,8 @@ export function AIChat({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               onClick={() => setShowSidebar(!showSidebar)}
-              title="Conversations"
+              title="Mga Pag-uusap"
+              aria-label="Mga Pag-uusap"
               style={{
                 background: 'none',
                 border: 'none',
@@ -434,7 +435,8 @@ export function AIChat({
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button
               onClick={onRetryStatus}
-              title="Refresh status"
+              title="I-refresh ang status"
+              aria-label="I-refresh ang status"
               style={{
                 background: 'none',
                 border: 'none',
@@ -447,7 +449,8 @@ export function AIChat({
             </button>
             <button
               onClick={onClose}
-              aria-label="Close chat"
+              aria-label="Isara ang chat"
+              title="Isara ang chat"
               style={{
                 background: 'none',
                 border: 'none',
@@ -836,7 +839,8 @@ export function AIChat({
               variant="danger"
               size="sm"
               onClick={onStopStreaming}
-              aria-label="Stop generation"
+              aria-label="Itigil ang pagsagot"
+              title="Itigil ang pagsagot"
               style={{ padding: '8px 12px', minHeight: 36 }}
             >
               <Square size={14} />
@@ -847,7 +851,8 @@ export function AIChat({
               size="sm"
               onClick={handleSend}
               disabled={!input.trim() && !selectedImage}
-              aria-label="Send prompt"
+              aria-label="Ipadala ang mensahe"
+              title="Ipadala ang mensahe"
               style={{ padding: '8px 12px', minHeight: 36 }}
             >
               <Send size={14} />

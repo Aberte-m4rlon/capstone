@@ -54,12 +54,12 @@ function txColor(type: InventoryTransaction['type']): string {
 
 function txLabel(type: InventoryTransaction['type']): string {
   const map: Record<InventoryTransaction['type'], string> = {
-    STOCK_IN: 'Stock In',
-    CONSUMPTION: 'Consumed',
-    REMOVAL: 'Removed',
-    ADJUSTMENT_IN: 'Adjustment +',
-    ADJUSTMENT_OUT: 'Adjustment −',
-    RETURN: 'Returned',
+    STOCK_IN: 'Pumasok (Stock In)',
+    CONSUMPTION: 'Nagamit (Consumed)',
+    REMOVAL: 'Tinanggal (Removed)',
+    ADJUSTMENT_IN: 'Idinagdag (Adjustment +)',
+    ADJUSTMENT_OUT: 'Ibiniwas (Adjustment −)',
+    RETURN: 'Ibinalik (Returned)',
   };
   return map[type];
 }
@@ -2174,9 +2174,10 @@ export function InventoryPage() {
 
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Burahin ang Gamit sa Imbentaryo"
-        message={`Sigurado ka bang nais mong burahin ang ${confirmDelete?.name}? Mabubura rin ang lahat ng kaugnay na kasaysayan ng stock nito.`}
-        confirmLabel="Burahin"
+        title="Burahin ang Record"
+        message={`Sigurado ka bang nais mong burahin ang ${confirmDelete?.name}? Hindi na ito maibabalik kapag nabura.`}
+        confirmLabel="Oo, Burahin"
+        cancelLabel="Huwag Muna"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}
