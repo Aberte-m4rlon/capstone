@@ -104,8 +104,8 @@ export function AppShell({ children }: AppShellProps) {
         <main className="content">{children}</main>
       </div>
 
-      {/* AI Cloud Floating Assistant */}
-      <FloatingAICloud />
+      {/* AI Cloud Floating Assistant (hidden on full-screen camera scanner) */}
+      {location.pathname !== '/camera-screening' && <FloatingAICloud />}
 
       {/* Mobile Fixed Bottom Navigation (<= 768px) */}
       <MobileBottomNav role={role} getBadge={getBadge} />

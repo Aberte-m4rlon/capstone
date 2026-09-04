@@ -185,18 +185,21 @@ export function CameraScreeningPage() {
   // ── Hardware Camera & Torch Detection ─────────────────────────────────────
   useEffect(() => {
     const detectDevices = async () => {
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       if (navigator.mediaDevices?.enumerateDevices) {
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
           const videoDevices = devices.filter(d => d.kind === 'videoinput');
-          setHasMultipleCameras(videoDevices.length > 1);
+          setHasMultipleCameras(videoDevices.length > 1 || isMobile);
         } catch {
-          setHasMultipleCameras(false);
+          setHasMultipleCameras(isMobile);
         }
+      } else {
+        setHasMultipleCameras(isMobile);
       }
     };
     detectDevices();
-  }, []);
+  }, [permission]);
 
   const checkTorchCapabilities = (stream: MediaStream) => {
     try {
@@ -244,24 +247,97 @@ export function CameraScreeningPage() {
         streamRef.current.getTracks().forEach(t => {
           try { t.stop(); } catch {}
         });
+        streamRef.current = null;
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: mode },
-          width: { ideal: 1920, min: 640 },
-          height: { ideal: 1080, min: 480 },
+
+      // Progressive constraint fallback to guarantee mobile compatibility
+      const constraintCandidates: MediaTrackConstraints[] = [
+        {
+          facingMode: mode === 'user' ? 'user' : { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
-      });
+        {
+          facingMode: mode === 'user' ? 'user' : { ideal: 'environment' },
+        },
+        {},
+      ];
+
+      let stream: MediaStream | null = null;
+      let lastErr: any = null;
+
+      for (const videoConstraint of constraintCandidates) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraint,
+            audio: false,
+          });
+          if (stream && stream.getVideoTracks().length > 0) {
+            break;
+          }
+        } catch (e: any) {
+          lastErr = e;
+          console.warn('[Camera] Constraint attempt failed:', videoConstraint, e);
+        }
+      }
+
+      if (!stream) {
+        throw lastErr || new Error('No camera stream could be acquired');
+      }
+
       streamRef.current = stream;
       checkTorchCapabilities(stream);
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      // Force video tracks active
+      stream.getVideoTracks().forEach(t => {
+        t.enabled = true;
+      });
+
+      const video = videoRef.current;
+      if (video) {
+        video.muted = true;
+        video.defaultMuted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.srcObject = stream;
+
+        // Wait for loadedmetadata or canplay so video decoder buffer is ready
+        await new Promise<void>((resolve) => {
+          let resolved = false;
+          const done = () => {
+            if (!resolved) {
+              resolved = true;
+              resolve();
+            }
+          };
+          if (video.readyState >= 2) {
+            done();
+            return;
+          }
+          video.addEventListener('loadedmetadata', done, { once: true });
+          video.addEventListener('canplay', done, { once: true });
+          setTimeout(done, 1000);
+        });
+
+        // Trigger playback with muted fallback for iOS Safari / Android Chrome
+        try {
+          await video.play();
+        } catch (playErr) {
+          console.warn('[Camera] Initial play failed, retrying muted play:', playErr);
+          video.muted = true;
+          try {
+            await video.play();
+          } catch (err2) {
+            console.error('[Camera] Play retry error:', err2);
+          }
+        }
       }
+
       setPermission('granted');
       autoScan.startAutoScan();
     } catch (err: any) {
+      console.error('[Camera] startCamera error:', err);
       const msg = (err?.message ?? '').toLowerCase();
       setPermission(msg.includes('permission') || err?.name === 'NotAllowedError' ? 'denied' : 'unavailable');
     }
@@ -303,6 +379,35 @@ export function CameraScreeningPage() {
       stopCamera();
     };
   }, [stopCamera]);
+
+  // Keep video element synced with stream whenever permission updates
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (video && stream && video.srcObject !== stream) {
+      video.muted = true;
+      video.defaultMuted = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.srcObject = stream;
+      video.play().catch(e => console.warn('[Camera] Sync play error:', e));
+    }
+  }, [permission]);
+
+  // Handle mobile backgrounding/tab switching to wake camera if paused
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && tab === 'scan') {
+        const v = videoRef.current;
+        if (v && v.srcObject && (v.paused || v.ended)) {
+          v.play().catch(console.warn);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [tab]);
 
   // ── Manual Capture Handler ────────────────────────────────────────────────
   const handleManualCapture = useCallback(async () => {
@@ -588,7 +693,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
         }}
       >
         {/* LEFT: Back Button + Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, marginRight: 8 }}>
           <button
             onClick={() => {
               stopCamera();
@@ -600,6 +705,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             }}
             aria-label="Back"
             style={{
+              flexShrink: 0,
               width: 42,
               height: 42,
               borderRadius: 21,
@@ -617,11 +723,12 @@ What are the recommended early livestock interventions, supportive veterinary ca
             <ArrowLeft size={22} />
           </button>
 
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>AI Health Scanner</span>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>AI Health Scanner</span>
               {selectedAnimal && (
                 <span style={{
+                  flexShrink: 0,
                   fontSize: 11,
                   fontWeight: 700,
                   background: 'rgba(67, 160, 71, 0.35)',
@@ -638,7 +745,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
         </div>
 
         {/* RIGHT: Quick Torch (if supported) + Settings Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {torchSupported && (
             <button
               onClick={toggleTorch}
@@ -689,6 +796,13 @@ What are the recommended early livestock interventions, supportive veterinary ca
           CENTER: LIVE CAMERA PREVIEW & AI DETECTION OVERLAY
          ═══════════════════════════════════════════════════════════════════════ */}
       <div
+        onClick={() => {
+          // Tap video container to resume playback if suspended by mobile OS
+          const v = videoRef.current;
+          if (v && v.srcObject && (v.paused || v.ended)) {
+            v.play().catch(console.warn);
+          }
+        }}
         style={{
           flex: 1,
           position: 'relative',
@@ -701,17 +815,23 @@ What are the recommended early livestock interventions, supportive veterinary ca
           justifyContent: 'center',
         }}
       >
-        {/* Real Live Video Feed */}
+        {/* Real Live Video Feed — Always mounted with display: block for mobile decoder initialization */}
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
+          // @ts-ignore
+          webkit-playsinline="true"
           style={{
+            position: 'absolute',
+            inset: 0,
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            display: permission === 'granted' ? 'block' : 'none',
+            display: 'block',
+            zIndex: 1,
+            background: '#000000',
           }}
         />
 
@@ -724,6 +844,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             width: '100%',
             height: '100%',
             pointerEvents: 'none',
+            zIndex: 10,
             display: permission === 'granted' ? 'block' : 'none',
           }}
         />
@@ -754,7 +875,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
               gap: 14,
               textAlign: 'center',
               padding: 24,
-              zIndex: 20,
+              zIndex: 30,
               background: '#0B1520',
             }}
           >
@@ -829,6 +950,36 @@ What are the recommended early livestock interventions, supportive veterinary ca
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* ── STATE 0: AI MODEL LOADING (Non-blocking Pill) ── */}
+        {permission === 'granted' && autoScan.state === 'loading' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 76,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: 999,
+              padding: '7px 20px',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              zIndex: 25,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            }}
+          >
+            <Loader2 size={14} color="#4ADE80" style={{ animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: 12, fontWeight: 700 }}>
+              Inihahanda ang AI Vision model...
+            </span>
           </div>
         )}
 
@@ -1075,7 +1226,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
         </div>
 
         {/* RIGHT: Switch Camera Button */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 68 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 70, flexShrink: 0 }}>
           <button
             onClick={toggleCameraFacing}
             disabled={!hasMultipleCameras}
@@ -1092,13 +1243,13 @@ What are the recommended early livestock interventions, supportive veterinary ca
               justifyContent: 'center',
               cursor: hasMultipleCameras ? 'pointer' : 'not-allowed',
               backdropFilter: 'blur(12px)',
-              opacity: hasMultipleCameras ? 1 : 0.35,
+              opacity: hasMultipleCameras ? 1 : 0.4,
               transition: 'all 0.15s ease',
             }}
           >
             <SwitchCamera size={24} />
           </button>
-          <span style={{ fontSize: 12, fontWeight: 700, color: hasMultipleCameras ? '#FFFFFF' : 'rgba(255, 255, 255, 0.4)', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: hasMultipleCameras ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)', textShadow: '0 1px 3px rgba(0,0,0,0.7)', whiteSpace: 'nowrap' }}>
             Magpalit
           </span>
         </div>
