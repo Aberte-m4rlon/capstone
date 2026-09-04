@@ -23,14 +23,21 @@ export function RecommendationsPage() {
     [farmData],
   );
 
-  const categories = ['All', 'Health', 'Vaccination', 'Breeding', 'Inventory', 'Feed'];
+  const categories = [
+    { id: 'All', label: 'Lahat' },
+    { id: 'Health', label: 'Kalusugan' },
+    { id: 'Vaccination', label: 'Bakuna' },
+    { id: 'Breeding', label: 'Breeding' },
+    { id: 'Inventory', label: 'Imbentaryo' },
+    { id: 'Feed', label: 'Pakain' },
+  ];
 
   const filteredRecs = useMemo(() => {
     if (categoryFilter === 'All') return recommendations;
     return recommendations.filter((r) => r.category.toLowerCase().includes(categoryFilter.toLowerCase()));
   }, [recommendations, categoryFilter]);
 
-  if (farmData.loading) return <LoadingSpinner fullScreen text="Analyzing recommendations..." />;
+  if (farmData.loading) return <LoadingSpinner fullScreen text="Sinusuri ang mga rekomendasyon..." />;
 
   const getSeverityBadgeVariant = (color: string): 'danger' | 'warning' | 'success' | 'info' | 'neutral' => {
     switch (color) {
@@ -55,9 +62,9 @@ export function RecommendationsPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800 }}>Smart Farm Assistant</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800 }}>AI Farm Assistant</h1>
         <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-          Recommendations are automatically generated from your farm data — not hardcoded.
+          Awtomatikong rekomendasyon at payo batay sa mga naitalang datos ng iyong bukid.
         </p>
       </div>
 
@@ -65,11 +72,11 @@ export function RecommendationsPage() {
       <FilterToolbar>
         {categories.map((cat) => (
           <FilterPill
-            key={cat}
-            active={categoryFilter === cat}
-            onClick={() => setCategoryFilter(cat)}
-            label={cat}
-            count={cat === 'All' ? recommendations.length : recommendations.filter((r) => r.category.toLowerCase().includes(cat.toLowerCase())).length}
+            key={cat.id}
+            active={categoryFilter === cat.id}
+            onClick={() => setCategoryFilter(cat.id)}
+            label={cat.label}
+            count={cat.id === 'All' ? recommendations.length : recommendations.filter((r) => r.category.toLowerCase().includes(cat.id.toLowerCase())).length}
           />
         ))}
       </FilterToolbar>
@@ -77,14 +84,14 @@ export function RecommendationsPage() {
       {/* Today's Priorities */}
       <Card variant="glass" padding="none" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>Today's Priorities</div>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>Mga Prayoridad Ngayong Araw</div>
           <Activity size={20} color="#FF7A18" />
         </div>
         {priorities.length === 0 ? (
           <EmptyState
             icon={<CheckCircle size={32} color="#FFB340" />}
-            title="All clear!"
-            description="No urgent priorities right now. Your farm is in great shape."
+            title="Maayos ang lahat!"
+            description="Walang agarang prayoridad sa ngayon. Nasa maayos na kalagayan ang bukid."
           />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -133,14 +140,14 @@ export function RecommendationsPage() {
       {/* All Recommendations */}
       <Card variant="glass" padding="none">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>All Recommendations</div>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>Lahat ng Rekomendasyon</div>
           <Lightbulb size={20} color="#FF9F0A" />
         </div>
         {filteredRecs.length === 0 ? (
           <EmptyState
             icon={<CheckCircle size={32} color="#FFB340" />}
-            title="No recommendations for this category"
-            description="Everything looks good on your farm right now."
+            title="Walang rekomendasyon sa kategoryang ito"
+            description="Maayos ang kalagayan ng iyong bukid sa kasalukuyan."
           />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>

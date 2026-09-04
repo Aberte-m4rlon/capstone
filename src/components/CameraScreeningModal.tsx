@@ -329,18 +329,18 @@ export function CameraScreeningModal({
                           </div>
                         )}
                         <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '5px 14px', borderRadius: 999, whiteSpace: 'nowrap' }}>
-                          Position goat or sheep in frame
+                          Itutok ang camera sa kambing o tupa
                         </div>
                         {/* Flip button */}
-                        <button onClick={handleFlipCamera} style={{ position: 'absolute', top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }} title="Flip camera">
+                        <button onClick={handleFlipCamera} style={{ position: 'absolute', top: 10, right: 10, width: 34, height: 34, borderRadius: 10, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }} title="Magpalit ng camera">
                           <RotateCcw size={15} />
                         </button>
                       </div>
                       <div style={{ background: 'rgba(67,160,71,0.08)', border: '1px solid rgba(67,160,71,0.2)', borderRadius: 10, padding: '8px 14px', marginTop: 10, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                        Good lighting · Full goat or sheep body visible · Avoid motion blur
+                        Siguraduhing maliwanag · Buong katawan ng hayop · Huwag galawin ang camera
                       </div>
                       <button onClick={handleCapture} disabled={!cameraActive} style={{ width: '100%', marginTop: 12, padding: '14px', borderRadius: 12, border: 'none', background: cameraActive ? 'linear-gradient(135deg,#FF3B30,#FF7A18)' : 'var(--surface)', color: cameraActive ? '#fff' : 'var(--text-secondary)', fontSize: 15, fontWeight: 800, cursor: cameraActive ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: cameraActive ? '0 6px 20px rgba(255,59,48,0.35)' : 'none', transition: 'all 0.2s' }}>
-                        <Camera size={18} /> Capture Photo
+                        <Camera size={18} /> Kumuha ng Litrato
                       </button>
                     </div>
                   )}
@@ -354,8 +354,8 @@ export function CameraScreeningModal({
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,122,24,0.7)'; e.currentTarget.style.background = 'rgba(255,122,24,0.08)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,122,24,0.4)'; e.currentTarget.style.background = 'rgba(255,122,24,0.04)'; }}>
                     <ImageIcon size={36} color="rgba(255,122,24,0.6)" style={{ marginBottom: 10 }} />
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Click to upload photo</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>JPG, PNG, WEBP · Max 10MB</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Pindutin para mag-upload ng litrato</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>JPG, PNG, WEBP · Hanggang 10MB</div>
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
                 </div>
@@ -368,9 +368,9 @@ export function CameraScreeningModal({
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.7)'; e.currentTarget.style.background = 'rgba(59,130,246,0.08)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}>
                     <Video size={36} color="rgba(59,130,246,0.6)" style={{ marginBottom: 10 }} />
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Upload short video clip</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>MP4, MOV, WEBM · Max 50MB · 5–15 sec ideal</div>
-                    <div style={{ fontSize: 11, color: '#3B82F6', marginTop: 8 }}>Analyzes movement, activity, and gait across multiple frames</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Mag-upload ng maikling video clip</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>MP4, MOV, WEBM · Hanggang 50MB · 5–15 segundo</div>
+                    <div style={{ fontSize: 11, color: '#3B82F6', marginTop: 8 }}>Sinusuri ang kilos, sigla, at paglakad ng hayop</div>
                   </div>
                   <input ref={videoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoUpload} />
                 </div>
@@ -384,15 +384,15 @@ export function CameraScreeningModal({
               <img src={capturedUrl} alt="Captured" style={{ width: '100%', borderRadius: 14, border: '1px solid var(--border)', display: 'block', maxHeight: 340, objectFit: 'contain', background: '#000' }} />
               {multiAngle && (
                 <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,122,24,0.07)', border: '1px solid rgba(255,122,24,0.2)', borderRadius: 8, fontSize: 12, color: 'var(--accent-orange)', fontWeight: 600 }}>
-                  Angle: {ANGLE_LABELS[currentAngle]}
+                  Anggulo: {ANGLE_LABELS[currentAngle]}
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
                 <button onClick={handleRetake} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <RefreshCw size={15} /> Retake
+                  <RefreshCw size={15} /> Kumuha Ulit
                 </button>
                 <button onClick={handleAnalyze} style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 6px 20px rgba(255,59,48,0.35)' }}>
-                  <Zap size={15} /> Run AI Scan
+                  <Zap size={15} /> I-scan gamit ang AI
                 </button>
               </div>
             </div>
@@ -404,11 +404,11 @@ export function CameraScreeningModal({
               <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'linear-gradient(135deg,rgba(255,106,42,0.2),rgba(255,59,48,0.1))', border: '2px solid rgba(255,106,42,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <Loader2 size={30} color="var(--accent-orange)" style={{ animation: 'spin 1s linear infinite' }} />
               </div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Running AI Health Scan…</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Isinasagawa ang AI Health Scan…</div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                Detecting animal · Analyzing visual indicators<br />
-                Computing health risk score<br />
-                <span style={{ fontSize: 11, opacity: 0.7 }}>This may take a few seconds</span>
+                Hinahanap ang kambing o tupa · Sinusuri ang visual indicators<br />
+                Kinakalkula ang health status score<br />
+                <span style={{ fontSize: 11, opacity: 0.7 }}>Maaaring magtagal nang ilang segundo</span>
               </div>
             </div>
           )}
@@ -458,7 +458,7 @@ function ScanResultCard({
             <XCircle size={48} color="#EF4444" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
-            This is not a goat or sheep!
+            Goat o Sheep lang ang maaaring i-scan.
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
             {result.recommendation || 'Hindi ito kambing o tupa. Ang AI Health Screening ay eksklusibo lamang para sa mga kambing at tupa. Mangyaring itapat ang camera o mag-upload ng litrato ng kambing o tupa.'}
@@ -469,7 +469,7 @@ function ScanResultCard({
         </div>
 
         <button onClick={onRetake} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 4px 14px rgba(255,59,48,0.3)' }}>
-          <RefreshCw size={14} /> Subukang Muli (Try Again)
+          <RefreshCw size={14} /> I-scan Ulit
         </button>
       </div>
     );
@@ -531,7 +531,7 @@ function ScanResultCard({
 
       {result.multipleAnimals && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#D97706' }}>
-          <AlertTriangle size={15} style={{ flexShrink: 0 }} /> Multiple animals detected. Results may be less accurate.
+          <AlertTriangle size={15} style={{ flexShrink: 0 }} /> Maraming hayop ang nakita. Maaaring mabawasan ang accuracy.
         </div>
       )}
 
@@ -554,7 +554,7 @@ function ScanResultCard({
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 26, fontWeight: 900, color: result.riskLevelColor, lineHeight: 1 }}>{finalScore}%</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Health Risk</div>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Health Status</div>
           </div>
         </div>
 
@@ -564,7 +564,7 @@ function ScanResultCard({
             <div style={{ height: '100%', width: `${finalScore}%`, borderRadius: 999, background: `linear-gradient(90deg,${result.riskLevelColor}80,${result.riskLevelColor})`, transition: 'width 0.8s ease' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: 'var(--text-secondary)' }}>
-            <span>0 — Low</span><span>21 — Moderate</span><span>51 — High</span><span>76 — Critical</span>
+            <span>0 — Maayos</span><span>21 — Bantayan</span><span>51 — Mataas ang Risk</span><span>76 — Kritikal</span>
           </div>
         </div>
 
@@ -576,17 +576,17 @@ function ScanResultCard({
           </div>
           <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>{result.qualityReport.score}/100</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Image Quality</div>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Kalidad ng Litrato</div>
           </div>
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', background: 'var(--surface)', borderRadius: 6, padding: '6px 10px', marginBottom: 12, lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Info size={13} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-          <span><strong>AI Confidence</strong> indicates how reliably the model recognized visual patterns — not the probability of disease.</span>
+          <span>Ipinapakita ng <strong>AI Confidence</strong> kung gaano kaklaro ang visual features — hindi ito tiyak na diagnosis ng sakit.</span>
         </div>
 
         {/* Detected indicators */}
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>Detected Indicators</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>Mga Nakitang Indikasyon</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {result.indicators.map((ind, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: ind.indicator === 'NORMAL' ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.07)', border: `1px solid ${ind.indicator === 'NORMAL' ? 'rgba(22,163,74,0.2)' : 'rgba(239,68,68,0.15)'}` }}>
@@ -608,7 +608,7 @@ function ScanResultCard({
         {/* Combined factors */}
         {result.combinedFactors.length > 0 && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Combined with Farm Data</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Kasama ang Datos ng Bukid</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {result.combinedFactors.map((f, i) => (
                 <div key={i} style={{ fontSize: 11, color: 'var(--text)', padding: '5px 8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -622,7 +622,7 @@ function ScanResultCard({
 
         {/* Recommendation */}
         <div style={{ background: 'var(--surface)', borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>RECOMMENDATION</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>REKOMENDASYON</div>
           <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>{result.recommendation}</div>
         </div>
 
@@ -643,15 +643,15 @@ function ScanResultCard({
       </div>
 
       {/* Notes */}
-      <textarea value={notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Add notes (optional)…" rows={2} style={{ width: '100%', resize: 'vertical', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', marginBottom: 14, boxSizing: 'border-box' }} />
+      <textarea value={notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Magdagdag ng tala (opsyonal)…" rows={2} style={{ width: '100%', resize: 'vertical', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', marginBottom: 14, boxSizing: 'border-box' }} />
 
       {/* Buttons */}
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={onRetake} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          <RefreshCw size={14} /> Scan Again
+          <RefreshCw size={14} /> I-scan Ulit
         </button>
         <button onClick={onSave} disabled={saving} style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: saving ? 'var(--surface)' : 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: saving ? 'var(--text-secondary)' : '#fff', fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 6px 20px rgba(255,59,48,0.35)', transition: 'all 0.2s' }}>
-          {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</> : <><CheckCircle size={15} /> Save Screening</>}
+          {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Inililigtas…</> : <><CheckCircle size={15} /> I-save ang Screening</>}
         </button>
       </div>
     </div>
@@ -662,10 +662,10 @@ function ScanResultCard({
 
 function CameraErrorCard({ error, onSwitchUpload }: { error: CameraError; onSwitchUpload: () => void }) {
   const msgs: Record<NonNullable<CameraError>, { title: string; desc: string }> = {
-    permission_denied: { title: 'Camera Access Denied', desc: 'Camera access was denied. Upload a photo instead.' },
-    not_available: { title: 'Camera Not Available', desc: 'No camera found. Upload a photo instead.' },
-    https_required: { title: 'HTTPS Required', desc: 'Camera needs a secure connection. Upload a photo instead.' },
-    unsupported: { title: 'Camera Not Supported', desc: 'Your browser does not support camera access. Upload a photo instead.' },
+    permission_denied: { title: 'Hindi Pinayagan ang Camera', desc: 'Hindi pinayagan ang access sa camera. Mag-upload na lamang ng litrato.' },
+    not_available: { title: 'Walang Nakitang Camera', desc: 'Walang nakitang camera sa device na ito. Mag-upload na lamang ng litrato.' },
+    https_required: { title: 'Kailangan ng HTTPS', desc: 'Kailangan ng ligtas na koneksyon (HTTPS) para sa camera. Mag-upload na lamang ng litrato.' },
+    unsupported: { title: 'Hindi Suportado ang Camera', desc: 'Hindi suportado ng browser ang camera. Mag-upload na lamang ng litrato.' },
   };
   const msg = msgs[error!];
   return (
@@ -674,7 +674,7 @@ function CameraErrorCard({ error, onSwitchUpload }: { error: CameraError; onSwit
       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{msg.title}</div>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.5 }}>{msg.desc}</div>
       <button onClick={onSwitchUpload} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <Upload size={14} /> Upload Photo
+        <Upload size={14} /> Mag-upload ng Litrato
       </button>
     </div>
   );

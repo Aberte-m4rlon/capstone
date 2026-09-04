@@ -857,7 +857,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <Activity size={14} color="#4ADE80" />
             <span style={{ fontSize: 12, fontWeight: 700 }}>
-              Scanning... Point the camera at a goat or sheep.
+              Scanning... Itutok ang camera sa kambing o tupa.
             </span>
           </div>
         )}
@@ -888,7 +888,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <ShieldAlert size={20} color="#FFFFFF" />
             <span style={{ fontSize: 13, fontWeight: 800 }}>
-              This is not a goat or sheep. Point the camera at a goat or sheep.
+              Goat o Sheep lang ang maaaring i-scan. Itutok ang camera sa kambing o tupa.
             </span>
           </div>
         )}
@@ -918,7 +918,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <AlertTriangle size={16} />
             <span style={{ fontSize: 12, fontWeight: 700 }}>
-              Animal not clearly detected. Move the camera closer or improve lighting.
+              Walang hayop na nakita. Itutok ang camera sa kambing o tupa.
             </span>
           </div>
         )}
@@ -950,7 +950,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 12 }}>
               <span style={{ fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CheckCircle size={16} color="#A7F3D0" />
-                {speciesLabel} detected ({Math.round(det.confidence * 100)}%)
+                {speciesLabel === 'Sheep' ? 'Tupa detected' : 'Kambing detected'} ({Math.round(det.confidence * 100)}%)
               </span>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#A7F3D0' }}>
                 {autoScan.stabilityRemainingSeconds.toFixed(1)}s
@@ -1070,7 +1070,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             </div>
           </button>
           <span style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
-            Capture
+            Kumuha
           </span>
         </div>
 
@@ -1099,7 +1099,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             <SwitchCamera size={24} />
           </button>
           <span style={{ fontSize: 12, fontWeight: 700, color: hasMultipleCameras ? '#FFFFFF' : 'rgba(255, 255, 255, 0.4)', textShadow: '0 1px 3px rgba(0,0,0,0.7)' }}>
-            Switch
+            Magpalit
           </span>
         </div>
 
@@ -1762,10 +1762,10 @@ function ScanResultCard({
             <ShieldAlert size={44} color="#DC2626" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
-            This is not a goat or sheep.
+            Goat o Sheep lang ang maaaring i-scan.
           </div>
           <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, marginBottom: 20 }}>
-            Point the camera at a goat or sheep to scan health indicators.
+            Itutok ang camera sa kambing o tupa para masuri ang kalusugan.
           </div>
           <button
             onClick={onRescan}
@@ -1784,7 +1784,7 @@ function ScanResultCard({
               boxShadow: '0 4px 14px rgba(67, 160, 71, 0.3)',
             }}
           >
-            <RefreshCw size={16} /> Scan Again
+            <RefreshCw size={16} /> I-scan Ulit
           </button>
         </div>
       </div>
@@ -1798,8 +1798,8 @@ function ScanResultCard({
 
   const observations = result.observations || [];
   const recommendedActions = result.recommendedActions || [
-    'Continue standard daily feeding and clean water provisioning.',
-    'Maintain routine vaccination and herd monitoring schedule.',
+    'Ipagpatuloy ang regular na pagpapakain at malinis na tubig.',
+    'Panatilihin ang routine na pagbabakuna at pag-monitor sa kawan.',
   ];
 
   const targetAnimal = animal;
@@ -1808,14 +1808,14 @@ function ScanResultCard({
 
   // Age string calculation
   const ageDisplay = (() => {
-    if (!targetAnimal?.date_of_birth) return 'Not recorded';
+    if (!targetAnimal?.date_of_birth) return 'Hindi nakatala';
     const dob = new Date(targetAnimal.date_of_birth);
     const diffMonths = Math.floor((new Date().getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
-    if (diffMonths < 1) return 'Less than 1 month';
-    if (diffMonths < 12) return `${diffMonths} months`;
+    if (diffMonths < 1) return 'Wala pang 1 buwan';
+    if (diffMonths < 12) return `${diffMonths} buwan`;
     const yrs = Math.floor(diffMonths / 12);
     const mos = diffMonths % 12;
-    return mos > 0 ? `${yrs} years ${mos} months` : `${yrs} years`;
+    return mos > 0 ? `${yrs} taon ${mos} buwan` : `${yrs} taon`;
   })();
 
   return (
@@ -1857,20 +1857,20 @@ function ScanResultCard({
         {/* ── HEADER: TITLE & SPECIES/ANIMAL IDENTIFICATION ── */}
         <div style={{ borderBottom: '1px solid #F3F4F6', paddingBottom: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 900, color: '#43A047', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Activity size={14} color="#43A047" /> AI HEALTH SCREENING
+            <Activity size={14} color="#43A047" /> HEALTH SCREENING RESULT
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>
-                {species === 'sheep' ? 'Sheep Detected' : 'Goat Detected'}
+                {species === 'sheep' ? 'Tupa Detected' : 'Kambing Detected'}
               </div>
               <div style={{ fontSize: 13, color: '#4B5563', marginTop: 2 }}>
-                Animal: {targetTag && targetName ? `${targetTag} (${targetName})` : targetName ? targetName : 'Animal detected, but identity could not be confirmed.'}
+                Hayop: {targetTag && targetName ? `${targetTag} (${targetName})` : targetName ? targetName : 'May hayop na nakita ngunit hindi pa kumpirmado ang tag.'}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#2563EB', background: 'rgba(37, 99, 235, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
-                Detection: {result.confidencePercent}%
+                Confidence: {result.confidencePercent}%
               </div>
             </div>
           </div>
@@ -1892,7 +1892,7 @@ function ScanResultCard({
         >
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              HEALTH RISK
+              HEALTH STATUS
             </div>
             <div style={{ fontSize: 22, fontWeight: 900, color: rColor, marginTop: 2 }}>
               {rLevel}
@@ -1900,7 +1900,7 @@ function ScanResultCard({
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Risk Score
+              Score ng Kalagayan
             </div>
             <div style={{ fontSize: 24, fontWeight: 900, color: rColor, marginTop: 2 }}>
               {result.riskScore ?? 15} / 100
@@ -1911,7 +1911,7 @@ function ScanResultCard({
         {/* ── AI FINDINGS ── */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            AI FINDINGS:
+            MGA NAKITA SA SCAN:
           </div>
           <div style={{ background: '#F9FAFB', border: '1px solid #E5EDE6', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {(result.primaryIndicators && result.primaryIndicators.length > 0 ? result.primaryIndicators : observations).map((item, idx) => (
@@ -1926,39 +1926,39 @@ function ScanResultCard({
         {/* ── AVAILABLE INFORMATION (MULTI-SOURCE DATA FUSION) ── */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            AVAILABLE INFORMATION:
+            IMPORMASYON SA BUKID:
           </div>
           <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 14px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Age:</span>
+              <span style={{ color: '#6B7280' }}>Edad:</span>
               <span style={{ fontWeight: 600, color: '#1F2937' }}>{ageDisplay}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Weight:</span>
-              <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.weight_kg ? `${targetAnimal.weight_kg} kg` : 'Not recorded'}</span>
+              <span style={{ color: '#6B7280' }}>Timbang:</span>
+              <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.weight_kg ? `${targetAnimal.weight_kg} kg` : 'Hindi nakatala'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Vaccination:</span>
+              <span style={{ color: '#6B7280' }}>Bakuna:</span>
               <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.vaccination_status || 'Up to date'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Previous Health Risk:</span>
+              <span style={{ color: '#6B7280' }}>Nakaraang Health Status:</span>
               <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.health_risk_score !== undefined ? `${targetAnimal.health_status || 'Normal'} (${targetAnimal.health_risk_score})` : 'Low (0)'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #E5E7EB', paddingTop: 6 }}>
-              <span style={{ color: '#6B7280' }}>Current Temperature:</span>
+              <span style={{ color: '#6B7280' }}>Kasalukuyang Temperatura:</span>
               <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Current Heart Rate:</span>
+              <span style={{ color: '#6B7280' }}>Kasalukuyang Heart Rate:</span>
               <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Current Respiratory Rate:</span>
+              <span style={{ color: '#6B7280' }}>Kasalukuyang Respiratory Rate:</span>
               <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Not measured</span>
             </div>
             <div style={{ fontSize: 11, fontStyle: 'italic', color: '#9CA3AF', marginTop: 4 }}>
-              Some measurements were unavailable during this screening.
+              Hindi sinukat ang ibang vital signs sa visual screening na ito.
             </div>
           </div>
         </div>
@@ -1966,7 +1966,7 @@ function ScanResultCard({
         {/* ── RECOMMENDATION ── */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            RECOMMENDATION:
+            REKOMENDASYON:
           </div>
           <div
             style={{
@@ -1999,7 +1999,7 @@ function ScanResultCard({
         >
           <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
-            <strong>Decision-Support Notice:</strong> AI results are intended for early health monitoring and decision support only. They are not a confirmed veterinary diagnosis. Consult a licensed veterinarian for proper diagnosis and treatment.
+            <strong>Paunawa:</strong> Ang resulta ng AI ay para lamang sa maagang pag-monitor at decision support, hindi kumpirmadong diagnosis ng lisensyadong beterinaryo. Kumonsulta sa beterinaryo para sa tamang gamutan.
           </div>
         </div>
 
@@ -2026,7 +2026,7 @@ function ScanResultCard({
                 boxShadow: '0 4px 12px rgba(255, 106, 42, 0.25)',
               }}
             >
-              <History size={16} /> View Animal Health History
+              <History size={16} /> Tingnan ang Health History
             </button>
           )}
 
@@ -2050,7 +2050,7 @@ function ScanResultCard({
               boxShadow: '0 4px 12px rgba(46, 125, 50, 0.2)',
             }}
           >
-            <Bot size={16} /> Ask AI Farm Assistant About This Scan
+            <Bot size={16} /> Itanong sa AI Farm Assistant
           </button>
 
           {/* Automatic Save Indicator & Scan Again */}
@@ -2071,7 +2071,7 @@ function ScanResultCard({
                 gap: 5,
               }}
             >
-              <Check size={14} /> Automatically Saved
+              <Check size={14} /> Awtomatikong Na-save
             </div>
 
             <button
@@ -2092,7 +2092,7 @@ function ScanResultCard({
                 gap: 5,
               }}
             >
-              <RefreshCw size={13} /> Scan Again
+              <RefreshCw size={13} /> I-scan Ulit
             </button>
           </div>
         </div>

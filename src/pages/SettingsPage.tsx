@@ -32,17 +32,17 @@ export function SettingsPage() {
   // ── Change Password ──────────────────────────────────────────────────────────
   const handleChangePassword = async () => {
     setPwError('');
-    if (!pwForm.newPw) { setPwError('New password is required.'); return; }
-    if (pwForm.newPw.length < 6) { setPwError('Password must be at least 6 characters.'); return; }
-    if (pwForm.newPw !== pwForm.confirm) { setPwError('Passwords do not match.'); return; }
+    if (!pwForm.newPw) { setPwError('Kailangan ang bagong password.'); return; }
+    if (pwForm.newPw.length < 6) { setPwError('Dapat may hindi bababa sa 6 na karakter ang password.'); return; }
+    if (pwForm.newPw !== pwForm.confirm) { setPwError('Hindi magkatugma ang mga password.'); return; }
     setSavingPw(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: pwForm.newPw });
       if (error) throw error;
-      toast('Password changed successfully.', 'success');
+      toast('Matagumpay na napalitan ang password.', 'success');
       setPwForm({ current: '', newPw: '', confirm: '' });
     } catch (err) {
-      setPwError(err instanceof Error ? err.message : 'Unable to change password.');
+      setPwError(err instanceof Error ? err.message : 'Hindi maiproseso ang pagpapalit ng password.');
     } finally {
       setSavingPw(false);
     }
@@ -52,8 +52,8 @@ export function SettingsPage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (file.size > 2 * 1024 * 1024) { toast('Image must be under 2 MB.', 'danger'); return; }
-    if (!file.type.startsWith('image/')) { toast('Please select an image file.', 'danger'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast('Dapat mas maliit sa 2 MB ang larawan.', 'danger'); return; }
+    if (!file.type.startsWith('image/')) { toast('Pumili lamang ng wastong image file.', 'danger'); return; }
 
     setUploadingAvatar(true);
     try {
@@ -72,10 +72,10 @@ export function SettingsPage() {
       if (updateError) throw updateError;
 
       setAvatarUrl(url);
-      toast('Profile photo updated successfully.', 'success');
+      toast('Matagumpay na na-update ang larawan ng profile.', 'success');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Upload failed.';
-      toast(`Upload failed: ${msg}. Make sure the "avatars" storage bucket is created in Supabase.`, 'danger');
+      const msg = err instanceof Error ? err.message : 'Pumalya ang pag-upload.';
+      toast(`Pumalya ang pag-upload: ${msg}. Siguraduhing nilikha ang "avatars" storage bucket sa Supabase.`, 'danger');
     } finally {
       setUploadingAvatar(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -124,10 +124,10 @@ export function SettingsPage() {
         const { error } = await supabase.from('settings').insert({ ...form, user_id: user.id });
         if (error) throw error;
       }
-      toast('Settings saved successfully.', 'success');
+      toast('Matagumpay na na-save ang mga setting.', 'success');
       farmData.refresh();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Unable to save settings.', 'danger');
+      toast(err instanceof Error ? err.message : 'May problema sa pag-save ng mga setting.', 'danger');
     } finally {
       setSaving(false);
     }
@@ -146,9 +146,9 @@ export function SettingsPage() {
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', width: '100%' }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800 }}>Settings</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800 }}>Mga Setting</h1>
         <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-          Configure your profile and farm preferences.
+          Isaayos ang iyong profile at mga kagustuhan sa bukid.
         </p>
       </div>
 
@@ -156,7 +156,7 @@ export function SettingsPage() {
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <User size={16} color="var(--color-brand-primary, #FF7A18)" />
-          Profile
+          Profile ng User
         </div>
 
         {/* Avatar */}
@@ -184,7 +184,7 @@ export function SettingsPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', fontSize: 12,
               }}
-              title="Upload photo"
+              title="Mag-upload ng larawan"
             >
               <Camera size={12} />
             </button>
@@ -192,7 +192,7 @@ export function SettingsPage() {
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>{user?.email}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>Farmer · AlpasFarm</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>Magbubukid · AlpasFarm</div>
             <Button
               variant="secondary"
               size="sm"
@@ -201,7 +201,7 @@ export function SettingsPage() {
               loading={uploadingAvatar}
               leftIcon={<Camera size={13} />}
             >
-              Change Photo
+              Palitan ang Larawan
             </Button>
           </div>
         </div>
@@ -210,14 +210,14 @@ export function SettingsPage() {
         <div style={{ borderTop: '1px solid var(--border-light, rgba(255,255,255,0.08))', paddingTop: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <KeyRound size={15} color="var(--color-text-secondary, #475569)" />
-            <span style={{ fontWeight: 700, fontSize: 14 }}>Change Password</span>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>Palitan ang Password</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-            <FormField label="New Password">
+            <FormField label="Bagong Password">
               <div style={{ position: 'relative' }}>
                 <Input
                   type={showPw ? 'text' : 'password'}
-                  placeholder="At least 6 characters"
+                  placeholder="Hindi bababa sa 6 na karakter"
                   value={pwForm.newPw}
                   onChange={(e) => setPwForm({ ...pwForm, newPw: e.target.value })}
                   style={{ paddingRight: 40 }}
@@ -231,10 +231,10 @@ export function SettingsPage() {
                 </button>
               </div>
             </FormField>
-            <FormField label="Confirm New Password">
+            <FormField label="Kumpirmahin ang Bagong Password">
               <Input
                 type={showPw ? 'text' : 'password'}
-                placeholder="Repeat new password"
+                placeholder="I-type muli ang bagong password"
                 value={pwForm.confirm}
                 onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
               />
@@ -254,56 +254,56 @@ export function SettingsPage() {
             leftIcon={<KeyRound size={13} />}
             style={{ marginTop: 10 }}
           >
-            Change Password
+            I-save ang Bagong Password
           </Button>
         </div>
       </Card>
 
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
-        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 14 }}>Farm Information</div>
-        <FormField label="Farm Name">
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 14 }}>Impormasyon ng Bukid</div>
+        <FormField label="Pangalan ng Bukid">
           <Input value={form.farm_name} onChange={(e) => setForm({ ...form, farm_name: e.target.value })} />
         </FormField>
       </Card>
 
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
-        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Health Risk Thresholds</div>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Mga Parameter ng Health Risk</div>
         <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14 }}>
-          These thresholds are used by the Smart Health Risk Prediction to determine alert levels.
+          Ginagamit ang mga limitasyong ito ng AI Health Risk para tukuyin ang antas ng babala.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-          {numField('Critical Temperature (°C)', 'temp_critical', 'Above this triggers a critical alert')}
-          {numField('High Heart Rate (BPM)', 'heart_rate_high', 'Above this triggers a heart rate warning')}
+          {numField('Kritikal na Temperatura (°C)', 'temp_critical', 'Lampas dito ay magbibigay ng kritikal na alerto')}
+          {numField('Mataas na Heart Rate (BPM)', 'heart_rate_high', 'Lampas dito ay magbibigay ng babala sa bilis ng tibok ng puso')}
         </div>
       </Card>
 
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
-        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Breeding Settings</div>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Mga Setting sa Breeding</div>
         <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14 }}>
-          Used for kidding date calculation and breeding readiness assessment.
+          Ginagamit sa pagtatantya ng panganganak at pagsusuri ng kahandaan sa pagpaparami.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-          {numField('Gestation Days', 'gestation_days', 'Default: 150 days for goats')}
-          {numField('Min Breeding Age (months)', 'breeding_min_age_months')}
-          {numField('Min Breeding Weight (kg)', 'breeding_min_weight_kg')}
+          {numField('Araw ng Pagbubuntis (Gestation Days)', 'gestation_days', 'Pamantayan: 150 araw para sa kambing at tupa')}
+          {numField('Pinakamababang Edad sa Breeding (buwan)', 'breeding_min_age_months')}
+          {numField('Pinakamababang Timbang sa Breeding (kg)', 'breeding_min_weight_kg')}
         </div>
       </Card>
 
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
-        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Growth & Inventory</div>
+        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Paglaki at Imbentaryo</div>
         <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14 }}>
-          Used for market-ready predictions and inventory alerts.
+          Ginagamit sa pagtatantya kung kailan maaaring ibenta at sa mga paalala sa stock.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-          {numField('Target Weight (kg)', 'target_weight_kg', 'For market-ready date estimation')}
-          {numField('Expiry Warning (days)', 'expiry_warning_days', 'Items expiring within this many days alert')}
-          {numField('Vaccine Due (days)', 'vaccine_due_days', 'Vaccinations due within this many days alert')}
+          {numField('Target na Timbang (kg)', 'target_weight_kg', 'Para sa pagtatantya kung handa nang ibenta')}
+          {numField('Babala sa Paso / Expiry (araw)', 'expiry_warning_days', 'Magpapadala ng paalala kapag nalalapit nang mag-expire')}
+          {numField('Iskedyul ng Bakuna (araw)', 'vaccine_due_days', 'Magpapadala ng paalala ilang araw bago ang takdang bakuna')}
         </div>
       </Card>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 30 }}>
         <Button variant="primary" onClick={handleSave} loading={saving}>
-          Save Settings
+          I-save ang mga Setting
         </Button>
       </div>
     </div>

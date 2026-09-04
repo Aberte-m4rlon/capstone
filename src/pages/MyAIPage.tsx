@@ -31,12 +31,11 @@ export function MyAIPage() {
       </div>
       <div>
         <h2 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', marginBottom: 8, letterSpacing: '-0.5px' }}>
-          AI Cloud is now global
+          Available na sa buong sistema ang AI Farm Assistant
         </h2>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 360 }}>
-          The AI Cloud assistant is available on every page.
-          Look for the <strong style={{ color: '#FF7A18' }}>AI Cloud</strong> button
-          floating at the bottom-right of your screen.
+          Maaari mong kausapin ang AI Farm Assistant sa kahit saang pahina.
+          Hanapin lamang ang floating button sa ibabang bahagi ng screen.
         </p>
       </div>
       <div style={{
@@ -46,7 +45,7 @@ export function MyAIPage() {
         fontSize: 13, color: '#FF7A18', fontWeight: 600,
       }}>
         <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF7A18', animation: 'pulse 1.5s ease-in-out infinite' }} />
-        Redirecting to Dashboard…
+        Lilipat sa Buod ng Bukid…
       </div>
       <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }`}</style>
     </div>

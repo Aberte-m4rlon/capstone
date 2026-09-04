@@ -156,13 +156,29 @@ export function DailyAlertsPage() {
     }
   };
 
+  const priorityLabel = (priority: string) => {
+    const pr = priority.toLowerCase();
+    if (pr === 'critical') return 'Urgent';
+    if (pr === 'warning' || pr === 'high') return 'Mahalaga';
+    if (pr === 'info') return 'Paalala';
+    return 'Normal';
+  };
+
+  const priorityPills = [
+    { id: 'All', label: 'Lahat' },
+    { id: 'Unread', label: 'Hindi pa Nababasa' },
+    { id: 'Critical', label: 'Urgent' },
+    { id: 'Warning', label: 'Mahalaga' },
+    { id: 'Info', label: 'Paalala' },
+  ];
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Daily Alerts</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Mga Paalala</h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-            A concise list of the tasks, health risks, and reminders that matter most today.
+            Mahalagang listahan ng mga gawain, panganib sa kalusugan, at paalala para sa araw na ito.
           </p>
         </div>
         {rawAlerts.length > 0 && (
@@ -173,7 +189,7 @@ export function DailyAlertsPage() {
               disabled={unreadCount === 0}
               leftIcon={<CheckCircle2 size={15} />}
             >
-              Mark all read
+              Markahang Nabasa Lahat
             </Button>
             <Button
               variant="primary"
@@ -181,21 +197,21 @@ export function DailyAlertsPage() {
               loading={sending}
               leftIcon={<Bell size={15} />}
             >
-              Send Push
+              Magpadala ng Notipikasyon
             </Button>
             <Button
               variant="secondary"
               onClick={() => setSummaryOpen(true)}
               leftIcon={<Mail size={15} />}
             >
-              View Summary
+              Tingnan ang Buod
             </Button>
             <Button
               variant="secondary"
               onClick={handleCopySummary}
               leftIcon={<Copy size={15} />}
             >
-              Copy Summary
+              Kopyahin ang Buod
             </Button>
           </div>
         )}
@@ -203,17 +219,17 @@ export function DailyAlertsPage() {
 
       {/* Filter Toolbar */}
       <FilterToolbar>
-        {['All', 'Unread', 'Critical', 'Warning', 'Info'].map((p) => {
+        {priorityPills.map((pill) => {
           let count = rawAlerts.length;
-          if (p === 'Unread') count = alertsWithReadState.filter((a) => !a.isRead).length;
-          else if (p !== 'All') count = alertsWithReadState.filter((a) => a.priority === p).length;
+          if (pill.id === 'Unread') count = alertsWithReadState.filter((a) => !a.isRead).length;
+          else if (pill.id !== 'All') count = alertsWithReadState.filter((a) => a.priority === pill.id).length;
 
           return (
             <FilterPill
-              key={p}
-              active={priorityFilter === p}
-              onClick={() => setPriorityFilter(p)}
-              label={p}
+              key={pill.id}
+              active={priorityFilter === pill.id}
+              onClick={() => setPriorityFilter(pill.id)}
+              label={pill.label}
               count={count}
             />
           );
@@ -225,8 +241,8 @@ export function DailyAlertsPage() {
         {filteredAlerts.length === 0 ? (
           <EmptyState
             icon={<CheckCircle size={32} />}
-            title="No alerts for this filter"
-            description="Your farm is running smoothly right now."
+            title="Walang bagong paalala sa bukid."
+            description="Maayos at ligtas ang kalagayan ng bukid sa kasalukuyan."
           />
         ) : (
           <div style={{ padding: '6px 16px' }}>
@@ -286,7 +302,7 @@ export function DailyAlertsPage() {
                         {alert.title}
                       </span>
                       <Badge variant={badgeVariant(alert.priority)} size="sm">
-                        {alert.priority}
+                        {priorityLabel(alert.priority)}
                       </Badge>
                       {isUnread && (
                         <span
@@ -304,7 +320,7 @@ export function DailyAlertsPage() {
                             textTransform: 'uppercase',
                           }}
                         >
-                          ● UNREAD
+                          ● BAGO
                         </span>
                       )}
                     </div>
@@ -327,10 +343,10 @@ export function DailyAlertsPage() {
                         marginTop: 6,
                       }}
                     >
-                      <span>Due: {alert.dueLabel}</span>
+                      <span>Takdang Petsa: {alert.dueLabel}</span>
                       {alert.link && (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--color-primary, #43A047)', fontWeight: 600 }}>
-                          Resolve alert <ArrowRight size={12} />
+                          Aksyonan ang paalala <ArrowRight size={12} />
                         </span>
                       )}
                     </div>
@@ -346,8 +362,8 @@ export function DailyAlertsPage() {
       {summaryOpen && (
         <Modal open={summaryOpen} onClose={() => setSummaryOpen(false)} size="lg">
           <ModalHeader
-            title="Daily Alert Summary"
-            subtitle="Copy this summary to send via SMS, email, or messenger"
+            title="Buod ng mga Paalala"
+            subtitle="Kopyahin ang buod na ito para maipadala sa SMS, email, o Messenger"
             icon={<Mail size={18} />}
           />
           <ModalBody>
@@ -371,10 +387,10 @@ export function DailyAlertsPage() {
           </ModalBody>
           <ModalFooter>
             <Button variant="secondary" onClick={() => setSummaryOpen(false)}>
-              Close
+              Isara
             </Button>
             <Button variant="primary" onClick={handleCopySummary} leftIcon={<Copy size={15} />}>
-              Copy to Clipboard
+              Kopyahin sa Clipboard
             </Button>
           </ModalFooter>
         </Modal>

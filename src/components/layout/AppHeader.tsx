@@ -216,7 +216,7 @@ export function AppHeader({
           <input
             type="text"
             className="search-input"
-            placeholder="Search animals, inventory, vaccines..."
+            placeholder="Maghanap ng animal, ID, breed, o item..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
@@ -298,9 +298,9 @@ export function AppHeader({
             <div className="profile-dropdown notif-dropdown">
               <div className="pd-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
                 <div>
-                  <p style={{ fontWeight: 700, fontSize: 13.5, margin: 0, color: 'var(--color-text-primary)' }}>Notifications</p>
+                  <p style={{ fontWeight: 700, fontSize: 13.5, margin: 0, color: 'var(--color-text-primary)' }}>Mga Paalala</p>
                   <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                    {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+                    {unreadCount > 0 ? `${unreadCount} bago` : 'Walang bagong paalala'}
                   </span>
                 </div>
                 {unreadCount > 0 && (
@@ -314,14 +314,14 @@ export function AppHeader({
                     style={{ fontSize: 11, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 4, borderRadius: 8 }}
                   >
                     <CheckCircle2 size={13} />
-                    Mark all read
+                    I-marka bilang nabasa
                   </button>
                 )}
               </div>
               <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 {notifications.length === 0 && (
                   <div className="search-empty" style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13 }}>
-                    No notifications yet
+                    Wala pang alerts.
                   </div>
                 )}
                 {notifications.slice(0, 10).map((n) => {
@@ -423,7 +423,7 @@ export function AppHeader({
                   setNotifOpen(false);
                 }}
               >
-                View all notifications
+                Tingnan ang lahat ng paalala
               </div>
             </div>
           )}
@@ -464,11 +464,11 @@ export function AppHeader({
                 }}
               >
                 <Settings size={16} />
-                <span>Settings</span>
+                <span>Mga Setting</span>
               </button>
               <button type="button" className="pd-item text-danger" onClick={handleSignOut}>
                 <LogOut size={16} />
-                <span>Sign Out</span>
+                <span>Mag-logout</span>
               </button>
             </div>
           )}

@@ -66,11 +66,11 @@ function getAnimalReadinessCardData(
 
   if (isReady) {
     const reasons: string[] = [];
-    reasons.push(`Healthy & mature (${age ? `${age} mos old` : 'age verified'})`);
+    reasons.push(`Malusog at handa (${age ? `${age} buwang gulang` : 'kumpirmado ang edad'})`);
     if (animal.weight_kg) {
-      reasons.push(`Weight criteria met (${animal.weight_kg} kg ≥ ${minWeight} kg)`);
+      reasons.push(`Sapat ang timbang (${animal.weight_kg} kg ≥ ${minWeight} kg)`);
     } else {
-      reasons.push('Meets minimum breeding weight');
+      reasons.push('Sapat ang minimum na timbang sa pagpapalahi');
     }
     if (assessment?.reasons && assessment.reasons.length > 0) {
       assessment.reasons.forEach((r) => {
@@ -82,7 +82,7 @@ function getAnimalReadinessCardData(
 
     return {
       statusType: 'ready',
-      statusLabel: isFemale ? 'Ready for Mating' : 'Ready for Service',
+      statusLabel: isFemale ? 'Handa nang I-mate' : 'Handang Barako',
       StatusIcon: CheckCircle2,
       ReasonIcon: CheckCircle2,
       reasons: reasons.slice(0, 3),
@@ -96,10 +96,10 @@ function getAnimalReadinessCardData(
   if (isPregnant) {
     return {
       statusType: 'pregnant',
-      statusLabel: 'Currently Pregnant',
+      statusLabel: 'Kasalukuyang Buntis',
       StatusIcon: Clock,
       ReasonIcon: AlertCircle,
-      reasons: ['In active gestation (cannot be selected for mating)'],
+      reasons: ['Kasalukuyang nagbubuntis (hindi maaaring i-mate)'],
       cardClass: 'readiness-card-pregnant',
       badgeClass: 'badge-pregnant',
       dotClass: 'dot-pregnant',
@@ -110,18 +110,18 @@ function getAnimalReadinessCardData(
   // Determine specific warning reason
   const reasons = assessment?.reasons && assessment.reasons.length > 0
     ? assessment.reasons
-    : ['Does not meet criteria for breeding selection'];
+    : ['Hindi pa pasok sa pamantayan ng pagpapalahi'];
 
-  let statusLabel = 'Not Ready';
+  let statusLabel = 'Hindi Pa Handa';
   let StatusIcon = AlertTriangle;
   let statusType = 'warning';
 
   if (age !== null && age < minAge) {
-    statusLabel = 'Under Breeding Age';
+    statusLabel = 'Masyado Pang Bata';
   } else if (animal.weight_kg !== null && Number(animal.weight_kg) < minWeight) {
-    statusLabel = 'Below Required Weight';
+    statusLabel = 'Kulang sa Timbang';
   } else if (animal.health_status === 'At Risk' || animal.health_status === 'Critical') {
-    statusLabel = 'Health Alert Flagged';
+    statusLabel = 'May Health Alert';
     StatusIcon = AlertCircle;
     statusType = 'danger';
   }
@@ -320,21 +320,21 @@ export function BreedingPage() {
     const e: Record<string, string> = {};
 
     if (!form.animal_id) {
-      e.animal_id = 'Please select a female animal.';
+      e.animal_id = 'Pumili ng babaeng hayop (Dam).';
     } else if (!editing && selectedFemaleAssessment && selectedFemaleAssessment.recommendation !== 'Ready') {
-      e.animal_id = `This female is not ready for mating: ${selectedFemaleAssessment.reasons.join(', ')}`;
+      e.animal_id = `Hindi pa handa sa mating ang babaeng ito: ${selectedFemaleAssessment.reasons.join(', ')}`;
     }
 
     if (form.partner_id) {
       if (form.partner_id === form.animal_id) {
-        e.partner_id = 'Sire and Dam cannot be the same animal.';
+        e.partner_id = 'Hindi maaaring pareho ang lalaki at babae.';
       } else if (!editing && selectedMaleAssessment && selectedMaleAssessment.recommendation !== 'Ready') {
-        e.partner_id = `The selected sire is not ready for mating: ${selectedMaleAssessment.reasons.join(', ')}`;
+        e.partner_id = `Hindi pa handa sa mating ang napiling lalaki: ${selectedMaleAssessment.reasons.join(', ')}`;
       }
     }
 
     if (!form.mating_date) {
-      e.mating_date = 'Mating date is required.';
+      e.mating_date = 'Kailangan ang mating date.';
     }
 
     setErrors(e);
@@ -363,19 +363,19 @@ export function BreedingPage() {
       if (editing) {
         const { error } = await supabase.from('breeding_records').update(payload).eq('id', editing.id);
         if (error) throw error;
-        toast('Breeding record updated.', 'success');
+        toast('Matagumpay na na-update ang record ng breeding.', 'success');
       } else {
         const { error } = await supabase.from('breeding_records').insert(payload);
         if (error) throw error;
-        toast('Breeding record created successfully.', 'success');
+        toast('Matagumpay na na-save ang record ng breeding.', 'success');
 
         if (kiddingDate && form.status === 'Pregnant') {
           const female = farmData.animals.find((a) => a.id === form.animal_id);
           await createNotification(
             female?.user_id ?? '',
             'Breeding',
-            `Expected Kidding: ${female?.name ?? 'Animal'}`,
-            `${female?.name ?? 'Animal'} is expected to give birth around ${formatDate(kiddingDate)}.`,
+            `Inaasahang Panganganak: ${female?.name ?? 'Hayop'}`,
+            `Ang ${female?.name ?? 'hayop'} ay inaasahang manganganak bandang ${formatDate(kiddingDate)}.`,
             'Normal',
             '/breeding',
           );
@@ -393,7 +393,7 @@ export function BreedingPage() {
       setModalOpen(false);
       farmData.refresh();
     } catch {
-      toast('Unable to save breeding record. Please try again.', 'danger');
+      toast('Hindi ma-save ang record ng breeding. Pakisubukang muli.', 'danger');
     } finally {
       setSaving(false);
     }
@@ -404,11 +404,11 @@ export function BreedingPage() {
     try {
       const { error } = await supabase.from('breeding_records').delete().eq('id', confirmDelete.id);
       if (error) throw error;
-      toast('Breeding record deleted.', 'success');
+      toast('Matagumpay na na-delete ang record ng breeding.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Unable to delete breeding record. Please try again.', 'danger');
+      toast('Hindi ma-delete ang record ng breeding. Pakisubukang muli.', 'danger');
     }
   };
 
@@ -498,13 +498,26 @@ export function BreedingPage() {
 
   const renderStatusPill = (status: string) => {
     let className = 'breeding-status-pill ';
-    if (status === 'Pregnant') className += 'breeding-status-pregnant';
-    else if (status === 'Kidded' || status === 'Delivered') className += 'breeding-status-kidded';
-    else if (status === 'Failed') className += 'breeding-status-failed';
-    else if (status === 'Monitor') className += 'breeding-status-monitor';
-    else className += 'breeding-status-planned';
+    let label = status;
 
-    return <span className={className}>{status}</span>;
+    if (status === 'Pregnant') {
+      className += 'breeding-status-pregnant';
+      label = 'Pregnant / Buntis';
+    } else if (status === 'Kidded' || status === 'Delivered') {
+      className += 'breeding-status-kidded';
+      label = 'Completed / Nanganak na';
+    } else if (status === 'Failed') {
+      className += 'breeding-status-failed';
+      label = 'Hindi Buntis / Failed';
+    } else if (status === 'Monitor') {
+      className += 'breeding-status-monitor';
+      label = 'Pending / Naghihintay';
+    } else {
+      className += 'breeding-status-planned';
+      label = 'Pending / Nakaplano';
+    }
+
+    return <span className={className}>{label}</span>;
   };
 
   const renderKiddingInfo = (dateStr: string | null, status: string) => {
@@ -514,18 +527,18 @@ export function BreedingPage() {
     let daysElement = null;
     if (status === 'Pregnant') {
       if (days === 0) {
-        daysElement = <span style={{ fontSize: '11.5px', color: '#2E7D32', fontWeight: 700 }}>Due today!</span>;
+        daysElement = <span style={{ fontSize: '11.5px', color: '#2E7D32', fontWeight: 700 }}>Manganganak na ngayon!</span>;
       } else if (days > 0) {
         const isUrgent = days <= 14;
         daysElement = (
           <span style={{ fontSize: '11.5px', color: isUrgent ? '#D97706' : '#2E7D32', fontWeight: 600 }}>
-            {days} days remaining{isUrgent ? ' (Due soon)' : ''}
+            {days} araw ang natitira{isUrgent ? ' (Malapit na)' : ''}
           </span>
         );
       } else {
         daysElement = (
           <span style={{ fontSize: '11.5px', color: '#DC2626', fontWeight: 700 }}>
-            {Math.abs(days)} days overdue
+            {Math.abs(days)} araw nang lampas sa schedule
           </span>
         );
       }
@@ -547,24 +560,24 @@ export function BreedingPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', letterSpacing: '-0.02em' }}>
-            Breeding Management
+            Breeding
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
-            {farmData.breedingRecords.length} total breeding records · {readyFemales.length} does ready · {readyMales.length} bucks ready
+            {farmData.breedingRecords.length} kabuuang records sa breeding · {readyFemales.length} babaeng handa · {readyMales.length} lalaking handa
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Button variant="secondary" onClick={() => openRegisterOffspring()} leftIcon={<Baby size={16} />}>
-            Register Newborn
+            Magrehistro ng Bagong Silang
           </Button>
           <Button
             variant="primary"
             onClick={openAdd}
             disabled={readyFemales.length === 0}
             leftIcon={<Plus size={16} />}
-            title={readyFemales.length === 0 ? 'No females are currently ready for mating' : 'Add Breeding Record'}
+            title={readyFemales.length === 0 ? 'Walang babaeng hayop na handa sa mating sa kasalukuyan' : 'Magdagdag ng Record ng Breeding'}
           >
-            Add Breeding Record
+            Magdagdag ng Record ng Breeding
           </Button>
         </div>
       </div>
@@ -573,9 +586,9 @@ export function BreedingPage() {
       <div className="breeding-readiness-card">
         <div className="readiness-header-row">
           <div className="readiness-title-group">
-            <h2 className="readiness-title">Breeding Readiness Center</h2>
+            <h2 className="readiness-title">Kahandaan sa Pagpapalahi</h2>
             <p className="readiness-subtitle">
-              Only mature, healthy animals meeting age ({farmData.settings?.breeding_min_age_months ?? 8} mos) and weight ({farmData.settings?.breeding_min_weight_kg ?? 25} kg) thresholds can be mated.
+              Tanging ang mga malulusog at sapat sa gulang ({farmData.settings?.breeding_min_age_months ?? 8} buwan) at timbang ({farmData.settings?.breeding_min_weight_kg ?? 25} kg) ang maaaring i-mate.
             </p>
           </div>
 
@@ -586,7 +599,7 @@ export function BreedingPage() {
               onClick={() => setReadinessTab('females')}
               className={`readiness-tab-btn ${readinessTab === 'females' ? 'active' : ''}`}
             >
-              <span>Ready Females</span>
+              <span>Handang Babae</span>
               <span className="readiness-tab-count">{readyFemales.length}</span>
             </button>
 
@@ -595,7 +608,7 @@ export function BreedingPage() {
               onClick={() => setReadinessTab('males')}
               className={`readiness-tab-btn ${readinessTab === 'males' ? 'active' : ''}`}
             >
-              <span>Ready Sires</span>
+              <span>Handang Barako</span>
               <span className="readiness-tab-count">{readyMales.length}</span>
             </button>
 
@@ -604,7 +617,7 @@ export function BreedingPage() {
               onClick={() => setReadinessTab('not_ready')}
               className={`readiness-tab-btn ${readinessTab === 'not_ready' ? 'active' : ''}`}
             >
-              <span>Not Yet Ready</span>
+              <span>Hindi Pa Handa</span>
               <span className="readiness-tab-count warning">{notReadyFemales.length + notReadyMales.length}</span>
             </button>
           </div>
@@ -615,8 +628,8 @@ export function BreedingPage() {
           readyFemales.length === 0 ? (
             <EmptyState
               icon={<Icons.Heart size={28} />}
-              title="No females currently ready for mating"
-              description="Female animals must reach the minimum breeding age and weight to become eligible."
+              title="Walang babaeng hayop na handa sa mating ngayon"
+              description="Kailangan maabot ng babaeng hayop ang tamang edad at timbang para makapag-mate."
             />
           ) : (
             <div className="readiness-cards-grid">
@@ -675,8 +688,8 @@ export function BreedingPage() {
           readyMales.length === 0 ? (
             <EmptyState
               icon={<Icons.Heart size={28} />}
-              title="No male sires currently ready for service"
-              description="Male animals must meet minimum age and weight to be eligible for service."
+              title="Walang lalaking barako na handa ngayon"
+              description="Kailangan maabot ng lalaking hayop ang tamang edad at timbang para magamit sa pagpapalahi."
             />
           ) : (
             <div className="readiness-cards-grid">
@@ -701,11 +714,11 @@ export function BreedingPage() {
                     <div className="readiness-meta-row">
                       <span>{animal.breed || animal.species} Sire</span>
                       <span className="readiness-meta-sep">•</span>
-                      <span>{age ? `${age} mos old` : 'Age verified'}</span>
+                      <span>{age ? `${age} buwan` : 'Kumpirmado ang edad'}</span>
                     </div>
 
                     <div className="readiness-weight-row">
-                      <span>{animal.weight_kg ? `${animal.weight_kg} kg` : 'Weight met'}</span>
+                      <span>{animal.weight_kg ? `${animal.weight_kg} kg` : 'Sapat ang timbang'}</span>
                     </div>
 
                     <div className="readiness-badge-row">
@@ -735,8 +748,8 @@ export function BreedingPage() {
           (notReadyFemales.length === 0 && notReadyMales.length === 0) ? (
             <EmptyState
               icon={<CheckCircle2 size={28} color="#2E7D32" />}
-              title="All active animals are ready for breeding"
-              description="There are no animals currently restricted by age, weight, or pregnancy."
+              title="Lahat ng aktibong hayop ay handa sa pagpapalahi"
+              description="Walang hayop na kasalukuyang pinipigilan ng edad, timbang, o pagbubuntis."
             />
           ) : (
             <div className="readiness-cards-grid">
@@ -760,13 +773,13 @@ export function BreedingPage() {
                     </div>
 
                     <div className="readiness-meta-row">
-                      <span>{animal.sex} · {animal.breed || animal.species}</span>
+                      <span>{animal.sex === 'Female' ? 'Babae' : 'Lalaki'} · {animal.breed || (animal.species === 'Goat' ? 'Kambing' : 'Tupa')}</span>
                       <span className="readiness-meta-sep">•</span>
-                      <span>{age ? `${age} mos old` : 'No DOB recorded'}</span>
+                      <span>{age ? `${age} buwan` : 'Walang nakatalang kapanganakan'}</span>
                     </div>
 
                     <div className="readiness-weight-row">
-                      <span>{animal.weight_kg ? `${animal.weight_kg} kg` : 'No weight recorded'}</span>
+                      <span>{animal.weight_kg ? `${animal.weight_kg} kg` : 'Walang nakatalang timbang'}</span>
                     </div>
 
                     <div className="readiness-badge-row">
@@ -797,21 +810,21 @@ export function BreedingPage() {
         <FilterSearch
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Search by animal name, tag ID, breed, or sire..."
+          placeholder="Maghanap ng animal, ID, breed, o item..."
           minWidth={260}
         />
         <FilterSelect
           value={fStatus}
           onChange={setFStatus}
           options={[
-            { value: 'All', label: 'All Status' },
-            { value: 'Planned', label: 'Planned' },
-            { value: 'Pregnant', label: 'Pregnant' },
-            { value: 'Kidded', label: 'Kidded / Delivered' },
-            { value: 'Failed', label: 'Failed' },
-            { value: 'Monitor', label: 'Monitor' },
+            { value: 'All', label: 'Lahat ng Status' },
+            { value: 'Planned', label: 'Pending / Nakaplano' },
+            { value: 'Pregnant', label: 'Pregnant / Buntis' },
+            { value: 'Kidded', label: 'Completed / Nanganak na' },
+            { value: 'Failed', label: 'Hindi Buntis / Failed' },
+            { value: 'Monitor', label: 'Pending / Naghihintay' },
           ]}
-          ariaLabel="Filter Status"
+          ariaLabel="Salain ayon sa Status"
           minWidth={160}
         />
       </FilterToolbar>
@@ -823,13 +836,13 @@ export function BreedingPage() {
             <div style={{ padding: 40 }}>
               <EmptyState
                 icon={<Icons.Heart size={32} />}
-                title="No breeding records found"
+                title="Wala pang breeding records."
                 description={
                   searchQuery || fStatus !== 'All'
-                    ? 'No records match your search query or filter criteria.'
-                    : 'Start tracking breeding by adding your first record.'
+                    ? 'Walang record na tumutugma sa iyong paghahanap.'
+                    : 'Magsimulang mag-record sa pamamagitan ng pagdagdag ng unang record ng breeding.'
                 }
-                actionLabel="Add Record"
+                actionLabel="Magdagdag ng Record"
                 onAction={openAdd}
               />
             </div>
@@ -837,12 +850,12 @@ export function BreedingPage() {
             <table className="breeding-table">
               <thead>
                 <tr>
-                  <th className="breeding-col-female">Female (Dam)</th>
-                  <th className="breeding-col-partner">Partner (Sire)</th>
+                  <th className="breeding-col-female">Female / Babae</th>
+                  <th className="breeding-col-partner">Male / Lalaki</th>
                   <th className="breeding-col-date">Mating Date</th>
-                  <th className="breeding-col-kidding">Expected Kidding</th>
-                  <th className="breeding-col-status">Status</th>
-                  <th className="breeding-col-actions">Actions</th>
+                  <th className="breeding-col-kidding">Expected Kidding Date</th>
+                  <th className="breeding-col-status">Breeding Status</th>
+                  <th className="breeding-col-actions">Aksyon</th>
                 </tr>
               </thead>
               <tbody>
@@ -855,11 +868,11 @@ export function BreedingPage() {
                       {/* Female Dam Column */}
                       <td className="breeding-col-female">
                         <div style={{ maxWidth: 220 }}>
-                          <div className="animal-cell-title" title={female?.name || 'Unknown'}>
-                            {female?.name || 'Unknown Female'}
+                          <div className="animal-cell-title" title={female?.name || 'Hindi Tukoy'}>
+                            {female?.name || 'Hindi Tukoy na Babae'}
                           </div>
-                          <div className="animal-cell-subtitle" title={`${female?.tag_id || ''} ${female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species}` : ''}`}>
-                            {female?.tag_id || 'No Tag'} {female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species}` : ''}
+                          <div className="animal-cell-subtitle" title={`${female?.tag_id || ''} ${female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species === 'Goat' ? 'Kambing' : 'Tupa'}` : ''}`}>
+                            {female?.tag_id || 'Walang Tag'} {female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species === 'Goat' ? 'Kambing' : 'Tupa'}` : ''}
                           </div>
                         </div>
                       </td>
@@ -876,7 +889,7 @@ export function BreedingPage() {
                             </div>
                           </div>
                         ) : (
-                          <span style={{ color: 'var(--color-text-muted, #94A3B8)', fontSize: '13px' }}>Unassigned</span>
+                          <span style={{ color: 'var(--color-text-muted, #94A3B8)', fontSize: '13px' }}>Walang nakatakda</span>
                         )}
                       </td>
 
@@ -906,17 +919,17 @@ export function BreedingPage() {
                               size="sm"
                               onClick={() => openRegisterOffspring(b)}
                               leftIcon={<Baby size={14} color="#FF6A00" />}
-                              title="Register newborn kid/lamb"
+                              title="Magrehistro ng supling"
                             >
-                              Offspring
+                              Supling
                             </Button>
                           )}
                           <button
                             type="button"
                             className="breeding-action-btn"
                             onClick={() => openEdit(b)}
-                            title="Edit Breeding Record"
-                            aria-label="Edit Breeding Record"
+                            title="I-edit ang Record"
+                            aria-label="I-edit ang Record"
                           >
                             <Pencil size={15} />
                           </button>
@@ -924,8 +937,8 @@ export function BreedingPage() {
                             type="button"
                             className="breeding-action-btn delete"
                             onClick={() => setConfirmDelete(b)}
-                            title="Delete Breeding Record"
-                            aria-label="Delete Breeding Record"
+                            title="I-delete ang Record"
+                            aria-label="I-delete ang Record"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -946,13 +959,13 @@ export function BreedingPage() {
           <div style={{ padding: 24 }}>
             <EmptyState
               icon={<Icons.Heart size={32} />}
-              title="No breeding records found"
+              title="Wala pang breeding records."
               description={
                 searchQuery || fStatus !== 'All'
-                  ? 'No records match your filter criteria.'
-                  : 'Start tracking breeding by adding your first record.'
+                  ? 'Walang record na tumutugma sa iyong filter.'
+                  : 'Magsimulang mag-record sa pamamagitan ng pagdagdag ng unang record ng breeding.'
               }
-              actionLabel="Add Record"
+              actionLabel="Magdagdag ng Record"
               onAction={openAdd}
             />
           </div>
@@ -967,10 +980,10 @@ export function BreedingPage() {
                 <div className="breeding-card-header">
                   <div>
                     <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--color-text-primary, #0F172A)' }}>
-                      {female?.name || 'Unknown Female'}
+                      {female?.name || 'Hindi Tukoy na Babae'}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #64748B)', marginTop: 2 }}>
-                      {female?.tag_id || 'No Tag'} {female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species}` : ''}
+                      {female?.tag_id || 'Walang Tag'} {female?.breed ? `• ${female.breed}` : female?.species ? `• ${female.species === 'Goat' ? 'Kambing' : 'Tupa'}` : ''}
                     </div>
                   </div>
                   <div>
@@ -982,14 +995,14 @@ export function BreedingPage() {
                 <div className="breeding-card-body">
                   {/* Partner Sire */}
                   <div className="breeding-card-field">
-                    <span className="breeding-card-label">Partner (Sire)</span>
+                    <span className="breeding-card-label">Male / Lalaki</span>
                     <span className="breeding-card-value">
                       {male ? (
                         <span>
                           {male.name} <span style={{ fontSize: '12px', color: 'var(--color-text-secondary, #64748B)', fontWeight: 500 }}>• {male.tag_id} {male.breed ? `(${male.breed})` : ''}</span>
                         </span>
                       ) : (
-                        <span style={{ color: 'var(--color-text-muted, #94A3B8)', fontWeight: 400 }}>Unassigned</span>
+                        <span style={{ color: 'var(--color-text-muted, #94A3B8)', fontWeight: 400 }}>Walang nakatakda</span>
                       )}
                     </span>
                   </div>
@@ -1005,7 +1018,7 @@ export function BreedingPage() {
                     </div>
 
                     <div className="breeding-card-field">
-                      <span className="breeding-card-label">Expected Kidding</span>
+                      <span className="breeding-card-label">Expected Kidding Date</span>
                       {renderKiddingInfo(b.expected_kidding_date, b.status)}
                     </div>
                   </div>
@@ -1028,7 +1041,7 @@ export function BreedingPage() {
                       leftIcon={<Baby size={14} color="#FF6A00" />}
                       style={{ minHeight: 40 }}
                     >
-                      Offspring
+                      Supling
                     </Button>
                   )}
                   <Button
@@ -1038,7 +1051,7 @@ export function BreedingPage() {
                     leftIcon={<Pencil size={15} />}
                     style={{ minHeight: 40, border: '1px solid var(--color-border, #E2E8F0)' }}
                   >
-                    Edit
+                    I-edit
                   </Button>
                   <Button
                     variant="ghost"
@@ -1047,7 +1060,7 @@ export function BreedingPage() {
                     leftIcon={<Trash2 size={15} color="#DC2626" />}
                     style={{ minHeight: 40, border: '1px solid rgba(239, 68, 68, 0.2)', color: '#DC2626' }}
                   >
-                    Delete
+                    I-delete
                   </Button>
                 </div>
               </div>
@@ -1059,38 +1072,38 @@ export function BreedingPage() {
       {/* Breeding Record Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
         <ModalHeader
-          title={editing ? 'Edit Breeding Record' : 'Record Mating & Breeding'}
+          title={editing ? 'I-edit ang Record ng Breeding' : 'Magtala ng Mating at Breeding'}
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Female Selection (Only Ready Females Enabled) */}
             <FormField
-              label="Female Animal (Dam)"
+              label="Female / Babae"
               required
               error={errors.animal_id}
-              helperText={readyFemales.length === 0 ? 'No female animals currently meet the age and weight requirements for mating.' : undefined}
+              helperText={readyFemales.length === 0 ? 'Walang babaeng hayop na kasalukuyang pasok sa edad at timbang para sa mating.' : undefined}
             >
               <Select
                 value={form.animal_id}
                 onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Select eligible female (Dam)...' },
+                  { value: '', label: 'Pumili ng kwalipikadong babae...' },
                   // Ready Females
                   ...readyFemales.map((a) => {
                     const age = a.date_of_birth ? monthsSince(a.date_of_birth) : null;
                     return {
                       value: a.id,
-                      label: `[Ready] ${a.name} (${a.tag_id}) — Ready ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
+                      label: `[Handa] ${a.name} (${a.tag_id}) — Handa ${age ? `(${age} buwan, ${a.weight_kg ?? '?'} kg)` : ''}`,
                     };
                   }),
                   // Not Ready Females (Disabled)
                   ...notReadyFemales.map((a) => {
                     const assessment = femaleAssessments.get(a.id);
-                    const reason = assessment?.reasons[0] || 'Not Ready';
+                    const reason = assessment?.reasons[0] || 'Hindi Pa Handa';
                     return {
                       value: a.id,
-                      label: `[Not Ready] ${a.name} (${a.tag_id}) — [${reason}]`,
+                      label: `[Hindi Handa] ${a.name} (${a.tag_id}) — [${reason}]`,
                       disabled: true,
                     };
                   }),
@@ -1117,11 +1130,11 @@ export function BreedingPage() {
                       <ShieldAlert size={16} color="#DC2626" />
                     )}
                     <span style={{ fontSize: '13px', fontWeight: 700, color: selectedFemaleAssessment?.recommendation === 'Ready' ? '#2E7D32' : '#DC2626' }}>
-                      Dam Status: {selectedFemaleAssessment?.recommendation === 'Ready' ? 'Eligible for Mating' : 'Not Eligible for Mating'}
+                      Status ng Babae: {selectedFemaleAssessment?.recommendation === 'Ready' ? 'Kwalipikado sa Mating' : 'Hindi Kwalipikado sa Mating'}
                     </span>
                   </div>
                   <Badge variant={selectedFemaleAssessment?.recommendation === 'Ready' ? 'success' : 'danger'} size="sm">
-                    {selectedFemaleAssessment?.recommendation ?? 'Not Ready'}
+                    {selectedFemaleAssessment?.recommendation === 'Ready' ? 'Handa' : 'Hindi Pa Handa'}
                   </Badge>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)' }}>
@@ -1131,12 +1144,12 @@ export function BreedingPage() {
             )}
 
             {/* Partner Selection (Only Ready Males Enabled) */}
-            <FormField label="Partner (Sire - Optional)" error={errors.partner_id}>
+            <FormField label="Male / Lalaki (Opsyonal)" error={errors.partner_id}>
               <Select
                 value={form.partner_id}
                 onChange={(e) => setForm({ ...form, partner_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Select eligible male (Sire - Optional)...' },
+                  { value: '', label: 'Pumili ng lalaki (Sire - Opsyonal)...' },
                   // Ready Males
                   ...readyMales
                     .filter((a) => !selectedFemale || a.species === selectedFemale.species)
@@ -1144,7 +1157,7 @@ export function BreedingPage() {
                       const age = a.date_of_birth ? monthsSince(a.date_of_birth) : null;
                       return {
                         value: a.id,
-                        label: `[Ready] ${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'} ${age ? `(${age} mos, ${a.weight_kg ?? '?'} kg)` : ''}`,
+                        label: `[Handa] ${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'} ${age ? `(${age} buwan, ${a.weight_kg ?? '?'} kg)` : ''}`,
                       };
                     }),
                   // Not Ready Males (Disabled)
@@ -1152,10 +1165,10 @@ export function BreedingPage() {
                     .filter((a) => !selectedFemale || a.species === selectedFemale.species)
                     .map((a) => {
                       const assessment = maleAssessments.get(a.id);
-                      const reason = assessment?.reasons[0] || 'Not Ready';
+                      const reason = assessment?.reasons[0] || 'Hindi Pa Handa';
                       return {
                         value: a.id,
-                        label: `[Not Ready] ${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'} [${reason}]`,
+                        label: `[Hindi Handa] ${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'} [${reason}]`,
                         disabled: true,
                       };
                     }),
@@ -1182,11 +1195,11 @@ export function BreedingPage() {
                       <ShieldAlert size={16} color="#DC2626" />
                     )}
                     <span style={{ fontSize: '13px', fontWeight: 700, color: selectedMaleAssessment?.recommendation === 'Ready' ? '#2E7D32' : '#DC2626' }}>
-                      Sire Status: {selectedMaleAssessment?.recommendation === 'Ready' ? 'Eligible Breeding Sire' : 'Not Eligible for Service'}
+                      Status ng Lalaki: {selectedMaleAssessment?.recommendation === 'Ready' ? 'Kwalipikadong Barako' : 'Hindi Kwalipikado sa Mating'}
                     </span>
                   </div>
                   <Badge variant={selectedMaleAssessment?.recommendation === 'Ready' ? 'success' : 'danger'} size="sm">
-                    {selectedMaleAssessment?.recommendation ?? 'Not Ready'}
+                    {selectedMaleAssessment?.recommendation === 'Ready' ? 'Handa' : 'Hindi Pa Handa'}
                   </Badge>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)' }}>
@@ -1224,16 +1237,16 @@ export function BreedingPage() {
                 />
               </FormField>
 
-              <FormField label="Status">
+              <FormField label="Breeding Status">
                 <Select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
                   options={[
-                    { value: 'Planned', label: 'Planned' },
-                    { value: 'Pregnant', label: 'Pregnant' },
-                    { value: 'Kidded', label: 'Kidded / Delivered' },
-                    { value: 'Failed', label: 'Failed' },
-                    { value: 'Monitor', label: 'Monitor' },
+                    { value: 'Planned', label: 'Pending / Nakaplano' },
+                    { value: 'Pregnant', label: 'Pregnant / Buntis' },
+                    { value: 'Kidded', label: 'Completed / Nanganak na' },
+                    { value: 'Failed', label: 'Hindi Buntis / Failed' },
+                    { value: 'Monitor', label: 'Pending / Naghihintay' },
                   ]}
                 />
               </FormField>
@@ -1251,7 +1264,7 @@ export function BreedingPage() {
                   border: '1px solid rgba(46, 125, 50, 0.2)',
                 }}
               >
-                Expected kidding date:{' '}
+                Estimated na panganganak (Expected Kidding Date):{' '}
                 <span style={{ fontWeight: 800 }}>
                   {formatDate(
                     calculateKiddingDate(form.mating_date, farmData.settings?.gestation_days ?? 150)
@@ -1259,17 +1272,17 @@ export function BreedingPage() {
                 </span>
                 <br />
                 <span style={{ fontSize: '11px', opacity: 0.85 }}>
-                  Calculated using standard {farmData.settings?.gestation_days ?? 150}-day gestation period.
+                  Kinakalkula gamit ang karaniwang {farmData.settings?.gestation_days ?? 150}-araw na pagbubuntis.
                 </span>
               </div>
             )}
 
-            <FormField label="Notes / Observations">
+            <FormField label="Mga Tala / Obserbasyon">
               <textarea
                 className="form-textarea"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Breeding observations, pen number, mating behavior..."
+                placeholder="Obserbasyon sa mating, numero ng kulungan, gawi ng hayop..."
                 style={{ minHeight: 80 }}
               />
             </FormField>
@@ -1277,7 +1290,7 @@ export function BreedingPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            Cancel
+            I-cancel
           </Button>
           <Button
             variant="primary"
@@ -1285,7 +1298,7 @@ export function BreedingPage() {
             loading={saving}
             disabled={!editing && selectedFemaleAssessment?.recommendation !== 'Ready'}
           >
-            {editing ? 'Save Changes' : 'Confirm & Save Mating Record'}
+            {editing ? 'I-save ang mga Pagbabago' : 'I-save ang Record'}
           </Button>
         </ModalFooter>
       </Modal>
@@ -1293,7 +1306,7 @@ export function BreedingPage() {
       {/* Newborn Offspring Registration Modal */}
       <Modal open={offspringModalOpen} onClose={() => setOffspringModalOpen(false)} size="md">
         <ModalHeader
-          title={offspringMother ? `Register Newborn from ${offspringMother.name}` : 'Register Newborn Offspring'}
+          title={offspringMother ? `Magrehistro ng Supling mula kay ${offspringMother.name}` : 'Magrehistro ng Bagong Silang na Supling'}
           onClose={() => setOffspringModalOpen(false)}
         />
         <ModalBody>
@@ -1301,7 +1314,7 @@ export function BreedingPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                  Newborn Animal ID
+                  Animal ID ng Bagong Silang
                 </label>
                 <div
                   style={{
@@ -1318,7 +1331,7 @@ export function BreedingPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Tag size={16} color="#FF6A00" />
                     <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
-                      {offspringForm.tag_id || 'Generating...'}
+                      {offspringForm.tag_id || 'Bumubuo ng ID...'}
                     </span>
                   </div>
                   <span
@@ -1336,19 +1349,19 @@ export function BreedingPage() {
                     }}
                   >
                     <CheckCircle2 size={12} color="#10B981" />
-                    Auto-generated ID
+                    Awtomatikong ID
                   </span>
                 </div>
                 <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748B)', marginTop: -2 }}>
-                  Offspring ID is automatically generated by the system.
+                  Awtomatikong binubuo ng system ang ID ng supling.
                 </span>
               </div>
 
-              <FormField label="Offspring Name" required>
+              <FormField label="Pangalan ng Supling" required>
                 <Input
                   value={offspringForm.name}
                   onChange={(e) => setOffspringForm({ ...offspringForm, name: e.target.value })}
-                  placeholder="e.g. Leo, Bella Junior"
+                  placeholder="Hal. Leo, Bella Junior"
                 />
               </FormField>
             </div>
@@ -1359,8 +1372,8 @@ export function BreedingPage() {
                   value={offspringForm.species}
                   onChange={(e) => handleSpeciesChangeOffspring(e.target.value as Species)}
                   options={[
-                    { value: 'Goat', label: 'Goat' },
-                    { value: 'Sheep', label: 'Sheep' },
+                    { value: 'Goat', label: 'Goat / Kambing' },
+                    { value: 'Sheep', label: 'Sheep / Tupa' },
                   ]}
                 />
               </FormField>
@@ -1370,8 +1383,8 @@ export function BreedingPage() {
                   value={offspringForm.sex}
                   onChange={(e) => setOffspringForm({ ...offspringForm, sex: e.target.value as Sex })}
                   options={[
-                    { value: 'Female', label: 'Female (Doeling/Ewe)' },
-                    { value: 'Male', label: 'Male (Buckling/Ram)' },
+                    { value: 'Female', label: 'Female / Babae' },
+                    { value: 'Male', label: 'Male / Lalaki' },
                   ]}
                 />
               </FormField>
@@ -1386,7 +1399,7 @@ export function BreedingPage() {
                 />
               </FormField>
 
-              <FormField label="Birth Weight (kg)">
+              <FormField label="Birth Weight / Timbang (kg)">
                 <Input
                   type="number"
                   step="0.1"
@@ -1397,21 +1410,21 @@ export function BreedingPage() {
               </FormField>
             </div>
 
-            <FormField label="Pedigree / Notes">
+            <FormField label="Pedigree / Mga Tala">
               <Input
                 value={offspringForm.notes}
                 onChange={(e) => setOffspringForm({ ...offspringForm, notes: e.target.value })}
-                placeholder="Dam, Sire, birth notes..."
+                placeholder="Ina, Ama, tala sa kapanganakan..."
               />
             </FormField>
           </div>
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setOffspringModalOpen(false)}>
-            Cancel
+            I-cancel
           </Button>
           <Button variant="primary" onClick={handleSaveOffspring} loading={savingOffspring}>
-            Register Offspring
+            I-rehistro ang Supling
           </Button>
         </ModalFooter>
       </Modal>
@@ -1419,9 +1432,9 @@ export function BreedingPage() {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         open={Boolean(confirmDelete)}
-        title="Delete Breeding Record"
-        message="Are you sure you want to delete this breeding record? This action cannot be undone."
-        confirmLabel="Delete"
+        title="I-delete ang Record ng Breeding"
+        message="Sigurado ka bang nais mong i-delete ang record na ito ng breeding? Hindi na ito maibabalik."
+        confirmLabel="I-delete"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

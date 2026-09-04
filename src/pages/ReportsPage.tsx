@@ -7,22 +7,23 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 
-type ReportType = 'health' | 'breeding' | 'weight' | 'vaccination' | 'inventory' | 'feed' | 'milk' | 'performance';
+type ReportType = 'animal' | 'health' | 'breeding' | 'weight' | 'vaccination' | 'inventory' | 'feed' | 'milk' | 'performance';
 
 const REPORT_LABELS: Record<ReportType, string> = {
-  health: 'Animal Health Report',
+  animal: 'Animal Report',
+  health: 'Health Report',
   breeding: 'Breeding Report',
-  weight: 'Weight Growth Report',
   vaccination: 'Vaccination Report',
   inventory: 'Inventory Report',
+  performance: 'Farm Summary',
+  weight: 'Weight Growth Report',
   feed: 'Feed Report',
   milk: 'Milk Production Report',
-  performance: 'Farm Performance Report',
 };
 
 export function ReportsPage() {
   const farmData = useFarmData();
-  const [reportType, setReportType] = useState<ReportType>('health');
+  const [reportType, setReportType] = useState<ReportType>('animal');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
@@ -36,14 +37,27 @@ export function ReportsPage() {
   };
 
   const reportData = useMemo(() => {
-    const animalName = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Unknown';
+    const animalName = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Walang Pangalan';
 
     switch (reportType) {
+      case 'animal':
+        return activeAnimals
+          .filter((a) => !search || (a.name ?? '').toLowerCase().includes(search.toLowerCase()) || a.tag_id.toLowerCase().includes(search.toLowerCase()))
+          .map((a) => ({
+            tag_id: a.tag_id,
+            name: a.name || 'Walang Pangalan',
+            species: a.species === 'Goat' ? 'Kambing' : 'Tupa',
+            breed: a.breed || '—',
+            sex: a.sex === 'Male' ? 'Lalaki' : 'Babae',
+            health: a.health_status,
+            weight: a.weight_kg ? `${a.weight_kg} kg` : '—',
+            status: a.archived ? 'Archived' : 'Active / Kasalukuyan',
+          }));
       case 'health':
         return farmData.healthRecords
           .filter((r) => inDateRange(r.record_date))
           .filter((r) => !search || animalName(r.animal_id).toLowerCase().includes(search.toLowerCase()))
-          .map((r) => ({ date: r.record_date, animal: animalName(r.animal_id), temp: r.temperature, hr: r.heart_rate, risk: `${r.risk_level} (${r.risk_score})`, reasons: r.reasons }));
+          .map((r) => ({ date: r.record_date, animal: animalName(r.animal_id), temp: r.temperature, hr: r.heart_rate, risk: `${r.risk_level} (${r.risk_score})`, reasons: r.reasons || '—' }));
       case 'breeding':
         return farmData.breedingRecords
           .filter((r) => inDateRange(r.mating_date))
@@ -82,14 +96,14 @@ export function ReportsPage() {
         const overdueVacc = activeAnimals.filter((a) => a.vaccination_status === 'Overdue').length;
         const lowStock = farmData.inventory.filter((i) => inventoryStatus(i, farmData.settings?.expiry_warning_days ?? 15).status === 'Low Stock').length;
         return [
-          { metric: 'Total Animals', value: totalAnimals },
-          { metric: 'Healthy Animals', value: healthy },
-          { metric: 'At Risk Animals', value: atRisk },
-          { metric: 'Pregnant Animals', value: pregnant },
-          { metric: 'Average Weight (kg)', value: avgWeight },
-          { metric: 'Overdue Vaccinations', value: overdueVacc },
-          { metric: 'Low Stock Items', value: lowStock },
-          { metric: 'Total Inventory Items', value: farmData.inventory.length },
+          { metric: 'Kabuuang Hayop (Total Animals)', value: totalAnimals },
+          { metric: 'Malulusog na Hayop (Healthy)', value: healthy },
+          { metric: 'May Panganib sa Kalusugan (At Risk)', value: atRisk },
+          { metric: 'Buntis na Hayop (Pregnant)', value: pregnant },
+          { metric: 'Katamtamang Timbang / Average Weight (kg)', value: avgWeight },
+          { metric: 'Lampas sa Iskedyul ng Bakuna (Overdue)', value: overdueVacc },
+          { metric: 'Mababang Stock na Gamit (Low Stock)', value: lowStock },
+          { metric: 'Kabuuang Gamit sa Imbentaryo', value: farmData.inventory.length },
         ];
       }
       default:
@@ -121,8 +135,10 @@ export function ReportsPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Reports</h1>
-          <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>Generate and export farm reports</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Mga Ulat</h1>
+          <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
+            Pangkalahatang ulat at talaan ng bukid para sa pagsusuri at pag-export
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button
@@ -131,7 +147,7 @@ export function ReportsPage() {
             disabled={reportData.length === 0}
             leftIcon={<Download size={16} />}
           >
-            Export CSV
+            I-download (CSV)
           </Button>
           <Button
             variant="primary"
@@ -139,7 +155,7 @@ export function ReportsPage() {
             disabled={reportData.length === 0}
             leftIcon={<Printer size={16} />}
           >
-            Print
+            I-print
           </Button>
         </div>
       </div>
@@ -159,7 +175,7 @@ export function ReportsPage() {
           onToChange={setDateTo}
         />
         <FilterSearch
-          placeholder="Search records..."
+          placeholder="Maghanap ng record..."
           value={search}
           onChange={setSearch}
         />
@@ -169,24 +185,60 @@ export function ReportsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
           <div>
             <div style={{ fontWeight: 800, fontSize: 15 }}>{REPORT_LABELS[reportType]}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>{reportData.length} records</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>{reportData.length} talaan</div>
           </div>
           <FileBarChart size={20} color="var(--color-text-secondary, #475569)" />
         </div>
         {reportData.length === 0 ? (
           <EmptyState
             icon={<FileBarChart size={32} />}
-            title="No data for this report"
-            description="Try adjusting filters or add records."
+            title="Walang datos para sa ulat na ito"
+            description="Subukang baguhin ang mga filter o magdagdag ng mga bagong talaan."
           />
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))', color: 'var(--color-text-secondary, #475569)' }}>
-                  {headers.map((h) => (
-                    <th key={h} style={{ padding: '12px 16px', fontWeight: 600 }}>{h.charAt(0).toUpperCase() + h.slice(1)}</th>
-                  ))}
+                  {headers.map((h) => {
+                    const colMap: Record<string, string> = {
+                      tag_id: 'Animal ID',
+                      name: 'Pangalan',
+                      species: 'Species',
+                      breed: 'Breed',
+                      sex: 'Kasarian',
+                      health: 'Health Status',
+                      weight: 'Timbang',
+                      status: 'Status',
+                      date: 'Petsa',
+                      animal: 'Hayop',
+                      temp: 'Temperatura (°C)',
+                      hr: 'Heart Rate',
+                      risk: 'Risk Level',
+                      reasons: 'Dahilan',
+                      expected: 'Inaasahang Panganganak',
+                      notes: 'Mga Tala',
+                      change: 'Pagbabago',
+                      gain: 'Arawang Dagdag (kg)',
+                      vaccine: 'Pangalan ng Bakuna',
+                      nextDue: 'Susunod na Iskedyul',
+                      vet: 'Beterinaryo',
+                      category: 'Kategorya',
+                      qty: 'Dami',
+                      unit: 'Yunit',
+                      min: 'Min Stock',
+                      expiry: 'Expiry Date',
+                      type: 'Uri',
+                      cost: 'Halaga',
+                      yield: 'Dami ng Gatas (L)',
+                      metric: 'Sukat / Parameter',
+                      value: 'Bilang / Halaga',
+                    };
+                    const colName = colMap[h] || (h.charAt(0).toUpperCase() + h.slice(1));
+                    return (
+                      <th key={h} style={{ padding: '12px 16px', fontWeight: 600 }}>{colName}</th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>

@@ -21,11 +21,11 @@ export function ExpiryBadge({ expiryDate, size = 'sm' }: ExpiryBadgeProps) {
   if (diffDays < 0) {
     variant = 'danger';
     Icon = AlertOctagon;
-    label = `Expired (${Math.abs(diffDays)}d ago)`;
+    label = `Expired na (${Math.abs(diffDays)}d ago)`;
   } else if (diffDays <= 30) {
     variant = 'warning';
     Icon = AlertTriangle;
-    label = `Expires in ${diffDays}d`;
+    label = `Malapit nang Mag-expire (${diffDays}d)`;
   }
 
   return (

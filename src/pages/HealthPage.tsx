@@ -68,14 +68,14 @@ interface SymptomChip {
 }
 
 const AVAILABLE_SYMPTOMS: SymptomChip[] = [
-  { id: 'cough', label: 'Coughing', description: 'Persistent or frequent cough' },
-  { id: 'nasal_discharge', label: 'Nasal Discharge', description: 'Mucus or watery discharge from nose' },
-  { id: 'diarrhea', label: 'Diarrhea', description: 'Loose or watery feces / scours' },
-  { id: 'lameness', label: 'Limping / Lameness', description: 'Unsteady gait or foot pain' },
-  { id: 'pale_membrane', label: 'Pale Eyes / Gums', description: 'Possible anemia or parasite load' },
-  { id: 'bloat', label: 'Bloated Abdomen', description: 'Swollen left flank / gas build-up' },
-  { id: 'rough_coat', label: 'Rough / Scruffy Coat', description: 'Dull, patchy, or unkempt fleece' },
-  { id: 'droopy_head', label: 'Droopy Head / Isolated', description: 'Separated from herd, lethargic' },
+  { id: 'cough', label: 'Ubo / Coughing', description: 'Patuloy o madalas na pag-ubo' },
+  { id: 'nasal_discharge', label: 'Sipon / Nasal Discharge', description: 'May sipon o tumutulong likido sa ilong' },
+  { id: 'diarrhea', label: 'Pagtatae / Diarrhea', description: 'Basang dumi o scours' },
+  { id: 'lameness', label: 'Pilay / Limping', description: 'Hirap maglakad o masakit ang paa' },
+  { id: 'pale_membrane', label: 'Maputlang Mata / Gums', description: 'Posibleng anemia o parasite load' },
+  { id: 'bloat', label: 'Bloated / Kabag', description: 'Lobo o namamagang tiyan' },
+  { id: 'rough_coat', label: 'Magaspang na Balahibo', description: 'Matamlay o magaspang na balahibo' },
+  { id: 'droopy_head', label: 'Nakalaylay ang Ulo / Nakabukod', description: 'Nahiwalay sa kawan, matamlay' },
 ];
 
 
@@ -159,48 +159,48 @@ export function getRecordRiskMeta(r: HealthRecord) {
   if (score >= 85 || level === 'critical') {
     return {
       key: 'critical',
-      label: 'Critical Risk',
+      label: 'Kritikal na Risk',
       score,
       badgeClass: 'risk-badge-critical',
       cardClass: 'record-card-critical',
       Icon: ShieldAlert,
       color: '#EF4444',
-      nextCheck: 'Immediate / Within 12 hours',
+      nextCheck: 'Agad-agad / Sa loob ng 12 oras',
     };
   }
   if (score >= 60 || level === 'high') {
     return {
       key: 'high',
-      label: 'High Risk',
+      label: 'Mataas ang Risk',
       score,
       badgeClass: 'risk-badge-high',
       cardClass: 'record-card-high',
       Icon: AlertTriangle,
       color: '#F97316',
-      nextCheck: 'Within 24 hours',
+      nextCheck: 'Sa loob ng 24 oras',
     };
   }
   if (score >= 35 || level === 'moderate' || level === 'medium') {
     return {
       key: 'moderate',
-      label: 'Moderate Risk',
+      label: 'Bantayan / Observation',
       score,
       badgeClass: 'risk-badge-mod',
       cardClass: 'record-card-mod',
       Icon: AlertTriangle,
       color: '#F59E0B',
-      nextCheck: 'Within 48 hours',
+      nextCheck: 'Sa loob ng 48 oras',
     };
   }
   return {
     key: 'low',
-    label: 'Low Risk',
+    label: 'Maayos / Low Risk',
     score,
     badgeClass: 'risk-badge-low',
     cardClass: 'record-card-low',
     Icon: CheckCircle2,
     color: '#16A34A',
-    nextCheck: 'Within 7 days',
+    nextCheck: 'Sa loob ng 7 araw',
   };
 }
 
@@ -681,7 +681,7 @@ export function HealthPage() {
           <div>
             <h1 className="health-page-title">Health Monitoring</h1>
             <p className="health-page-subtitle">
-              Monitor the health and early illness risks of your goats and sheep.
+              Subaybayan ang kalagayan ng bawat kambing at tupa.
             </p>
           </div>
         </div>
@@ -691,7 +691,7 @@ export function HealthPage() {
           onClick={() => navigate('/camera-screening')}
         >
           <Camera size={18} />
-          <span>Open AI Health Monitoring</span>
+          <span>Buksan ang AI Health Scanner</span>
         </button>
       </div>
 
@@ -700,11 +700,11 @@ export function HealthPage() {
         <div className="hero-banner-content">
           <div className="hero-badge">
             <Camera size={14} color="#FF7A18" />
-            <span>AI Health Monitoring</span>
+            <span>AI Health Scanner</span>
           </div>
-          <h2 className="hero-banner-title">Automatic AI Health Monitoring</h2>
+          <h2 className="hero-banner-title">Awtomatikong AI Health Monitoring</h2>
           <p className="hero-banner-desc">
-            Point your camera at a goat or sheep. The system automatically detects the animal, analyzes visual indicators, retrieves herd medical records, predicts early health risk, and saves findings immediately with zero manual typing.
+            Itutok ang camera sa kambing o tupa. Awtomatikong kikilalanin ng system ang hayop, susuriin ang visual indicators, titingnan ang records sa bukid, at magbibigay ng paunang pagsusuri nang mabilis at madali.
           </p>
           <div className="hero-banner-actions">
             <button
@@ -721,7 +721,7 @@ export function HealthPage() {
               onClick={() => navigate('/camera-screening')}
             >
               <Camera size={16} />
-              <span>Open AI Health Monitoring (Camera)</span>
+              <span>Buksan ang AI Health Scanner</span>
             </button>
             <button
               className="btn btn-outline"
@@ -737,7 +737,7 @@ export function HealthPage() {
               onClick={() => openPredictionModal()}
             >
               <Stethoscope size={16} />
-              <span>Veterinary Examination (Optional)</span>
+              <span>Manual Health Check (Opsyonal)</span>
             </button>
           </div>
         </div>
@@ -748,41 +748,41 @@ export function HealthPage() {
         {/* Total Animals Card */}
         <div className="health-stat-card total-card">
           <div className="stat-card-header">
-            <span className="stat-label">Total Animals</span>
+            <span className="stat-label">Kabuuang Hayop</span>
             <PawPrint size={20} color="var(--text-secondary)" />
           </div>
           <div className="stat-value">{stats.total}</div>
-          <div className="stat-subtext">Active goats and sheep</div>
+          <div className="stat-subtext">Aktibong mga kambing at tupa</div>
         </div>
 
         {/* High Risk Card */}
         <div className="health-stat-card high-risk-card">
           <div className="stat-card-header">
-            <span className="stat-label high-risk-label">High Risk</span>
+            <span className="stat-label high-risk-label">Mataas ang Risk</span>
             <ShieldAlert size={20} color="#EF4444" />
           </div>
           <div className="stat-value high-risk-value">{stats.highRisk}</div>
-          <div className="stat-subtext high-risk-subtext">Requires veterinary attention</div>
+          <div className="stat-subtext high-risk-subtext">Nangangailangan ng atensyon ng beterinaryo</div>
         </div>
 
         {/* Moderate Risk Card */}
         <div className="health-stat-card mod-risk-card">
           <div className="stat-card-header">
-            <span className="stat-label mod-risk-label">Moderate Risk</span>
+            <span className="stat-label mod-risk-label">Bantayan</span>
             <AlertTriangle size={20} color="#F59E0B" />
           </div>
           <div className="stat-value mod-risk-value">{stats.modRisk}</div>
-          <div className="stat-subtext mod-risk-subtext">Requires monitoring</div>
+          <div className="stat-subtext mod-risk-subtext">Kailangang obserbahan sa bukid</div>
         </div>
 
         {/* Low Risk Card */}
         <div className="health-stat-card low-risk-card">
           <div className="stat-card-header">
-            <span className="stat-label low-risk-label">Low Risk</span>
+            <span className="stat-label low-risk-label">Maayos / Healthy</span>
             <CheckCircle2 size={20} color="#16A34A" />
           </div>
           <div className="stat-value low-risk-value">{stats.lowRisk}</div>
-          <div className="stat-subtext low-risk-subtext">No significant health concerns</div>
+          <div className="stat-subtext low-risk-subtext">Walang nakitang problema sa kalusugan</div>
         </div>
       </div>
 
@@ -791,10 +791,10 @@ export function HealthPage() {
         <div className="section-header">
           <div className="section-title-group">
             <ShieldAlert size={20} color="#EF4444" />
-            <h2 className="section-title">Animals Requiring Immediate Attention</h2>
+            <h2 className="section-title">Mga Hayop na Nangangailangan ng Agarang Atensyon</h2>
           </div>
           <span className="badge badge-critical" style={{ fontSize: 12, padding: '4px 10px', borderRadius: 20 }}>
-            {priorityAnimals.length} Flagged
+            {priorityAnimals.length} May Paalala
           </span>
         </div>
 
@@ -803,10 +803,10 @@ export function HealthPage() {
             <CheckCircle2 size={36} color="#16A34A" />
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>
-                All animals are currently within safe parameters
+                Lahat ng hayop ay nasa maayos na kalagayan
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
-                No active critical health alerts or significant risk jumps detected.
+                Walang aktibong kritikal na alerto o biglaang pagtaas ng risk sa bukid.
               </div>
             </div>
           </div>
@@ -828,10 +828,10 @@ export function HealthPage() {
 
                     <div className="risk-badge-group">
                       <span className={`risk-pill ${isHigh ? 'risk-pill-high' : 'risk-pill-mod'}`}>
-                        {item.riskLevel} ({item.riskScore}%)
+                        {item.riskLevel === 'High' ? 'Mataas ang Risk' : 'Bantayan'} ({item.riskScore}%)
                       </span>
                       {item.delta >= 20 && (
-                        <span className="jump-badge">+{item.delta}% Jump</span>
+                        <span className="jump-badge">+{item.delta}% Pagtaas</span>
                       )}
                     </div>
                   </div>
@@ -840,19 +840,19 @@ export function HealthPage() {
                   <div className="vitals-row">
                     <div className="vital-item">
                       <Thermometer size={13} color="var(--text-secondary)" />
-                      <span>Temp: <strong>{item.temperature ? `${item.temperature}°C` : 'Not recorded'}</strong></span>
+                      <span>Temp: <strong>{item.temperature ? `${item.temperature}°C` : 'Hindi sinukat'}</strong></span>
                     </div>
                     <div className="vital-item">
                       <Activity size={13} color="var(--text-secondary)" />
-                      <span>Heart: <strong>{item.heartRate ? `${item.heartRate} bpm` : 'Not recorded'}</strong></span>
+                      <span>Heart: <strong>{item.heartRate ? `${item.heartRate} bpm` : 'Hindi sinukat'}</strong></span>
                     </div>
                     <div className="vital-item">
                       <PawPrint size={13} color="var(--text-secondary)" />
-                      <span>Weight: <strong>{item.weight ? `${item.weight} kg` : 'Not recorded'}</strong></span>
+                      <span>Weight: <strong>{item.weight ? `${item.weight} kg` : 'Hindi nakatala'}</strong></span>
                     </div>
                     <div className="vital-item">
                       <Calendar size={13} color="var(--text-secondary)" />
-                      <span>Last Check: <strong>{item.lastCheck ? formatDate(item.lastCheck) : 'Not recorded'}</strong></span>
+                      <span>Huling Check: <strong>{item.lastCheck ? formatDate(item.lastCheck) : 'Wala pa'}</strong></span>
                     </div>
                   </div>
 
@@ -872,7 +872,7 @@ export function HealthPage() {
                       onClick={() => navigate('/camera-screening?animalId=' + item.animal.id)}
                     >
                       <Camera size={14} />
-                      <span>Point & Scan with AI</span>
+                      <span>I-scan gamit ang AI</span>
                     </button>
                   </div>
                 </div>
@@ -975,7 +975,7 @@ export function HealthPage() {
 
       {/* ── 6. QUICK ACTIONS SECTION ── */}
       <div className="quick-actions-section">
-        <h2 className="section-title" style={{ marginBottom: 14 }}>Quick Actions</h2>
+        <h2 className="section-title" style={{ marginBottom: 14 }}>Mabilis na Aksyon</h2>
         <div className="quick-actions-grid">
           {/* Card 1: AI Health Scanner */}
           <div className="action-card" onClick={() => navigate('/camera-screening')}>
@@ -983,7 +983,7 @@ export function HealthPage() {
               <Camera size={22} color="#8B5CF6" />
             </div>
             <div className="action-card-title">AI Health Scanner</div>
-            <div className="action-card-desc">Visual screening & symptom detection via camera</div>
+            <div className="action-card-desc">Visual screening at pagsusuri gamit ang camera</div>
             <div className="action-card-arrow">
               <ArrowUpRight size={16} />
             </div>
@@ -994,8 +994,8 @@ export function HealthPage() {
             <div className="action-card-icon icon-orange">
               <Stethoscope size={22} color="#FF7A18" />
             </div>
-            <div className="action-card-title">Record Health Check</div>
-            <div className="action-card-desc">Log temperature, vitals, and physical observations</div>
+            <div className="action-card-title">Magtala ng Health Check</div>
+            <div className="action-card-desc">Itala ang temperatura, vitals, at pisikal na obserbasyon</div>
             <div className="action-card-arrow">
               <ArrowUpRight size={16} />
             </div>
@@ -1012,8 +1012,8 @@ export function HealthPage() {
             <div className="action-card-icon icon-blue">
               <ClipboardList size={22} color="#3B82F6" />
             </div>
-            <div className="action-card-title">Health History</div>
-            <div className="action-card-desc">View all past health assessments and clinical logs</div>
+            <div className="action-card-title">Kasaysayan ng Kalusugan</div>
+            <div className="action-card-desc">Tingnan ang lahat ng nakaraang health records</div>
             <div className="action-card-arrow">
               <ArrowUpRight size={16} />
             </div>
@@ -1024,8 +1024,8 @@ export function HealthPage() {
             <div className="action-card-icon icon-green">
               <FileBarChart size={22} color="#10B981" />
             </div>
-            <div className="action-card-title">Health Reports</div>
-            <div className="action-card-desc">Generate diagnostic summaries and clinical export</div>
+            <div className="action-card-title">Mga Ulat sa Kalusugan</div>
+            <div className="action-card-desc">Bumuo ng diagnostic summaries at clinical export</div>
             <div className="action-card-arrow">
               <ArrowUpRight size={16} />
             </div>
@@ -1038,10 +1038,10 @@ export function HealthPage() {
         <div className="history-section-header">
           <div className="history-title-group">
             <Stethoscope size={20} color="#FF7A18" />
-            <h2 className="section-title">Health History & Assessment Logs</h2>
+            <h2 className="section-title">Kasaysayan at Talaan ng Kalusugan</h2>
           </div>
           <span className="history-count-badge">
-            {filteredRecords.length} {filteredRecords.length === 1 ? 'RECORD FOUND' : 'RECORDS FOUND'}
+            {filteredRecords.length} {filteredRecords.length === 1 ? 'RECORD NA NAKITA' : 'MGA RECORD NA NAKITA'}
           </span>
         </div>
 
@@ -1052,7 +1052,7 @@ export function HealthPage() {
             <input
               type="text"
               className="input search-input"
-              placeholder="Search by animal name, tag ID, or symptoms..."
+              placeholder="Maghanap ng animal, ID, breed, o sintomas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -1064,11 +1064,11 @@ export function HealthPage() {
               value={fRisk}
               onChange={(e) => setFRisk(e.target.value)}
             >
-              <option value="All">All Risk Levels</option>
-              <option value="critical">Critical Risk</option>
-              <option value="high">High Risk</option>
-              <option value="moderate">Moderate Risk</option>
-              <option value="low">Low Risk</option>
+              <option value="All">Lahat ng Risk Level</option>
+              <option value="critical">Kritikal na Risk</option>
+              <option value="high">Mataas ang Risk</option>
+              <option value="moderate">Bantayan</option>
+              <option value="low">Maayos / Mababang Risk</option>
             </select>
 
             <select
@@ -1076,7 +1076,7 @@ export function HealthPage() {
               value={fAnimal}
               onChange={(e) => setFAnimal(e.target.value)}
             >
-              <option value="All">All Animals</option>
+              <option value="All">Lahat ng Hayop</option>
               {activeAnimals.map((a) => (
                 <option key={a.id} value={a.id}>
                   [{a.species || 'Goat'}] {a.name} ({a.tag_id})
@@ -1091,10 +1091,10 @@ export function HealthPage() {
           <div className="records-empty-state">
             <HeartPulse size={40} color="var(--border)" style={{ margin: '0 auto 12px' }} />
             <p style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--text)' }}>
-              No health records match your filter criteria.
+              Wala pang health records na tumutugma sa filter.
             </p>
             <p style={{ fontSize: 13, marginTop: 4, color: 'var(--text-secondary)' }}>
-              Click "Run Early Illness Prediction" to create a new health assessment.
+              Mag-scan o magtala ng bagong health assessment para makita ang talaan dito.
             </p>
           </div>
         ) : (
@@ -1198,7 +1198,7 @@ export function HealthPage() {
         size="lg"
       >
         <ModalHeader
-          title="Veterinary Clinical Examination (Optional — Authorized Vets)"
+          title="Manual Health Check (Para sa Beterinaryo o Farm Staff)"
           onClose={() => {
             setModalOpen(false);
             stopCameraStream();
@@ -1221,13 +1221,13 @@ export function HealthPage() {
           }}>
             <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
-              <strong>Optional Veterinary Workflow:</strong> This clinical entry form is reserved for licensed veterinarians and sick-bay evaluations. Farmers should use the automated <strong>AI Health Monitoring</strong> point-and-scan camera workflow for regular herd screening.
+              <strong>Opsyonal na Health Form:</strong> Ang form na ito ay para sa manual na pagsusuri ng beterinaryo o farm staff. Para sa mabilisang herd screening gamit ang camera, gamitin ang <strong>AI Health Scanner</strong>.
             </div>
           </div>
           {/* STEP 1: Animal Selector */}
           <div>
             <label className="modal-step-label">
-              1. Select Animal to Assess *
+              1. Pumili ng Hayop *
             </label>
             <select
               className="input modal-animal-select"
@@ -1236,7 +1236,7 @@ export function HealthPage() {
             >
               {activeAnimals.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.species || 'Goat'}: {a.name} ({a.tag_id}) — Status: {a.health_status}
+                  {a.species === 'Sheep' ? 'Tupa' : 'Kambing'}: {a.name} ({a.tag_id}) — Health: {a.health_status}
                 </option>
               ))}
             </select>
@@ -1247,13 +1247,13 @@ export function HealthPage() {
             <div className="modal-context-card">
               <div className="context-card-title">
                 <Brain size={15} />
-                <span>Automated Database Context:</span>
+                <span>Impormasyon Mula sa Database:</span>
               </div>
               <div className="context-grid">
-                <div>Age: <strong>{currentPrediction.contextSummary.ageMonths} months</strong></div>
-                <div>Weight: <strong>{selectedAnimal?.weight_kg ? `${selectedAnimal.weight_kg} kg` : 'Not recorded'}</strong> ({currentPrediction.contextSummary.weightTrend})</div>
-                <div>Vaccination: <strong>{currentPrediction.contextSummary.vaccinationStatus}</strong></div>
-                <div>Past Risk: <strong>{currentPrediction.previousRiskScore !== null ? `${currentPrediction.previousRiskScore}%` : 'New entry'}</strong></div>
+                <div>Edad: <strong>{currentPrediction.contextSummary.ageMonths} buwan</strong></div>
+                <div>Timbang: <strong>{selectedAnimal?.weight_kg ? `${selectedAnimal.weight_kg} kg` : 'Hindi nakatala'}</strong> ({currentPrediction.contextSummary.weightTrend})</div>
+                <div>Bakuna: <strong>{currentPrediction.contextSummary.vaccinationStatus}</strong></div>
+                <div>Nakaraang Risk: <strong>{currentPrediction.previousRiskScore !== null ? `${currentPrediction.previousRiskScore}%` : 'Bagong tala'}</strong></div>
               </div>
             </div>
           )}
@@ -1261,19 +1261,19 @@ export function HealthPage() {
           {/* STEP 3: Farmer Observations */}
           <div className="modal-observations-card">
             <div className="modal-step-label" style={{ marginBottom: 12 }}>
-              2. Clinical Observations (Optional):
+              2. Obserbasyon sa Kalusugan (Opsyonal):
             </div>
 
             {/* Temperature with quick presets */}
             <div style={{ marginBottom: 16 }}>
               <label className="obs-field-label">
-                Body Temperature (°C):
+                Temperatura ng Katawan (°C):
               </label>
               <div className="temp-presets-row">
                 <input
                   type="number"
                   step="0.1"
-                  placeholder="e.g. 39.2"
+                  placeholder="hal. 39.2"
                   className="input temp-input"
                   value={obsTemp}
                   onChange={(e) => setObsTemp(e.target.value)}
@@ -1292,7 +1292,7 @@ export function HealthPage() {
                   style={{ fontSize: 12, borderRadius: 8 }}
                   onClick={() => setObsTemp(obsTemp === '40.2' ? '' : '40.2')}
                 >
-                  Warm (40.2°C)
+                  Medyo Mainit (40.2°C)
                 </button>
                 <button
                   type="button"
@@ -1300,7 +1300,7 @@ export function HealthPage() {
                   style={{ fontSize: 12, borderRadius: 8 }}
                   onClick={() => setObsTemp(obsTemp === '41.0' ? '' : '41.0')}
                 >
-                  Fever (41.0°C)
+                  Lagnat (41.0°C)
                 </button>
               </div>
             </div>
@@ -1308,7 +1308,7 @@ export function HealthPage() {
             {/* Appetite Buttons */}
             <div style={{ marginBottom: 16 }}>
               <label className="obs-field-label">
-                Appetite:
+                Gana sa Pagkain (Appetite):
               </label>
               <div className="chip-buttons-row">
                 {(['Normal', 'Reduced', 'None'] as const).map((mode) => (
@@ -1332,7 +1332,7 @@ export function HealthPage() {
                     }}
                     onClick={() => setObsAppetite(obsAppetite === mode ? null : mode)}
                   >
-                    {mode === 'Normal' ? 'Normal' : mode === 'Reduced' ? 'Reduced Appetite' : 'None / Not Eating'}
+                    {mode === 'Normal' ? 'Normal / Magana' : mode === 'Reduced' ? 'Mahina ang Gana' : 'Walang Gana / Ayaw Kumain'}
                   </button>
                 ))}
               </div>
@@ -1341,7 +1341,7 @@ export function HealthPage() {
             {/* Activity Level Buttons */}
             <div style={{ marginBottom: 16 }}>
               <label className="obs-field-label">
-                Activity Level:
+                Lebel ng Sigla (Activity):
               </label>
               <div className="chip-buttons-row">
                 {(['Normal', 'Low', 'Lethargic'] as const).map((mode) => (
@@ -1365,7 +1365,7 @@ export function HealthPage() {
                     }}
                     onClick={() => setObsActivity(obsActivity === mode ? null : mode)}
                   >
-                    {mode === 'Normal' ? 'Active / Normal' : mode === 'Low' ? 'Sluggish / Low' : 'Lethargic / Isolated'}
+                    {mode === 'Normal' ? 'Aktibo / Normal' : mode === 'Low' ? 'Matamlay / Mababa' : 'Lethargic / Nakabukod'}
                   </button>
                 ))}
               </div>
@@ -1374,7 +1374,7 @@ export function HealthPage() {
             {/* Visible Symptoms Chips */}
             <div>
               <label className="obs-field-label">
-                Visible Symptoms (Tap to toggle):
+                Mga Nakikitang Sintomas (Pindutin para piliin):
               </label>
               <div className="symptoms-chips-wrap">
                 {AVAILABLE_SYMPTOMS.map((s) => {
@@ -1400,7 +1400,7 @@ export function HealthPage() {
             <div className="camera-header-row">
               <div className="camera-header-title">
                 <Camera size={16} color="#8B5CF6" />
-                <span>3. Visual Health Scanner (Camera ML - Optional):</span>
+                <span>3. Visual Health Scanner (Camera ML - Opsyonal):</span>
               </div>
               {cameraResult && (
                 <button
@@ -1409,7 +1409,7 @@ export function HealthPage() {
                   style={{ fontSize: 11, color: '#EF4444' }}
                   onClick={() => setCameraResult(null)}
                 >
-                  Clear Scan
+                  I-clear ang Scan
                 </button>
               )}
             </div>
@@ -1424,7 +1424,7 @@ export function HealthPage() {
                   onClick={startCamera}
                 >
                   <Camera size={14} />
-                  <span>Start Live Camera</span>
+                  <span>Simulan ang Live Camera</span>
                 </button>
                 <button
                   type="button"
@@ -1433,7 +1433,7 @@ export function HealthPage() {
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload size={14} />
-                  <span>Upload Photo</span>
+                  <span>Mag-upload ng Litrato</span>
                 </button>
                 <input
                   ref={fileInputRef}
@@ -1464,7 +1464,7 @@ export function HealthPage() {
                     onClick={captureAndScanCamera}
                     disabled={cameraScanning}
                   >
-                    Capture & Screen Now
+                    Kumuha at I-scan Ngayon
                   </button>
                   <button
                     type="button"
@@ -1472,7 +1472,7 @@ export function HealthPage() {
                     style={{ borderRadius: 8 }}
                     onClick={stopCameraStream}
                   >
-                    Cancel
+                    I-cancel
                   </button>
                 </div>
               </div>
@@ -1480,7 +1480,7 @@ export function HealthPage() {
 
             {cameraScanning && !cameraActive && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, color: '#8B5CF6', fontSize: 13, fontWeight: 700 }}>
-                <RefreshCw size={16} className="animate-spin" /> Analyzing image with computer vision...
+                <RefreshCw size={16} className="animate-spin" /> Sinusuri ang imahe gamit ang computer vision...
               </div>
             )}
 
@@ -1495,8 +1495,8 @@ export function HealthPage() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: cameraResult.goatDetected ? '#7C3AED' : '#EF4444' }}>
                     {cameraResult.goatDetected
-                      ? `${cameraResult.species === 'sheep' ? 'Sheep' : 'Goat'} detected (${Math.round(cameraResult.goatDetectionConfidence * 100)}% match)`
-                      : 'This is not a goat or sheep'}
+                      ? `${cameraResult.species === 'sheep' ? 'Tupa' : 'Kambing'} detected (${Math.round(cameraResult.goatDetectionConfidence * 100)}% match)`
+                      : 'Hindi ito kambing o tupa'}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                     Visual Risk: {cameraResult.riskLevelLabel} · Confidence: {Math.round(cameraResult.confidence * 100)}%
@@ -1515,10 +1515,10 @@ export function HealthPage() {
                   <HelpCircle size={24} color="#D97706" style={{ flexShrink: 0 }} />
                   <div>
                     <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#92400E' }}>
-                      Insufficient Evidence — Rescan or perform a health check
+                      Kulang ang Datos — Mag-rescan o maglagay ng health check
                     </h4>
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: '#78350F' }}>
-                      Please provide at least one clinical parameter (temperature, appetite, activity) or perform a camera scan to generate a prediction.
+                      Mangyaring maglagay ng kahit isang clinical parameter (temperatura, gana, sigla) o magsagawa ng camera scan.
                     </p>
                   </div>
                 </div>
@@ -1527,7 +1527,7 @@ export function HealthPage() {
                   <div className="result-header-row">
                     <div>
                       <span className="result-header-label">
-                        AI Early Illness Prediction Result
+                        Resulta ng AI Health Screening
                       </span>
                       <div className="result-score-line">
                         <span className={`result-score-text score-${currentPrediction.riskLevel.toLowerCase().replace(' ', '-')}`}>
@@ -1548,7 +1548,7 @@ export function HealthPage() {
                   {currentPrediction.possibleConcerns.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                        Possible Health Concerns:
+                        Posibleng Health Concern:
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {currentPrediction.possibleConcerns.map((c, i) => (
@@ -1567,7 +1567,7 @@ export function HealthPage() {
                   {currentPrediction.detectedIndicators.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                        Detected Indicators:
+                        Mga Nakitang Indikasyon:
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {currentPrediction.detectedIndicators.map((ind, i) => (
@@ -1585,7 +1585,7 @@ export function HealthPage() {
                   {/* Recommendations */}
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
-                      Recommended Next Steps:
+                      Rekomendasyon / Susunod na Hakbang:
                     </div>
                     <ul className="rec-list">
                       {currentPrediction.recommendations.map((rec, i) => (
@@ -1595,7 +1595,7 @@ export function HealthPage() {
                   </div>
 
                   <div className="disclaimer-text">
-                    Disclaimer: {currentPrediction.disclaimer}
+                    Paunawa: Ang resulta ng AI ay para lamang sa maagang pag-monitor at decision support, hindi kumpirmadong diagnosis ng lisensyadong beterinaryo.
                   </div>
                 </div>
               )}
@@ -1612,7 +1612,7 @@ export function HealthPage() {
                 stopCameraStream();
               }}
             >
-              Cancel
+              I-cancel
             </button>
             <button
               type="button"
@@ -1621,7 +1621,7 @@ export function HealthPage() {
               onClick={handleSavePrediction}
               disabled={saving || !currentPrediction || currentPrediction.status === 'INSUFFICIENT_EVIDENCE'}
             >
-              {saving ? 'Saving...' : 'Save Prediction to Health History'}
+              {saving ? 'Inililigtas...' : 'I-save ang Record sa Health History'}
             </button>
           </div>
         </div>
@@ -1639,7 +1639,7 @@ export function HealthPage() {
         size="lg"
       >
         <ModalHeader
-          title="Health Assessment Log Details"
+          title="Mga Detalye ng Health Record"
           onClose={() => {
             setDetailModalOpen(false);
             setSelectedRecordForDetail(null);
@@ -1659,23 +1659,23 @@ export function HealthPage() {
                 <div className="detail-card">
                   <div className="detail-card-head">
                     <PawPrint size={16} color="var(--primary)" />
-                    <span>Animal Information</span>
+                    <span>Impormasyon ng Hayop</span>
                   </div>
                   <div className="detail-grid-2x2">
                     <div className="detail-field">
-                      <span className="detail-field-lbl">Animal Name</span>
-                      <span className="detail-field-val font-bold">{an?.name || 'Unknown Animal'}</span>
+                      <span className="detail-field-lbl">Pangalan ng Hayop</span>
+                      <span className="detail-field-val font-bold">{an?.name || 'Walang Pangalan'}</span>
                     </div>
                     <div className="detail-field">
                       <span className="detail-field-lbl">Tag ID</span>
                       <span className="detail-tag-badge">{an?.tag_id || 'N/A'}</span>
                     </div>
                     <div className="detail-field">
-                      <span className="detail-field-lbl">Species & Breed</span>
-                      <span className="detail-field-val">{an?.species || 'Goat'} • {an?.breed || 'Standard'}</span>
+                      <span className="detail-field-lbl">Species at Lahi</span>
+                      <span className="detail-field-val">{an?.species === 'Sheep' ? 'Tupa' : 'Kambing'} • {an?.breed || 'Standard'}</span>
                     </div>
                     <div className="detail-field">
-                      <span className="detail-field-lbl">Date Recorded</span>
+                      <span className="detail-field-lbl">Petsa ng Pagtala</span>
                       <span className="detail-field-val">{formatDate(r.record_date)}</span>
                     </div>
                   </div>
@@ -1685,7 +1685,7 @@ export function HealthPage() {
                 <div className="detail-card">
                   <div className="detail-card-head">
                     <Activity size={16} color="var(--primary)" />
-                    <span>Health Assessment & Diagnosis</span>
+                    <span>Pagsusuri sa Kalusugan</span>
                   </div>
                   <div className="detail-assessment-banner">
                     <span className={`health-risk-badge ${riskMeta.badgeClass} detail-lg-badge`}>
@@ -1693,7 +1693,7 @@ export function HealthPage() {
                       <span>{riskMeta.label} ({riskMeta.score}%)</span>
                     </span>
                     <div className="detail-assessment-condition">
-                      {r.detected_conditions || (riskMeta.key === 'low' ? 'Normal Clinical Appearance' : 'Health Alert Flagged')}
+                      {r.detected_conditions || (riskMeta.key === 'low' ? 'Maayos ang Kalagayan' : 'May Paalala sa Kalusugan')}
                     </div>
                   </div>
                 </div>
@@ -1702,7 +1702,7 @@ export function HealthPage() {
                 <div className="detail-card">
                   <div className="detail-card-head">
                     <Stethoscope size={16} color="var(--primary)" />
-                    <span>Detected Factors & Clinical Observations</span>
+                    <span>Mga Nakitang Indikasyon at Obserbasyon</span>
                   </div>
 
                   {/* Vitals summary */}
@@ -1721,12 +1721,12 @@ export function HealthPage() {
                     )}
                     {r.appetite && (
                       <span className={`detail-vital-chip ${r.appetite === 'Normal' ? 'vital-ok' : 'vital-warn'}`}>
-                        <span>Appetite: {r.appetite}</span>
+                        <span>Gana: {r.appetite === 'Normal' ? 'Normal / Magana' : r.appetite === 'Reduced' ? 'Mahina' : 'Walang Gana'}</span>
                       </span>
                     )}
                     {r.activity_level && (
                       <span className={`detail-vital-chip ${r.activity_level === 'Normal' ? 'vital-ok' : 'vital-warn'}`}>
-                        <span>Activity: {r.activity_level}</span>
+                        <span>Sigla: {r.activity_level === 'Normal' ? 'Aktibo' : r.activity_level === 'Low' ? 'Matamlay' : 'Lethargic'}</span>
                       </span>
                     )}
                   </div>
@@ -1750,29 +1750,29 @@ export function HealthPage() {
                 <div className="detail-card">
                   <div className="detail-card-head">
                     <Sparkles size={16} color="var(--primary)" />
-                    <span>Clinical Recommendation</span>
+                    <span>Rekomendasyon sa Kalusugan</span>
                   </div>
                   <p className="detail-rec-intro">
                     {r.recommendation || (riskMeta.key === 'low'
-                      ? 'Continue regular monitoring. No immediate veterinary intervention is required.'
-                      : 'Monitor the animal closely. Perform regular physical checks and isolate if symptoms worsen.')}
+                      ? 'Ipagpatuloy ang regular na pag-monitor. Walang kinakailangang agarang gamutan.'
+                      : 'Bantayan nang maigi ang hayop. Maglagay ng regular na pisikal na check at ibukod kung lumala.')}
                   </p>
                   <div className="detail-action-steps">
-                    <div className="detail-action-steps-title">Recommended Actions:</div>
+                    <div className="detail-action-steps-title">Mga Mungkahing Hakbang:</div>
                     <ul className="detail-action-list">
                       {riskMeta.key === 'low' ? (
                         <>
-                          <li>Continue regular health monitoring schedule</li>
-                          <li>Ensure access to clean drinking water and balanced nutrition</li>
-                          <li>Schedule routine vaccination and parasite check</li>
+                          <li>Ipagpatuloy ang regular na monitoring schedule</li>
+                          <li>Siguraduhing may malinis na inuming tubig at sapat na pakain</li>
+                          <li>Panatilihin ang routine na pagbabakuna at pagpurga</li>
                         </>
                       ) : (
                         <>
-                          <li>Perform a manual temperature check twice daily</li>
-                          <li>Inspect conjunctival color and check FAMACHA score</li>
-                          <li>Observe appetite and water consumption over the next 24 hours</li>
-                          <li>Isolate from herd if contagious respiratory or skin lesions are present</li>
-                          <li>Contact a licensed veterinarian if symptoms worsen or persist</li>
+                          <li>Kumuha ng temperatura 2 beses sa isang araw</li>
+                          <li>Suriin ang kulay ng mata at gums (FAMACHA check)</li>
+                          <li>Obserbahan ang gana sa pagkain at inuming tubig sa loob ng 24 oras</li>
+                          <li>Ihiwalay sa kawan kung may hinalang nakahahawang ubo o sugat</li>
+                          <li>Kumonsulta sa lisensyadong beterinaryo kung hindi bumuti ang lagay</li>
                         </>
                       )}
                     </ul>
@@ -1784,7 +1784,7 @@ export function HealthPage() {
                   <div className="detail-next-check-left">
                     <Calendar size={18} color="var(--primary)" />
                     <div>
-                      <div className="detail-next-check-lbl">Next Recommended Health Check</div>
+                      <div className="detail-next-check-lbl">Susunod na Inirerekomendang Health Check</div>
                       <div className="detail-next-check-val">{riskMeta.nextCheck}</div>
                     </div>
                   </div>
@@ -1793,7 +1793,7 @@ export function HealthPage() {
                 {/* 6. Medical Disclaimer */}
                 <div className="detail-disclaimer-box">
                   <Info size={14} color="var(--text-secondary)" />
-                  <span>AI-assisted assessment only. This system does not replace a licensed veterinarian.</span>
+                  <span>Paunawa: AI-assisted assessment lamang. Hindi nito pinapalitan ang lisensyadong beterinaryo.</span>
                 </div>
               </div>
             );
@@ -1813,7 +1813,7 @@ export function HealthPage() {
               }}
             >
               <Trash2 size={15} />
-              <span>Delete Record</span>
+              <span>I-delete ang Record</span>
             </button>
             <button
               type="button"
@@ -1823,7 +1823,7 @@ export function HealthPage() {
                 setSelectedRecordForDetail(null);
               }}
             >
-              Close
+              Isara
             </button>
           </div>
         </ModalFooter>

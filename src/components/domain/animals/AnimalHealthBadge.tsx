@@ -17,18 +17,28 @@ export function AnimalHealthBadge({
   let variant: BadgeVariant = 'success';
   let Icon = CheckCircle2;
 
-  if (norm.includes('healthy') || norm.includes('good') || norm.includes('normal')) {
+  let displayLabel = status || 'Maayos / Healthy';
+
+  if (norm.includes('healthy') || norm.includes('good') || norm.includes('normal') || norm.includes('maayos')) {
     variant = 'success';
     Icon = CheckCircle2;
-  } else if (norm.includes('observation') || norm.includes('monitor') || norm.includes('moderate')) {
+    displayLabel = 'Maayos / Healthy';
+  } else if (norm.includes('observation') || norm.includes('monitor') || norm.includes('moderate') || norm.includes('bantayan')) {
     variant = 'warning';
     Icon = AlertTriangle;
-  } else if (norm.includes('sick') || norm.includes('ill') || norm.includes('critical') || norm.includes('high')) {
+    displayLabel = 'Bantayan / Under Observation';
+  } else if (norm.includes('needs attention') || norm.includes('atensyon') || norm.includes('attention')) {
+    variant = 'warning';
+    Icon = AlertTriangle;
+    displayLabel = 'Nangangailangan ng Atensyon / Needs Attention';
+  } else if (norm.includes('sick') || norm.includes('ill') || norm.includes('critical') || norm.includes('high') || norm.includes('mataas')) {
     variant = 'danger';
     Icon = AlertOctagon;
+    displayLabel = 'Mataas ang Risk / High Risk';
   } else if (norm.includes('treatment') || norm.includes('quarantine')) {
     variant = 'primary';
     Icon = HeartPulse;
+    displayLabel = status;
   }
 
   return (
@@ -38,7 +48,7 @@ export function AnimalHealthBadge({
       dot={!showIcon}
       icon={showIcon ? <Icon size={size === 'sm' ? 12 : 14} /> : undefined}
     >
-      {status || 'Healthy'}
+      {displayLabel}
     </Badge>
   );
 }

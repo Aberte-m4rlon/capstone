@@ -133,12 +133,12 @@ export function AnimalsPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.tag_id.trim()) e.tag_id = 'Animal ID is required.';
-    if (!form.name.trim()) e.name = 'Name is required.';
-    if (!form.species) e.species = 'Species is required.';
-    if (!form.sex) e.sex = 'Sex is required.';
+    if (!form.tag_id.trim()) e.tag_id = 'Kailangan ang Animal ID.';
+    if (!form.name.trim()) e.name = 'Kailangan ang pangalan ng hayop.';
+    if (!form.species) e.species = 'Kailangan piliin ang species.';
+    if (!form.sex) e.sex = 'Kailangan piliin ang kasarian.';
     if (form.weight_kg && (isNaN(Number(form.weight_kg)) || Number(form.weight_kg) < 0))
-      e.weight_kg = 'Weight must be a positive number.';
+      e.weight_kg = 'Dapat positibong numero ang timbang.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -163,7 +163,7 @@ export function AnimalsPage() {
       if (editing) {
         const { error } = await supabase.from('animals').update(payload).eq('id', editing.id);
         if (error) throw error;
-        toast('Animal successfully updated.', 'success');
+        toast('Matagumpay na na-save ang record.', 'success');
       } else {
         const result = await insertAnimalWithUniqueRetry(
           {
@@ -179,15 +179,15 @@ export function AnimalsPage() {
 
         if (result.error) throw result.error;
         if (result.hadConflict) {
-          toast(`Animal ID conflict resolved. Saved with unique ID: ${result.finalTagId}`, 'success');
+          toast(`Naresolba ang ID conflict. Matagumpay na na-save bilang ${result.finalTagId}.`, 'success');
         } else {
-          toast(`Animal ${result.finalTagId} successfully added.`, 'success');
+          toast(`Matagumpay na naidagdag ang hayop (${result.finalTagId}).`, 'success');
         }
       }
       setModalOpen(false);
       farmData.refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unable to save. Please try again.';
+      const msg = err instanceof Error ? err.message : 'Hindi mai-save ang record. Pakisubukan muli.';
       toast(msg, 'danger');
     } finally {
       setSaving(false);
@@ -198,10 +198,10 @@ export function AnimalsPage() {
     try {
       const { error } = await supabase.from('animals').update({ archived: !a.archived }).eq('id', a.id);
       if (error) throw error;
-      toast(a.archived ? 'Animal restored successfully.' : 'Animal archived successfully.', 'success');
+      toast(a.archived ? 'Naibalik ang hayop sa aktibo.' : 'Nai-archive ang hayop.', 'success');
       farmData.refresh();
     } catch {
-      toast('Unable to update animal. Please try again.', 'danger');
+      toast('Hindi mai-update ang hayop. Pakisubukan muli.', 'danger');
     }
   };
 
@@ -210,11 +210,11 @@ export function AnimalsPage() {
     try {
       const { error } = await supabase.from('animals').delete().eq('id', confirmDelete.id);
       if (error) throw error;
-      toast('Animal successfully deleted.', 'success');
+      toast('Matagumpay na na-delete ang record.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Unable to delete animal. Please try again.', 'danger');
+      toast('Hindi mai-delete ang hayop. Pakisubukan muli.', 'danger');
     }
   };
 
@@ -270,57 +270,57 @@ export function AnimalsPage() {
               letterSpacing: '-0.02em',
             }}
           >
-            Animals
+            Mga Hayop
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
-            {filtered.length} {filtered.length === 1 ? 'animal' : 'animals'} {fArchived ? 'archived' : 'registered'}
+            {filtered.length} {filtered.length === 1 ? 'hayop' : 'mga hayop'} {fArchived ? 'na naka-archive' : 'na kasalukuyan sa bukid'}
           </p>
         </div>
         <Button variant="primary" onClick={openAdd} leftIcon={<Plus size={16} />}>
-          Add Animal
+          Magdagdag ng Hayop
         </Button>
       </div>
 
       {/* Filter Toolbar */}
       <FilterToolbar>
-        <FilterSearch value={search} onChange={setSearch} placeholder="Search name or ID..." />
+        <FilterSearch value={search} onChange={setSearch} placeholder="Maghanap ng animal, ID, breed, o item..." />
         <FilterSelect
           value={fSpecies}
           onChange={setFSpecies}
           options={[
-            { value: 'All', label: 'All Species' },
-            { value: 'Goat', label: 'Goat' },
-            { value: 'Sheep', label: 'Sheep' },
+            { value: 'All', label: 'Lahat ng Uri' },
+            { value: 'Goat', label: 'Goat / Kambing' },
+            { value: 'Sheep', label: 'Sheep / Tupa' },
           ]}
-          ariaLabel="Filter Species"
+          ariaLabel="Salain ang Uri"
         />
         <FilterSelect
           value={fSex}
           onChange={setFSex}
           options={[
-            { value: 'All', label: 'All Sex' },
-            { value: 'Male', label: 'Male' },
-            { value: 'Female', label: 'Female' },
+            { value: 'All', label: 'Lahat ng Kasarian' },
+            { value: 'Male', label: 'Male / Lalaki' },
+            { value: 'Female', label: 'Female / Babae' },
           ]}
-          ariaLabel="Filter Sex"
+          ariaLabel="Salain ang Kasarian"
         />
         <FilterSelect
           value={fHealth}
           onChange={setFHealth}
           options={[
-            { value: 'All', label: 'All Health' },
-            { value: 'Healthy', label: 'Healthy' },
-            { value: 'Monitor', label: 'Monitor' },
-            { value: 'At Risk', label: 'At Risk' },
-            { value: 'Critical', label: 'Critical' },
+            { value: 'All', label: 'Lahat ng Kalusugan' },
+            { value: 'Healthy', label: 'Maayos / Healthy' },
+            { value: 'Monitor', label: 'Bantayan / Under Observation' },
+            { value: 'At Risk', label: 'Nangangailangan ng Atensyon' },
+            { value: 'Critical', label: 'Mataas ang Risk' },
           ]}
-          ariaLabel="Filter Health"
+          ariaLabel="Salain ang Kalusugan"
         />
         <FilterToggle
           active={fArchived}
           onToggle={setFArchived}
-          label="Show Archived"
-          activeLabel="Showing Archived"
+          label="Ipakita ang Naka-archive"
+          activeLabel="Naka-archive ang Ipinapakita"
         />
       </FilterToolbar>
 
@@ -331,9 +331,9 @@ export function AnimalsPage() {
             <div style={{ padding: 32 }}>
               <EmptyState
                 icon={<Icons.PawPrint size={36} />}
-                title={fArchived ? 'No archived animals' : 'No animals found'}
-                description={fArchived ? 'Archived animals will appear here.' : 'Add your first animal to begin tracking.'}
-                actionLabel={fArchived ? undefined : 'Add Animal'}
+                title={fArchived ? 'Walang naka-archive na hayop' : 'Wala pang animal records.'}
+                description={fArchived ? 'Dito lalabas ang mga naka-archive na rekord ng hayop.' : 'Magdagdag ng unang hayop para masimulan ang pag-monitor sa bukid.'}
+                actionLabel={fArchived ? undefined : 'Magdagdag ng Hayop'}
                 onAction={fArchived ? undefined : openAdd}
               />
             </div>
@@ -342,15 +342,15 @@ export function AnimalsPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Tag ID</th>
+                    <th>Pangalan</th>
+                    <th>Animal ID</th>
                     <th>Species</th>
                     <th>Breed</th>
                     <th>Sex</th>
-                    <th>Age</th>
+                    <th>Edad</th>
                     <th>Weight</th>
-                    <th>Health</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
+                    <th>Health Status</th>
+                    <th style={{ textAlign: 'right' }}>Aksyon</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -367,9 +367,9 @@ export function AnimalsPage() {
                         {a.name}
                       </td>
                       <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>{a.tag_id}</td>
-                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.species}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.species === 'Goat' ? 'Kambing' : 'Tupa'}</td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.breed ?? '—'}</td>
-                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.sex}</td>
+                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.sex === 'Female' ? 'Babae' : 'Lalaki'}</td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{ageLabel(a.date_of_birth)}</td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
                         {a.weight_kg ? `${a.weight_kg} kg` : '—'}
@@ -387,7 +387,7 @@ export function AnimalsPage() {
                           >
                             <Eye size={15} />
                           </Button>
-                          <Button variant="ghost" size="sm" title="Edit" onClick={() => openEdit(a)}>
+                          <Button variant="ghost" size="sm" title="I-edit" onClick={() => openEdit(a)}>
                             <Pencil size={15} />
                           </Button>
                           <Button variant="ghost" size="sm" title="QR Code" onClick={() => generateQR(a)}>
@@ -396,7 +396,7 @@ export function AnimalsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            title={a.archived ? 'Restore' : 'Archive'}
+                            title={a.archived ? 'Ibalik' : 'I-archive'}
                             onClick={() => handleArchive(a)}
                           >
                             {a.archived ? <RotateCcw size={15} /> : <Archive size={15} />}
@@ -404,7 +404,7 @@ export function AnimalsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            title="Delete"
+                            title="I-delete"
                             onClick={() => setConfirmDelete(a)}
                           >
                             <Trash2 size={15} />
@@ -428,7 +428,7 @@ export function AnimalsPage() {
         role="dialog"
       >
         <ModalHeader
-          title={editing ? 'Edit Animal' : 'Add Animal'}
+          title={editing ? 'I-edit ang Hayop' : 'Magdagdag ng Hayop'}
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
@@ -453,7 +453,7 @@ export function AnimalsPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Tag size={16} color="#FF6A00" />
                     <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
-                      {form.tag_id || (editing ? '—' : 'Generating...')}
+                      {form.tag_id || (editing ? '—' : 'Bumubuo ng ID...')}
                     </span>
                   </div>
                   <span
@@ -471,18 +471,18 @@ export function AnimalsPage() {
                     }}
                   >
                     <CheckCircle2 size={12} color="#10B981" />
-                    {editing ? 'Registered ID' : 'Auto-generated ID'}
+                    {editing ? 'Rehistradong ID' : 'Auto-generated ID'}
                   </span>
                 </div>
                 <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748B)', marginTop: -2 }}>
-                  Animal ID is automatically generated by the system and cannot be manually changed.
+                  Ang Animal ID ay awtomatikong binubuo ng system at hindi maaaring baguhin nang manu-mano.
                 </span>
               </div>
-              <FormField label="Name" required error={errors.name}>
+              <FormField label="Pangalan" required error={errors.name}>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Bella, Thor, Luna"
+                  placeholder="hal. Bella, Thor, Luna"
                 />
               </FormField>
             </div>
@@ -493,8 +493,8 @@ export function AnimalsPage() {
                   value={form.species}
                   onChange={(e) => handleSpeciesChange(e.target.value as Species)}
                   options={[
-                    { value: 'Goat', label: 'Goat' },
-                    { value: 'Sheep', label: 'Sheep' },
+                    { value: 'Goat', label: 'Goat / Kambing' },
+                    { value: 'Sheep', label: 'Sheep / Tupa' },
                   ]}
                 />
               </FormField>
@@ -503,8 +503,8 @@ export function AnimalsPage() {
                   value={form.sex}
                   onChange={(e) => setForm({ ...form, sex: e.target.value as Sex })}
                   options={[
-                    { value: 'Female', label: 'Female' },
-                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female / Babae' },
+                    { value: 'Male', label: 'Male / Lalaki' },
                   ]}
                 />
               </FormField>
@@ -513,13 +513,13 @@ export function AnimalsPage() {
                   value={form.breed}
                   onChange={(v) => setForm({ ...form, breed: v })}
                   options={getBreedsForSpecies(form.species)}
-                  placeholder="Select or type breed..."
+                  placeholder="Pumili o mag-type ng lahi..."
                 />
               </FormField>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Date of Birth">
+              <FormField label="Birth Date">
                 <Input
                   type="date"
                   value={form.date_of_birth}
@@ -542,7 +542,7 @@ export function AnimalsPage() {
                 value={form.color_markings}
                 onChange={(v) => setForm({ ...form, color_markings: v })}
                 options={COLOR_MARKINGS}
-                placeholder="Search or type color/markings..."
+                placeholder="Maghanap o mag-type ng kulay/markings..."
               />
             </FormField>
 
@@ -551,7 +551,7 @@ export function AnimalsPage() {
                 className="form-textarea"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Additional animal health or history notes..."
+                placeholder="Karagdagang tala sa kalusugan o kasaysayan ng hayop..."
                 style={{ minHeight: 80 }}
               />
             </FormField>
@@ -559,10 +559,10 @@ export function AnimalsPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            Cancel
+            I-cancel
           </Button>
           <Button variant="primary" onClick={handleSave} loading={saving}>
-            {editing ? 'Save Changes' : 'Add Animal'}
+            {editing ? 'I-update' : 'I-save'}
           </Button>
         </ModalFooter>
       </Modal>
@@ -581,20 +581,20 @@ export function AnimalsPage() {
                 {qrAnimal?.tag_id}
               </div>
               <p style={{ color: 'var(--color-text-muted, #64748B)', fontSize: '12px', marginTop: 6, margin: 0 }}>
-                Scan with any QR camera or mobile scanner to view animal public health record.
+                I-scan gamit ang anumang QR camera para makita ang public health record ng hayop.
               </p>
             </div>
           </div>
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setQrAnimal(null)}>
-            Close
+            Isara
           </Button>
           <Button variant="secondary" onClick={downloadQR} leftIcon={<Download size={15} />}>
-            Download
+            I-download
           </Button>
           <Button variant="primary" onClick={printQR} leftIcon={<Printer size={15} />}>
-            Print
+            I-print
           </Button>
         </ModalFooter>
       </Modal>
@@ -602,9 +602,9 @@ export function AnimalsPage() {
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Delete Animal"
-        message={`Are you sure you want to delete ${confirmDelete?.name}? This will also remove related health, weight, breeding, and vaccination records. This action cannot be undone.`}
-        confirmLabel="Delete"
+        title="I-delete ang Hayop"
+        message={`Sigurado ka bang nais mong i-delete si ${confirmDelete?.name}? Matatanggal din ang lahat ng kaugnay na health, weight, breeding, at vaccination records nito. Hindi na ito maibabalik.`}
+        confirmLabel="I-delete"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

@@ -146,9 +146,9 @@ export function VaccinationsPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.animal_id) e.animal_id = 'Please select an animal.';
-    if (!form.vaccine_name.trim()) e.vaccine_name = 'Vaccine name is required.';
-    if (!form.date_given) e.date_given = 'Date given is required.';
+    if (!form.animal_id) e.animal_id = 'Pumili ng hayop.';
+    if (!form.vaccine_name.trim()) e.vaccine_name = 'Kailangan ang pangalan ng bakuna.';
+    if (!form.date_given) e.date_given = 'Kailangan ang vaccination date.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -168,11 +168,11 @@ export function VaccinationsPage() {
       if (editing) {
         const { error } = await supabase.from('vaccinations').update(payload).eq('id', editing.id);
         if (error) throw error;
-        toast('Vaccination record updated.', 'success');
+        toast('Matagumpay na na-update ang record ng bakuna.', 'success');
       } else {
         const { error } = await supabase.from('vaccinations').insert(payload);
         if (error) throw error;
-        toast('Vaccination recorded.', 'success');
+        toast('Matagumpay na na-save ang record ng bakuna.', 'success');
       }
       const animal = farmData.animals.find((a) => a.id === form.animal_id);
       if (animal) {
@@ -182,10 +182,10 @@ export function VaccinationsPage() {
           .update({ last_vaccine_date: form.date_given, next_vaccine_date: form.next_due_date || null, vaccination_status: vaccStatus })
           .eq('id', form.animal_id);
         if (vaccStatus === 'Overdue') {
-          await createNotification(animal.user_id, 'Vaccination', `${animal.name} — Vaccination overdue`, `${form.vaccine_name} was due ${form.next_due_date}`, 'Critical', '/vaccinations');
+          await createNotification(animal.user_id, 'Vaccination', `${animal.name} — Lampas na sa schedule ng bakuna`, `${form.vaccine_name} ay dapat noong ${form.next_due_date}`, 'Critical', '/vaccinations');
         } else if (vaccStatus === 'Due Soon') {
           const days = form.next_due_date ? daysUntil(form.next_due_date) : null;
-          await createNotification(animal.user_id, 'Vaccination', `${animal.name} — Vaccination due in ${days} days`, `${form.vaccine_name} due ${form.next_due_date}`, 'Warning', '/vaccinations');
+          await createNotification(animal.user_id, 'Vaccination', `${animal.name} — Bakuna sa loob ng ${days} araw`, `${form.vaccine_name} schedule sa ${form.next_due_date}`, 'Warning', '/vaccinations');
         }
       }
 
@@ -216,7 +216,7 @@ export function VaccinationsPage() {
       setModalOpen(false);
       farmData.refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unable to save record.';
+      const msg = err instanceof Error ? err.message : 'Hindi mai-save ang record.';
       toast(msg, 'error');
     } finally {
       setSaving(false);
@@ -228,11 +228,11 @@ export function VaccinationsPage() {
     try {
       const { error } = await supabase.from('vaccinations').delete().eq('id', confirmDelete.id);
       if (error) throw error;
-      toast('Vaccination record deleted.', 'success');
+      toast('Matagumpay na na-delete ang record ng bakuna.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Unable to delete record.', 'error');
+      toast('Hindi mai-delete ang record.', 'error');
     }
   };
 
@@ -241,11 +241,11 @@ export function VaccinationsPage() {
   const overdue = activeAnimals.filter((a) => a.vaccination_status === 'Overdue').length;
 
   const filterTabs = [
-    { id: 'All', label: 'All Records', count: farmData.vaccinations.length },
-    { id: 'Up to Date', label: 'Up to Date', count: upToDate },
-    { id: 'Due Soon', label: 'Due Soon', count: dueSoon },
-    { id: 'Overdue', label: 'Overdue', count: overdue },
-    { id: 'No Due Date', label: 'No Due Date', count: null },
+    { id: 'All', label: 'Lahat ng Records', count: farmData.vaccinations.length },
+    { id: 'Up to Date', label: 'Up to Date / Updated', count: upToDate },
+    { id: 'Due Soon', label: 'Due Soon / Malapit na', count: dueSoon },
+    { id: 'Overdue', label: 'Overdue / Lampas na sa Schedule', count: overdue },
+    { id: 'No Due Date', label: 'Walang Due Date', count: null },
   ];
 
   return (
@@ -289,7 +289,7 @@ export function VaccinationsPage() {
                 lineHeight: 1.2,
               }}
             >
-              Vaccination Management
+              Mga Bakuna
             </h1>
             <p
               style={{
@@ -300,7 +300,7 @@ export function VaccinationsPage() {
                 fontWeight: 500,
               }}
             >
-              Immunization schedule, boosters, and disease resistance · {farmData.vaccinations.length} records logged
+              Iskedyul ng bakuna, booster, at kalusugan ng hayop · {farmData.vaccinations.length} naitalang bakuna
             </p>
           </div>
         </div>
@@ -340,7 +340,7 @@ export function VaccinationsPage() {
           }}
         >
           <Plus size={16} strokeWidth={2.8} />
-          Add Vaccination
+          Mag-record ng Bakuna
         </button>
       </div>
 
@@ -392,17 +392,17 @@ export function VaccinationsPage() {
                 letterSpacing: '0.6px',
               }}
             >
-              PROTECTED
+              PROTEKTADO
             </span>
           </div>
           <div className="kpi-value" style={{ position: 'relative', zIndex: 2, marginTop: 4 }}>
             {upToDate}
           </div>
           <div className="kpi-label" style={{ position: 'relative', zIndex: 2 }}>
-            UP TO DATE
+            UP TO DATE / UPDATED
           </div>
           <div style={{ fontSize: 11, color: '#FFB340', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
-            Immunity active & verified
+            Aktibo at napatunayang proteksyon
           </div>
         </div>
 
@@ -452,17 +452,17 @@ export function VaccinationsPage() {
                 letterSpacing: '0.6px',
               }}
             >
-              UPCOMING
+              MALAPIT NA
             </span>
           </div>
           <div className="kpi-value" style={{ position: 'relative', zIndex: 2, marginTop: 4 }}>
             {dueSoon}
           </div>
           <div className="kpi-label" style={{ position: 'relative', zIndex: 2 }}>
-            DUE SOON
+            DUE SOON / MALAPIT NA
           </div>
           <div style={{ fontSize: 11, color: '#FF9F0A', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
-            Due within {farmData.settings?.vaccine_due_days ?? 30} days
+            Kailangan sa loob ng {farmData.settings?.vaccine_due_days ?? 30} araw
           </div>
         </div>
 
@@ -512,17 +512,17 @@ export function VaccinationsPage() {
                 letterSpacing: '0.6px',
               }}
             >
-              ALERT
+              ALERTO
             </span>
           </div>
           <div className="kpi-value" style={{ position: 'relative', zIndex: 2, marginTop: 4 }}>
             {overdue}
           </div>
           <div className="kpi-label" style={{ position: 'relative', zIndex: 2 }}>
-            OVERDUE
+            OVERDUE / LAMPAS NA
           </div>
           <div style={{ fontSize: 11, color: '#FF3B30', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
-            Requires booster dose
+            Nangangailangan ng booster dose
           </div>
         </div>
       </div>
@@ -530,7 +530,7 @@ export function VaccinationsPage() {
       {/* ── Floating Liquid Glass Filter & Search Toolbar (One Row) ────── */}
       <FilterToolbar>
         <FilterSearch
-          placeholder="Search animal, tag, or vaccine..."
+          placeholder="Maghanap ng animal, ID, breed, o item..."
           value={searchQuery}
           onChange={setSearchQuery}
           minWidth={240}
@@ -571,12 +571,12 @@ export function VaccinationsPage() {
               <Syringe size={34} />
             </div>
             <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text)', margin: 0, letterSpacing: '-0.3px' }}>
-              No vaccination records found
+              Wala pang vaccination records.
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: 440, margin: '8px auto 22px', lineHeight: 1.5 }}>
               {searchQuery || fStatus !== 'All'
-                ? 'Try adjusting your search query or status filter to see matching records.'
-                : 'Add your first animal vaccination to automatically track schedules, boosters, and resistance.'}
+                ? 'Walang record na tumutugma sa iyong paghahanap o filter.'
+                : 'Magtala ng unang bakuna para masubaybayan ang schedule, boosters, at proteksyon sa bukid.'}
             </p>
             <button
               onClick={openAdd}
@@ -596,7 +596,7 @@ export function VaccinationsPage() {
                 gap: 8,
               }}
             >
-              <Plus size={16} /> Add Vaccination Record
+              <Plus size={16} /> Mag-record ng Bakuna
             </button>
           </div>
         ) : (
@@ -605,13 +605,13 @@ export function VaccinationsPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Date Given</th>
-                  <th>Animal & Tag</th>
-                  <th>Vaccine Details</th>
+                  <th>Vaccination Date</th>
+                  <th>Animal</th>
+                  <th>Vaccine</th>
                   <th>Next Due Date</th>
                   <th>Status</th>
                   <th>Veterinarian</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th style={{ textAlign: 'right' }}>Aksyon</th>
                 </tr>
               </thead>
               <tbody>
@@ -653,7 +653,9 @@ export function VaccinationsPage() {
                           </div>
                           <div>
                             <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: '13px' }}>{aName}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{aTag}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                              {aTag} • {aSpecies === 'Goat' ? 'Kambing' : 'Tupa'}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -685,10 +687,10 @@ export function VaccinationsPage() {
                               }}
                             >
                               {daysLeft < 0
-                                ? `${Math.abs(daysLeft)} days overdue`
+                                ? `${Math.abs(daysLeft)} araw nang lampas`
                                 : daysLeft === 0
-                                ? 'Due today'
-                                : `Due in ${daysLeft} days`}
+                                ? 'Schedule na ngayon'
+                                : `${daysLeft} araw ang natitira`}
                             </div>
                           )}
                         </div>
@@ -710,7 +712,13 @@ export function VaccinationsPage() {
                           {status === 'Up to Date' && <CheckCircle2 size={11} />}
                           {status === 'Due Soon' && <Clock size={11} />}
                           {status === 'Overdue' && <AlertTriangle size={11} />}
-                          {status === 'None' ? 'No Due Date' : status}
+                          {status === 'Up to Date'
+                            ? 'Up to Date / Updated'
+                            : status === 'Due Soon'
+                            ? 'Due Soon / Malapit na'
+                            : status === 'Overdue'
+                            ? 'Overdue / Lampas na sa Schedule'
+                            : 'Walang Due Date'}
                         </span>
                       </td>
 
@@ -728,7 +736,8 @@ export function VaccinationsPage() {
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => openEdit(v)}
-                            title="Edit Record"
+                            title="I-edit ang Record"
+                            aria-label="I-edit ang Record"
                             style={{
                               padding: '6px 10px',
                               borderRadius: 8,
@@ -741,7 +750,8 @@ export function VaccinationsPage() {
                           <button
                             className="btn btn-ghost btn-sm"
                             onClick={() => setConfirmDelete(v)}
-                            title="Delete Record"
+                            title="I-delete ang Record"
+                            aria-label="I-delete ang Record"
                             style={{
                               padding: '6px 10px',
                               borderRadius: 8,
@@ -766,36 +776,36 @@ export function VaccinationsPage() {
       {/* ── Add / Edit Modal ───────────────────────────────────────── */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} size="md">
         <ModalHeader
-          title={editing ? 'Edit Vaccination Record' : 'Record New Vaccination'}
+          title={editing ? 'I-edit ang Record ng Bakuna' : 'Mag-record ng Bakuna'}
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Target Animal" required error={errors.animal_id}>
+            <FormField label="Pumili ng Hayop" required error={errors.animal_id}>
               <Select
                 value={form.animal_id}
                 onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Select animal...' },
+                  { value: '', label: 'Pumili ng hayop...' },
                   ...activeAnimals.map((a) => ({
                     value: a.id,
-                    label: `${a.name} (${a.tag_id}) — ${a.species} • ${a.breed ?? 'Standard'}`,
+                    label: `${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'} • ${a.breed ?? 'Standard'}`,
                   })),
                 ]}
               />
             </FormField>
 
-            <FormField label="Vaccine Name" required error={errors.vaccine_name}>
+            <FormField label="Pangalan ng Bakuna" required error={errors.vaccine_name}>
               <ComboBox
                 value={form.vaccine_name}
                 onChange={(v) => setForm({ ...form, vaccine_name: v })}
                 options={GOAT_SHEEP_VACCINES}
-                placeholder="Search or type vaccine name (e.g. CDT, Dewormer)..."
+                placeholder="Maghanap o maglagay ng pangalan ng bakuna (hal. CDT, Dewormer)..."
               />
             </FormField>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Date Given" required error={errors.date_given}>
+              <FormField label="Vaccination Date (Petsa ng Bakuna)" required error={errors.date_given}>
                 <Input
                   type="date"
                   value={form.date_given}
@@ -803,7 +813,7 @@ export function VaccinationsPage() {
                 />
               </FormField>
 
-              <FormField label="Next Booster Due Date">
+              <FormField label="Next Due Date (Susunod na Iskedyul)">
                 <Input
                   type="date"
                   value={form.next_due_date}
@@ -812,12 +822,12 @@ export function VaccinationsPage() {
               </FormField>
             </div>
 
-            <FormField label="Administering Veterinarian / Personnel">
+            <FormField label="Veterinarian / Kawani">
               <ComboBox
                 value={form.veterinarian}
                 onChange={(v) => setForm({ ...form, veterinarian: v })}
                 options={COMMON_VETS}
-                placeholder="Search or type veterinarian name..."
+                placeholder="Pangalan ng beterinaryo o nag-inject..."
               />
             </FormField>
 
@@ -874,10 +884,10 @@ export function VaccinationsPage() {
               </div>
             )}
 
-            <FormField label="Clinical Notes & Dosage">
+            <FormField label="Mga Tala at Dosis">
               <textarea
                 className="form-textarea"
-                placeholder="e.g. 2ml subcutaneous injection in neck. No immediate adverse reaction."
+                placeholder="Hal. 2ml subcutaneous injection sa leeg. Walang masamang reaksyon."
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 style={{ minHeight: 80 }}
@@ -887,10 +897,10 @@ export function VaccinationsPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="secondary" onClick={() => setModalOpen(false)}>
-            Cancel
+            I-cancel
           </Button>
           <Button variant="primary" onClick={handleSave} loading={saving}>
-            {editing ? 'Update Record' : 'Save Vaccination'}
+            {editing ? 'I-save ang mga Pagbabago' : 'I-save ang Record'}
           </Button>
         </ModalFooter>
       </Modal>
@@ -898,9 +908,9 @@ export function VaccinationsPage() {
       {/* ── Confirm Deletion Dialog ────────────────────────────────── */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Delete Vaccination Record"
-        message="Are you sure you want to delete this vaccination record? This action cannot be undone."
-        confirmLabel="Delete Record"
+        title="I-delete ang Record ng Bakuna"
+        message="Sigurado ka bang nais mong i-delete ang record na ito ng bakuna? Hindi na ito maibabalik."
+        confirmLabel="I-delete"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

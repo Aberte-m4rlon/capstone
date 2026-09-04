@@ -143,12 +143,12 @@ export function AIChat({
   streaming,
   streamingText,
   quickPrompts = [
-    'Farm summary',
-    'Animals needing attention',
-    'Overdue vaccinations',
-    'Pregnant animals',
-    'Low inventory',
-    'Recent health alerts',
+    'Buod ng Bukid',
+    'Mga hayop na kailangan ng atensyon',
+    'Lampas na sa schedule na bakuna',
+    'Mga buntis na hayop',
+    'Mababa na ang stock sa inventory',
+    'Mga paalala sa kalusugan',
   ],
 }: AIChatProps) {
   const [input, setInput] = useState('');
@@ -474,7 +474,7 @@ export function AIChat({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted, #667085)' }}>
-                Conversations
+                Mga Pag-uusap
               </span>
               <Button
                 variant="primary"
@@ -486,7 +486,7 @@ export function AIChat({
                 leftIcon={<Plus size={12} />}
                 style={{ padding: '2px 8px', fontSize: '11px', minHeight: 24 }}
               >
-                New Chat
+                Bagong Chat
               </Button>
             </div>
             {conversations.map((c) => (
@@ -511,14 +511,14 @@ export function AIChat({
                 }}
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {c.title || 'Conversation'}
+                  {c.title || 'Pag-uusap'}
                 </span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onDeleteConversation(c.id);
                   }}
-                  aria-label="Delete chat"
+                  aria-label="Burahin ang chat"
                   style={{
                     background: 'none',
                     border: 'none',
@@ -564,10 +564,10 @@ export function AIChat({
                 <Sparkles size={20} />
               </div>
               <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', fontWeight: 700, color: 'var(--color-text-primary, #1F2933)' }}>
-                How can I assist your farm today?
+                Paano kita matutulungan sa iyong bukid ngayon?
               </h4>
               <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: 'var(--color-text-muted, #667085)', lineHeight: 1.4 }}>
-                Ask about herd health, feeding plans, overdue vaccines, or attach photos of goats/sheep for visual AI health checks.
+                Magtanong tungkol sa kalusugan ng hayop, pakain, bakuna, o mag-attach ng litrato ng kambing o tupa para sa visual AI screening.
               </p>
 
               {/* Quick Prompts Chips */}
@@ -634,7 +634,7 @@ export function AIChat({
                       border: m.role === 'user' ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.1)',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                     }}
-                    title="Click to zoom image"
+                    title="I-click para i-zoom ang litrato"
                   >
                     <img
                       src={m.image}
@@ -691,7 +691,7 @@ export function AIChat({
                   fontSize: '13px',
                 }}
               >
-                {streamingText ? renderMessageContent(streamingText) : <span style={{ opacity: 0.6 }}>Thinking...</span>}
+                {streamingText ? renderMessageContent(streamingText) : <span style={{ opacity: 0.6 }}>Nag-iisip ang AI…</span>}
               </div>
             </div>
           )}
@@ -727,10 +727,10 @@ export function AIChat({
               />
               <div style={{ overflow: 'hidden' }}>
                 <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary, #1F2933)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                  {imageName || 'Attached Image'}
+                  {imageName || 'Nakalakip na Litrato'}
                 </div>
                 <div style={{ fontSize: '10.5px', color: 'var(--color-primary, #2E7D32)', fontWeight: 500 }}>
-                  Ready for AI Analysis
+                  Handa para sa AI Analysis
                 </div>
               </div>
             </div>
@@ -751,8 +751,8 @@ export function AIChat({
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              aria-label="Remove attached image"
-              title="Remove attached image"
+              aria-label="Alisin ang litrato"
+              title="Alisin ang litrato"
             >
               <X size={16} />
             </button>
@@ -783,8 +783,8 @@ export function AIChat({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            title="Attach livestock photo"
-            aria-label="Attach livestock photo"
+            title="Maglakip ng litrato ng hayop"
+            aria-label="Maglakip ng litrato ng hayop"
             style={{
               background: selectedImage ? 'rgba(46, 125, 50, 0.12)' : 'none',
               border: 'none',
@@ -815,7 +815,7 @@ export function AIChat({
                 handleSend();
               }
             }}
-            placeholder={selectedImage ? "Add notes or ask AI to inspect image..." : "Ask AI or paste / attach image..."}
+            placeholder={selectedImage ? "Maglagay ng mensahe o itanong sa AI ang tungkol sa litrato..." : "Magtanong sa AI o mag-attach ng litrato..."}
             style={{
               flex: 1,
               maxHeight: 90,

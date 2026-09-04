@@ -182,9 +182,9 @@ export function AdminPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 16 }}>
         <ShieldAlert size={48} color="#EF4444" />
-        <h2 style={{ fontSize: 20, fontWeight: 800 }}>Access Denied</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>You do not have admin privileges.</p>
-        <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+        <h2 style={{ fontSize: 20, fontWeight: 800 }}>Walang Pahintulot</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Wala kang pahintulot bilang administrator upang ma-access ang pahinang ito.</p>
+        <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>Bumalik sa Buod ng Bukid</button>
       </div>
     );
   }
@@ -206,14 +206,14 @@ export function AdminPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShieldAlert size={22} color="#B91C1C" /> Admin Panel
+            <ShieldAlert size={22} color="#B91C1C" /> Admin Panel (Pamamahala ng mga User)
           </h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-            Manage registered users — logged in as <strong>{user?.email}</strong>
+            Pamahalaan ang mga nakarehistrong user — naka-login bilang <strong>{user?.email}</strong>
           </p>
         </div>
         <Button variant="secondary" onClick={loadUsers} loading={loading} leftIcon={<RefreshCw size={15} />}>
-          Refresh
+          I-refresh
         </Button>
       </div>
 
@@ -222,10 +222,10 @@ export function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 16px', borderRadius: 12, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', marginBottom: 16 }}>
           <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#EF4444', marginBottom: 2 }}>Failed to load users</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#EF4444', marginBottom: 2 }}>Pumalya ang pag-load ng mga user</div>
             <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{loadError}</div>
             <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)', marginTop: 4 }}>
-              Make sure <code>VITE_SUPABASE_SERVICE_KEY</code> is set correctly and matches project <code>bsotlxbvanpwengftfli</code>.
+              Siguraduhing tama ang <code>VITE_SUPABASE_SERVICE_KEY</code> para sa project <code>bsotlxbvanpwengftfli</code>.
             </div>
           </div>
         </div>
@@ -237,29 +237,29 @@ export function AdminPage() {
           icon={<Users size={20} />}
           accentColor="red"
           value={stats.totalUsers}
-          label="Total Users"
-          subtext="Registered accounts"
+          label="Kabuuang mga User"
+          subtext="Mga nakarehistrong account"
         />
         <StatCard
           icon={<PawPrint size={20} />}
           accentColor="green"
           value={stats.totalAnimals}
-          label="Total Animals"
-          subtext="Across all farms"
+          label="Kabuuang mga Hayop"
+          subtext="Sa lahat ng bukid"
         />
         <StatCard
           icon={<BarChart3 size={20} />}
           accentColor="blue"
           value={stats.totalHealth}
-          label="Health Records"
-          subtext="System-wide"
+          label="Mga Health Record"
+          subtext="Pangkalahatan sa sistema"
         />
         <StatCard
           icon={<CheckCircle size={20} />}
           accentColor="orange"
           value={stats.activeFarms}
-          label="Active Farms"
-          subtext="With animals registered"
+          label="Mga Aktibong Bukid"
+          subtext="May mga nakatalang alaga"
         />
       </div>
 
@@ -267,12 +267,12 @@ export function AdminPage() {
       <FilterToolbar
         rightAction={
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>
-            {filtered.length} of {users.length} users
+            {filtered.length} sa {users.length} mga user
           </span>
         }
       >
         <FilterSearch
-          placeholder="Search email or farm name..."
+          placeholder="Maghanap ng email o bukid..."
           value={search}
           onChange={setSearch}
           minWidth={260}
@@ -286,8 +286,8 @@ export function AdminPage() {
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Users size={32} />}
-            title="No users found"
-            description={search ? 'Try a different search.' : 'No registered users yet.'}
+            title="Walang nahanap na user"
+            description={search ? 'Subukang maghanap ng ibang termino.' : 'Wala pang mga nakarehistrong user.'}
           />
         ) : (
           <div className="table-wrap">
@@ -295,13 +295,13 @@ export function AdminPage() {
               <thead>
                 <tr>
                   <th>Email</th>
-                  <th>Role</th>
-                  <th>Farm Name</th>
-                  <th style={{ textAlign: 'center' }}>Animals</th>
+                  <th>Tungkulin</th>
+                  <th>Pangalan ng Bukid</th>
+                  <th style={{ textAlign: 'center' }}>Mga Hayop</th>
                   <th style={{ textAlign: 'center' }}>Health Records</th>
-                  <th>Registered</th>
-                  <th>Last Login</th>
-                  <th>Actions</th>
+                  <th>Petsa ng Pagrehistro</th>
+                  <th>Huling Pag-login</th>
+                  <th>Mga Aksyon</th>
                 </tr>
               </thead>
               <tbody>
@@ -356,12 +356,12 @@ export function AdminPage() {
                                 {/* Farm Settings */}
                                 {detail.settings && (
                                   <div>
-                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6 }}>Farm Settings</div>
+                                    <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6 }}>Mga Setting ng Bukid</div>
                                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12 }}>
-                                      <span><strong>Farm:</strong> {detail.settings.farm_name}</span>
-                                      <span><strong>Target Weight:</strong> {detail.settings.target_weight_kg} kg</span>
-                                      <span><strong>Gestation:</strong> {detail.settings.gestation_days} days</span>
-                                      <span><strong>Temp Critical:</strong> {detail.settings.temp_critical}°C</span>
+                                      <span><strong>Bukid:</strong> {detail.settings.farm_name}</span>
+                                      <span><strong>Target na Timbang:</strong> {detail.settings.target_weight_kg} kg</span>
+                                      <span><strong>Gestation:</strong> {detail.settings.gestation_days} araw</span>
+                                      <span><strong>Kritikal na Temp:</strong> {detail.settings.temp_critical}°C</span>
                                     </div>
                                   </div>
                                 )}
@@ -369,7 +369,7 @@ export function AdminPage() {
                                 {detail.animals.length > 0 && (
                                   <div>
                                     <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                      <PawPrint size={12} /> Animals ({detail.animals.filter((a: any) => !a.archived).length} active)
+                                      <PawPrint size={12} /> Mga Hayop ({detail.animals.filter((a: any) => !a.archived).length} aktibo)
                                     </div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                       {detail.animals.filter((a: any) => !a.archived).map((a: any) => (
@@ -389,7 +389,7 @@ export function AdminPage() {
                                 {detail.healthRecords.length > 0 && (
                                   <div>
                                     <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                      <HeartPulse size={12} /> Recent Health Records
+                                      <HeartPulse size={12} /> Kamakailang Health Records
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                       {detail.healthRecords.slice(0, 5).map((r: any) => (
@@ -409,18 +409,18 @@ export function AdminPage() {
                                 {detail.vaccinations.length > 0 && (
                                   <div>
                                     <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                      <Syringe size={12} /> Recent Vaccinations
+                                      <Syringe size={12} /> Kamakailang mga Bakuna
                                     </div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                       {detail.vaccinations.slice(0, 5).map((v: any) => (
                                         <span key={v.id} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#F0FDF4', color: '#15803D' }}>
-                                          {animalName(v.animal_id)}: {v.vaccine_name} on {formatDate(v.date_given)}
+                                          {animalName(v.animal_id)}: {v.vaccine_name} noong {formatDate(v.date_given)}
                                         </span>
                                       ))}
                                     </div>
                                   </div>
                                 )}
-                                {detail.animals.length === 0 && <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>No farm data recorded yet.</p>}
+                                {detail.animals.length === 0 && <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>Wala pang naitalang datos ng bukid.</p>}
                               </div>
                             ) : null}
                           </td>
@@ -438,9 +438,9 @@ export function AdminPage() {
       {/* Delete confirm */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Delete User"
-        message={`Are you sure you want to delete ${confirmDelete?.email}? This will permanently delete the user and ALL their data (${confirmDelete?.animal_count} animals, ${confirmDelete?.health_count} health records). This cannot be undone.`}
-        confirmLabel="Delete User"
+        title="Burahin ang User"
+        message={`Sigurado ka bang nais mong burahin si ${confirmDelete?.email}? Permanenteng mabubura ang user at LAHAT ng datos ng kanilang bukid (${confirmDelete?.animal_count} alagang hayop, ${confirmDelete?.health_count} health records). Hindi na ito maibabalik.`}
+        confirmLabel="Burahin ang User"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}

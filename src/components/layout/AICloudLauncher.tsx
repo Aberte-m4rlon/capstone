@@ -44,7 +44,7 @@ export function AICloudLauncher({
             whiteSpace: 'nowrap',
           }}
         >
-          AI Cloud
+          AI Farm Assistant
         </span>
         <span
           style={{
@@ -56,7 +56,7 @@ export function AICloudLauncher({
             whiteSpace: 'nowrap',
           }}
         >
-          Assistant Ready
+          Handa Tumulong
         </span>
       </div>
 

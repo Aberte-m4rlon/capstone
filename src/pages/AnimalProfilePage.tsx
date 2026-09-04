@@ -414,15 +414,15 @@ export function AnimalProfilePage() {
   }, [farmData.inventoryTransactions, animal?.id]);
 
   const tabs = [
-    { key: 'overview', label: 'Buod (Overview)' },
-    { key: 'health', label: 'Kalusugan (Health)' },
-    { key: 'weight', label: 'Timbang (Weight)' },
-    { key: 'breeding', label: 'Pagpaparami (Breeding)' },
-    { key: 'vaccination', label: 'Bakuna (Vaccination)' },
-    { key: 'inventory', label: 'Gamit at Imbentaryo' },
-    { key: 'feed', label: 'Pakain (Feed)' },
-    { key: 'history', label: 'Kasaysayan (History)' },
-    { key: 'camera', label: 'Camera Screening' },
+    { key: 'overview', label: 'Buod ng Hayop' },
+    { key: 'health', label: 'Health Monitoring' },
+    { key: 'weight', label: 'Timbang' },
+    { key: 'breeding', label: 'Breeding' },
+    { key: 'vaccination', label: 'Mga Bakuna' },
+    { key: 'inventory', label: 'Farm Inventory' },
+    { key: 'feed', label: 'Pakain' },
+    { key: 'history', label: 'Kasaysayan' },
+    { key: 'camera', label: 'AI Health Scanner' },
   ] as const;
 
   const scoreColor = riskColor(animal.health_risk_score);
@@ -451,7 +451,7 @@ export function AnimalProfilePage() {
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--accent-orange)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
         >
-          <ArrowLeft size={15} /> Back to Animals
+          <ArrowLeft size={15} /> Bumalik sa mga Hayop
         </button>
 
         {/* ── Animal Header ── */}
@@ -500,9 +500,9 @@ export function AnimalProfilePage() {
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 6, display: 'flex', flexWrap: 'wrap' as const, gap: '4px 8px', alignItems: 'center' }}>
                 <span style={{ color: 'var(--accent-orange)', fontWeight: 700 }}>{animal.tag_id}</span>
                 <span style={{ opacity: 0.4 }}>·</span>
-                <span>{animal.species}</span>
+                <span>{animal.species === 'Goat' ? 'Kambing' : 'Tupa'}</span>
                 <span style={{ opacity: 0.4 }}>·</span>
-                <span>{animal.sex}</span>
+                <span>{animal.sex === 'Female' ? 'Babae' : 'Lalaki'}</span>
                 <span style={{ opacity: 0.4 }}>·</span>
                 <span>{ageLabel(animal.date_of_birth)}</span>
                 {animal.breed && <><span style={{ opacity: 0.4 }}>·</span><span>{animal.breed}</span></>}
@@ -519,8 +519,8 @@ export function AnimalProfilePage() {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setQrOpen(true)} variant="neutral" />
                   <ActionBtn icon={<Camera size={14} />} label="AI Health Scan" onClick={() => navigate(`/camera-screening?animalId=${animal.id}`)} variant="orange" />
-                  <ActionBtn icon={<Pencil size={14} />} label="Edit" onClick={() => setEditOpen(true)} variant="orange" />
-                  <ActionBtn icon={<Trash2 size={14} />} label="Delete" onClick={() => setConfirmDelete(true)} variant="red" />
+                  <ActionBtn icon={<Pencil size={14} />} label="I-edit" onClick={() => setEditOpen(true)} variant="orange" />
+                  <ActionBtn icon={<Trash2 size={14} />} label="I-delete" onClick={() => setConfirmDelete(true)} variant="red" />
                 </div>
               </div>
             </div>
@@ -1309,7 +1309,7 @@ export function AnimalProfilePage() {
 
       {/* ── Edit Modal ── */}
       <Modal open={editOpen} onClose={() => setEditOpen(false)} size="md">
-        <ModalHeader title="Edit Animal" onClose={() => setEditOpen(false)} />
+        <ModalHeader title="I-edit ang Hayop" onClose={() => setEditOpen(false)} />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
@@ -1332,7 +1332,7 @@ export function AnimalProfilePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Tag size={16} color="#FF6A00" />
                     <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
-                      {editForm.tag_id}
+                      {editForm.tag_id || '—'}
                     </span>
                   </div>
                   <span
@@ -1350,14 +1350,14 @@ export function AnimalProfilePage() {
                     }}
                   >
                     <CheckCircle2 size={12} color="#10B981" />
-                    Registered ID
+                    Rehistradong ID
                   </span>
                 </div>
                 <span style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748B)', marginTop: -2 }}>
-                  Animal ID is permanent and cannot be manually changed.
+                  Ang Animal ID ay permanente at hindi maaaring baguhin nang manu-mano.
                 </span>
               </div>
-              <FormField label="Name" required>
+              <FormField label="Pangalan" required>
                 <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
               </FormField>
             </div>
@@ -1366,14 +1366,14 @@ export function AnimalProfilePage() {
                 <Select
                   value={editForm.species}
                   onChange={(e) => setEditForm({ ...editForm, species: e.target.value as Species })}
-                  options={[{ value: 'Goat', label: 'Goat' }, { value: 'Sheep', label: 'Sheep' }]}
+                  options={[{ value: 'Goat', label: 'Goat / Kambing' }, { value: 'Sheep', label: 'Sheep / Tupa' }]}
                 />
               </FormField>
               <FormField label="Sex">
                 <Select
                   value={editForm.sex}
                   onChange={(e) => setEditForm({ ...editForm, sex: e.target.value as Sex })}
-                  options={[{ value: 'Female', label: 'Female' }, { value: 'Male', label: 'Male' }]}
+                  options={[{ value: 'Female', label: 'Female / Babae' }, { value: 'Male', label: 'Male / Lalaki' }]}
                 />
               </FormField>
               <FormField label="Breed">
@@ -1381,7 +1381,7 @@ export function AnimalProfilePage() {
               </FormField>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Date of Birth">
+              <FormField label="Birth Date">
                 <Input type="date" value={editForm.date_of_birth} onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })} />
               </FormField>
               <FormField label="Weight (kg)">
@@ -1399,17 +1399,17 @@ export function AnimalProfilePage() {
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
-          <Button variant="primary" onClick={handleSaveEdit} loading={saving}>Save Changes</Button>
+          <Button variant="secondary" onClick={() => setEditOpen(false)}>I-cancel</Button>
+          <Button variant="primary" onClick={handleSaveEdit} loading={saving}>I-update</Button>
         </ModalFooter>
       </Modal>
 
       {/* ── Confirm Delete ── */}
       <ConfirmDialog
         open={confirmDelete}
-        title="Delete Animal"
-        message={`Are you sure you want to delete ${animal.name}? All related records will also be deleted.`}
-        confirmLabel="Delete"
+        title="I-delete ang Hayop"
+        message={`Sigurado ka bang nais mong i-delete si ${animal.name}? Mabubura din ang lahat ng kaugnay na rekord nito.`}
+        confirmLabel="I-delete"
         danger
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}

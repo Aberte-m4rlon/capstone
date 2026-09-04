@@ -44,6 +44,25 @@ export function NotificationsPage() {
     return t === f;
   });
 
+  const priorityLabel = (p: string) => {
+    const pr = (p || '').toLowerCase();
+    if (pr === 'critical') return 'Urgent';
+    if (pr === 'warning' || pr === 'high') return 'Mahalaga';
+    if (pr === 'info') return 'Paalala';
+    return 'Normal';
+  };
+
+  const notifCategoryFilters = [
+    { id: 'All', label: 'Lahat' },
+    { id: 'Health', label: 'Kalusugan' },
+    { id: 'Vaccination', label: 'Bakuna' },
+    { id: 'Breeding', label: 'Breeding' },
+    { id: 'Weight', label: 'Timbang' },
+    { id: 'Inventory', label: 'Imbentaryo' },
+    { id: 'Expiry', label: 'Paso / Expiry' },
+    { id: 'System', label: 'Sistema' },
+  ];
+
   const priorityVariant = (p: string) => {
     const pr = (p || '').toLowerCase();
     if (pr === 'critical') return 'danger';
@@ -74,7 +93,7 @@ export function NotificationsPage() {
   };
 
   if (loading && notifications.length === 0) {
-    return <LoadingSpinner text="Loading notifications..." fullScreen />;
+    return <LoadingSpinner text="Kinukuha ang mga paalala..." fullScreen />;
   }
 
   return (
@@ -82,14 +101,14 @@ export function NotificationsPage() {
       {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Notifications</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 800 }}>Mga Paalala</h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
             {unreadCount > 0 ? (
               <span>
-                <strong style={{ color: 'var(--color-primary, #43A047)' }}>{unreadCount} unread</strong> of {notifications.length} total
+                <strong style={{ color: 'var(--color-primary, #43A047)' }}>{unreadCount} bago</strong> sa kabuuang {notifications.length}
               </span>
             ) : (
-              <span>All {notifications.length} notifications are read</span>
+              <span>Lahat ng {notifications.length} paalala ay nabasa na</span>
             )}
           </p>
         </div>
@@ -100,7 +119,7 @@ export function NotificationsPage() {
             disabled={unreadCount === 0}
             leftIcon={<CheckCircle2 size={15} />}
           >
-            Mark all read
+            Markahang Nabasa Lahat
           </Button>
           <Button
             variant="danger"
@@ -108,28 +127,28 @@ export function NotificationsPage() {
             disabled={notifications.length === 0}
             leftIcon={<Trash2 size={15} />}
           >
-            Clear all
+            Burahin Lahat
           </Button>
         </div>
       </div>
 
       {/* Filter Toolbar */}
       <FilterToolbar>
-        {['All', 'Health', 'Vaccination', 'Breeding', 'Weight', 'Inventory', 'Expiry', 'System'].map((t) => {
+        {notifCategoryFilters.map((t) => {
           const count = notifications.filter((n) => {
-            if (t === 'All') return true;
+            if (t.id === 'All') return true;
             const nt = (n.type || '').toLowerCase();
-            const pill = t.toLowerCase();
+            const pill = t.id.toLowerCase();
             if (pill === 'vaccination' && (nt === 'vaccination' || nt === 'vaccine')) return true;
             return nt === pill;
           }).length;
 
           return (
             <FilterPill
-              key={t}
-              active={filter === t}
-              onClick={() => setFilter(t)}
-              label={t}
+              key={t.id}
+              active={filter === t.id}
+              onClick={() => setFilter(t.id)}
+              label={t.label}
               count={count}
             />
           );
@@ -141,8 +160,8 @@ export function NotificationsPage() {
         {filtered.length === 0 ? (
           <EmptyState
             icon={<Bell size={32} />}
-            title="No notifications"
-            description="Alerts and updates about your farm will appear here."
+            title="Walang mga paalala"
+            description="Lalabas dito ang mga paalala at updates tungkol sa iyong bukid."
           />
         ) : (
           <div style={{ padding: '4px 16px' }}>
@@ -205,7 +224,7 @@ export function NotificationsPage() {
                         {n.title}
                       </span>
                       <Badge variant={priorityVariant(n.priority)} size="sm">
-                        {n.priority}
+                        {priorityLabel(n.priority)}
                       </Badge>
                       {isUnread && (
                         <span
@@ -223,7 +242,7 @@ export function NotificationsPage() {
                             textTransform: 'uppercase',
                           }}
                         >
-                          ● UNREAD
+                          ● BAGO
                         </span>
                       )}
                     </div>
@@ -252,7 +271,7 @@ export function NotificationsPage() {
                       <span>{formatDateTime(n.created_at)}</span>
                       {hasLink && (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--color-primary, #43A047)', fontWeight: 600 }}>
-                          View details <ArrowRight size={12} />
+                          Tingnan ang detalye <ArrowRight size={12} />
                         </span>
                       )}
                     </div>
@@ -264,7 +283,7 @@ export function NotificationsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        title="Mark as read"
+                        title="Markahang nabasa"
                         onClick={() => markAsRead(n.id)}
                         style={{ padding: '6px 8px' }}
                       >
@@ -274,7 +293,7 @@ export function NotificationsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      title="Delete"
+                      title="Burahin"
                       onClick={() => deleteNotification(n.id)}
                       style={{ padding: '6px 8px', color: 'var(--color-danger, #EF4444)' }}
                     >

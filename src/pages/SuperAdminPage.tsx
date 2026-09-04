@@ -107,11 +107,11 @@ export function SuperAdminPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 16, textAlign: 'center', padding: 24 }}>
         <ShieldAlert size={52} color="#EF4444" />
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>Access Denied</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>Walang Pahintulot</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: 14, maxWidth: 360 }}>
-          Super Administrator privileges required.
+          Kinakailangan ang pahintulot ng Super Administrator upang mabuksan ang pahinang ito.
         </p>
-        <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>Go Back</button>
+        <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>Bumalik sa Buod ng Bukid</button>
       </div>
     );
   }
@@ -335,14 +335,14 @@ export function SuperAdminPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-primary, #0f172a)', margin: 0 }}>
-            <Crown size={22} color="#7C3AED" /> Super Admin Panel
+            <Crown size={22} color="#7C3AED" /> Super Admin Panel (Buong Kontrol sa Sistema)
           </h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
-            Full system control — <strong style={{ color: 'var(--color-text-primary, #0f172a)' }}>{user?.email}</strong>
+            Buong pamamahala at kontrol sa sistema — <strong style={{ color: 'var(--color-text-primary, #0f172a)' }}>{user?.email}</strong>
           </p>
         </div>
         <Button variant="secondary" onClick={loadUsers} loading={loading} leftIcon={<RefreshCw size={14} />}>
-          Refresh
+          I-refresh
         </Button>
       </div>
 
@@ -351,7 +351,7 @@ export function SuperAdminPage() {
         <div style={{ display: 'flex', gap: 10, padding: '12px 16px', borderRadius: 12, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', marginBottom: 20 }}>
           <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
           <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#EF4444' }}>Data load error</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#EF4444' }}>Pumalya ang pag-load ng datos</div>
             <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{loadError}</div>
           </div>
         </div>
@@ -361,7 +361,7 @@ export function SuperAdminPage() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--glass-surface)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid var(--glass-border)', borderRadius: 999, padding: 5, width: 'fit-content', flexWrap: 'wrap' }}>
         {(['dashboard', 'users', 'system'] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={tabStyle(t)}>
-            {t === 'dashboard' ? 'Dashboard' : t === 'users' ? 'User Management' : 'System'}
+            {t === 'dashboard' ? 'Buod ng Sistema' : t === 'users' ? 'Pamamahala ng mga User' : 'Kalagayan ng Sistema'}
           </button>
         ))}
       </div>
@@ -370,18 +370,18 @@ export function SuperAdminPage() {
       {tab === 'dashboard' && (
         <>
           <div className="dashboard-stats stats-grid" style={{ marginBottom: 24 }}>
-            <StatCard icon={<Users size={18} />} accentColor="blue" value={loading ? '—' : stats.totalUsers} label="Total Users" />
+            <StatCard icon={<Users size={18} />} accentColor="blue" value={loading ? '—' : stats.totalUsers} label="Kabuuang mga User" />
             <StatCard icon={<Crown size={18} />} accentColor="red" value={loading ? '—' : stats.superAdmins} label="Super Admins" />
             <StatCard icon={<ShieldCheck size={18} />} accentColor="orange" value={loading ? '—' : stats.sysAdmins} label="System Admins" />
             <StatCard icon={<CheckCircle size={18} />} accentColor="green" value={loading ? '—' : stats.farmManagers} label="Farm Managers" />
-            <StatCard icon={<PawPrint size={18} />} accentColor="blue" value={loading ? '—' : stats.totalAnimals} label="Total Animals" />
-            <StatCard icon={<HeartPulse size={18} />} accentColor="orange" value={loading ? '—' : stats.totalHealth} label="Health Records" />
+            <StatCard icon={<PawPrint size={18} />} accentColor="blue" value={loading ? '—' : stats.totalAnimals} label="Kabuuang mga Hayop" />
+            <StatCard icon={<HeartPulse size={18} />} accentColor="orange" value={loading ? '—' : stats.totalHealth} label="Mga Health Record" />
           </div>
 
           {/* Role distribution */}
           <Card variant="glass" padding="lg" style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <UserCog size={16} color="#7C3AED" /> Role Distribution
+              <UserCog size={16} color="#7C3AED" /> Distribusyon ng mga Tungkulin (Roles)
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {[
@@ -403,20 +403,20 @@ export function SuperAdminPage() {
           {/* Recent users */}
           <Card variant="glass" padding="none">
             <div style={{ fontWeight: 800, fontSize: 15, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border-light)' }}>
-              <Users size={16} color="#7C3AED" /> All Registered Users
+              <Users size={16} color="#7C3AED" /> Lahat ng Nakarehistrong User
             </div>
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
             ) : users.length === 0 ? (
               <EmptyState
                 icon={<Users size={32} />}
-                title="No users found"
-                description="Check that the profiles table exists and VITE_SUPABASE_SERVICE_KEY is set in Vercel."
+                title="Walang nahanap na user"
+                description="Siguraduhing umiiral ang profiles table at naka-configure ang VITE_SUPABASE_SERVICE_KEY."
               />
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Farm</th><th>Registered</th><th>Last Login</th></tr></thead>
+                  <thead><tr><th>Email</th><th>Tungkulin</th><th>Katayuan</th><th>Bukid</th><th>Petsa ng Pagrehistro</th><th>Huling Pag-login</th></tr></thead>
                   <tbody>
                     {[...users].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(u => {
                       const b = roleBadge(u.role);
@@ -426,12 +426,12 @@ export function SuperAdminPage() {
                           <td><span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 999, background: b.bg, border: `1px solid ${b.border}`, color: b.color, fontSize: 11, fontWeight: 700 }}>{b.label}</span></td>
                           <td>
                             <Badge variant={u.is_active ? 'success' : 'danger'} size="sm">
-                              {u.is_active ? 'Active' : 'Inactive'}
+                              {u.is_active ? 'Aktibo' : 'Hindi Aktibo'}
                             </Badge>
                           </td>
                           <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.farm_name ?? '—'}</td>
                           <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.created_at ? formatDate(u.created_at) : '—'}</td>
-                          <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
+                          <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Wala pa'}</td>
                         </tr>
                       );
                     })}
@@ -447,12 +447,12 @@ export function SuperAdminPage() {
       {tab === 'users' && (
         <>
           <FilterToolbar rightAction={
-            <span style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{filtered.length} / {users.length} users</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{filtered.length} sa {users.length} mga user</span>
           }>
-            <FilterSearch placeholder="Search email, name, farm..." value={search} onChange={setSearch} minWidth={220} />
+            <FilterSearch placeholder="Maghanap ng email, pangalan, bukid..." value={search} onChange={setSearch} minWidth={220} />
             <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
               style={{ background: 'var(--filter-bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, color: 'var(--filter-text)', cursor: 'pointer', outline: 'none' }}>
-              <option value="all">All Roles</option>
+              <option value="all">Lahat ng Tungkulin</option>
               <option value="super_admin">Super Admin</option>
               <option value="system_admin">System Admin</option>
               <option value="farm_manager">Farm Manager</option>
@@ -463,11 +463,11 @@ export function SuperAdminPage() {
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
             ) : filtered.length === 0 ? (
-              <EmptyState icon={<Users size={32} />} title="No users found" description="Try a different filter." />
+              <EmptyState icon={<Users size={32} />} title="Walang nahanap na user" description="Subukan ang ibang filter o search." />
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Farm</th><th>Animals</th><th>Registered</th><th>Last Login</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>User</th><th>Tungkulin</th><th>Katayuan</th><th>Bukid</th><th>Mga Hayop</th><th>Petsa ng Pagrehistro</th><th>Huling Pag-login</th><th>Mga Aksyon</th></tr></thead>
                   <tbody>
                     {filtered.map(u => {
                       const b = roleBadge(u.role);
@@ -481,33 +481,33 @@ export function SuperAdminPage() {
                                 <div>
                                   <div style={{ fontWeight: 600, fontSize: 13 }}>{u.full_name || u.email}</div>
                                   {u.full_name && <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #475569)' }}>{u.email}</div>}
-                                  {isMe && <Badge variant="primary" size="sm">You</Badge>}
+                                  {isMe && <Badge variant="primary" size="sm">Ikaw</Badge>}
                                 </div>
                               </div>
                             </td>
                             <td><span style={{ display: 'inline-flex', padding: '3px 8px', borderRadius: 999, background: b.bg, border: `1px solid ${b.border}`, color: b.color, fontSize: 11, fontWeight: 700 }}>{b.label}</span></td>
                             <td>
                               <Badge variant={u.is_active ? 'success' : 'danger'} size="sm">
-                                {u.is_active ? 'Active' : 'Inactive'}
+                                {u.is_active ? 'Aktibo' : 'Hindi Aktibo'}
                               </Badge>
                             </td>
                             <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.farm_name ?? '—'}</td>
                             <td style={{ textAlign: 'center', fontWeight: u.animal_count > 0 ? 700 : 400 }}>{u.animal_count}</td>
                             <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.created_at ? formatDate(u.created_at) : '—'}</td>
-                            <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Never'}</td>
+                            <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>{u.last_sign_in_at ? formatDate(u.last_sign_in_at) : 'Wala pa'}</td>
                             <td onClick={e => e.stopPropagation()}>
                               <div className="row-actions">
-                                <Button variant="ghost" size="sm" title="Change role" onClick={() => { setEditRoleUser(u); setNewRole(u.role); }}>
+                                <Button variant="ghost" size="sm" title="Palitan ang role" onClick={() => { setEditRoleUser(u); setNewRole(u.role); }}>
                                   <UserCog size={13} />
                                 </Button>
-                                <Button variant="ghost" size="sm" title={u.is_active ? 'Deactivate' : 'Activate'} onClick={() => toggleActive(u)} style={{ color: u.is_active ? '#F59E0B' : '#16A34A' }}>
+                                <Button variant="ghost" size="sm" title={u.is_active ? 'I-deactivate' : 'I-activate'} onClick={() => toggleActive(u)} style={{ color: u.is_active ? '#F59E0B' : '#16A34A' }}>
                                   {u.is_active ? <X size={13} /> : <CheckCircle size={13} />}
                                 </Button>
-                                <Button variant="ghost" size="sm" title="Send password reset" onClick={() => sendReset(u.email)}>
+                                <Button variant="ghost" size="sm" title="Magpadala ng password reset" onClick={() => sendReset(u.email)}>
                                   <Mail size={13} />
                                 </Button>
                                 {!isMe && u.role !== 'super_admin' && (
-                                  <Button variant="ghost" size="sm" title="Delete" onClick={() => setConfirmDeleteUser(u)} style={{ color: '#EF4444' }}>
+                                  <Button variant="ghost" size="sm" title="Burahin" onClick={() => setConfirmDeleteUser(u)} style={{ color: '#EF4444' }}>
                                     <Trash2 size={13} />
                                   </Button>
                                 )}
@@ -519,8 +519,8 @@ export function SuperAdminPage() {
                               <td colSpan={8} style={{ background: 'var(--color-surface-elevated, rgba(255,255,255,0.03))', padding: '12px 20px' }}>
                                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 12 }}>
                                   <span><strong>ID:</strong> <code style={{ fontSize: 11, opacity: 0.7 }}>{u.id.slice(0, 20)}…</code></span>
-                                  <span><strong>Health Records:</strong> {u.health_count}</span>
-                                  {u.farm_name && <span><strong>Farm:</strong> {u.farm_name}</span>}
+                                  <span><strong>Mga Health Record:</strong> {u.health_count}</span>
+                                  {u.farm_name && <span><strong>Bukid:</strong> {u.farm_name}</span>}
                                 </div>
                               </td>
                             </tr>
@@ -541,13 +541,13 @@ export function SuperAdminPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Activity size={16} color="#7C3AED" /> System Health
+              <Activity size={16} color="#7C3AED" /> Kalusugan ng Sistema (System Health)
             </div>
             {[
-              { label: 'Authentication', status: 'Operational', ok: true },
-              { label: 'Database (profiles)', status: loadError ? 'Error' : 'Connected', ok: !loadError },
-              { label: 'AI Service', status: 'See AI Cloud', ok: null },
-              { label: 'Application', status: 'Operational', ok: true },
+              { label: 'Authentication (Pag-login / Pagrehistro)', status: 'Maayos / Umaandar', ok: true },
+              { label: 'Database (profiles at talaan)', status: loadError ? 'May Problema' : 'Konektado', ok: !loadError },
+              { label: 'AI Service (Cloud Vision at Scanner)', status: 'Aktibo sa Cloud', ok: null },
+              { label: 'Application (Web Client)', status: 'Maayos / Umaandar', ok: true },
             ].map(s => (
               <div key={s.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-light)' }}>
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{s.label}</span>
@@ -560,12 +560,12 @@ export function SuperAdminPage() {
 
           <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ShieldCheck size={16} color="#7C3AED" /> Role Hierarchy
+              <ShieldCheck size={16} color="#7C3AED" /> Antas ng mga Tungkulin (Role Hierarchy)
             </div>
             {[
-              { r: 'super_admin' as UserRole, desc: 'Full system access. Manages all users, roles, and system settings.' },
-              { r: 'system_admin' as UserRole, desc: 'Manages registered users and views farm data system-wide.' },
-              { r: 'farm_manager' as UserRole, desc: 'Manages their own farm — animals, health, breeding, inventory.' },
+              { r: 'super_admin' as UserRole, desc: 'Buong access sa sistema. Namamahala sa lahat ng user, tungkulin, at mga setting ng buong platform.' },
+              { r: 'system_admin' as UserRole, desc: 'Namamahala sa mga rehistradong user at sumusuri sa datos ng mga bukid sa buong sistema.' },
+              { r: 'farm_manager' as UserRole, desc: 'Namamahala sa sariling bukid — mga alaga, kalusugan, breeding, at imbentaryo.' },
             ].map(({ r, desc }) => {
               const b = roleBadge(r);
               return (
@@ -579,27 +579,27 @@ export function SuperAdminPage() {
 
           <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Database size={16} color="#7C3AED" /> Database Info
+              <Database size={16} color="#7C3AED" /> Impormasyon ng Database
             </div>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
               <span><strong>Project:</strong> bsotlxbvanpwengftfli</span>
               <span><strong>User table:</strong> public.profiles</span>
-              <span><strong>Total profiles:</strong> {loading ? '…' : users.length}</span>
+              <span><strong>Kabuuang profiles:</strong> {loading ? '…' : users.length}</span>
             </div>
             <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 12, lineHeight: 1.6 }}>
-              Make sure <code>VITE_SUPABASE_SERVICE_KEY</code> is set in Vercel environment variables for
-              auth.admin APIs (delete user, list users). The profiles table works with the anon key.
+              Siguraduhing naka-set ang <code>VITE_SUPABASE_SERVICE_KEY</code> sa Vercel environment variables para sa
+              auth.admin APIs (pagbura ng user, listahan ng auth). Gumagana ang profiles table gamit ang anon key.
             </p>
           </Card>
 
           {/* ML Model Status */}
           <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Brain size={16} color="#7C3AED" /> ML Health Risk Model
+              <Brain size={16} color="#7C3AED" /> Modelo ng AI Health Risk (Machine Learning)
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <Badge variant={mlCanPredict ? 'success' : 'warning'} size="sm">
-                {mlCanPredict ? 'Active' : 'Insufficient Data'}
+                {mlCanPredict ? 'Aktibo' : 'Kulang ang Datos'}
               </Badge>
               <span style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)' }}>
                 AlpasFarm Health Risk Model v{mlModel?.version ?? '2.0'}
@@ -608,8 +608,8 @@ export function SuperAdminPage() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
               {[
                 { label: 'Algorithm', value: 'Logistic Regression' },
-                { label: 'Features', value: '18 (incl. time-series)' },
-                { label: 'Training Samples', value: String(mlSamples) },
+                { label: 'Features', value: '18 (kabilang time-series)' },
+                { label: 'Mga Sanay na Sample', value: String(mlSamples) },
                 { label: 'Accuracy', value: mlCanPredict ? `${(mlAccuracy * 100).toFixed(1)}%` : '—' },
                 { label: 'Recall', value: mlCanPredict ? `${(mlRecall * 100).toFixed(1)}%` : '—' },
                 { label: 'F1 Score', value: mlCanPredict ? `${(mlF1 * 100).toFixed(1)}%` : '—' },
@@ -622,10 +622,10 @@ export function SuperAdminPage() {
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
               {[
-                { label: 'Monitored Animals', value: String(mlSummary.monitored) },
-                { label: 'ML Warnings', value: String(mlSummary.warningCount) },
-                { label: 'High Risk (ML)', value: String(mlSummary.mlHigh) },
-                { label: 'Critical (ML)', value: String(mlSummary.mlCritical) },
+                { label: 'Binabantayang Hayop', value: String(mlSummary.monitored) },
+                { label: 'Mga Babala ng AI', value: String(mlSummary.warningCount) },
+                { label: 'Mataas ang Risk (AI)', value: String(mlSummary.mlHigh) },
+                { label: 'Kritikal (AI)', value: String(mlSummary.mlCritical) },
               ].map((m) => (
                 <div key={m.label} style={{ padding: '8px 12px', borderRadius: 10, background: 'var(--color-surface-elevated, rgba(255,255,255,0.03))', border: '1px solid var(--border-light)', textAlign: 'center' }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary, #0f172a)' }}>{m.value}</div>
@@ -635,14 +635,14 @@ export function SuperAdminPage() {
             </div>
             {mlModel && (
               <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', lineHeight: 1.6 }}>
-                <strong>Label:</strong> Binary — health_record.risk_score ≥ 50 → at-risk (1), else healthy (0)<br />
-                <strong>Trained:</strong> {new Date(mlModel.trainedAt).toLocaleString()}<br />
-                <strong>Note:</strong> Labels are derived from the veterinary rule engine. The model generalizes those rules using statistical learning. Not a validated veterinary diagnostic tool.
+                <strong>Label:</strong> Binary — health_record.risk_score ≥ 50 → at-risk (1), iba pa healthy (0)<br />
+                <strong>Pagsasanay:</strong> {new Date(mlModel.trainedAt).toLocaleString()}<br />
+                <strong>Paalala:</strong> Ang mga label ay batay sa pamantayan ng beterinaryo. Hindi ito pamalit sa pormal na pagsusuri ng lisensyadong beterinaryo.
               </div>
             )}
             {!mlCanPredict && (
               <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 8 }}>
-                Reminder: The ML model requires at least 5 health records to train. Add more health check records in the farm to activate ML predictions.
+                Paalala: Kinakailangan ng AI model ang hindi bababa sa 5 health records upang makapagsanay. Magdagdag ng mga talaan ng kalusugan sa bukid upang paganahin ang AI prediction.
               </div>
             )}
           </Card>
@@ -653,18 +653,18 @@ export function SuperAdminPage() {
       {editRoleUser && (
         <Modal open={!!editRoleUser} onClose={() => setEditRoleUser(null)} size="md">
           <ModalHeader
-            title="Change Role"
+            title="Palitan ang Tungkulin"
             subtitle={editRoleUser.email}
             icon={<UserCog size={18} color="#7C3AED" />}
           />
           <ModalBody>
             <div style={{ marginBottom: 16 }}>
-              <label className="form-label">Current Role</label>
+              <label className="form-label">Kasalukuyang Tungkulin</label>
               <div style={{ fontSize: 13, fontWeight: 700, color: roleBadge(editRoleUser.role).color }}>
                 {roleBadge(editRoleUser.role).label}
               </div>
             </div>
-            <FormField label="New Role" required>
+            <FormField label="Bagong Tungkulin" required>
               <Select value={newRole} onChange={e => setNewRole(e.target.value as UserRole)}>
                 {ALL_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </Select>
@@ -672,14 +672,14 @@ export function SuperAdminPage() {
             {newRole === 'super_admin' && (
               <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.25)', marginTop: 12, fontSize: 12, color: 'var(--color-text-secondary, #475569)', display: 'flex', gap: 8 }}>
                 <AlertTriangle size={14} color="#7C3AED" style={{ flexShrink: 0, marginTop: 1 }} />
-                Super Admin has full system access. Only grant this to trusted users.
+                Ang Super Admin ay may buong kontrol sa buong platform. Ipagkaloob lamang ito sa mga pinagkakatiwalaang kawani.
               </div>
             )}
           </ModalBody>
           <ModalFooter>
-            <Button variant="secondary" onClick={() => setEditRoleUser(null)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setEditRoleUser(null)}>Kanselahin</Button>
             <Button variant="primary" onClick={handleRoleChange} loading={savingRole} disabled={savingRole || newRole === editRoleUser.role}>
-              Confirm Change
+              Kumpirmahin ang Pagbabago
             </Button>
           </ModalFooter>
         </Modal>
@@ -688,9 +688,9 @@ export function SuperAdminPage() {
       {/* ── Delete confirm ── */}
       <ConfirmDialog
         open={!!confirmDeleteUser}
-        title="Delete User"
-        message={`Are you sure you want to delete ${confirmDeleteUser?.email}? This permanently deletes the user and ALL their farm data. This cannot be undone.`}
-        confirmLabel="Delete User"
+        title="Burahin ang User"
+        message={`Sigurado ka bang nais mong burahin si ${confirmDeleteUser?.email}? Permanenteng mabubura ang user at LAHAT ng datos ng kanilang bukid. Hindi na ito maibabalik kailanman.`}
+        confirmLabel="Burahin ang User"
         danger
         onConfirm={handleDeleteUser}
         onCancel={() => setConfirmDeleteUser(null)}

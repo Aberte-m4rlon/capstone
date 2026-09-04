@@ -19,7 +19,7 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
     special: /[^A-Za-z0-9]/.test(pw),
   };
   const score = Object.values(checks).filter(Boolean).length;
-  const label = score <= 1 ? 'Weak' : score <= 3 ? 'Medium' : score <= 4 ? 'Good' : 'Strong';
+  const label = score <= 1 ? 'Mahina' : score <= 3 ? 'Katamtaman' : score <= 4 ? 'Maayos' : 'Malakas';
   const color = score <= 1 ? '#EF4444' : score <= 3 ? '#F59E0B' : score <= 4 ? '#43A047' : '#2E7D32';
   return { score, label, color, checks };
 }
@@ -161,7 +161,7 @@ export function AuthPage() {
     if (loading) return;
     const formatted = formatPhoneNumber(phoneInput);
     if (!formatted.valid) {
-      setError('Please enter a valid Philippine mobile number (e.g., 0917 123 4567).');
+      setError('Pakilagay ang wastong mobile number sa Pilipinas (hal., 0917 123 4567).');
       return;
     }
 
@@ -180,7 +180,7 @@ export function AuthPage() {
     setView('verify');
     setResendCooldown(60);
     setVerificationCode('');
-    setResendSuccess(res.message || 'SMS verification code dispatched.');
+    setResendSuccess(res.message || 'Naipadala na ang SMS verification code.');
   };
 
   // ── Email Sign In ───────────────────────────────────────────────────────────
@@ -188,8 +188,8 @@ export function AuthPage() {
     e.preventDefault();
     if (loading) return;
     const email = siEmail.trim();
-    if (!email) { setError('Please enter your email address.'); return; }
-    if (!siPassword) { setError('Please enter your password.'); return; }
+    if (!email) { setError('Pakilagay ang iyong email address.'); return; }
+    if (!siPassword) { setError('Pakilagay ang iyong password.'); return; }
     setError(null);
     setLoading(true);
     const { error: err } = await signIn(email, siPassword);
@@ -199,7 +199,7 @@ export function AuthPage() {
         setTargetDestination(email);
         setActiveVerifyType('email');
         setView('verify');
-        setError('Please enter the verification code sent to your email.');
+        setError('Pakilagay ang verification code na ipinadala sa iyong email.');
         return;
       }
       setError(err);
@@ -213,12 +213,12 @@ export function AuthPage() {
     if (loading) return;
     const email = siEmail.trim();
     if (!email) {
-      setError('Please enter your email address to receive a verification code.');
+      setError('Pakilagay ang iyong email address upang makatanggap ng verification code.');
       return;
     }
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRe.test(email)) {
-      setError('Please enter a valid email address.');
+      setError('Pakilagay ang wastong email address.');
       return;
     }
 
@@ -239,7 +239,7 @@ export function AuthPage() {
     setView('verify');
     setResendCooldown(60);
     setVerificationCode('');
-    setResendSuccess(res.message || 'A 6-digit verification code has been sent to your email.');
+    setResendSuccess(res.message || 'Naipadala na ang 6-digit verification code sa iyong email.');
   };
 
   // ── Phone Sign Up ───────────────────────────────────────────────────────────
@@ -250,10 +250,10 @@ export function AuthPage() {
     setResendSuccess(null);
 
     const formatted = formatPhoneNumber(suPhone);
-    if (!suFullName.trim()) { setError('Full name is required.'); return; }
-    if (!formatted.valid) { setError('Please enter a valid Philippine mobile number (e.g. 0917 123 4567).'); return; }
-    if (!suFarmName.trim()) { setError('Farm name is required.'); return; }
-    if (!suTerms) { setError('You must agree to the Terms and Privacy Policy to continue.'); return; }
+    if (!suFullName.trim()) { setError('Kailangan ang buong pangalan.'); return; }
+    if (!formatted.valid) { setError('Pakilagay ang wastong mobile number sa Pilipinas (hal., 0917 123 4567).'); return; }
+    if (!suFarmName.trim()) { setError('Kailangan ang pangalan ng bukid.'); return; }
+    if (!suTerms) { setError('Dapat sumang-ayon sa Mga Tuntunin at Patakaran sa Privacy upang magpatuloy.'); return; }
 
     setLoading(true);
     const res = await signUpWithPhoneOtp({
@@ -274,7 +274,7 @@ export function AuthPage() {
     setView('verify');
     setResendCooldown(60);
     setVerificationCode('');
-    setResendSuccess(res.message || 'SMS verification code dispatched.');
+    setResendSuccess(res.message || 'Naipadala na ang SMS verification code.');
   };
 
   // ── Email Sign Up ───────────────────────────────────────────────────────────
@@ -284,13 +284,13 @@ export function AuthPage() {
     setError(null);
     setResendSuccess(null);
 
-    if (!suFullName.trim()) { setError('Full name is required.'); return; }
+    if (!suFullName.trim()) { setError('Kailangan ang buong pangalan.'); return; }
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRe.test(suEmail.trim())) { setError('Please enter a valid email address.'); return; }
-    if (!pwStr.checks.length) { setError('Password must be at least 8 characters.'); return; }
-    if (suPassword !== suConfirmPw) { setError('Passwords do not match.'); return; }
-    if (!suFarmName.trim()) { setError('Farm name is required.'); return; }
-    if (!suTerms) { setError('You must agree to the Terms and Privacy Policy to create an account.'); return; }
+    if (!emailRe.test(suEmail.trim())) { setError('Pakilagay ang wastong email address.'); return; }
+    if (!pwStr.checks.length) { setError('Dapat may hindi bababa sa 8 karakter ang password.'); return; }
+    if (suPassword !== suConfirmPw) { setError('Hindi magkatugma ang mga password.'); return; }
+    if (!suFarmName.trim()) { setError('Kailangan ang pangalan ng bukid.'); return; }
+    if (!suTerms) { setError('Dapat sumang-ayon sa Mga Tuntunin at Patakaran sa Privacy upang gumawa ng account.'); return; }
 
     setLoading(true);
     const { error: err, needsConfirmation } = await signUp({
@@ -321,7 +321,7 @@ export function AuthPage() {
     if (loading || verifySuccess) return;
     const code = verificationCode.trim();
     if (!code) {
-      setError('Please enter the 6-digit verification code.');
+      setError('Pakilagay ang 6-digit verification code.');
       return;
     }
     setError(null);
@@ -373,7 +373,7 @@ export function AuthPage() {
         setError(err);
         return;
       }
-      setResendSuccess(message || 'A fresh 6-digit SMS verification code has been dispatched.');
+      setResendSuccess(message || 'Naipadala muli ang bagong 6-digit SMS verification code.');
     } else {
       const { error: err } = await resendVerificationCode(targetDestination);
       setLoading(false);
@@ -381,7 +381,7 @@ export function AuthPage() {
         setError(err);
         return;
       }
-      setResendSuccess('A fresh 6-digit verification code has been sent to your email.');
+      setResendSuccess('Naipadala muli ang bagong 6-digit verification code sa iyong email.');
     }
 
     setResendCooldown(60);
@@ -483,13 +483,13 @@ export function AuthPage() {
             </div>
 
             <h2 style={{ fontSize: 24, fontWeight: 900, color: 'var(--text, #1F2933)', marginBottom: 8, letterSpacing: '-0.5px' }}>
-              {verifySuccess ? 'Authentication Verified!' : 'Enter 6-Digit Code'}
+              {verifySuccess ? 'Matagumpay na Na-verify!' : 'Ilagay ang 6-Digit Code'}
             </h2>
 
             <p style={{ fontSize: 13, color: 'var(--text-secondary, #667085)', lineHeight: 1.5, marginBottom: 12 }}>
               {activeVerifyType === 'phone'
-                ? 'We sent a real 6-digit SMS verification code to your mobile number:'
-                : 'We sent a 6-digit authentication verification code to:'}
+                ? 'Nagpadala kami ng totoong 6-digit SMS verification code sa iyong mobile number:'
+                : 'Nagpadala kami ng 6-digit verification code sa iyong email:'}
             </p>
 
             {/* Destination Pill with Edit Action */}
@@ -510,12 +510,12 @@ export function AuthPage() {
                 <Mail size={14} color="#2E7D32" />
               )}
               <span style={{ fontSize: 13, fontWeight: 700, color: '#2E7D32', wordBreak: 'break-all' }}>
-                {targetDestination || 'your number'}
+                {targetDestination || 'iyong contact'}
               </span>
               <button
                 type="button"
                 onClick={() => switchView(view === 'verify' ? 'signin' : 'signup')}
-                title="Change number"
+                title="Palitan ang contact"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#43A047', display: 'flex', padding: 2 }}
               >
                 <Edit2 size={13} />
@@ -663,15 +663,15 @@ export function AuthPage() {
                       borderTopColor: '#FFFFFF',
                       animation: 'spin 0.7s linear infinite',
                     }} />
-                    Verifying code…
+                    Sinusuri ang code…
                   </>
                 ) : verifySuccess ? (
                   <>
-                    <CheckCircle2 size={18} /> Verified! Entering AlpasFarm…
+                    <CheckCircle2 size={18} /> Na-verify na! Pumapasok sa AlpasFarm…
                   </>
                 ) : (
                   <>
-                    Verify &amp; Continue <ArrowRight size={17} />
+                    Kumpirmahin at Magpatuloy <ArrowRight size={17} />
                   </>
                 )}
               </button>
@@ -699,7 +699,7 @@ export function AuthPage() {
                 }}
               >
                 <RefreshCw size={14} className={loading ? 'spin' : ''} />
-                {resendCooldown > 0 ? `Resend SMS in ${resendCooldown}s` : 'Resend Verification Code'}
+                {resendCooldown > 0 ? `Ipadala muli ang code sa loob ng ${resendCooldown}s` : 'Ipadala Muli ang Verification Code'}
               </button>
 
               <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
@@ -716,7 +716,7 @@ export function AuthPage() {
                     textDecoration: 'underline',
                   }}
                 >
-                  Back to Sign In
+                  Bumalik sa Pag-login
                 </button>
                 <span style={{ color: '#DDE7DF' }}>•</span>
                 <button
@@ -732,7 +732,7 @@ export function AuthPage() {
                     textDecoration: 'underline',
                   }}
                 >
-                  Edit Registration
+                  I-edit ang Pagpaparehistro
                 </button>
               </div>
             </div>
@@ -771,7 +771,7 @@ export function AuthPage() {
         ALPAS<span style={{ color: '#43A047' }}>FARM</span>
       </h1>
       <p style={{ fontSize: 13, color: 'var(--text-secondary, #667085)', margin: 0, fontWeight: 500 }}>
-        Smart Goat &amp; Sheep Farm Management
+        Matalinong Pamamahala ng Bukid ng Kambing at Tupa
       </p>
     </div>
   );
@@ -786,7 +786,7 @@ export function AuthPage() {
       marginBottom: 20,
       gap: 4,
     }}>
-      {([['signin', <LogIn size={15} />, 'Sign In'] as const, ['signup', <UserPlus size={15} />, 'Create Account'] as const]).map(([v, icon, label]) => (
+      {([['signin', <LogIn size={15} />, 'Mag-login'] as const, ['signup', <UserPlus size={15} />, 'Mag-register'] as const]).map(([v, icon, label]) => (
         <button
           key={v}
           type="button"
@@ -868,7 +868,7 @@ export function AuthPage() {
         }}
       >
         <Mail size={14} color={method === 'email' ? '#2E7D32' : '#667085'} />
-        Email &amp; Password
+        Email at Password
       </button>
     </div>
   );
@@ -925,7 +925,7 @@ export function AuthPage() {
                 /* Phone Sign In */
                 <form onSubmit={handlePhoneSignIn} noValidate>
                   <Field
-                    label="Philippine Mobile Number"
+                    label="Mobile Number (Pilipinas)"
                     icon={Phone}
                     badge={
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32', background: '#E8F5E9', padding: '2px 8px', borderRadius: 999 }}>
@@ -968,7 +968,7 @@ export function AuthPage() {
                     gap: 8,
                   }}>
                     <Sparkles size={15} color="#43A047" style={{ flexShrink: 0 }} />
-                    <span>A real 6-digit SMS verification code will be sent to your phone.</span>
+                    <span>Magpapadala ng 6-digit SMS verification code sa iyong mobile phone.</span>
                   </div>
 
                   <button
@@ -1003,19 +1003,19 @@ export function AuthPage() {
                           borderTopColor: '#FFFFFF',
                           animation: 'spin 0.7s linear infinite',
                         }} />
-                        Sending SMS Code…
+                        Ipinapadala ang SMS Code…
                       </>
                     ) : (
                       <>
-                        Send SMS Verification Code <ArrowRight size={17} />
+                        Ipadala ang SMS Code <ArrowRight size={17} />
                       </>
                     )}
                   </button>
                 </form>
-                            ) : (
+              ) : (
                 /* Email & Password Sign In */
                 <form onSubmit={handleEmailSignIn} noValidate>
-                  <Field label="Email Address" icon={Mail}>
+                  <Field label="Email" icon={Mail}>
                     <input
                       type="email"
                       value={siEmail}
@@ -1067,7 +1067,7 @@ export function AuthPage() {
                         }}
                       >
                         <Sparkles size={12} color="#2E7D32" />
-                        Sign In with 6-Digit Email Code
+                        Mag-login gamit ang 6-Digit Email Code
                       </button>
                     </div>
                     <div style={{ position: 'relative' }}>
@@ -1089,7 +1089,7 @@ export function AuthPage() {
                           setSiPassword(e.target.value);
                           setError(null);
                         }}
-                        placeholder="Enter your password"
+                        placeholder="Ilagay ang iyong password"
                         autoComplete="current-password"
                         disabled={loading}
                         style={{ ...inputStyle(), padding: '12px 42px 12px 42px' }}
@@ -1158,11 +1158,11 @@ export function AuthPage() {
                             borderTopColor: '#FFFFFF',
                             animation: 'spin 0.7s linear infinite',
                           }} />
-                          Signing in…
+                          Pumapasok na…
                         </>
                       ) : (
                         <>
-                          Sign In with Password <ArrowRight size={17} />
+                          Mag-login gamit ang Password <ArrowRight size={17} />
                         </>
                       )}
                     </button>
@@ -1190,7 +1190,7 @@ export function AuthPage() {
                       }}
                     >
                       <Mail size={15} color="#166534" />
-                      Send 6-Digit Code to Email
+                      Magpadala ng 6-Digit Code sa Email
                     </button>
                   </div>
                 </form>
@@ -1221,11 +1221,11 @@ export function AuthPage() {
                     padding: 0,
                   }}
                 >
-                  Enter Verification Code
+                  Ilagay ang Verification Code
                 </button>
                 <button
                   type="button"
-                  onClick={() => alert('Please contact your administrator or check your registered contact information.')}
+                  onClick={() => alert('Mangyaring makipag-ugnayan sa inyong farm administrator o suriin ang inyong nakarehistrong contact information.')}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -1237,7 +1237,7 @@ export function AuthPage() {
                     textDecoration: 'underline',
                   }}
                 >
-                  Need Help?
+                  Kailangan ng Tulong?
                 </button>
               </div>
             </>
@@ -1251,7 +1251,7 @@ export function AuthPage() {
               {method === 'phone' ? (
                 /* Phone Sign Up */
                 <form onSubmit={handlePhoneSignUp} noValidate>
-                  <Field label="Full Name *" icon={User}>
+                  <Field label="Buong Pangalan *" icon={User}>
                     <input
                       type="text"
                       value={suFullName}
@@ -1308,11 +1308,11 @@ export function AuthPage() {
                   {/* Divider */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
                     <div style={{ flex: 1, height: 1, background: '#E5EDE6' }} />
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #667085)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Farm Details</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #667085)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Impormasyon ng Bukid</span>
                     <div style={{ flex: 1, height: 1, background: '#E5EDE6' }} />
                   </div>
 
-                  <Field label="Farm Name *" icon={Building2}>
+                  <Field label="Pangalan ng Bukid *" icon={Building2}>
                     <input
                       type="text"
                       value={suFarmName}
@@ -1320,7 +1320,7 @@ export function AuthPage() {
                         setSuFarmName(e.target.value);
                         setError(null);
                       }}
-                      placeholder="e.g. Aberte Family Farm"
+                      placeholder="hal. Aberte Family Farm"
                       disabled={loading}
                       style={inputStyle()}
                       onFocus={(e) => {
@@ -1334,12 +1334,12 @@ export function AuthPage() {
                     />
                   </Field>
 
-                  <Field label="Farm Location" icon={MapPin}>
+                  <Field label="Lokasyon ng Bukid" icon={MapPin}>
                     <input
                       type="text"
                       value={suFarmLocation}
                       onChange={(e) => setSuFarmLocation(e.target.value)}
-                      placeholder="e.g. Cavite, Philippines"
+                      placeholder="hal. Cavite, Philippines"
                       disabled={loading}
                       style={inputStyle()}
                       onFocus={(e) => {
@@ -1375,10 +1375,10 @@ export function AuthPage() {
                       {suTerms && <CheckCircle2 size={13} color="#FFFFFF" />}
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-secondary, #667085)', lineHeight: 1.5 }}>
-                      I agree to the AlpasFarm{' '}
-                      <span style={{ color: '#2E7D32', fontWeight: 600 }}>Terms of Service</span>
-                      {' '}and{' '}
-                      <span style={{ color: '#2E7D32', fontWeight: 600 }}>Privacy Policy</span>
+                      Sumasang-ayon ako sa AlpasFarm{' '}
+                      <span style={{ color: '#2E7D32', fontWeight: 600 }}>Mga Tuntunin ng Serbisyo</span>
+                      {' '}at{' '}
+                      <span style={{ color: '#2E7D32', fontWeight: 600 }}>Patakaran sa Privacy</span>
                     </span>
                   </label>
 
@@ -1414,11 +1414,11 @@ export function AuthPage() {
                           borderTopColor: '#FFFFFF',
                           animation: 'spin 0.7s linear infinite',
                         }} />
-                        Registering Account…
+                        Nirerehistro ang account…
                       </>
                     ) : (
                       <>
-                        <UserPlus size={16} /> Register with SMS Code
+                        <UserPlus size={16} /> Mag-register gamit ang SMS Code
                       </>
                     )}
                   </button>
@@ -1426,7 +1426,7 @@ export function AuthPage() {
               ) : (
                 /* Email Sign Up */
                 <form onSubmit={handleEmailSignUp} noValidate>
-                  <Field label="Full Name *" icon={User}>
+                  <Field label="Buong Pangalan *" icon={User}>
                     <input
                       type="text"
                       value={suFullName}
@@ -1449,7 +1449,7 @@ export function AuthPage() {
                     />
                   </Field>
 
-                  <Field label="Email Address *" icon={Mail}>
+                  <Field label="Email *" icon={Mail}>
                     <input
                       type="email"
                       value={suEmail}
@@ -1504,7 +1504,7 @@ export function AuthPage() {
                           setSuPassword(e.target.value);
                           setError(null);
                         }}
-                        placeholder="Min 8 characters"
+                        placeholder="Hindi bababa sa 8 karakter"
                         autoComplete="new-password"
                         disabled={loading}
                         style={{ ...inputStyle(), padding: '12px 42px 12px 42px' }}
@@ -1553,9 +1553,9 @@ export function AuthPage() {
                           ))}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-secondary, #667085)' }}>
-                          <span>Strength: <strong style={{ color: pwStr.color }}>{pwStr.label}</strong></span>
+                          <span>Lakas ng Password: <strong style={{ color: pwStr.color }}>{pwStr.label}</strong></span>
                           <div style={{ display: 'flex', gap: 8 }}>
-                            {[['8+ chars', pwStr.checks.length], ['Upper', pwStr.checks.upper], ['Number', pwStr.checks.number]].map(([l, ok]) => (
+                            {[['8+ karakter', pwStr.checks.length], ['Malaking titik', pwStr.checks.upper], ['Numero', pwStr.checks.number]].map(([l, ok]) => (
                               <span key={l as string} style={{ color: ok ? '#2E7D32' : 'var(--text-secondary, #667085)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                                 {ok ? <CheckCircle2 size={12} color="#2E7D32" /> : <span style={{ opacity: 0.5 }}>-</span>} {l}
                               </span>
@@ -1576,7 +1576,7 @@ export function AuthPage() {
                       textTransform: 'uppercase',
                       letterSpacing: '0.4px',
                     }}>
-                      Confirm Password *
+                      Kumpirmahin ang Password *
                     </label>
                     <div style={{ position: 'relative' }}>
                       <Lock
@@ -1597,7 +1597,7 @@ export function AuthPage() {
                           setSuConfirmPw(e.target.value);
                           setError(null);
                         }}
-                        placeholder="Re-enter password"
+                        placeholder="I-type muli ang password"
                         autoComplete="new-password"
                         disabled={loading}
                         style={{
@@ -1634,18 +1634,18 @@ export function AuthPage() {
                       </button>
                     </div>
                     {suConfirmPw && suPassword !== suConfirmPw && (
-                      <p style={{ fontSize: 11, color: '#EF4444', marginTop: 5 }}>Passwords do not match.</p>
+                      <p style={{ fontSize: 11, color: '#EF4444', marginTop: 5 }}>Hindi magkatugma ang mga password.</p>
                     )}
                   </div>
 
                   {/* Divider */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0' }}>
                     <div style={{ flex: 1, height: 1, background: '#E5EDE6' }} />
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #667085)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Farm Details</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #667085)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Impormasyon ng Bukid</span>
                     <div style={{ flex: 1, height: 1, background: '#E5EDE6' }} />
                   </div>
 
-                  <Field label="Farm Name *" icon={Building2}>
+                  <Field label="Pangalan ng Bukid *" icon={Building2}>
                     <input
                       type="text"
                       value={suFarmName}
@@ -1653,7 +1653,7 @@ export function AuthPage() {
                         setSuFarmName(e.target.value);
                         setError(null);
                       }}
-                      placeholder="e.g. Aberte Family Farm"
+                      placeholder="hal. Aberte Family Farm"
                       disabled={loading}
                       style={inputStyle()}
                       onFocus={(e) => {
@@ -1667,12 +1667,12 @@ export function AuthPage() {
                     />
                   </Field>
 
-                  <Field label="Farm Location" icon={MapPin}>
+                  <Field label="Lokasyon ng Bukid" icon={MapPin}>
                     <input
                       type="text"
                       value={suFarmLocation}
                       onChange={(e) => setSuFarmLocation(e.target.value)}
-                      placeholder="e.g. Cavite, Philippines"
+                      placeholder="hal. Cavite, Philippines"
                       disabled={loading}
                       style={inputStyle()}
                       onFocus={(e) => {
@@ -1708,10 +1708,10 @@ export function AuthPage() {
                       {suTerms && <CheckCircle2 size={13} color="#FFFFFF" />}
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-secondary, #667085)', lineHeight: 1.5 }}>
-                      I agree to the AlpasFarm{' '}
-                      <span style={{ color: '#2E7D32', fontWeight: 600 }}>Terms of Service</span>
-                      {' '}and{' '}
-                      <span style={{ color: '#2E7D32', fontWeight: 600 }}>Privacy Policy</span>
+                      Sumasang-ayon ako sa AlpasFarm{' '}
+                      <span style={{ color: '#2E7D32', fontWeight: 600 }}>Mga Tuntunin ng Serbisyo</span>
+                      {' '}at{' '}
+                      <span style={{ color: '#2E7D32', fontWeight: 600 }}>Patakaran sa Privacy</span>
                     </span>
                   </label>
 
@@ -1747,11 +1747,11 @@ export function AuthPage() {
                           borderTopColor: '#FFFFFF',
                           animation: 'spin 0.7s linear infinite',
                         }} />
-                        Creating account…
+                        Ginagawa ang account…
                       </>
                     ) : (
                       <>
-                        <UserPlus size={16} /> Create Account
+                        <UserPlus size={16} /> Mag-register
                       </>
                     )}
                   </button>

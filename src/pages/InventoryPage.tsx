@@ -814,7 +814,7 @@ export function InventoryPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0, letterSpacing: '-0.4px', color: 'var(--color-text-primary, #0F172A)' }}>
-              General Farm Inventory
+              Farm Inventory
             </h1>
             <span
               style={{
@@ -832,7 +832,7 @@ export function InventoryPage() {
             </span>
           </div>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4, marginBottom: 0 }}>
-            Buod ng lahat ng mayroon at kasalukuyang pinamamahalaan sa bukid (Livestock, Pakain, Gamot, at Kagamitan).
+            Buod ng lahat ng mayroon sa bukid (Livestock, Pakain, Gamot, at Kagamitan).
           </p>
         </div>
 
@@ -854,7 +854,7 @@ export function InventoryPage() {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}
           >
             <Plus size={16} />
-            Magdagdag ng Farm Stock
+            Magdagdag ng Item
           </button>
         </div>
       </div>

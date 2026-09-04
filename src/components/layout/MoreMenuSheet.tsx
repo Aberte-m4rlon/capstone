@@ -147,47 +147,47 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
       {
         to: '/health',
         label: 'Health Monitoring',
-        description: 'Visual health indicators, illness records & vitals',
+        description: 'Subaybayan ang kalagayan ng bawat kambing at tupa',
         icon: <HeartPulse size={20} color="#EF4444" />,
-      },
-      {
-        to: '/breeding',
-        label: 'Breeding & Genetics',
-        description: 'Mating cycles, gestation tracking & lineage',
-        icon: <Heart size={20} color="#EC4899" />,
-      },
-      {
-        to: '/weights',
-        label: 'Weight & Growth',
-        description: 'ADG tracking and body condition scoring',
-        icon: <Scale size={20} color="#3B82F6" />,
-      },
-      {
-        to: '/vaccinations',
-        label: 'Vaccinations & Boosters',
-        description: 'Immunization schedule and overdue alerts',
-        icon: <Syringe size={20} color="#8B5CF6" />,
-        badge: getBadge('/vaccinations'),
-      },
-      {
-        to: '/feed',
-        label: 'Feed Management',
-        description: 'Feed rationing, nutrition & consumption logs',
-        icon: <Apple size={20} color="#10B981" />,
-      },
-      {
-        to: '/inventory',
-        label: 'General Farm Inventory',
-        description: 'Livestock overview, feed stocks, medicines & tools',
-        icon: <Package size={20} color="#F59E0B" />,
-        badge: getBadge('/inventory'),
       },
       {
         to: '/camera-screening',
         label: 'AI Health Scanner',
-        description: 'Real-time goat & sheep camera screening',
+        description: 'Itutok ang camera sa kambing o tupa para sa screening',
         icon: <Camera size={20} color="#43A047" />,
         highlight: true,
+      },
+      {
+        to: '/breeding',
+        label: 'Breeding',
+        description: 'Talaan ng pagpaparami, pagbubuntis, at panganganak',
+        icon: <Heart size={20} color="#EC4899" />,
+      },
+      {
+        to: '/vaccinations',
+        label: 'Mga Bakuna',
+        description: 'Iskedyul ng bakuna at mga paalala',
+        icon: <Syringe size={20} color="#8B5CF6" />,
+        badge: getBadge('/vaccinations'),
+      },
+      {
+        to: '/inventory',
+        label: 'Farm Inventory',
+        description: 'Buod ng lahat ng mayroon sa bukid (Livestock at Stocks)',
+        icon: <Package size={20} color="#F59E0B" />,
+        badge: getBadge('/inventory'),
+      },
+      {
+        to: '/weights',
+        label: 'Timbang at Paglaki',
+        description: 'Subaybayan ang timbang at paglaki ng mga alaga',
+        icon: <Scale size={20} color="#3B82F6" />,
+      },
+      {
+        to: '/feed',
+        label: 'Pamamahala ng Pakain',
+        description: 'Talaan ng konsumo at nutrisyon sa pakain',
+        icon: <Apple size={20} color="#10B981" />,
       },
       {
         to: '/recommendations',
@@ -197,26 +197,26 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
       },
       {
         to: '/analytics',
-        label: 'Analytics & Insights',
-        description: 'Herd productivity and performance graphs',
+        label: 'Analytics',
+        description: 'Pagsusuri sa pag-unlad at produksyon ng bukid',
         icon: <TrendingUp size={20} color="#06B6D4" />,
       },
       {
         to: '/reports',
-        label: 'Reports & Exports',
-        description: 'Export PDF, Excel and printable records',
+        label: 'Mga Ulat',
+        description: 'Export PDF, Excel at printable records',
         icon: <BarChart3 size={20} color="#10B981" />,
       },
       {
         to: '/activity-log',
         label: 'Activity Log',
-        description: 'Comprehensive farm actions history',
+        description: 'Kasaysayan ng mga gawain sa bukid',
         icon: <History size={20} color="#64748B" />,
       },
       {
         to: '/settings',
-        label: 'Settings',
-        description: 'Account, notifications and farm parameters',
+        label: 'Mga Setting',
+        description: 'Mga setting at detalye ng bukid',
         icon: <Settings size={20} color="#64748B" />,
       },
     ];
@@ -242,8 +242,8 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
 
         <div className="bottom-sheet-header">
           <div>
-            <h2 className="bottom-sheet-title">More Features</h2>
-            <p className="bottom-sheet-subtitle">Access all farm modules and utilities</p>
+            <h2 className="bottom-sheet-title">Iba pang Features</h2>
+            <p className="bottom-sheet-subtitle">Lahat ng gamit at talaan sa bukid</p>
           </div>
           <button
             type="button"
@@ -261,10 +261,10 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
             <Bot size={22} color="#FFFFFF" />
           </div>
           <div className="more-ai-text">
-            <span className="more-ai-title">MyAI Farm Assistant</span>
-            <span className="more-ai-desc">Ask farm questions or analyze records with AI</span>
+            <span className="more-ai-title">AI Farm Assistant</span>
+            <span className="more-ai-desc">Magtanong o magpasuri ng talaan gamit ang AI</span>
           </div>
-          <span className="more-ai-action-chip">Launch</span>
+          <span className="more-ai-action-chip">Buksan</span>
         </div>
 
         {/* Modules List */}
@@ -300,7 +300,7 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
             className="bottom-sheet-cancel-btn"
             onClick={onClose}
           >
-            Close Menu
+            Isara
           </button>
         </div>
       </div>

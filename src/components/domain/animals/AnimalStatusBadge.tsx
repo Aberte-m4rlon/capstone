@@ -11,16 +11,24 @@ export function AnimalStatusBadge({ status, size = 'sm' }: AnimalStatusBadgeProp
   let variant: BadgeVariant = 'neutral';
   let label = status || 'Active';
 
-  if (norm.includes('active') || norm.includes('lactating') || norm.includes('breeding')) {
+  if (norm === 'active' || norm.includes('kasalukuyan')) {
     variant = 'success';
-  } else if (norm.includes('pregnant') || norm.includes('weaned') || norm.includes('growing')) {
+    label = 'Active / Kasalukuyan sa Bukid';
+  } else if (norm.includes('pregnant') || norm.includes('buntis')) {
     variant = 'primary';
+    label = 'Pregnant / Buntis';
+  } else if (norm.includes('sold') || norm.includes('naibenta')) {
+    variant = 'neutral';
+    label = 'Sold / Naibenta';
+  } else if (norm.includes('transferred') || norm.includes('nailipat')) {
+    variant = 'neutral';
+    label = 'Transferred / Nailipat';
+  } else if (norm.includes('deceased') || norm.includes('namatay') || norm.includes('culled')) {
+    variant = 'danger';
+    label = 'Deceased / Namatay';
   } else if (norm.includes('quarantined') || norm.includes('isolated')) {
     variant = 'warning';
-  } else if (norm.includes('sold') || norm.includes('archived')) {
-    variant = 'neutral';
-  } else if (norm.includes('deceased') || norm.includes('culled')) {
-    variant = 'danger';
+    label = 'Naka-quarantine';
   }
 
   return (

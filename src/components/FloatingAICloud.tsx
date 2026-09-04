@@ -149,8 +149,8 @@ export function FloatingAICloud() {
       : '';
 
     const sys = ctx
-      ? `You are MyAI, the AI assistant for AlpasFarm.\nIMPORTANT:\n- Use the REAL farm data below. NEVER invent records.\n- READ-ONLY. Respond in the user's language. Be concise. Consult a vet for medical advice.\n\nFARM DATA:\n${ctx}`
-      : `You are MyAI, the AI assistant for AlpasFarm — a Goat & Sheep Farm Management System. Be concise. Respond in the user's language.`;
+      ? `You are the AI Farm Assistant for AlpasFarm, a goat and sheep farm management system in the Philippines.\nIMPORTANT:\n- Use a Filipino-friendly Tagalog + English (Taglish) language style that is natural, warm, and easy for Filipino farmers, farm staff, and technicians to understand.\n- Avoid overly deep or archaic Tagalog words; use common English technical terms (e.g., 'Health Status', 'Breeding', 'Vaccine', 'Inventory', 'Overdue', 'Weight').\n- Use the REAL farm data below. NEVER invent records or sensor values.\n- Remind the user to consult a licensed veterinarian for medical or diagnostic advice.\n\nFARM DATA:\n${ctx}`
+      : `You are the AI Farm Assistant for AlpasFarm — a Goat & Sheep Farm Management System in the Philippines. Respond in natural, friendly Taglish (simple Tagalog mixed with common English farm/tech terms). Be concise and helpful.`;
 
     const historyMsgs = conv.messages
       .filter((m) => m && (m.content || m.image) && !m.content.trim().startsWith('[Alert]'))
@@ -182,7 +182,7 @@ export function FloatingAICloud() {
       }
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
-        full = `${err?.message ?? 'AI temporarily unavailable. Please try again.'}`;
+        full = `${err?.message ?? 'Pansamantalang hindi maabot ang AI service. Pakisubukan muli.'}`;
         setStreamText(full);
         checkStatus();
       }

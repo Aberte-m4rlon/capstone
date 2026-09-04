@@ -23,7 +23,7 @@ export function StockStatusBadge({
   } else if (quantity <= minimumStock) {
     variant = 'warning';
     Icon = AlertTriangle;
-    label = 'Low Stock';
+    label = 'Mababa na ang Stock';
   }
 
   return (

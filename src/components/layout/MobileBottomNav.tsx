@@ -53,7 +53,7 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
         {/* 1. Dashboard */}
         <MobileNavItem
           to="/dashboard"
-          label="Dashboard"
+          label="Buod ng Bukid"
           icon={<LayoutDashboard size={20} strokeWidth={2.2} />}
           isActive={isDashboardActive && !quickAddOpen && !moreMenuOpen}
         />
@@ -61,7 +61,7 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
         {/* 2. Animals */}
         <MobileNavItem
           to="/animals"
-          label="Animals"
+          label="Mga Hayop"
           icon={<GoatIcon size={20} strokeWidth={2.2} />}
           isActive={isAnimalsActive && !quickAddOpen && !moreMenuOpen}
         />
@@ -86,7 +86,7 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
         {/* 4. Alerts */}
         <MobileNavItem
           to="/daily-alerts"
-          label="Alerts"
+          label="Mga Paalala"
           icon={<Bell size={20} strokeWidth={2.2} />}
           badge={alertBadgeCount}
           isActive={isAlertsActive && !quickAddOpen && !moreMenuOpen}
@@ -94,7 +94,7 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
 
         {/* 5. More */}
         <MobileNavItem
-          label="More"
+          label="Iba pa"
           icon={<MoreHorizontal size={22} strokeWidth={2.4} />}
           isActive={moreMenuOpen}
           onClick={handleToggleMoreMenu}
