@@ -14,7 +14,7 @@ import { AnimalHealthBadge } from '../components/domain/animals/AnimalHealthBadg
 import { ComboBox } from '../components/ComboBox';
 import { FilterToolbar, FilterSearch, FilterSelect, FilterToggle } from '../components/FilterToolbar';
 import { Icons } from '../lib/icons';
-import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode, Download, Printer, CheckCircle2, Sparkles, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode, Download, Printer, CheckCircle2, Sparkles, Tag, Layers, PawPrint, Baby } from 'lucide-react';
 import { ageLabel } from '../lib/analytics';
 import { getBreedsForSpecies, COLOR_MARKINGS } from '../lib/farmDefaults';
 import { generateNextAnimalId, fetchNextUniqueAnimalId, insertAnimalWithUniqueRetry } from '../lib/animalId';
@@ -70,6 +70,30 @@ export function AnimalsPage() {
           (a.breed ?? '').toLowerCase().includes(search.toLowerCase())
       );
   }, [farmData.animals, fSpecies, fSex, fHealth, fArchived, search]);
+
+  const animalStats = useMemo(() => {
+    const active = farmData.animals.filter((a) => !a.archived);
+    const goats = active.filter((a) => a.species === 'Goat').length;
+    const sheep = active.filter((a) => a.species === 'Sheep').length;
+    const males = active.filter((a) => a.sex === 'Male').length;
+    const females = active.filter((a) => a.sex === 'Female').length;
+    const young = active.filter((a) => {
+      if ((a as any).age_category === 'Young') return true;
+      if (a.date_of_birth) {
+        const ageYears = (Date.now() - new Date(a.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000);
+        return ageYears < 1;
+      }
+      return false;
+    }).length;
+    return {
+      total: active.length,
+      goats,
+      sheep,
+      males,
+      females,
+      young,
+    };
+  }, [farmData.animals]);
 
   const openAdd = () => {
     const nextId = generateNextAnimalId('Goat', farmData.animals);
@@ -279,6 +303,172 @@ export function AnimalsPage() {
         <Button variant="primary" onClick={openAdd} leftIcon={<Plus size={16} />}>
           Magdagdag ng Hayop
         </Button>
+      </div>
+
+      {/* 3-Column Summary Cards: Total | Goats | Sheep */}
+      <div className="mobile-stats-grid-3">
+        {/* Total */}
+        <div
+          onClick={() => { setFSpecies('All'); setFSex('All'); }}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: fSpecies === 'All' && fSex === 'All' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+              Kabuuan
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PawPrint size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: 'var(--color-primary, #FF6A2A)' }}>
+              {animalStats.total}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Lahat ng hayop
+            </div>
+          </div>
+        </div>
+
+        {/* Goats */}
+        <div
+          onClick={() => setFSpecies(fSpecies === 'Goat' ? 'All' : 'Goat')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: fSpecies === 'Goat' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+              Kambing
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Layers size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+              {animalStats.goats}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              {animalStats.total > 0 ? `${Math.round((animalStats.goats / animalStats.total) * 100)}% ng bukid` : '0%'}
+            </div>
+          </div>
+        </div>
+
+        {/* Sheep */}
+        <div
+          onClick={() => setFSpecies(fSpecies === 'Sheep' ? 'All' : 'Sheep')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: fSpecies === 'Sheep' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#10B981' }}>
+              Tupa
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Layers size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#10B981' }}>
+              {animalStats.sheep}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              {animalStats.total > 0 ? `${Math.round((animalStats.sheep / animalStats.total) * 100)}% ng bukid` : '0%'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3-Column Summary Cards: Male | Female | Young */}
+      <div className="mobile-stats-grid-3">
+        {/* Male */}
+        <div
+          onClick={() => setFSex(fSex === 'Male' ? 'All' : 'Male')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: fSex === 'Male' ? '2px solid #3B82F6' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+              Lalaki (Male)
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PawPrint size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+              {animalStats.males}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Barako / Toro
+            </div>
+          </div>
+        </div>
+
+        {/* Female */}
+        <div
+          onClick={() => setFSex(fSex === 'Female' ? 'All' : 'Female')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: fSex === 'Female' ? '2px solid #EC4899' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#EC4899' }}>
+              Babae (Female)
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PawPrint size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#EC4899' }}>
+              {animalStats.females}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Inahin
+            </div>
+          </div>
+        </div>
+
+        {/* Young */}
+        <div
+          className="stat-card"
+          style={{
+            background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#10B981' }}>
+              Bata (Young)
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Baby size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#10B981' }}>
+              {animalStats.young}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Bisiro / Kids / Lambs
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filter Toolbar */}

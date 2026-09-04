@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
+import { GoatIcon } from './GoatIcon';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord, Notification } from '../../types';
 
 export interface SearchResult {
@@ -203,6 +204,16 @@ export function AppHeader({
         >
           <Menu size={20} />
         </button>
+
+        {/* Mobile Header Branding: ☰ ALPASFARM 🔔 👤 */}
+        <div className="topbar-mobile-brand">
+          <div className="topbar-mobile-logo-wrap">
+            <GoatIcon size={18} color="var(--color-primary, #43A047)" strokeWidth={2.4} />
+          </div>
+          <span className="topbar-mobile-brand-title">ALPASFARM</span>
+        </div>
+
+        {/* Desktop Heading Group */}
         <div className="topbar-heading-group">
           <h1 className="topbar-title">{title}</h1>
           {subtitle && <p className="topbar-sub">{subtitle}</p>}
@@ -442,7 +453,7 @@ export function AppHeader({
               <img
                 src={avatarUrl}
                 alt="avatar"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
               />
             ) : (
               <span>{initials}</span>

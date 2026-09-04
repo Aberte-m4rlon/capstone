@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { FilterToolbar, FilterSelect, FilterSearch, FilterDateRange } from '../components/FilterToolbar';
 import { inventoryStatus } from '../lib/analytics';
-import { Printer, FileBarChart, Download } from 'lucide-react';
+import { Printer, FileBarChart, Download, PawPrint, HeartPulse, Package } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -157,6 +157,90 @@ export function ReportsPage() {
           >
             I-print
           </Button>
+        </div>
+      </div>
+
+      {/* 3-Column Summary Cards: Animals | Health | Inventory */}
+      <div className="mobile-stats-grid-3" style={{ marginBottom: 16 }}>
+        {/* Animals */}
+        <div
+          onClick={() => setReportType('animal')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: reportType === 'animal' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+              Animals
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <PawPrint size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: 'var(--color-primary, #FF6A2A)' }}>
+              {activeAnimals.length}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Talaan ng hayop
+            </div>
+          </div>
+        </div>
+
+        {/* Health */}
+        <div
+          onClick={() => setReportType('health')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: reportType === 'health' ? '2px solid #EF4444' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#EF4444' }}>
+              Health
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <HeartPulse size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#EF4444' }}>
+              {farmData.healthRecords.length}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Talaan ng kalusugan
+            </div>
+          </div>
+        </div>
+
+        {/* Inventory */}
+        <div
+          onClick={() => setReportType('inventory')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: reportType === 'inventory' ? '2px solid #3B82F6' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+              Inventory
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Package size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+              {farmData.inventory.length}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Talaan ng gamit
+            </div>
+          </div>
         </div>
       </div>
 

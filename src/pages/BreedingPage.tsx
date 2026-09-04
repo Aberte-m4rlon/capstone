@@ -283,6 +283,22 @@ export function BreedingPage() {
       .sort((a, b) => new Date(b.mating_date).getTime() - new Date(a.mating_date).getTime());
   }, [farmData.breedingRecords, farmData.animals, fStatus, searchQuery]);
 
+  const breedingStats = useMemo(() => {
+    const pregnant = farmData.breedingRecords.filter((r) => r.status === 'Pregnant').length;
+    const mating = farmData.breedingRecords.filter((r) => (r.status as string) === 'Mated' || r.status === 'Planned').length || readyFemales.length;
+    const expectedKidding = farmData.breedingRecords.filter((r) => {
+      if (r.status !== 'Pregnant' || !r.expected_kidding_date) return false;
+      const days = daysUntil(r.expected_kidding_date);
+      return days !== null && days <= 60;
+    }).length || pregnant;
+
+    return {
+      pregnant,
+      mating,
+      expectedKidding,
+    };
+  }, [farmData.breedingRecords, readyFemales]);
+
   const openAdd = () => {
     setEditing(null);
     setForm({
@@ -579,6 +595,88 @@ export function BreedingPage() {
           >
             Magdagdag ng Record ng Breeding
           </Button>
+        </div>
+      </div>
+
+      {/* 3-Column Summary Cards: Pregnant | Mating | Expected Kidding */}
+      <div className="mobile-stats-grid-3">
+        {/* Pregnant */}
+        <div
+          onClick={() => setFStatus(fStatus === 'Pregnant' ? 'All' : 'Pregnant')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: fStatus === 'Pregnant' ? '2px solid #EC4899' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#EC4899' }}>
+              Buntis (Pregnant)
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Baby size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#EC4899' }}>
+              {breedingStats.pregnant}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Inahing buntis
+            </div>
+          </div>
+        </div>
+
+        {/* Mating */}
+        <div
+          onClick={() => setFStatus(fStatus === 'Mated' ? 'All' : 'Mated')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: fStatus === 'Mated' ? '2px solid #3B82F6' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+              Mating
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <HeartHandshake size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+              {breedingStats.mating}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Handa / Naka-mate
+            </div>
+          </div>
+        </div>
+
+        {/* Expected Kidding */}
+        <div
+          className="stat-card"
+          style={{
+            background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#F59E0B' }}>
+              Manganganak
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Calendar size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#F59E0B' }}>
+              {breedingStats.expectedKidding}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Expected kidding
+            </div>
+          </div>
         </div>
       </div>
 

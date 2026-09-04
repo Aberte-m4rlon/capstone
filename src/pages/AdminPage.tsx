@@ -231,35 +231,28 @@ export function AdminPage() {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="dashboard-stats stats-grid" style={{ marginBottom: 20 }}>
+      {/* Stats — 3 Columns across */}
+      <div className="mobile-stats-grid-3" style={{ marginBottom: 20 }}>
         <StatCard
           icon={<Users size={20} />}
           accentColor="red"
           value={stats.totalUsers}
-          label="Kabuuang mga User"
-          subtext="Mga nakarehistrong account"
+          label="Mga User"
+          subtext="Nakarehistrong account"
         />
         <StatCard
           icon={<PawPrint size={20} />}
           accentColor="green"
           value={stats.totalAnimals}
-          label="Kabuuang mga Hayop"
+          label="Mga Hayop"
           subtext="Sa lahat ng bukid"
-        />
-        <StatCard
-          icon={<BarChart3 size={20} />}
-          accentColor="blue"
-          value={stats.totalHealth}
-          label="Mga Health Record"
-          subtext="Pangkalahatan sa sistema"
         />
         <StatCard
           icon={<CheckCircle size={20} />}
           accentColor="orange"
           value={stats.activeFarms}
-          label="Mga Aktibong Bukid"
-          subtext="May mga nakatalang alaga"
+          label="Aktibong Bukid"
+          subtext="May nakatalang alaga"
         />
       </div>
 

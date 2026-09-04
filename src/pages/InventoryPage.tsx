@@ -864,94 +864,96 @@ export function InventoryPage() {
         <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-secondary, #64748B)', marginBottom: 8 }}>
           Pangkalahatang Buod ng Bukid (General Farm Overview)
         </div>
-        <div className="dashboard-stats stats-grid gen-inv-grid">
-          {/* 1. Goats */}
-          <div className="kpi-card" onClick={() => setActiveTab('livestock')} style={{ cursor: 'pointer' }}>
-            <div className="kpi-top">
-              <div className="kpi-icon orange" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)' }}>
-                <GoatIcon size={20} color="var(--color-primary, #FF6A2A)" />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Kambing</span>
-            </div>
-            <div className="kpi-value">{livestockMetrics.goats}</div>
-            <div className="kpi-label">Active Goats</div>
-            <div className="kpi-delta up" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>Aktibong kambing sa bukid</span>
-            </div>
-          </div>
-
-          {/* 2. Sheep */}
-          <div className="kpi-card" onClick={() => setActiveTab('livestock')} style={{ cursor: 'pointer' }}>
-            <div className="kpi-top">
-              <div className="kpi-icon blue" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' }}>
-                <PawPrint size={18} />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Tupa</span>
-            </div>
-            <div className="kpi-value">{livestockMetrics.sheep}</div>
-            <div className="kpi-label">Active Sheep</div>
-            <div className="kpi-delta up" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>Aktibong tupa sa bukid</span>
-            </div>
-          </div>
-
-          {/* 3. Total Livestock */}
+        <div className="dashboard-stats stats-grid gen-inv-grid mobile-stats-grid-3">
+          {/* 1. Livestock */}
           <div className="kpi-card" onClick={() => setActiveTab('livestock')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
               <div className="kpi-icon green" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981' }}>
                 <Layers size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Lahat ng Alaga</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Livestock</span>
             </div>
             <div className="kpi-value">{livestockMetrics.total}</div>
-            <div className="kpi-label">Total Livestock</div>
+            <div className="kpi-label">Lahat ng Alaga</div>
             <div className="kpi-delta up" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>Kambing + Tupa</span>
+              <span>{livestockMetrics.goats} kambing · {livestockMetrics.sheep} tupa</span>
             </div>
           </div>
 
-          {/* 4. Farm Feed Stock */}
+          {/* 2. Feed */}
           <div className="kpi-card" onClick={() => setActiveTab('feeds')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
               <div className="kpi-icon orange" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B' }}>
                 <Wheat size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Pakain</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Feed</span>
             </div>
             <div className="kpi-value">
               {totalFeedKg.toLocaleString('en-PH', { maximumFractionDigits: 1 })} <span style={{ fontSize: 14 }}>kg</span>
             </div>
-            <div className="kpi-label">Farm Feed Stock</div>
-            <div className="kpi-delta up">Kabuuang reserbang pakain</div>
+            <div className="kpi-label">Reserbang Pakain</div>
+            <div className="kpi-delta up">Kabuuang pakain sa bukid</div>
           </div>
 
-          {/* 5. Health Supplies */}
+          {/* 3. Health Supplies */}
           <div className="kpi-card" onClick={() => setActiveTab('health')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
               <div className="kpi-icon red" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444' }}>
                 <Pill size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Kalusugan</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Health Supplies</span>
             </div>
             <div className="kpi-value">{healthSuppliesStats.itemCount} <span style={{ fontSize: 14 }}>uri</span></div>
-            <div className="kpi-label">Health Supplies</div>
+            <div className="kpi-label">Kalusugan at Gamot</div>
             <div className="kpi-delta up">
               {healthSuppliesStats.medsCount} gamot · {healthSuppliesStats.vaxCount} bakuna
             </div>
           </div>
 
-          {/* 6. Farm Equipment & Tools */}
+          {/* 4. Farm Supplies */}
+          <div className="kpi-card" onClick={() => setActiveTab('equipment')} style={{ cursor: 'pointer' }}>
+            <div className="kpi-top">
+              <div className="kpi-icon blue" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' }}>
+                <Package size={18} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Farm Supplies</span>
+            </div>
+            <div className="kpi-value">{equipmentToolsStats.suppliesCount} <span style={{ fontSize: 14 }}>uri</span></div>
+            <div className="kpi-label">Suplay sa Bukid</div>
+            <div className="kpi-delta up">
+              Materyales at gamit sa bukid
+            </div>
+          </div>
+
+          {/* 5. Equipment */}
           <div className="kpi-card" onClick={() => setActiveTab('equipment')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
               <div className="kpi-icon blue" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#6366F1' }}>
                 <Wrench size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Kagamitan</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Equipment</span>
             </div>
-            <div className="kpi-value">{equipmentToolsStats.itemCount} <span style={{ fontSize: 14 }}>gamit</span></div>
+            <div className="kpi-value">{equipmentToolsStats.equipCount + equipmentToolsStats.toolsCount} <span style={{ fontSize: 14 }}>gamit</span></div>
             <div className="kpi-label">Farm Equipment</div>
             <div className="kpi-delta up">
               {equipmentToolsStats.equipCount} equipment · {equipmentToolsStats.toolsCount} tools
+            </div>
+          </div>
+
+          {/* 6. Low Stock */}
+          <div className="kpi-card" onClick={() => setFStatus('Low Stock')} style={{ cursor: 'pointer' }}>
+            <div className="kpi-top">
+              <div className="kpi-icon red" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444' }}>
+                <AlertTriangle size={18} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#EF4444' }}>Low Stock</span>
+            </div>
+            <div className="kpi-value" style={{ color: summary.lowStock > 0 ? '#EF4444' : undefined }}>
+              {summary.lowStock} <span style={{ fontSize: 14 }}>item</span>
+            </div>
+            <div className="kpi-label">Kailangang Restock</div>
+            <div className="kpi-delta down">
+              Mababang antas ng imbentaryo
             </div>
           </div>
         </div>
@@ -960,18 +962,25 @@ export function InventoryPage() {
       <style>{`
         .gen-inv-grid {
           display: grid;
-          grid-template-columns: repeat(6, minmax(0, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 12px;
         }
         @media (max-width: 1024px) {
           .gen-inv-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 10px !important;
           }
         }
-        @media (max-width: 640px) {
+        @media (max-width: 767px) {
           .gen-inv-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 10px !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .gen-inv-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 6px !important;
           }
         }
       `}</style>

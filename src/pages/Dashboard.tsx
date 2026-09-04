@@ -515,148 +515,175 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* Hero & Demographics Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+        {/* Herd Summary: Goats | Sheep | Total (Strictly 3 Columns) */}
+        <div className="dashboard-stats-3col">
+          {/* Goats */}
+          <div
+            onClick={() => navigate('/animals?species=Goat')}
+            className="stat-card"
+            style={{
+              cursor: 'pointer',
+              background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
+              border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
+            }}
+          >
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+                Kambing
+              </span>
+              <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Layers size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="stat-card-value" style={{ color: 'var(--color-text-primary, #0F172A)' }}>
+                {herdStats.goatsCount}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted, #64748B)' }}>
+                {herdStats.total > 0 ? `${Math.round((herdStats.goatsCount / herdStats.total) * 100)}% ng bukid` : '0%'}
+              </div>
+            </div>
+          </div>
+
+          {/* Sheep */}
+          <div
+            onClick={() => navigate('/animals?species=Sheep')}
+            className="stat-card"
+            style={{
+              cursor: 'pointer',
+              background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
+              border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
+            }}
+          >
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+                Tupa
+              </span>
+              <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Layers size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="stat-card-value" style={{ color: 'var(--color-text-primary, #0F172A)' }}>
+                {herdStats.sheepCount}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted, #64748B)' }}>
+                {herdStats.total > 0 ? `${Math.round((herdStats.sheepCount / herdStats.total) * 100)}% ng bukid` : '0%'}
+              </div>
+            </div>
+          </div>
+
           {/* Total Active Herd */}
           <div
             onClick={() => navigate('/animals')}
+            className="stat-card"
             style={{
-              padding: '18px 20px',
-              borderRadius: 18,
-              background: 'linear-gradient(135deg, rgba(255, 106, 42, 0.12), rgba(255, 106, 42, 0.03))',
-              border: '1px solid rgba(255, 106, 42, 0.28)',
               cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 12,
+              background: 'linear-gradient(135deg, rgba(67, 160, 71, 0.12), rgba(67, 160, 71, 0.03))',
+              border: '1px solid rgba(67, 160, 71, 0.3)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
-                Mga Hayop sa Bukid
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#2E7D32' }}>
+                Kabuuan
               </span>
-              <PawPrint size={20} color="var(--color-primary, #FF6A2A)" />
+              <div className="stat-card-icon" style={{ background: 'rgba(67, 160, 71, 0.15)', color: '#2E7D32', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PawPrint size={16} />
+              </div>
             </div>
             <div>
-              <div style={{ fontSize: '32px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', lineHeight: 1 }}>
-                {herdStats.total} <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>animals</span>
+              <div className="stat-card-value" style={{ color: '#2E7D32' }}>
+                {herdStats.total}
               </div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: herdStats.newThisMonth > 0 ? '#10B981' : 'var(--color-text-muted, #64748B)', marginTop: 6 }}>
-                {formatMonthlyAnimalGrowth(herdStats.newThisMonth)}
+              <div className="alpas-stat-footer" style={{ color: herdStats.newThisMonth > 0 ? '#10B981' : 'var(--color-text-muted, #64748B)' }}>
+                {herdStats.newThisMonth > 0 ? `+${herdStats.newThisMonth} ngayong buwan` : 'Lahat ng hayop'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Demographics Summary: Male | Female | Young (Strictly 3 Columns) */}
+        <div className="dashboard-stats-3col">
+          {/* Male */}
+          <div
+            onClick={() => navigate('/animals?gender=Male')}
+            className="stat-card"
+            style={{
+              cursor: 'pointer',
+              background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
+              border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
+            }}
+          >
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+                Lalaki (Male)
+              </span>
+              <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PawPrint size={15} />
+              </div>
+            </div>
+            <div>
+              <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+                {herdStats.maleCount}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Barako / Toro
               </div>
             </div>
           </div>
 
-          {/* Species Split: Goats */}
+          {/* Female */}
           <div
-            onClick={() => navigate('/animals?species=Goat')}
+            onClick={() => navigate('/animals?gender=Female')}
+            className="stat-card"
             style={{
-              padding: '18px 20px',
-              borderRadius: 18,
+              cursor: 'pointer',
               background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 12,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Layers size={16} color="var(--color-primary, #FF6A2A)" /> Mga Kambing
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#EC4899' }}>
+                Babae (Female)
               </span>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted, #64748B)' }}>
-                {herdStats.total > 0 ? `${Math.round((herdStats.goatsCount / herdStats.total) * 100)}% ng bukid` : '0%'}
-              </span>
+              <div className="stat-card-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PawPrint size={15} />
+              </div>
             </div>
             <div>
-              <div style={{ fontSize: '30px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', lineHeight: 1 }}>
-                {herdStats.goatsCount} <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-secondary)' }}>ulo</span>
+              <div className="stat-card-value" style={{ color: '#EC4899' }}>
+                {herdStats.femaleCount}
               </div>
-              <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted, #64748B)', marginTop: 6 }}>
-                {herdStats.goatBreeds.length > 0
-                  ? `Mga lahi: ${herdStats.goatBreeds.slice(0, 2).map(([b, c]) => `${b} (${c})`).join(', ')}`
-                  : 'Walang nakatalang lahi'}
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Inahin ({herdStats.pregnantCount} buntis)
               </div>
             </div>
           </div>
 
-          {/* Species Split: Sheep */}
+          {/* Young */}
           <div
-            onClick={() => navigate('/animals?species=Sheep')}
+            onClick={() => navigate('/animals')}
+            className="stat-card"
             style={{
-              padding: '18px 20px',
-              borderRadius: 18,
+              cursor: 'pointer',
               background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 12,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Layers size={16} color="#3B82F6" /> Mga Tupa
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#10B981' }}>
+                Bata (Young)
               </span>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted, #64748B)' }}>
-                {herdStats.total > 0 ? `${Math.round((herdStats.sheepCount / herdStats.total) * 100)}% ng bukid` : '0%'}
-              </span>
+              <div className="stat-card-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Baby size={15} />
+              </div>
             </div>
             <div>
-              <div style={{ fontSize: '30px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', lineHeight: 1 }}>
-                {herdStats.sheepCount} <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-secondary)' }}>ulo</span>
+              <div className="stat-card-value" style={{ color: '#10B981' }}>
+                {herdStats.youngCount}
               </div>
-              <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted, #64748B)', marginTop: 6 }}>
-                {herdStats.sheepBreeds.length > 0
-                  ? `Mga lahi: ${herdStats.sheepBreeds.slice(0, 2).map(([b, c]) => `${b} (${c})`).join(', ')}`
-                  : 'Walang nakatalang lahi'}
-              </div>
-            </div>
-          </div>
-
-          {/* Demographic Breakdown Badges */}
-          <div
-            style={{
-              padding: '16px 18px',
-              borderRadius: 18,
-              background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
-              border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              gap: 10,
-            }}
-          >
-            <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>
-              Demograpiya at Kasarian
-            </span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', color: 'var(--color-text-primary)' }}>
-                <span style={{ fontWeight: 800, color: '#3B82F6' }}>{herdStats.maleCount}</span>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Male</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', color: 'var(--color-text-primary)' }}>
-                <span style={{ fontWeight: 800, color: '#EC4899' }}>{herdStats.femaleCount}</span>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Female</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', color: 'var(--color-text-primary)' }}>
-                <PawPrint size={13} color="#10B981" />
-                <span style={{ fontWeight: 800, color: '#10B981' }}>{herdStats.youngCount}</span>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Young</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', color: 'var(--color-text-primary)' }}>
-                <PawPrint size={13} color="#6366F1" />
-                <span style={{ fontWeight: 800, color: '#6366F1' }}>{herdStats.adultCount}</span>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Adult</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', color: 'var(--color-text-primary)', gridColumn: 'span 2' }}>
-                <Baby size={13} color="#F59E0B" />
-                <span style={{ fontWeight: 800, color: '#F59E0B' }}>{herdStats.pregnantCount}</span>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Pregnant</span>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Bisiro / Kids / Lambs
               </div>
             </div>
           </div>
@@ -775,127 +802,91 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* 4 AI Health Monitoring Status Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-          {/* Animals Screened Today */}
-          <div
-            onClick={() => navigate('/camera-screening')}
-            style={{
-              padding: '16px 18px',
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, rgba(67, 160, 71, 0.1), rgba(46, 125, 50, 0.03))',
-              border: '1px solid rgba(67, 160, 71, 0.3)',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#2E7D32' }}>
-                Screened Today
-              </span>
-              <Camera size={18} color="#2E7D32" />
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#2E7D32', lineHeight: 1 }}>
-              {healthScreening.screenedTodayCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>scans</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
-              AI automated camera screenings today
-            </div>
-          </div>
-
-          {/* Low Risk / Healthy Tier */}
+        {/* 3 AI Health Monitoring Status Cards (Strictly 3 Columns) */}
+        <div className="dashboard-stats-3col">
+          {/* Healthy */}
           <div
             onClick={() => navigate('/health?filter=Healthy')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: HEALTH_TIERS.Low.bg,
               border: `1px solid ${HEALTH_TIERS.Low.border}`,
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: HEALTH_TIERS.Low.color }}>
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: HEALTH_TIERS.Low.color }}>
                 Healthy
               </span>
-              <HeartPulse size={18} color={HEALTH_TIERS.Low.color} />
+              <div className="stat-card-icon" style={{ background: 'rgba(22, 163, 74, 0.15)', color: HEALTH_TIERS.Low.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <HeartPulse size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: HEALTH_TIERS.Low.color, lineHeight: 1 }}>
-              {healthScreening.healthyCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
-              {herdStats.total > 0
-                ? `${Math.round((healthScreening.healthyCount / herdStats.total) * 100)}% ng bukid ay malusog`
-                : 'Walang nakatalang hayop'}
+            <div>
+              <div className="stat-card-value" style={{ color: HEALTH_TIERS.Low.color }}>
+                {healthScreening.healthyCount}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
+                {herdStats.total > 0
+                  ? `${Math.round((healthScreening.healthyCount / herdStats.total) * 100)}% ng bukid`
+                  : 'Malusog'}
+              </div>
             </div>
           </div>
 
           {/* Moderate Risk / Monitoring Tier */}
           <div
             onClick={() => navigate('/health?filter=Monitor')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: HEALTH_TIERS.Moderate.bg,
               border: `1px solid ${HEALTH_TIERS.Moderate.border}`,
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: HEALTH_TIERS.Moderate.color }}>
-                Under Observation
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: HEALTH_TIERS.Moderate.color }}>
+                Monitor
               </span>
-              <AlertTriangle size={18} color={HEALTH_TIERS.Moderate.color} />
+              <div className="stat-card-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: HEALTH_TIERS.Moderate.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: HEALTH_TIERS.Moderate.color, lineHeight: 1 }}>
-              {healthScreening.moderateRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
-              {healthScreening.moderateRisk.length > 0
-                ? 'May maagang senyales na dapat obserbahan'
-                : 'Walang alagang binabantayan'}
+            <div>
+              <div className="stat-card-value" style={{ color: HEALTH_TIERS.Moderate.color }}>
+                {healthScreening.moderateRisk.length}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
+                Obserbahan sa bukid
+              </div>
             </div>
           </div>
 
           {/* High Risk / Needs Attention Tier */}
           <div
             onClick={() => navigate('/health?filter=Critical')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: HEALTH_TIERS.High.bg,
               border: `1px solid ${HEALTH_TIERS.High.border}`,
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: HEALTH_TIERS.High.color }}>
-                Needs Attention
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: HEALTH_TIERS.High.color }}>
+                High Risk
               </span>
-              <ShieldAlert size={18} color={HEALTH_TIERS.High.color} />
+              <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: HEALTH_TIERS.High.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldAlert size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: HEALTH_TIERS.High.color, lineHeight: 1 }}>
-              {healthScreening.highRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
-              {healthScreening.highRisk.length > 0
-                ? 'Nangangailangan ng pagsusuri ng beterinaryo'
-                : 'Walang alagang nasa kritikal na antas'}
+            <div>
+              <div className="stat-card-value" style={{ color: HEALTH_TIERS.High.color }}>
+                {healthScreening.highRisk.length}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
+                Atensyon ng Vet
+              </div>
             </div>
           </div>
         </div>
@@ -1166,7 +1157,7 @@ export function Dashboard() {
       </div>
 
       {/* ═════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 4: BAKUNA AT PROTEKSYON (Vaccinations)                      */}
+      {/* SECTION 4: BAKUNA AT OPERASYON (Operations & Action Alerts)         */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
@@ -1176,7 +1167,7 @@ export function Dashboard() {
               <span>{FARM_LABELS.vaccinationSection}</span>
             </h2>
             <p style={{ margin: '2px 0 0', fontSize: '13px', color: 'var(--color-text-secondary, #64748B)' }}>
-              Proteksyon laban sa sakit (CDT, PPR, Hemorrhagic Septicemia, at pampurga)
+              Proteksyon laban sa sakit, bakuna, at alerto sa imbentaryo
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate('/vaccinations')} style={{ gap: 6 }}>
@@ -1185,92 +1176,89 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* 3 Vaccination Stat Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          {/* Due Soon */}
+        {/* 3 Operations Cards: Vaccines Due | Low Stock | Expiring (Strictly 3 Columns) */}
+        <div className="dashboard-stats-3col">
+          {/* Vaccines Due */}
           <div
             onClick={() => navigate('/vaccinations?filter=Due Soon')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#F59E0B' }}>
                 Vaccines Due
               </span>
-              <Clock size={18} color="#F59E0B" />
+              <div className="stat-card-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Clock size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#F59E0B', lineHeight: 1 }}>
-              {vaccineStats.dueSoon.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              Nakatakda sa loob ng 30 araw
+            <div>
+              <div className="stat-card-value" style={{ color: '#F59E0B' }}>
+                {vaccineStats.dueSoon.length + vaccineStats.overdue.length}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                {vaccineStats.overdue.length > 0 ? `${vaccineStats.overdue.length} overdue` : 'Nakatakda'}
+              </div>
             </div>
           </div>
 
-          {/* Overdue */}
+          {/* Low Stock */}
           <div
-            onClick={() => navigate('/vaccinations?filter=Overdue')}
+            onClick={() => navigate('/inventory')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
-              background: vaccineStats.overdue.length > 0 ? 'rgba(239, 68, 68, 0.12)' : 'var(--color-surface, rgba(255, 255, 255, 0.05))',
-              border: vaccineStats.overdue.length > 0 ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
               cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: vaccineStats.overdue.length > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
-                Overdue na Bakuna
-              </span>
-              <AlertTriangle size={18} color={vaccineStats.overdue.length > 0 ? '#EF4444' : '#64748B'} />
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: vaccineStats.overdue.length > 0 ? '#EF4444' : 'var(--color-text-primary)', lineHeight: 1 }}>
-              {vaccineStats.overdue.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              {vaccineStats.overdue.length > 0 ? 'Kailangang bakunahan agad' : 'Walang lumampas sa takdang petsa'}
-            </div>
-          </div>
-
-          {/* Given this month */}
-          <div
-            onClick={() => navigate('/vaccinations')}
-            style={{
-              padding: '16px 18px',
-              borderRadius: 16,
               background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                Naibigay Ngayong Buwan
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#EF4444' }}>
+                Low Stock
               </span>
-              <CheckCircle2 size={18} color="#10B981" />
+              <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#10B981', lineHeight: 1 }}>
-              {vaccineStats.givenThisMonth} <span style={{ fontSize: '13px', fontWeight: 600 }}>dosis</span>
+            <div>
+              <div className="stat-card-value" style={{ color: '#EF4444' }}>
+                {inventoryStats.lowStockCount}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Mag-restock
+              </div>
             </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              Nai-rekord sa kasalukuyang buwan
+          </div>
+
+          {/* Expiring Soon */}
+          <div
+            onClick={() => navigate('/inventory')}
+            className="stat-card"
+            style={{
+              cursor: 'pointer',
+              background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
+              border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
+            }}
+          >
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+                Expiring
+              </span>
+              <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Package size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+                {inventoryStats.expiringCount}
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Sa loob ng 60 araw
+              </div>
             </div>
           </div>
         </div>
@@ -1296,8 +1284,8 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* Stock Status Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+        {/* Stock Status Cards (Strictly 3 Columns) */}
+        <div className="dashboard-stats-3col">
           {/* Total Items */}
           <div
             onClick={() => navigate('/inventory')}

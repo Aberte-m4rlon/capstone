@@ -743,46 +743,36 @@ export function HealthPage() {
         </div>
       </div>
 
-      {/* ── 3. 4 HEALTH SUMMARY METRIC CARDS ── */}
-      <div className="health-summary-grid">
-        {/* Total Animals Card */}
-        <div className="health-stat-card total-card">
+      {/* ── 3. 3 HEALTH SUMMARY METRIC CARDS (STRICTLY 3 COLUMNS) ── */}
+      <div className="health-summary-grid mobile-stats-grid-3">
+        {/* Healthy Card */}
+        <div className="health-stat-card low-risk-card mobile-stats-card-3">
           <div className="stat-card-header">
-            <span className="stat-label">Kabuuang Hayop</span>
-            <PawPrint size={20} color="var(--text-secondary)" />
+            <span className="stat-label low-risk-label">Healthy</span>
+            <CheckCircle2 size={18} color="#16A34A" />
           </div>
-          <div className="stat-value">{stats.total}</div>
-          <div className="stat-subtext">Aktibong mga kambing at tupa</div>
+          <div className="stat-value low-risk-value">{stats.lowRisk}</div>
+          <div className="stat-subtext low-risk-subtext">Maayos</div>
+        </div>
+
+        {/* Moderate Risk / Monitor Card */}
+        <div className="health-stat-card mod-risk-card mobile-stats-card-3">
+          <div className="stat-card-header">
+            <span className="stat-label mod-risk-label">Bantayan</span>
+            <AlertTriangle size={18} color="#F59E0B" />
+          </div>
+          <div className="stat-value mod-risk-value">{stats.modRisk}</div>
+          <div className="stat-subtext mod-risk-subtext">Obserbahan</div>
         </div>
 
         {/* High Risk Card */}
-        <div className="health-stat-card high-risk-card">
+        <div className="health-stat-card high-risk-card mobile-stats-card-3">
           <div className="stat-card-header">
-            <span className="stat-label high-risk-label">Mataas ang Risk</span>
-            <ShieldAlert size={20} color="#EF4444" />
+            <span className="stat-label high-risk-label">High Risk</span>
+            <ShieldAlert size={18} color="#EF4444" />
           </div>
           <div className="stat-value high-risk-value">{stats.highRisk}</div>
-          <div className="stat-subtext high-risk-subtext">Nangangailangan ng atensyon ng beterinaryo</div>
-        </div>
-
-        {/* Moderate Risk Card */}
-        <div className="health-stat-card mod-risk-card">
-          <div className="stat-card-header">
-            <span className="stat-label mod-risk-label">Bantayan</span>
-            <AlertTriangle size={20} color="#F59E0B" />
-          </div>
-          <div className="stat-value mod-risk-value">{stats.modRisk}</div>
-          <div className="stat-subtext mod-risk-subtext">Kailangang obserbahan sa bukid</div>
-        </div>
-
-        {/* Low Risk Card */}
-        <div className="health-stat-card low-risk-card">
-          <div className="stat-card-header">
-            <span className="stat-label low-risk-label">Maayos / Healthy</span>
-            <CheckCircle2 size={20} color="#16A34A" />
-          </div>
-          <div className="stat-value low-risk-value">{stats.lowRisk}</div>
-          <div className="stat-subtext low-risk-subtext">Walang nakitang problema sa kalusugan</div>
+          <div className="stat-subtext high-risk-subtext">Atensyon</div>
         </div>
       </div>
 
@@ -1944,7 +1934,7 @@ export function HealthPage() {
         /* 3. Summary Metric Cards */
         .health-summary-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 14px;
           margin-bottom: 24px;
         }
@@ -3032,25 +3022,66 @@ export function HealthPage() {
         }
 
         @media (max-width: 768px) {
+          /* Compact AI Health Monitoring Hero Banner on Mobile */
+          .prediction-hero-banner {
+            padding: 14px 16px !important;
+            border-radius: 14px !important;
+            margin-bottom: 14px !important;
+          }
+          .hero-badge {
+            padding: 3px 8px !important;
+            font-size: 10px !important;
+            margin-bottom: 6px !important;
+          }
+          .hero-banner-title {
+            font-size: 16px !important;
+            line-height: 1.25 !important;
+            margin-bottom: 4px !important;
+          }
+          .hero-banner-desc {
+            font-size: 11.5px !important;
+            line-height: 1.4 !important;
+            margin-bottom: 12px !important;
+          }
+          .hero-banner-actions {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            width: 100% !important;
+          }
+          .hero-banner-actions .btn {
+            width: 100% !important;
+            height: 42px !important;
+            font-size: 13px !important;
+            padding: 8px 14px !important;
+            justify-content: center !important;
+          }
+
+          /* Summary Cards — STRICTLY 3 COLUMNS */
           .health-summary-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 10px !important;
-            margin-bottom: 18px !important;
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+            margin-bottom: 16px !important;
           }
           .health-stat-card {
-            padding: 12px 14px !important;
-            border-radius: 14px !important;
+            padding: 8px 8px !important;
+            border-radius: 12px !important;
             min-width: 0 !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
           }
           .stat-value {
-            font-size: 22px !important;
-            margin-top: 4px !important;
+            font-size: 19px !important;
+            font-weight: 800 !important;
+            line-height: 1.1 !important;
+            margin-top: 2px !important;
           }
           .stat-label {
-            font-size: 11px !important;
+            font-size: 10.5px !important;
           }
           .stat-subtext {
-            font-size: 10px !important;
+            font-size: 9px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;

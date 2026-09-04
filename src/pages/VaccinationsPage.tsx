@@ -345,7 +345,7 @@ export function VaccinationsPage() {
       </div>
 
       {/* ── 3 Floating Liquid Glass Statistic Cards ───────────────── */}
-      <div className="dashboard-stats stats-grid kpi-grid section-gap" style={{ marginBottom: 24 }}>
+      <div className="mobile-stats-grid-3 dashboard-stats stats-grid kpi-grid section-gap" style={{ marginBottom: 24 }}>
         {/* Card 1: Up to Date (Warm Amber Glass) */}
         <div
           onClick={() => setFStatus(fStatus === 'Up to Date' ? 'All' : 'Up to Date')}

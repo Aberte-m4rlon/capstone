@@ -93,6 +93,10 @@ export function DailyAlertsPage() {
     [rawAlerts, farmData.settings?.farm_name]
   );
 
+  const urgentCount = useMemo(() => {
+    return alertsWithReadState.filter((a) => a.priority === 'Critical' || a.priority === 'Warning').length;
+  }, [alertsWithReadState]);
+
   const handleSendPushNotifications = async () => {
     setSending(true);
     try {
@@ -215,6 +219,90 @@ export function DailyAlertsPage() {
             </Button>
           </div>
         )}
+      </div>
+
+      {/* 3-Column Summary Cards: All | Unread | Urgent */}
+      <div className="mobile-stats-grid-3" style={{ marginBottom: 16 }}>
+        {/* All */}
+        <div
+          onClick={() => setPriorityFilter('All')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: priorityFilter === 'All' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+              Lahat (All)
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bell size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: 'var(--color-primary, #FF6A2A)' }}>
+              {rawAlerts.length}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Kabuuang alerto
+            </div>
+          </div>
+        </div>
+
+        {/* Unread */}
+        <div
+          onClick={() => setPriorityFilter('Unread')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: priorityFilter === 'Unread' ? '2px solid #3B82F6' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+              Unread
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Mail size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+              {unreadCount}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Di pa nababasa
+            </div>
+          </div>
+        </div>
+
+        {/* Urgent */}
+        <div
+          onClick={() => setPriorityFilter(priorityFilter === 'Critical' ? 'All' : 'Critical')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: priorityFilter === 'Critical' ? '2px solid #EF4444' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#EF4444' }}>
+              Urgent
+            </span>
+            <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AlertTriangle size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value" style={{ color: '#EF4444' }}>
+              {urgentCount}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Kailangang aksyon
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filter Toolbar */}
