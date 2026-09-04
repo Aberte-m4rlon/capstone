@@ -177,8 +177,8 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
       },
       {
         to: '/inventory',
-        label: 'Farm Inventory',
-        description: 'Medicine stocks, feed bags & equipment',
+        label: 'General Farm Inventory',
+        description: 'Livestock overview, feed stocks, medicines & tools',
         icon: <Package size={20} color="#F59E0B" />,
         badge: getBadge('/inventory'),
       },

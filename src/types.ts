@@ -147,7 +147,7 @@ export interface Vaccination {
   updated_at: string;
 }
 
-export type InventoryCategory = 'Feed' | 'Medicine' | 'Vaccines' | 'Supplies' | 'Equipment' | 'Other';
+export type InventoryCategory = 'Feed' | 'Medicine' | 'Vaccines' | 'Vitamins' | 'Supplements' | 'Supplies' | 'Equipment' | 'Tools' | 'Other';
 
 export interface InventoryItem {
   id: string;

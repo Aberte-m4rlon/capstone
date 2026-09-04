@@ -173,3 +173,27 @@ export const INVENTORY_LABELS = {
   consumedThisMonth: 'Nagamit Ngayong Buwan',
   estimatedValue: 'Tinatayang Halaga ng Natitirang Stock',
 };
+
+// ─── General Farm Inventory Terminology ─────────────────────────────────────
+export const GENERAL_INVENTORY_LABELS = {
+  title: 'Pangkalahatang Imbentaryo ng Bukid',
+  englishTitle: 'General Farm Inventory',
+  summarySubtitle: 'Buod ng lahat ng mayroon at kasalukuyang pinamamahalaan sa bukid',
+  livestockSection: 'Imbentaryo ng mga Hayop (Livestock)',
+  livestockSubtitle: 'Kasalukuyang bilang ng mga alagang kambing at tupa ayon sa lahi, kasarian, edad, at kalusugan',
+  stocksSection: 'Mga Gamit, Pakain, at Gamot sa Bukid',
+  stocksSubtitle: 'Pisikal na supply ng pakain, gamot, bakuna, kagamitan, at mga kasangkapan',
+  totalLivestock: 'Kabuuang Hayop',
+  goats: 'Mga Kambing',
+  sheep: 'Mga Tupa',
+  feeds: 'Reserbang Pakain',
+  healthSupplies: 'Gamot at Bakuna',
+  equipment: 'Kagamitan at Kasangkapan',
+  young: 'Bata / Bisiro (< 12 buwan)',
+  adult: 'Matanda / May Gulang (≥ 12 buwan)',
+  pregnant: 'Buntis / Nagdadalantao',
+  healthy: 'Malusog / Maayos ang Kalagayan',
+  monitoring: 'Bantayan / May Pagmamanman',
+  needsAttention: 'Nangangailangan ng Atensyon / Beterinaryo',
+};
+

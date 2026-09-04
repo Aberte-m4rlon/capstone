@@ -148,7 +148,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
     },
     {
       to: '/inventory',
-      label: 'Inventory',
+      label: 'General Inventory',
       icon: <Package size={20} strokeWidth={2} />,
       badgeKey: 'inventory',
       roles: ['farm_manager'],
