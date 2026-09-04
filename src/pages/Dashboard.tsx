@@ -1002,124 +1002,140 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* Breeding Stats Cards Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+        {/* Breeding Stats Cards Grid: Strictly 3 Columns on Mobile */}
+        <div className="mobile-stats-grid-3">
           {/* Pregnant */}
           <div
             onClick={() => navigate('/breeding')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#F59E0B' }}>
                 Mga Buntis
               </span>
-              <Baby size={18} color="#F59E0B" />
+              <div className="stat-card-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Baby size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#F59E0B', lineHeight: 1 }}>
-              {breedingStats.pregnantCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              {breedingStats.nearKidding.length > 0
-                ? `${breedingStats.nearKidding.length} ang malapit nang manganak`
-                : 'Walang manganganak sa loob ng 30 araw'}
+            <div>
+              <div className="stat-card-value" style={{ color: '#F59E0B' }}>
+                {breedingStats.pregnantCount} <span style={{ fontSize: '11px', fontWeight: 600 }}>ulo</span>
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                {breedingStats.nearKidding.length > 0
+                  ? `${breedingStats.nearKidding.length} malapit na`
+                  : 'Inahing buntis'}
+              </div>
             </div>
           </div>
 
           {/* Ready to Breed */}
           <div
             onClick={() => navigate('/breeding')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                Handa sa Pagpapalahi
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#EC4899' }}>
+                Handa sa Lahi
               </span>
-              <PawPrint size={18} color="#EC4899" />
+              <div className="stat-card-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PawPrint size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#EC4899', lineHeight: 1 }}>
-              {breedingStats.readyToBreedCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>babae</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              Edad 8+ buwan at may tamang timbang
+            <div>
+              <div className="stat-card-value" style={{ color: '#EC4899' }}>
+                {breedingStats.readyToBreedCount} <span style={{ fontSize: '11px', fontWeight: 600 }}>babae</span>
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Edad 8+ buwan
+              </div>
             </div>
           </div>
 
           {/* Active Breeding Records */}
           <div
             onClick={() => navigate('/breeding')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                May Rekord ng Pagtatalik
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+                May Rekord
               </span>
-              <Activity size={18} color="#3B82F6" />
+              <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Activity size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#3B82F6', lineHeight: 1 }}>
-              {breedingStats.activeMatingCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>rekord</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              Nakatakda o kasalukuyang binabantayan
+            <div>
+              <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+                {breedingStats.activeMatingCount} <span style={{ fontSize: '11px', fontWeight: 600 }}>rekord</span>
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Nakatakda
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Newly Kidded */}
-          <div
-            onClick={() => navigate('/breeding')}
-            style={{
-              padding: '16px 18px',
-              borderRadius: 16,
-              background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
-              border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+        {/* Dedicated Full-Width Card: Bagong Panganak */}
+        <div
+          onClick={() => navigate('/breeding')}
+          style={{
+            padding: '12px 16px',
+            borderRadius: 14,
+            background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
+            border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'rgba(16, 185, 129, 0.12)',
+                color: '#10B981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <CheckCircle2 size={18} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                 Bagong Panganak
-              </span>
-              <CheckCircle2 size={18} color="#10B981" />
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Nanganak nitong nakaraang 60 araw
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#10B981', lineHeight: 1 }}>
-              {breedingStats.recentKiddingCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>ina</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              Nanganak nitong nakaraang 60 araw
-            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexShrink: 0 }}>
+            <span style={{ fontSize: '22px', fontWeight: 800, color: '#10B981', lineHeight: 1 }}>
+              {breedingStats.recentKiddingCount}
+            </span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#10B981' }}>ina</span>
           </div>
         </div>
 
@@ -1284,121 +1300,136 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* Stock Status Cards (Strictly 3 Columns) */}
+        {/* Stock Status Cards (Strictly 3 Columns on Mobile) */}
         <div className="dashboard-stats-3col">
           {/* Total Items */}
           <div
             onClick={() => navigate('/inventory')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
                 Kabuuang Gamit
               </span>
-              <Package size={18} color="#3B82F6" />
+              <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Package size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#3B82F6', lineHeight: 1 }}>
-              {inventoryStats.totalItems} <span style={{ fontSize: '13px', fontWeight: 600 }}>uri</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              Aktibong items sa bodega
+            <div>
+              <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+                {inventoryStats.totalItems} <span style={{ fontSize: '11px', fontWeight: 600 }}>uri</span>
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Aktibo sa bodega
+              </div>
             </div>
           </div>
 
           {/* Low Stock */}
           <div
             onClick={() => navigate('/inventory')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: inventoryStats.lowStockCount > 0 ? 'rgba(245, 158, 11, 0.12)' : 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: inventoryStats.lowStockCount > 0 ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: inventoryStats.lowStockCount > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: inventoryStats.lowStockCount > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>
                 Low Stock
               </span>
-              <AlertTriangle size={18} color={inventoryStats.lowStockCount > 0 ? '#F59E0B' : '#64748B'} />
+              <div className="stat-card-icon" style={{ background: inventoryStats.lowStockCount > 0 ? 'rgba(245, 158, 11, 0.20)' : 'rgba(100, 116, 139, 0.12)', color: inventoryStats.lowStockCount > 0 ? '#F59E0B' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: inventoryStats.lowStockCount > 0 ? '#F59E0B' : 'var(--color-text-primary)', lineHeight: 1 }}>
-              {inventoryStats.lowStockCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>gamit</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              Kailangang bumili o mag-restock
+            <div>
+              <div className="stat-card-value" style={{ color: inventoryStats.lowStockCount > 0 ? '#F59E0B' : 'var(--color-text-primary)' }}>
+                {inventoryStats.lowStockCount} <span style={{ fontSize: '11px', fontWeight: 600 }}>gamit</span>
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Kailangang i-restock
+              </div>
             </div>
           </div>
 
           {/* Expiring Soon */}
           <div
             onClick={() => navigate('/inventory')}
+            className="stat-card"
             style={{
-              padding: '16px 18px',
-              borderRadius: 16,
+              cursor: 'pointer',
               background: inventoryStats.expiringCount > 0 ? 'rgba(239, 68, 68, 0.12)' : 'var(--color-surface, rgba(255, 255, 255, 0.05))',
               border: inventoryStats.expiringCount > 0 ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: inventoryStats.expiringCount > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
-                Expiring Soon
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: inventoryStats.expiringCount > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
+                Expiring
               </span>
-              <Clock size={18} color={inventoryStats.expiringCount > 0 ? '#EF4444' : '#64748B'} />
+              <div className="stat-card-icon" style={{ background: inventoryStats.expiringCount > 0 ? 'rgba(239, 68, 68, 0.20)' : 'rgba(100, 116, 139, 0.12)', color: inventoryStats.expiringCount > 0 ? '#EF4444' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Clock size={16} />
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: inventoryStats.expiringCount > 0 ? '#EF4444' : 'var(--color-text-primary)', lineHeight: 1 }}>
-              {inventoryStats.expiringCount} <span style={{ fontSize: '13px', fontWeight: 600 }}>gamit</span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              May warning sa susunod na 15 araw
+            <div>
+              <div className="stat-card-value" style={{ color: inventoryStats.expiringCount > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
+                {inventoryStats.expiringCount} <span style={{ fontSize: '11px', fontWeight: 600 }}>gamit</span>
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                Loob ng 15 araw
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Total Value */}
-          <div
-            onClick={() => navigate('/inventory')}
-            style={{
-              padding: '16px 18px',
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.03))',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#10B981' }}>
+        {/* Dedicated Full-Width Financial Summary Card */}
+        <div
+          onClick={() => navigate('/inventory')}
+          style={{
+            padding: '12px 16px',
+            borderRadius: 14,
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04))',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: 'rgba(16, 185, 129, 0.20)',
+                color: '#10B981',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <DollarSign size={20} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#10B981' }}>
                 Halaga ng Natitirang Stock
-              </span>
-              <DollarSign size={18} color="#10B981" />
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Batay sa aktwal na bulto at presyo
+              </div>
             </div>
-            <div style={{ fontSize: '26px', fontWeight: 800, color: '#10B981', lineHeight: 1 }}>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#10B981', lineHeight: 1 }}>
               ₱{inventoryStats.currentInventoryValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-              Batay sa aktwal na bulto at presyo
             </div>
           </div>
         </div>

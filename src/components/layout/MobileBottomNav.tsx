@@ -76,8 +76,8 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
             aria-expanded={quickAddOpen}
           >
             <Plus
-              size={28}
-              strokeWidth={2.8}
+              size={24}
+              strokeWidth={2.6}
               className={`mobile-add-icon ${quickAddOpen ? 'rotate' : ''}`}
             />
           </button>

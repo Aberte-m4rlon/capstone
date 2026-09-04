@@ -349,6 +349,7 @@ export function VaccinationsPage() {
         {/* Card 1: Up to Date (Warm Amber Glass) */}
         <div
           onClick={() => setFStatus(fStatus === 'Up to Date' ? 'All' : 'Up to Date')}
+          className="kpi-card stat-card mobile-stats-card-3"
           style={{
             ...liquidGlassCard,
             padding: '20px 22px',
@@ -409,6 +410,7 @@ export function VaccinationsPage() {
         {/* Card 2: Due Soon (Amber/Orange Glass) */}
         <div
           onClick={() => setFStatus(fStatus === 'Due Soon' ? 'All' : 'Due Soon')}
+          className="kpi-card stat-card mobile-stats-card-3"
           style={{
             ...liquidGlassCard,
             padding: '20px 22px',
@@ -469,6 +471,7 @@ export function VaccinationsPage() {
         {/* Card 3: Overdue (Red Glass) */}
         <div
           onClick={() => setFStatus(fStatus === 'Overdue' ? 'All' : 'Overdue')}
+          className="kpi-card stat-card mobile-stats-card-3"
           style={{
             ...liquidGlassCard,
             padding: '20px 22px',

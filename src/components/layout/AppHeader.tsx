@@ -227,7 +227,7 @@ export function AppHeader({
           <input
             type="text"
             className="search-input"
-            placeholder="Maghanap ng animal, ID, breed, o item..."
+            placeholder="Maghanap ng animal, ID, breed o item..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
