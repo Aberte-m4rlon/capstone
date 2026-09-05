@@ -74,7 +74,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="app-layout">
       {/* Desktop Sidebar */}
-      <AppSidebar role={role} getBadge={getBadge} />
+      <AppSidebar role={role} getBadge={getBadge} user={user} signOut={signOut} />
 
       {/* Mobile Drawer Sidebar */}
       <MobileSidebar
