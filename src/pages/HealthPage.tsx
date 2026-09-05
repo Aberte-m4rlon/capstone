@@ -293,11 +293,12 @@ export function HealthPage() {
 
     activeAnimals.forEach((a) => {
       const score = a.health_risk_score ?? 0;
-      if (score >= 80 || a.health_status === 'Critical' || a.health_status === 'Sick') {
+      const status = (a.health_status as string) ?? '';
+      if (score >= 80 || status === 'Critical' || status === 'Sick') {
         needsMedication++;
-      } else if (score >= 50 || a.health_status === 'At Risk' || a.health_status === 'Needs Attention') {
+      } else if (score >= 50 || status === 'At Risk' || status === 'Needs Attention') {
         needsAttention++;
-      } else if (score >= 25 || a.health_status === 'Monitor' || a.health_status === 'Under Observation') {
+      } else if (score >= 25 || status === 'Monitor' || status === 'Under Observation') {
         modRisk++;
       } else {
         lowRisk++;

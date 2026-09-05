@@ -421,10 +421,10 @@ export function Dashboard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span className="alert-label">May Alert sa Kalusugan</span>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: (healthStats.highRisk.length + healthStats.moderateRisk.length) > 0 ? '#EF4444' : '#238B45' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: (healthScreening.highRisk.length + healthScreening.moderateRisk.length) > 0 ? '#EF4444' : '#238B45' }} />
           </div>
           <div className="alert-value">
-            {healthStats.highRisk.length + healthStats.moderateRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
+            {healthScreening.highRisk.length + healthScreening.moderateRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
           </div>
           <span className="alert-action">
             Tingnan ngayon <ArrowRight size={13} />
