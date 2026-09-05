@@ -80,7 +80,9 @@ export async function sendFirebaseEmailSignInCode(email: string): Promise<{
     let userFriendlyMessage = 'Failed to send verification code to email.';
     const hostName = typeof window !== 'undefined' ? window.location.hostname : 'your domain';
 
-    if (err.code === 'auth/unauthorized-domain') {
+    if (err.code === 'auth/operation-not-allowed') {
+      userFriendlyMessage = 'Email link (passwordless) sign-in is not enabled in Firebase Console. Please open Firebase Console > Authentication > Sign-in method, click "Email/Password", and check "Email link (passwordless sign-in)".';
+    } else if (err.code === 'auth/unauthorized-domain') {
       userFriendlyMessage = `Domain "${hostName}" is not authorized in Firebase. Please add "${hostName}" to Firebase Console > Authentication > Settings > Authorized domains.`;
     } else if (err.code === 'auth/invalid-email') {
       userFriendlyMessage = 'The email address format is invalid.';
@@ -164,7 +166,9 @@ export async function signUpWithFirebase(
   } catch (err: any) {
     console.error('[Firebase Email Auth] Sign up error:', err);
     let msg = 'Failed to create account with email.';
-    if (err.code === 'auth/email-already-in-use') {
+    if (err.code === 'auth/operation-not-allowed') {
+      msg = 'Hindi pa naka-enable ang Email/Password sign-up sa Firebase Console. Mangyaring pumunta sa Firebase Console > Authentication > Sign-in method at i-enable ang "Email/Password".';
+    } else if (err.code === 'auth/email-already-in-use') {
       msg = 'An account with this email already exists. Please sign in instead.';
     } else if (err.code === 'auth/invalid-email') {
       msg = 'Please enter a valid email address.';
@@ -213,7 +217,9 @@ export async function signInWithFirebase(
   } catch (err: any) {
     console.error('[Firebase Email Auth] Sign in error:', err);
     let msg = 'Invalid email or password.';
-    if (
+    if (err.code === 'auth/operation-not-allowed') {
+      msg = 'Hindi pa naka-enable ang Email/Password sign-in sa Firebase Console. Mangyaring pumunta sa Firebase Console > Authentication > Sign-in method at i-enable ang "Email/Password".';
+    } else if (
       err.code === 'auth/user-not-found' ||
       err.code === 'auth/wrong-password' ||
       err.code === 'auth/invalid-credential'
@@ -338,6 +344,12 @@ export async function signInWithGoogleFirebase(): Promise<{
     };
   } catch (err: any) {
     console.error('[Firebase Google Auth] Sign in error:', err);
+    if (err.code === 'auth/operation-not-allowed') {
+      return {
+        success: false,
+        error: 'Hindi pa naka-enable ang Google Sign-In sa Firebase Console. Mangyaring pumunta sa Firebase Console > Authentication > Sign-in method at i-enable ang "Google".',
+      };
+    }
     if (err.code === 'auth/popup-closed-by-user') {
       return {
         success: false,

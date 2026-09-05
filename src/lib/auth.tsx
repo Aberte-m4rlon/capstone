@@ -783,25 +783,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async (): Promise<{ error: string | null }> => {
     try {
       const fbRes = await signInWithGoogleFirebase();
-      if (!fbRes.success || !fbRes.user) {
-        return { error: fbRes.error || 'Nabigo ang Google sign-in.' };
+      if (fbRes.success && fbRes.user) {
+        const user = fbRes.user;
+        const p = await fetchProfile(user.uid, user.email);
+
+        try {
+          await supabase.from('profiles').upsert({
+            id: user.uid,
+            role: p.role || 'farm_manager',
+            full_name: user.displayName || p.full_name || 'Farm Manager',
+            email: user.email,
+            is_active: true,
+          }, { onConflict: 'id' });
+        } catch {}
+
+        setProfile(p);
+        return { error: null };
       }
 
-      const user = fbRes.user;
-      const p = await fetchProfile(user.uid, user.email);
+      // If Firebase Google Sign-in is disabled in Console, try Supabase OAuth as fallback
+      if (fbRes.error && (fbRes.error.includes('Firebase Console') || fbRes.error.includes('operation-not-allowed'))) {
+        try {
+          const { error: sbErr } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo: `${window.location.origin}/dashboard`,
+            },
+          });
+          if (!sbErr) {
+            return { error: null };
+          }
+        } catch {}
+      }
 
-      try {
-        await supabase.from('profiles').upsert({
-          id: user.uid,
-          role: p.role || 'farm_manager',
-          full_name: user.displayName || p.full_name || 'Farm Manager',
-          email: user.email,
-          is_active: true,
-        }, { onConflict: 'id' });
-      } catch {}
-
-      setProfile(p);
-      return { error: null };
+      return { error: fbRes.error || 'Nabigo ang Google sign-in.' };
     } catch (err: any) {
       return { error: err?.message || 'Nabigo ang Google sign-in.' };
     }
