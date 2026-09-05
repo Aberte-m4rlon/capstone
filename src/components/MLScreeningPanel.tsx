@@ -69,7 +69,7 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
         <span style={{ fontSize: 12, fontWeight: 700, color: statusColor(result.screening_status) }}>
           {result.ml_probability_pct}%
         </span>
-        <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>ML</span>
+        <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Risk</span>
       </div>
     );
   }
@@ -85,10 +85,9 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
       }}>
         <WifiOff size={14} color="var(--text-secondary)" />
         <div>
-          <strong style={{ color: 'var(--text)' }}>ML Screening Unavailable</strong>
+          <strong style={{ color: 'var(--text)' }}>Pansamantalang Hindi Magamit</strong>
           <div style={{ marginTop: 2 }}>
-            The tabular ML health screening endpoint is not responding.
-            Vercel deployment may be needed.
+            Kasalukuyang inaayos ang health screening service.
           </div>
         </div>
       </div>
@@ -115,7 +114,7 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
         }}
       >
         <Brain size={15} />
-        Run ML Health Screening
+        Suriin ang Kalusugan
       </button>
     );
   }
@@ -125,7 +124,7 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
         <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
-        Running ML screening…
+        Sinusuri ang kalusugan…
         <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -164,15 +163,7 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Brain size={17} color="#7C3AED" />
-          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>ML Health Screening</span>
-          <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(124,58,237,0.12)', color: '#7C3AED', fontWeight: 700 }}>
-            {result.model_version}
-          </span>
-          {result.dataset_type === 'synthetic' && (
-            <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.12)', color: '#D97706', fontWeight: 700 }}>
-              SYNTHETIC DATA
-            </span>
-          )}
+          <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>Pagsusuri sa Kalusugan</span>
         </div>
         <button
           onClick={() => runScreening(record, animal)}
@@ -191,14 +182,14 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
           <div>
             <div style={{ fontSize: 15, fontWeight: 900, color: col }}>{result.risk_label}</div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-              ML Prediction: {result.prediction === 'suspected_ill' ? 'Suspected Ill' : 'Healthy'}
+              Resulta: {result.prediction === 'suspected_ill' ? 'Kailangan ng Atensyon' : 'Maayos'}
             </div>
           </div>
           <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
             <div style={{ fontSize: 24, fontWeight: 900, color: col, lineHeight: 1 }}>
               {result.ml_probability_pct}%
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>ML Probability</div>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Tinatayang Risk</div>
           </div>
         </div>
 
@@ -207,9 +198,7 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
           background: 'var(--surface)', borderRadius: 8, padding: '8px 10px',
           fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 10,
         }}>
-          <strong style={{ color: 'var(--text)' }}>ML Probability</strong> = model output from training data.{' '}
-          <strong style={{ color: 'var(--text)' }}>Veterinary Score</strong> = AlpasFarm rule engine (authoritative).{' '}
-          These are separate — do not combine.
+          Ang pagsusuring ito ay gabay lamang para sa pag-aalaga sa bukid at hindi opisyal na diagnosis ng beterinaryo.
           {result.veterinary_risk_score !== null && result.veterinary_risk_score !== undefined && (
             <span> · Vet score: <strong style={{ color: 'var(--text)' }}>{result.veterinary_risk_score}/100</strong></span>
           )}
@@ -219,7 +208,7 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
         {result.top_features.length > 0 && (
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-              Contributing Factors
+              Mga Salik na Nakaapekto
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {result.top_features.slice(0, 4).map((f, i) => (

@@ -506,8 +506,8 @@ export function generateRecommendations(
           const prediction = predictHealthRisk(features, mlModel);
           if (prediction.probability >= 0.7 && a.health_risk_score < 50) {
             recs.push({
-              category: 'ML Prediction',
-              title: `May napansing posibleng problema sa kalusugan ni ${a.name} (${Math.round(prediction.probability * 100)}% probabilidad)`,
+              category: 'Kalusugan',
+              title: `May napansing posibleng problema sa kalusugan ni ${a.name} (${Math.round(prediction.probability * 100)}% tsansa)`,
               description: `Pangunahing dahilan: ${prediction.featureImportance.slice(0, 3).map((f) => f.feature).join(', ')}. Obserbahan ang hayop o kumonsulta sa beterinaryo.`,
               priority: 'Warning',
               severity_color: 'orange',
@@ -519,7 +519,7 @@ export function generateRecommendations(
     }
   }
 
-  // 9b. ML anomaly detection
+  // 9b. Anomaly detection
   activeAnimals.forEach((a) => {
     if (a.current_temperature !== null) {
       const temps = healthRecords.filter((r) => r.animal_id === a.id).map((r) => r.temperature).filter((t): t is number => t !== null);
@@ -527,7 +527,7 @@ export function generateRecommendations(
         const anomaly = detectAnomaly(a.current_temperature, temps, 'temperature');
         if (anomaly.isAnomaly && anomaly.severity !== 'mild') {
           recs.push({
-            category: 'ML Anomaly',
+            category: 'Kalusugan',
             title: `${a.name}: may napansing kakaibang temperatura`,
             description: anomaly.message,
             priority: anomaly.severity === 'severe' ? 'Critical' : 'Warning',
@@ -539,7 +539,7 @@ export function generateRecommendations(
     }
   });
 
-  // 9c. ML breeding success prediction
+  // 9c. Breeding success prediction
   if (breedingRecords.length >= 1) {
     const breedingData = breedingRecords.map((r) => {
       const animal = animals.find((a) => a.id === r.animal_id);
@@ -559,7 +559,7 @@ export function generateRecommendations(
       );
       if (pred.probability >= 0.7) {
         recs.push({
-          category: 'ML Breeding',
+          category: 'Breeding',
           title: `Mataas ang tsansa ng tagumpay sa pagpapalahi kay ${a.name} (${Math.round(pred.probability * 100)}%)`,
           description: pred.recommendation,
           priority: 'Normal',

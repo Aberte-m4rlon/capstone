@@ -414,11 +414,11 @@ export function AnalyticsPage() {
             </Card>
           )}
 
-          {/* ML Anomaly Detection */}
+          {/* Health Anomaly Detection */}
           <Card variant="glass" padding="md" style={{ marginBottom: 16, borderLeft: '4px solid #FF3B30' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
               <AlertCircle size={20} color="#FF3B30" />
-              <span style={{ fontWeight: 800, fontSize: 15 }}>Pagtukoy sa Hindi Pangkaraniwang Datos — ML Anomaly Detection</span>
+              <span style={{ fontWeight: 800, fontSize: 15 }}>Pagtukoy sa Hindi Pangkaraniwang Datos (Health Anomalies)</span>
               <Badge variant={anomalies.length > 0 ? 'danger' : 'warning'}>
                 {anomalies.length} {anomalies.length === 1 ? 'hindi pangkaraniwang datos' : 'mga hindi pangkaraniwang datos'} ang napansin
               </Badge>
@@ -476,12 +476,12 @@ export function AnalyticsPage() {
             )}
           </Card>
 
-          {/* ML K-Means Clustering */}
+          {/* Animal Clustering */}
           {clusters && (
             <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #FF7A18', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                 <Layers size={20} color="#FF7A18" />
-                <span style={{ fontWeight: 800, fontSize: 15 }}>Pagpapangkat ng mga Hayop — ML Animal Clustering</span>
+                <span style={{ fontWeight: 800, fontSize: 15 }}>Pagpapangkat ng mga Hayop sa Bukid</span>
                 <Badge variant="warning">{clusters.k} pangkat · {clusters.converged ? 'nakumpleto' : 'natapos ang mga pagsusuri'}</Badge>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>

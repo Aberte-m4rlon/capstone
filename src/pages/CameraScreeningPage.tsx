@@ -21,7 +21,7 @@ import {
   Loader2, Search, Info, WifiOff, History,
   Zap, ShieldAlert, Activity, Check,
   Bot, SwitchCamera, X, Play,
-  ArrowLeft, Settings, Image, Thermometer
+  ArrowLeft, Settings, Image, Thermometer, Compass
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -580,10 +580,9 @@ What are the recommended early livestock interventions, supportive veterinary ca
               ctx.stroke();
             }
 
-            // High-legibility species label badge: GOAT 96% / SHEEP 94%
-            const confPct = Math.round(a.confidence * 100);
-            const speciesText = a.species.toUpperCase();
-            const badgeText = `${speciesText}   ${confPct}%`;
+            // High-legibility species label badge: KAMBING / TUPA
+            const speciesText = a.species.toLowerCase() === 'sheep' ? 'TUPA' : 'KAMBING';
+            const badgeText = speciesText;
 
             ctx.font = 'bold 12px Plus Jakarta Sans, Inter, system-ui, sans-serif';
             const textWidth = ctx.measureText(badgeText).width;
@@ -1057,7 +1056,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <Loader2 size={14} color="#4ADE80" style={{ animation: 'spin 1s linear infinite' }} />
             <span style={{ fontSize: 12, fontWeight: 700 }}>
-              Inihahanda ang AI Vision model...
+              Inihahanda ang camera scanner...
             </span>
           </div>
         )}
@@ -1073,22 +1072,67 @@ What are the recommended early livestock interventions, supportive veterinary ca
               background: 'rgba(15, 23, 42, 0.8)',
               backdropFilter: 'blur(10px)',
               WebkitBackdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: '#F8FAFC',
+              padding: '8px 18px',
               borderRadius: 999,
-              padding: '7px 20px',
-              color: '#FFFFFF',
+              fontSize: 13,
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              zIndex: 25,
-              whiteSpace: 'nowrap',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+              zIndex: 20,
+              maxWidth: '90%',
+              textAlign: 'center',
             }}
           >
-            <Activity size={14} color="#4ADE80" />
-            <span style={{ fontSize: 12, fontWeight: 700 }}>
-              Itutok ang camera sa kambing o tupa.
-            </span>
+            <Compass size={16} color="#38BDF8" className="animate-pulse" />
+            <span>Itapat ang camera sa isang kambing o tupa</span>
+          </div>
+        )}
+
+        {/* ── STATE 2: ANIMAL DETECTED & STABILIZING (Green Progress HUD) ── */}
+        {permission === 'granted' && autoScan.state === 'detecting' && det?.detected && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 76,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(20, 83, 45, 0.92)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1.5px solid #4ADE80',
+              color: '#FFFFFF',
+              padding: '10px 18px',
+              borderRadius: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              boxShadow: '0 8px 24px rgba(46, 125, 50, 0.45)',
+              zIndex: 25,
+              minWidth: 270,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CheckCircle size={16} color="#A7F3D0" />
+                {speciesLabel === 'Sheep' ? 'Tupa ang nakita.' : 'Kambing ang nakita.'}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#A7F3D0' }}>
+                {autoScan.stabilityRemainingSeconds.toFixed(1)}s
+              </span>
+            </div>
+            <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  background: '#A7F3D0',
+                  width: `${autoScan.stabilityProgress}%`,
+                  transition: 'width 0.12s linear',
+                }}
+              />
+            </div>
           </div>
         )}
 
@@ -2102,8 +2146,8 @@ function ScanResultCard({
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#2563EB', background: 'rgba(37, 99, 235, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
-                Confidence: {result.confidencePercent}%
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#16A34A', background: 'rgba(22, 163, 74, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
+                Visual Scan
               </div>
             </div>
           </div>

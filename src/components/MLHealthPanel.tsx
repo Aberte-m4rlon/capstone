@@ -61,7 +61,7 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
         <span style={{ fontWeight: 700, fontSize: 12, color: riskColor(p.riskLevel) }}>
           {pct}%
         </span>
-        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>ML</span>
+        <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Risk</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <TrendIcon trend={p.trend} />
         </span>
@@ -76,10 +76,7 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Brain size={18} color="#7C3AED" />
-          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>ML Health Assessment</span>
-          <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(124,58,237,0.12)', color: '#7C3AED', fontWeight: 700 }}>
-            v{p.modelVersion}
-          </span>
+          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>Pagsusuri sa Kalusugan</span>
         </div>
         {onRerun && (
           <button className="btn btn-ghost btn-sm" onClick={onRerun} title="Re-run assessment">
@@ -100,9 +97,9 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
             {pct}%
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, color: riskColor(p.riskLevel) }}>
-            {p.riskLevel} Risk
+            {p.riskLevel === 'Low' ? 'Maayos' : p.riskLevel === 'Moderate' ? 'Bantayan' : 'Kailangan ng Atensyon'}
           </div>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>ML Probability</div>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Tinatayang Risk</div>
         </div>
 
         {/* Trend + combined */}
@@ -111,7 +108,7 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
             <TrendIcon trend={p.trend} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Trend: {p.trend}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Based on health record history</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Batay sa kasaysayan ng health records</div>
             </div>
           </div>
 
@@ -119,20 +116,13 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
             <AlertTriangle size={14} color={combinedColor(p.combinedAssessment)} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: combinedColor(p.combinedAssessment) }}>
-                Combined: {p.combinedAssessment}
+                Kalagayan: {p.combinedAssessment}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                ML {pct}% + Vet Rules {p.vetRuleScore}/100
+                Pagsusuri sa bukid at vitals history
               </div>
             </div>
           </div>
-
-          {p.confidence > 0 && (
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 4 }}>
-              Model confidence: <strong>{p.confidence}%</strong>
-              {' '}· Training samples: <strong>{p.modelMeta?.trainingSamples ?? '—'}</strong>
-            </div>
-          )}
         </div>
       </div>
 
@@ -191,9 +181,9 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
         </details>
       )}
 
-      {/* Explanation */}
-      <div style={{ padding: '10px 14px', borderRadius: 12, background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-        {p.explanation}
+      {/* Farmer Advisory Box */}
+      <div style={{ padding: '10px 14px', borderRadius: 12, background: 'rgba(67, 160, 71, 0.08)', border: '1px solid rgba(67, 160, 71, 0.25)', fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>
+        <strong>Paalala para sa Bukid:</strong> Regular na subaybayan ang pagkain, pag-inom, at sigla ng hayop. Kung may senyales ng panghihina, sumangguni agad sa beterinaryo.
       </div>
     </div>
   );
@@ -248,7 +238,7 @@ export function EarlyWarningCard({ animalName, tagId, prediction: p, onView }: E
         )}
       </div>
       <button className="btn btn-sm btn-secondary" onClick={onView} style={{ flexShrink: 0 }}>
-        View Animal
+        Tingnan ang Hayop
       </button>
     </div>
   );

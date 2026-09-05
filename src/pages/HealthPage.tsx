@@ -492,7 +492,7 @@ export function HealthPage() {
       if (!result.goatDetected) {
         toast('This is not a goat or sheep. Please scan a goat or sheep.', 'warning');
       } else {
-        toast('Camera ML visual assessment completed successfully!', 'success');
+        toast('Camera visual assessment completed successfully!', 'success');
       }
       stopCameraStream();
     } catch (err: any) {
@@ -595,8 +595,8 @@ export function HealthPage() {
         recommendation: recommendationStr,
         detected_conditions: detectedConditionsStr || null,
         notes: notes.trim()
-          ? `${notes.trim()}\n\n[ML Model: ${EARLY_ILLNESS_MODEL_VERSION} | Vet Attention: ${currentPrediction.veterinaryAttention}]`
-          : `[ML Model: ${EARLY_ILLNESS_MODEL_VERSION} | Vet Attention: ${currentPrediction.veterinaryAttention}]`,
+          ? `${notes.trim()}\n\n[Version: ${EARLY_ILLNESS_MODEL_VERSION} | Vet Attention: ${currentPrediction.veterinaryAttention}]`
+          : `[Version: ${EARLY_ILLNESS_MODEL_VERSION} | Vet Attention: ${currentPrediction.veterinaryAttention}]`,
       };
 
       const { error: insertError } = await supabase.from('health_records').insert(healthPayload);
@@ -1392,7 +1392,7 @@ export function HealthPage() {
             <div className="camera-header-row">
               <div className="camera-header-title">
                 <Camera size={16} color="#8B5CF6" />
-                <span>3. Visual Health Scanner (Camera ML - Opsyonal):</span>
+                <span>3. Visual Health Scanner (Camera Scanner - Opsyonal):</span>
               </div>
               {cameraResult && (
                 <button
@@ -1444,7 +1444,7 @@ export function HealthPage() {
                   {cameraScanning && (
                     <div className="camera-scanning-overlay">
                       <RefreshCw size={20} className="animate-spin" />
-                      <span>Analyzing livestock visuals via MobileNetV2...</span>
+                      <span>Sinusuri ang kuha ng camera...</span>
                     </div>
                   )}
                 </div>
@@ -1472,7 +1472,7 @@ export function HealthPage() {
 
             {cameraScanning && !cameraActive && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, color: '#8B5CF6', fontSize: 13, fontWeight: 700 }}>
-                <RefreshCw size={16} className="animate-spin" /> Sinusuri ang imahe gamit ang computer vision...
+                <RefreshCw size={16} className="animate-spin" /> Sinusuri ang kuha ng camera...
               </div>
             )}
 
@@ -1487,11 +1487,11 @@ export function HealthPage() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: cameraResult.goatDetected ? '#7C3AED' : '#EF4444' }}>
                     {cameraResult.goatDetected
-                      ? `${cameraResult.species === 'sheep' ? 'Tupa' : 'Kambing'} detected (${Math.round(cameraResult.goatDetectionConfidence * 100)}% match)`
+                      ? `${cameraResult.species === 'sheep' ? 'Tupa' : 'Kambing'} ang nakita`
                       : 'Hindi ito kambing o tupa'}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                    Visual Risk: {cameraResult.riskLevelLabel} · Confidence: {Math.round(cameraResult.confidence * 100)}%
+                    Kalagayan: {cameraResult.riskLevelLabel}
                   </div>
                 </div>
                 <Activity size={18} color={cameraResult.goatDetected ? '#7C3AED' : '#EF4444'} />
@@ -1519,11 +1519,11 @@ export function HealthPage() {
                   <div className="result-header-row">
                     <div>
                       <span className="result-header-label">
-                        Resulta ng AI Health Screening
+                        Pagsusuri sa Kalusugan
                       </span>
                       <div className="result-score-line">
                         <span className={`result-score-text score-${currentPrediction.riskLevel.toLowerCase().replace(' ', '-')}`}>
-                          {currentPrediction.riskLevel} ({currentPrediction.riskScore}%)
+                          {currentPrediction.riskLevel}
                         </span>
                         <span className="result-confidence">
                           · {currentPrediction.confidencePercent}% ML Confidence

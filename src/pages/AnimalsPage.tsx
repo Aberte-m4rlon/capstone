@@ -326,10 +326,10 @@ export function AnimalsPage() {
           </div>
           <div>
             <div className="stat-card-value" style={{ color: 'var(--color-primary, #FF6A2A)' }}>
-              {animalStats.total}
+              {animalStats.total} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
-              Lahat ng hayop
+              kabuuang hayop
             </div>
           </div>
         </div>
@@ -353,10 +353,10 @@ export function AnimalsPage() {
           </div>
           <div>
             <div className="stat-card-value" style={{ color: '#3B82F6' }}>
-              {animalStats.goats}
+              {animalStats.goats} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
-              {animalStats.total > 0 ? `${Math.round((animalStats.goats / animalStats.total) * 100)}% ng bukid` : '0%'}
+              Mga Kambing
             </div>
           </div>
         </div>
@@ -380,10 +380,10 @@ export function AnimalsPage() {
           </div>
           <div>
             <div className="stat-card-value" style={{ color: '#10B981' }}>
-              {animalStats.sheep}
+              {animalStats.sheep} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
-              {animalStats.total > 0 ? `${Math.round((animalStats.sheep / animalStats.total) * 100)}% ng bukid` : '0%'}
+              Mga Tupa
             </div>
           </div>
         </div>

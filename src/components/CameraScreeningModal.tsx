@@ -500,9 +500,9 @@ function ScanResultCard({
           {/* YOLO Bounding Boxes */}
           {result.boundingBoxes && result.boundingBoxes.map((b, idx) => {
             const [x1, y1, x2, y2] = b.box;
-            const isTargetGoat = b.class_name === 'goat';
+            const isTargetGoat = b.class_name === 'goat' || b.class_name === 'sheep';
             const color = isTargetGoat ? '#22C55E' : '#EF4444';
-            const labelText = isTargetGoat ? `Goat ${(b.confidence * 100).toFixed(0)}%` : `${b.class_name.replace('_', ' ')} ${(b.confidence * 100).toFixed(0)}%`;
+            const labelText = isTargetGoat ? (b.class_name === 'sheep' ? 'Tupa' : 'Kambing') : b.class_name.replace('_', ' ');
 
             return (
               <div
@@ -559,11 +559,11 @@ function ScanResultCard({
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 16, fontWeight: 900, color: result.riskLevelColor }}>{displayRiskLabel}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: result.detectionEngine === 'yolov8' ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)', color: result.detectionEngine === 'yolov8' ? '#16A34A' : '#3B82F6', border: `1px solid ${result.detectionEngine === 'yolov8' ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.3)'}` }}>
-                {result.detectionEngine === 'yolov8' ? 'YOLOv8 Vision Scanner' : 'MobileNetV2 Engine'}
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.15)', color: '#16A34A', border: '1px solid rgba(34,197,94,0.3)' }}>
+                Visual Scan
               </span>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>AI Health Screening — {animalName}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Pagsusuri sa Kalusugan — {animalName}</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 26, fontWeight: 900, color: result.riskLevelColor, lineHeight: 1 }}>{finalScore}%</div>
@@ -585,7 +585,7 @@ function ScanResultCard({
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>{result.confidencePercent}%</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>AI Confidence</div>
+            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Katiyakan</div>
           </div>
           <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>{result.qualityReport.score}/100</div>

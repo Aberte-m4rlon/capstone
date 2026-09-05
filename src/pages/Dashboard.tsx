@@ -537,10 +537,10 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: 'var(--color-text-primary, #0F172A)' }}>
-                {herdStats.goatsCount}
+                {herdStats.goatsCount} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted, #64748B)' }}>
-                {herdStats.total > 0 ? `${Math.round((herdStats.goatsCount / herdStats.total) * 100)}% ng bukid` : '0%'}
+                Kambing
               </div>
             </div>
           </div>
@@ -565,10 +565,10 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: 'var(--color-text-primary, #0F172A)' }}>
-                {herdStats.sheepCount}
+                {herdStats.sheepCount} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted, #64748B)' }}>
-                {herdStats.total > 0 ? `${Math.round((herdStats.sheepCount / herdStats.total) * 100)}% ng bukid` : '0%'}
+                Tupa
               </div>
             </div>
           </div>
@@ -593,10 +593,10 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: '#2E7D32' }}>
-                {herdStats.total}
+                {herdStats.total} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: herdStats.newThisMonth > 0 ? '#10B981' : 'var(--color-text-muted, #64748B)' }}>
-                {formatMonthlyAnimalGrowth(herdStats.newThisMonth)}
+                kabuuang hayop
               </div>
             </div>
           </div>
@@ -816,7 +816,7 @@ export function Dashboard() {
           >
             <div className="alpas-stat-header">
               <span className="stat-card-label" style={{ fontWeight: 700, color: HEALTH_TIERS.Low.color }}>
-                Healthy
+                {FARM_LABELS.cardHealthy}
               </span>
               <div className="stat-card-icon" style={{ background: 'rgba(22, 163, 74, 0.15)', color: HEALTH_TIERS.Low.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <HeartPulse size={16} />
@@ -824,12 +824,10 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: HEALTH_TIERS.Low.color }}>
-                {healthScreening.healthyCount}
+                {healthScreening.healthyCount} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
-                {herdStats.total > 0
-                  ? `${Math.round((healthScreening.healthyCount / herdStats.total) * 100)}% ng bukid`
-                  : 'Malusog'}
+                Maayos ang kalagayan
               </div>
             </div>
           </div>
@@ -854,10 +852,10 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: HEALTH_TIERS.Moderate.color }}>
-                {healthScreening.moderateRisk.length}
+                {healthScreening.moderateRisk.length} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
-                Obserbahan sa bukid
+                Bantayan sa bukid
               </div>
             </div>
           </div>
@@ -882,10 +880,10 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: HEALTH_TIERS.High.color }}>
-                {healthScreening.highRisk.length}
+                {healthScreening.highRisk.length} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
-                Atensyon ng Vet
+                Kailangan ng atensyon
               </div>
             </div>
           </div>

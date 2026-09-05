@@ -55,13 +55,24 @@ export const FARM_LABELS = {
   cardTotalAnimals: 'Mga Hayop sa Bukid',
   cardGoats: 'Mga Kambing',
   cardSheep: 'Mga Tupa',
-  cardHealthy: 'Healthy',
+  cardHealthy: 'Maayos',
   cardMonitoring: 'Bantayan',
   cardNeedsAttention: 'Kailangan ng Atensyon',
+  cardNeedsMedication: 'Kailangan ng Gamot',
   cardPregnant: 'Mga Buntis',
   cardVaccineDueSoon: 'Bakunang Malapit na',
   cardLowStock: 'Mababa ang Stock',
   cardExpiringSoon: 'Malapit nang Mag-expire',
+};
+
+/** Format counts into farmer-friendly head count ("42 ulo") */
+export function formatHeadCount(count: number): string {
+  return `${count} ulo`;
+}
+
+/** Format total animal count ("60 kabuuang hayop") */
+export function formatTotalHerd(count: number): string {
+  return `${count} kabuuang hayop`;
 };
 
 // ─── Species & Sex Terminology ──────────────────────────────────────────────
@@ -131,13 +142,13 @@ export interface HealthTierConfig {
 
 export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig> = {
   High: {
-    label: 'Mataas ang Risk / High Risk',
-    shortLabel: 'High Risk',
-    badgeText: 'Mataas ang Risk / High Risk',
+    label: 'Kailangan ng Atensyon / Needs Attention',
+    shortLabel: 'Kailangan ng Atensyon',
+    badgeText: 'Kailangan ng Atensyon / Needs Attention',
     color: '#EF4444',
     bg: 'rgba(239, 68, 68, 0.12)',
     border: 'rgba(239, 68, 68, 0.35)',
-    description: 'Nangangailangan ng atensyon o mabilisang paghiwalay at pagsusuri ng beterinaryo.',
+    description: 'Inirerekomendang suriin agad ang hayop o kumonsulta sa beterinaryo.',
   },
   Moderate: {
     label: 'Bantayan / Under Observation',
@@ -146,7 +157,7 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
     color: '#F59E0B',
     bg: 'rgba(245, 158, 11, 0.12)',
     border: 'rgba(245, 158, 11, 0.35)',
-    description: 'May maagang senyales na dapat obserbahan at subaybayan sa susunod na mga araw.',
+    description: 'May napansing senyales na kailangang obserbahan at subaybayan.',
   },
   Low: {
     label: 'Maayos / Healthy',
@@ -155,7 +166,7 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.12)',
     border: 'rgba(16, 185, 129, 0.35)',
-    description: 'Normal ang mga visual indicators, masigla, at maayos ang pangangatawan.',
+    description: 'Masigla at maayos ang pangkalahatang pangangatawan ng hayop.',
   },
 };
 

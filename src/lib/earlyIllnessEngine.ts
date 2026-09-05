@@ -39,7 +39,7 @@ export interface PossibleHealthConcern {
 
 export interface DetectedIndicatorItem {
   name: string;
-  category: 'Observation' | 'Database History' | 'Camera ML Vision';
+  category: 'Observation' | 'Database History' | 'Camera ML Vision' | 'Visual Health Scan';
   severity: 'normal' | 'warning' | 'critical';
   details?: string;
 }
@@ -484,15 +484,15 @@ export function predictEarlyIllness(params: {
     if (isConcern) {
       rawScore += Math.min(30, Math.round((cameraResult.riskScore || 40) * 0.4));
       detectedIndicators.push({
-        name: `Camera ML: Visual Concern Detected (${cameraResult.riskLevelLabel})`,
-        category: 'Camera ML Vision',
+        name: `Visual Health: May Napansing Problema (${cameraResult.riskLevelLabel})`,
+        category: 'Visual Health Scan',
         severity: cameraResult.riskScore >= 60 ? 'critical' : 'warning',
-        details: `${Math.round(cameraResult.confidence * 100)}% visual ML confidence.`,
+        details: 'Visual scan sa bukid.',
       });
     } else {
       detectedIndicators.push({
-        name: `Camera ML: Normal Visual Appearance (${Math.round(cameraResult.confidence * 100)}%)`,
-        category: 'Camera ML Vision',
+        name: `Visual Health: Maayos ang Hitsura`,
+        category: 'Visual Health Scan',
         severity: 'normal',
       });
     }
@@ -500,8 +500,8 @@ export function predictEarlyIllness(params: {
     camIndicators.forEach((ci) => {
       if (ci.indicator !== 'NORMAL') {
         detectedIndicators.push({
-          name: `Camera ML: ${ci.label}`,
-          category: 'Camera ML Vision',
+          name: `Visual Health: ${ci.label}`,
+          category: 'Visual Health Scan',
           severity: ci.riskPoints >= 15 ? 'critical' : 'warning',
           details: ci.description,
         });

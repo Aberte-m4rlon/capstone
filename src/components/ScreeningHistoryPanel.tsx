@@ -55,9 +55,9 @@ export function ScreeningHistoryPanel({ animalId, animalName }: Props) {
   };
 
   const predLabel = (p: string) => {
-    if (p === 'possible_health_concern') return 'Possible Concern';
-    if (p === 'normal_appearance') return 'Normal Appearance';
-    return 'Low Confidence';
+    if (p === 'possible_health_concern') return 'Posibleng May Karamdaman';
+    if (p === 'normal_appearance') return 'Maayos ang Hitsura';
+    return 'Mababang Kalidad';
   };
 
   const predColor = (p: string) => {
@@ -135,12 +135,9 @@ export function ScreeningHistoryPanel({ animalId, animalName }: Props) {
                   <span style={{ fontSize: 13, fontWeight: 700, color: predColor(s.prediction) }}>
                     {predLabel(s.prediction)}
                   </span>
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    {Math.round(s.confidence * 100)}% confidence
-                  </span>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                  {formatDate(s.created_at)} · Model: {s.model_version}
+                  {formatDate(s.created_at)}
                 </div>
                 {s.notes && (
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: 2 }}>

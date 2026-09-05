@@ -1441,16 +1441,16 @@ export async function runHealthScan(
 
   // Step 9: Explanation
   const abnormal = indicators.filter((i) => i.indicator !== 'NORMAL');
-  let explanation = `AI Health Scanner analyzed ${options.animalName ?? 'the animal'} using MobileNetV2 visual feature extraction. `;
+  let explanation = `Sinuri ng visual health scanner ang ${options.animalName ?? 'hayop'}. `;
   if (abnormal.length > 0) {
-    explanation += `Detected indicators: ${abnormal.map((i) => i.label).join(', ')}. `;
-    explanation += `These are visual observations only — not a veterinary diagnosis. `;
+    explanation += `Mga napansing obserbasyon: ${abnormal.map((i) => i.label).join(', ')}. `;
+    explanation += `Ang mga ito ay gabay sa pagmamasid lamang — hindi opisyal na diagnosis ng beterinaryo. `;
   } else {
-    explanation += 'No obvious visual abnormalities were detected. ';
+    explanation += 'Walang nakitang kakaibang problema sa hitsura. ';
   }
-  explanation += `Risk score: ${combinedRiskScore ?? riskScore}/100 (${riskLevel}). `;
+  explanation += `Risk score: ${combinedRiskScore ?? riskScore}/100 (${riskLevel === 'CRITICAL' || riskLevel === 'HIGH' ? 'Kailangan ng Atensyon' : riskLevel === 'MODERATE' ? 'Bantayan' : 'Maayos'}). `;
   if (combinedFactors.length > 0) {
-    explanation += `Combined with farm data: ${combinedFactors.slice(0, 3).join('; ')}.`;
+    explanation += `Kasama ang talaan sa bukid: ${combinedFactors.slice(0, 3).join('; ')}.`;
   }
 
   // Build backward-compat prediction field

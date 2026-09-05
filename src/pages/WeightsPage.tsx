@@ -315,7 +315,7 @@ export function WeightsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
               <Brain size={18} color="#43A047" />
               <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #1F2933)' }}>
-                Pagtataya sa Paglaki ng Hayop — ML Growth Prediction
+                Pagtataya sa Paglaki ng Hayop
               </span>
               <Badge variant="warning" size="sm">
                 R² = {mlGrowth.rSquared.toFixed(3)}
@@ -351,17 +351,17 @@ export function WeightsPage() {
               </div>
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #667085)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
-                  Katumpakan ng Modelo (R²)
+                  Kalagayan ng Paglaki
                 </div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: mlGrowth.rSquared >= 0.7 ? 'var(--color-success, #2E7D32)' : mlGrowth.rSquared >= 0.4 ? 'var(--color-warning, #F59E0B)' : 'var(--color-danger, #EF4444)' }}>
-                  {mlGrowth.rSquared.toFixed(3)}
+                <div style={{ fontSize: '16px', fontWeight: 800, color: mlGrowth.rSquared >= 0.4 ? 'var(--color-success, #2E7D32)' : 'var(--color-warning, #F59E0B)', paddingTop: 4 }}>
+                  {mlGrowth.rSquared >= 0.7 ? 'Napakaayos' : mlGrowth.rSquared >= 0.4 ? 'Matatag' : 'Kailangan ng Karagdagang Timbang'}
                 </div>
               </div>
             </div>
             {mlGrowth.projectedWeights.length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary, #667085)' }}>
-                  Tinatayang Kurba ng Paglaki na may Saklaw ng Kumpyansa
+                  Tinatayang Kurba ng Paglaki ng Hayop
                 </div>
                 <Line
                   data={{

@@ -662,16 +662,16 @@ export function AnimalProfilePage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-secondary)', fontSize: 13 }}>
                   <AlertTriangle size={16} color="#F59E0B" />
                   <span>
-                    <strong>ML Health Assessment</strong> — Add at least 5 health records to enable the ML risk model for this animal.
+                    <strong>Pagsusuri sa Kalusugan</strong> — Magdagdag ng kahit 5 health records upang makita ang kumpletong pagsusuri sa hayop na ito.
                   </span>
                 </div>
               )}
             </GlassCard>
 
-            {/* ML Risk Probability History Chart */}
+            {/* Health Risk History Chart */}
             {riskDates.length >= 2 && (
               <GlassCard gridSpan={2}>
-                <CardTitle icon={Activity} title="Health Risk Trend (ML Probability vs Vet Score)" />
+                <CardTitle icon={Activity} title="Kasaysayan ng Kalusugan (Health Trend)" />
                 <div style={{ height: 200 }}>
                   <Line
                     data={{
@@ -681,7 +681,7 @@ export function AnimalProfilePage() {
                       }),
                       datasets: [
                         {
-                          label: 'ML Risk %',
+                          label: 'Tinatayang Risk',
                           data: riskProbs,
                           borderColor: '#7C3AED',
                           backgroundColor: 'rgba(124,58,237,0.1)',
@@ -691,7 +691,7 @@ export function AnimalProfilePage() {
                           pointBackgroundColor: '#7C3AED',
                         },
                         {
-                          label: 'Vet Rule Score',
+                          label: 'Pagsusuri sa Bukid',
                           data: riskScores,
                           borderColor: '#F97316',
                           backgroundColor: 'transparent',
@@ -819,13 +819,12 @@ export function AnimalProfilePage() {
               {animalScreenings.length > 0 ? (() => {
                 const latest = animalScreenings[0];
                 const predColor = latest.prediction === 'possible_health_concern' ? '#EF4444' : latest.prediction === 'normal_appearance' ? '#16A34A' : '#F59E0B';
-                const predLabel = latest.prediction === 'possible_health_concern' ? 'Possible Health Concern' : latest.prediction === 'normal_appearance' ? 'Normal Appearance' : 'Low Confidence';
+                const predLabel = latest.prediction === 'possible_health_concern' ? 'Posibleng May Karamdaman' : latest.prediction === 'normal_appearance' ? 'Maayos ang Hitsura' : 'Mababang Kalidad ng Litrato';
                 return (
                   <div>
-                    <StatRow label="Last Screening" value={formatDate(latest.created_at)} />
-                    <StatRow label="Result" value={<span style={{ fontWeight: 700, color: predColor }}>{predLabel}</span>} />
-                    <StatRow label="Confidence" value={`${Math.round(latest.confidence * 100)}%`} />
-                    <StatRow label="Total Screenings" value={animalScreenings.length} />
+                    <StatRow label="Huling Pagsusuri" value={formatDate(latest.created_at)} />
+                    <StatRow label="Resulta" value={<span style={{ fontWeight: 700, color: predColor }}>{predLabel}</span>} />
+                    <StatRow label="Kabuuang Pagsusuri" value={`${animalScreenings.length} beses`} />
                     <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                       <button
                         onClick={() => setCameraScreeningOpen(true)}
@@ -854,7 +853,7 @@ export function AnimalProfilePage() {
               })() : (
                 <div style={{ textAlign: 'center', paddingTop: 8 }}>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
-                    No screenings yet. Run a preliminary ML health screening using the camera.
+                    Wala pang screening. Mag-screen ng kalusugan gamit ang camera.
                   </div>
                   <button
                     onClick={() => setCameraScreeningOpen(true)}
@@ -866,7 +865,7 @@ export function AnimalProfilePage() {
                       boxShadow: '0 4px 14px rgba(255,59,48,0.3)',
                     }}
                   >
-                    <Camera size={14} /> Run Screening
+                    <Camera size={14} /> Suriin ang Hayop
                   </button>
                 </div>
               )}
@@ -881,7 +880,7 @@ export function AnimalProfilePage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
               <CardTitle icon={Activity} title="Early Illness & Health Records" />
               <button className="btn btn-primary btn-sm" onClick={() => navigate('/health')}>
-                <Sparkles size={15} /> Run Early Illness Prediction
+                <Sparkles size={15} /> Suriin ang Kalusugan
               </button>
             </div>
             {animalHealth.length === 0 ? (
@@ -1183,11 +1182,11 @@ export function AnimalProfilePage() {
             {animalScreenings.length > 0 && (() => {
               const latest = animalScreenings[0];
               const predColor = latest.prediction === 'possible_health_concern' ? '#EF4444' : latest.prediction === 'normal_appearance' ? '#16A34A' : '#F59E0B';
-              const predLabel = latest.prediction === 'possible_health_concern' ? 'Possible Health Concern' : latest.prediction === 'normal_appearance' ? 'Normal Appearance' : 'Low Confidence';
+              const predLabel = latest.prediction === 'possible_health_concern' ? 'Posibleng May Karamdaman' : latest.prediction === 'normal_appearance' ? 'Maayos ang Hitsura' : 'Mababang Kalidad ng Litrato';
               return (
                 <GlassCard style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
-                    <CardTitle icon={Camera} title="Latest Camera Screening" />
+                    <CardTitle icon={Camera} title="Huling Pagsusuri sa Camera" />
                     <button
                       onClick={() => setCameraScreeningOpen(true)}
                       style={{
@@ -1198,22 +1197,20 @@ export function AnimalProfilePage() {
                         boxShadow: '0 4px 14px rgba(255,59,48,0.3)',
                       }}
                     >
-                      <Camera size={14} /> Run New Screening
+                      <Camera size={14} /> Magsagawa ng Pagsusuri
                     </button>
                   </div>
-                  <StatRow label="Date" value={formatDate(latest.created_at)} />
-                  <StatRow label="Result" value={<span style={{ fontWeight: 700, color: predColor }}>{predLabel}</span>} />
-                  <StatRow label="ML Confidence" value={`${Math.round(latest.confidence * 100)}%`} />
-                  <StatRow label="Model" value={latest.model_version} />
-                  <StatRow label="Image Quality Score" value={`${latest.quality_score}/100`} />
-                  {latest.notes && <StatRow label="Notes" value={latest.notes} />}
+                  <StatRow label="Petsa" value={formatDate(latest.created_at)} />
+                  <StatRow label="Resulta" value={<span style={{ fontWeight: 700, color: predColor }}>{predLabel}</span>} />
+                  <StatRow label="Kalidad ng Litrato" value={`${latest.quality_score}/100`} />
+                  {latest.notes && <StatRow label="Mga Tala" value={latest.notes} />}
                   <div style={{
                     marginTop: 12, padding: '10px 12px',
                     background: 'rgba(59,130,246,0.07)',
                     border: '1px solid rgba(59,130,246,0.18)',
                     borderRadius: 8, fontSize: 11, color: '#3B82F6', lineHeight: 1.6,
                   }}>
-                    Camera screening is a preliminary assessment only. It does not replace professional veterinary diagnosis.
+                    Ang camera screening ay paunang gabay lamang sa pagmamasid sa bukid at hindi opisyal na diagnosis ng beterinaryo.
                   </div>
                 </GlassCard>
               );
@@ -1228,7 +1225,7 @@ export function AnimalProfilePage() {
                     No Camera Screenings Yet
                   </div>
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-                    Run a preliminary ML health screening using your phone camera or by uploading a photo of {animal.name}.
+                    Mag-screen ng kalusugan gamit ang camera ng cellphone o mag-upload ng litrato ni {animal.name}.
                   </div>
                   <button
                     onClick={() => setCameraScreeningOpen(true)}

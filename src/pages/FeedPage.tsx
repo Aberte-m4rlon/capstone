@@ -350,9 +350,6 @@ export function FeedPage() {
                   <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #1F2933)' }}>
                     Pagtataya sa Pangangailangan sa Pakain — 30-Araw na Projection
                   </span>
-                  <Badge variant="primary" size="sm">
-                    {feedForecast.confidence}% kumpyansa (confidence)
-                  </Badge>
                 </div>
                 <div className="dashboard-stats stats-grid" style={{ marginBottom: 12 }}>
                   <div>

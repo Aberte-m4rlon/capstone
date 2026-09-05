@@ -82,36 +82,35 @@ function buildMessage(
   isObserving: boolean,
 ): string {
   switch (state) {
-    case 'idle':           return 'Camera not started.';
-    case 'loading':        return 'Loading AI detection model...';
+    case 'idle':           return 'Hindi pa bukas ang camera.';
+    case 'loading':        return 'Inihahanda ang camera scanner...';
     case 'other_detected': {
-      return 'This is not a goat or sheep. Point the camera at a goat or sheep.';
+      return 'Hindi ito kambing o tupa. Itapat ang camera sa kambing o tupa.';
     }
     case 'detecting':
       if (!det || (!det.detected && !det.otherDetected)) {
-        return 'Scanning... Point the camera at a goat or sheep.';
+        return 'Naghahanap... Itapat ang camera sa kambing o tupa.';
       }
       if (det.detected) {
-        const sp = det.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
+        const sp = det.detectedSpecies === 'sheep' ? 'Tupa' : 'Kambing';
         const ang = det.angleTagalog ? ` · ${det.angleTagalog}` : '';
-        const conf = Math.round(det.confidence * 100);
         if (isObserving && remainingSec > 0) {
-          return `Animal detected: ${sp}${ang} (${conf}%) — Hold steady (${remainingSec.toFixed(1)}s)...`;
+          return `Nakita ang hayop: ${sp}${ang} — Huwag igalaw (${remainingSec.toFixed(1)}s)...`;
         }
-        return `Animal detected: ${sp}${ang} (${conf}%)`;
+        return `Nakita ang hayop: ${sp}${ang}`;
       }
       if (det.otherDetected) {
-        return 'This is not a goat or sheep. Point the camera at a goat or sheep.';
+        return 'Hindi ito kambing o tupa. Itapat ang camera sa kambing o tupa.';
       }
-      return 'Scanning... Point the camera at a goat or sheep.';
+      return 'Naghahanap... Itapat ang camera sa kambing o tupa.';
     case 'stable': {
-      const sp = det?.detectedSpecies === 'sheep' ? 'Sheep' : 'Goat';
-      return `Animal detected: ${sp} — Running AI Health Prediction...`;
+      const sp = det?.detectedSpecies === 'sheep' ? 'Tupa' : 'Kambing';
+      return `Nakita ang hayop: ${sp} — Sinusuri ang kalusugan...`;
     }
-    case 'scanning':       return 'Running AI Health Prediction... Analyzing visual features & records...';
-    case 'result':         return 'Screening complete. Health risk calculated & saved automatically.';
-    case 'cooldown':       return `Ready for next screening in ${cd}s... (or tap Scan Again)`;
-    case 'error':          return 'An error occurred during screening.';
+    case 'scanning':       return 'Sinusuri ang kalusugan ng hayop...';
+    case 'result':         return 'Tapos na ang pagsusuri sa kalusugan.';
+    case 'cooldown':       return `Handa para sa susunod na scan sa loob ng ${cd}s...`;
+    case 'error':          return 'Nagkaroon ng problema habang nagsusuri.';
     default:               return '';
   }
 }
