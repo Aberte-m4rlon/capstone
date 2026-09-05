@@ -76,19 +76,19 @@ export function NotificationsPage() {
     switch (type) {
       case 'health':
         return <HeartPulse size={18} color="#EF4444" />;
-      case 'vaccination':
-      case 'vaccine':
-        return <Syringe size={18} color="#F97316" />;
-      case 'breeding':
-        return <Heart size={18} color="#EC4899" />;
-      case 'weight':
-        return <Scale size={18} color="#EAB308" />;
-      case 'inventory':
-        return <Package size={18} color="#06B6D4" />;
       case 'expiry':
         return <AlertTriangle size={18} color="#F59E0B" />;
+      case 'vaccination':
+      case 'vaccine':
+        return <Syringe size={18} color="#238B45" />;
+      case 'breeding':
+        return <Heart size={18} color="#238B45" />;
+      case 'weight':
+        return <Scale size={18} color="#238B45" />;
+      case 'inventory':
+        return <Package size={18} color="#238B45" />;
       default:
-        return <Bell size={18} color="#10B981" />;
+        return <Bell size={18} color="#238B45" />;
     }
   };
 
@@ -105,7 +105,7 @@ export function NotificationsPage() {
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
             {unreadCount > 0 ? (
               <span>
-                <strong style={{ color: 'var(--color-primary, #43A047)' }}>{unreadCount} bago</strong> sa kabuuang {notifications.length}
+                <strong style={{ color: '#238B45' }}>{unreadCount} bago</strong> sa kabuuang {notifications.length}
               </span>
             ) : (
               <span>Lahat ng {notifications.length} paalala ay nabasa na</span>
@@ -234,7 +234,7 @@ export function NotificationsPage() {
                             gap: 4,
                             padding: '2px 8px',
                             borderRadius: '999px',
-                            background: '#22C55E',
+                            background: '#238B45',
                             color: '#FFFFFF',
                             fontSize: '10px',
                             fontWeight: 800,
@@ -270,7 +270,7 @@ export function NotificationsPage() {
                     >
                       <span>{formatDateTime(n.created_at)}</span>
                       {hasLink && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--color-primary, #43A047)', fontWeight: 600 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#238B45', fontWeight: 600 }}>
                           Tingnan ang detalye <ArrowRight size={12} />
                         </span>
                       )}

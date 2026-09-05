@@ -23,18 +23,13 @@ export function Badge({
   const getVariantStyles = (): { bg: string; text: string; border: string; dotColor: string } => {
     switch (variant) {
       case 'primary':
-        return {
-          bg: '#E8F5E9',
-          text: '#2E7D32',
-          border: 'rgba(67, 160, 71, 0.30)',
-          dotColor: '#43A047',
-        };
       case 'success':
+      case 'info':
         return {
-          bg: '#E8F5E9',
-          text: '#2E7D32',
-          border: 'rgba(67, 160, 71, 0.30)',
-          dotColor: '#43A047',
+          bg: '#EAF6ED',
+          text: '#176B35',
+          border: 'rgba(35, 139, 69, 0.25)',
+          dotColor: '#238B45',
         };
       case 'warning':
         return {
@@ -50,21 +45,14 @@ export function Badge({
           border: 'rgba(239, 68, 68, 0.28)',
           dotColor: '#EF4444',
         };
-      case 'info':
-        return {
-          bg: 'rgba(59, 130, 246, 0.12)',
-          text: '#2563EB',
-          border: 'rgba(59, 130, 246, 0.28)',
-          dotColor: '#3B82F6',
-        };
       case 'default':
       case 'neutral':
       default:
         return {
-          bg: 'var(--color-surface-hover, #F0F4F1)',
-          text: 'var(--color-text-secondary, #667085)',
-          border: 'var(--color-border, #E5EDE6)',
-          dotColor: 'var(--color-text-muted, #94A3B8)',
+          bg: 'rgba(80, 100, 90, 0.08)',
+          text: '#50645A',
+          border: 'rgba(35, 139, 69, 0.15)',
+          dotColor: '#78877F',
         };
     }
   };

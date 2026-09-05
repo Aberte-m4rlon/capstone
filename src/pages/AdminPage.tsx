@@ -196,9 +196,9 @@ export function AdminPage() {
 
   // Role badge helper
   const roleBadgeStyle = (r: UserRole) => {
-    if (r === 'super_admin') return { bg: 'rgba(139,92,246,0.15)', color: '#7C3AED', label: 'Super Admin' };
-    if (r === 'system_admin') return { bg: 'rgba(217,45,32,0.12)', color: '#D92D20', label: 'System Admin' };
-    return { bg: 'rgba(255,106,42,0.12)', color: '#FF7A18', label: 'Farm Manager' };
+    if (r === 'super_admin') return { bg: '#EAF6ED', color: '#176B35', label: 'Super Admin' };
+    if (r === 'system_admin') return { bg: '#DDF0E2', color: '#238B45', label: 'System Admin' };
+    return { bg: '#F4FAF5', color: '#50645A', label: 'Farm Manager' };
   };
 
   return (
@@ -206,7 +206,7 @@ export function AdminPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShieldAlert size={22} color="#B91C1C" /> Admin Panel (Pamamahala ng mga User)
+            <ShieldAlert size={22} color="#238B45" /> Admin Panel (Pamamahala ng mga User)
           </h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
             Pamahalaan ang mga nakarehistrong user — naka-login bilang <strong>{user?.email}</strong>
@@ -235,7 +235,7 @@ export function AdminPage() {
       <div className="mobile-stats-grid-3" style={{ marginBottom: 20 }}>
         <StatCard
           icon={<Users size={20} />}
-          accentColor="red"
+          accentColor="green"
           value={stats.totalUsers}
           label="Mga User"
           subtext="Nakarehistrong account"
@@ -249,7 +249,7 @@ export function AdminPage() {
         />
         <StatCard
           icon={<CheckCircle size={20} />}
-          accentColor="orange"
+          accentColor="green"
           value={stats.activeFarms}
           label="Aktibong Bukid"
           subtext="May nakatalang alaga"
@@ -368,8 +368,8 @@ export function AdminPage() {
                                       {detail.animals.filter((a: any) => !a.archived).map((a: any) => (
                                         <span key={a.id} style={{
                                           padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                          background: a.health_status === 'Critical' ? '#FEE2E2' : a.health_status === 'At Risk' ? '#FFEDD5' : a.health_status === 'Monitor' ? '#EFF6FF' : '#F0FDF4',
-                                          color: a.health_status === 'Critical' ? '#991B1B' : a.health_status === 'At Risk' ? '#C2410C' : a.health_status === 'Monitor' ? '#1D4ED8' : '#15803D',
+                                          background: a.health_status === 'Critical' ? '#FEE2E2' : a.health_status === 'At Risk' ? '#FFEDD5' : a.health_status === 'Monitor' ? '#EAF6ED' : '#F4FAF5',
+                                          color: a.health_status === 'Critical' ? '#991B1B' : a.health_status === 'At Risk' ? '#C2410C' : a.health_status === 'Monitor' ? '#176B35' : '#238B45',
                                         }}>
                                           {a.name} ({a.tag_id}) · {a.species} · {a.health_status}
                                           {a.weight_kg ? ` · ${a.weight_kg}kg` : ''}

@@ -51,7 +51,7 @@ export function LandingPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(255, 75, 43, 0.3)'
+            boxShadow: '0 8px 24px rgba(35, 139, 69, 0.3)'
           }}>
             <PawPrint size={22} color="#fff" />
           </div>
@@ -80,9 +80,9 @@ export function LandingPage() {
         padding: '100px 40px', 
         textAlign: 'center',
         background: `linear-gradient(135deg, 
-          rgba(255, 75, 43, 0.08) 0%, 
-          rgba(99, 102, 241, 0.05) 50%, 
-          rgba(139, 92, 246, 0.08) 100%)`,
+          rgba(35, 139, 69, 0.08) 0%, 
+          rgba(23, 107, 53, 0.05) 50%, 
+          rgba(35, 139, 69, 0.08) 100%)`,
         position: 'relative',
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
@@ -184,12 +184,12 @@ export function LandingPage() {
                 width: 56,
                 height: 56,
                 borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.2), rgba(255, 122, 24, 0.1))',
+                background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.2), rgba(23, 107, 53, 0.1))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 16,
-                boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
+                boxShadow: '0 8px 20px rgba(35, 139, 69, 0.15)',
               }}>
                 <PawPrint size={28} color="var(--accent)" />
               </div>
@@ -253,14 +253,14 @@ export function LandingPage() {
                 width: 56,
                 height: 56,
                 borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1))',
+                background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.2), rgba(23, 107, 53, 0.1))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 16,
-                boxShadow: '0 8px 20px rgba(59, 130, 246, 0.15)',
+                boxShadow: '0 8px 20px rgba(35, 139, 69, 0.15)',
               }}>
-                <Heart size={28} color="var(--info)" />
+                <Heart size={28} color="var(--accent)" />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
                 Breeding &amp; Kidding
@@ -276,14 +276,14 @@ export function LandingPage() {
                 width: 56,
                 height: 56,
                 borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1))',
+                background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.2), rgba(23, 107, 53, 0.1))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 16,
-                boxShadow: '0 8px 20px rgba(16, 185, 129, 0.15)',
+                boxShadow: '0 8px 20px rgba(35, 139, 69, 0.15)',
               }}>
-                <Scale size={28} color="var(--healthy)" />
+                <Scale size={28} color="var(--accent)" />
               </div>
               <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: 'var(--text)', letterSpacing: '-0.3px' }}>
                 Growth Tracking
@@ -299,12 +299,12 @@ export function LandingPage() {
                 width: 56,
                 height: 56,
                 borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.2), rgba(255, 122, 24, 0.1))',
+                background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.2), rgba(23, 107, 53, 0.1))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 16,
-                boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
+                boxShadow: '0 8px 20px rgba(35, 139, 69, 0.15)',
               }}>
                 <ScanLine size={28} color="var(--accent)" />
               </div>
@@ -345,12 +345,12 @@ export function LandingPage() {
                 width: 56,
                 height: 56,
                 borderRadius: 14,
-                background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.2), rgba(255, 122, 24, 0.1))',
+                background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.2), rgba(23, 107, 53, 0.1))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 16,
-                boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
+                boxShadow: '0 8px 20px rgba(35, 139, 69, 0.15)',
               }}>
                 <Lightbulb size={28} color="var(--accent)" />
               </div>
@@ -392,9 +392,9 @@ export function LandingPage() {
       <section style={{
         padding: '100px 40px',
         background: `linear-gradient(135deg,
-          rgba(255, 75, 43, 0.05) 0%,
-          rgba(99, 102, 241, 0.03) 50%,
-          rgba(139, 92, 246, 0.05) 100%)`,
+          rgba(35, 139, 69, 0.05) 0%,
+          rgba(23, 107, 53, 0.03) 50%,
+          rgba(35, 139, 69, 0.05) 100%)`,
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <h2 style={{
@@ -439,7 +439,7 @@ export function LandingPage() {
                     fontSize: 24,
                     fontWeight: 900,
                     flexShrink: 0,
-                    boxShadow: '0 12px 32px rgba(255, 75, 43, 0.25)',
+                    boxShadow: '0 12px 32px rgba(35, 139, 69, 0.25)',
                     letterSpacing: '-1px',
                   }}>
                     {step}
@@ -497,12 +497,12 @@ export function LandingPage() {
                   width: 48,
                   height: 48,
                   borderRadius: 12,
-                  background: 'linear-gradient(135deg, rgba(255, 75, 43, 0.2), rgba(255, 122, 24, 0.1))',
+                  background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.2), rgba(23, 107, 53, 0.1))',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginBottom: 16,
-                  boxShadow: '0 8px 20px rgba(255, 75, 43, 0.15)',
+                  boxShadow: '0 8px 20px rgba(35, 139, 69, 0.15)',
                 }}>
                   <item.icon size={24} color="var(--accent)" />
                 </div>
@@ -523,9 +523,9 @@ export function LandingPage() {
         padding: '80px 40px',
         textAlign: 'center',
         background: `linear-gradient(135deg,
-          rgba(255, 75, 43, 0.08) 0%,
-          rgba(99, 102, 241, 0.05) 50%,
-          rgba(139, 92, 246, 0.08) 100%)`,
+          rgba(35, 139, 69, 0.08) 0%,
+          rgba(23, 107, 53, 0.05) 50%,
+          rgba(35, 139, 69, 0.08) 100%)`,
       }}>
         <h2 style={{
           fontSize: '40px',

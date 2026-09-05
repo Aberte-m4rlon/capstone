@@ -60,8 +60,8 @@ export function AnimalCard({
             style={{
               fontSize: '11.5px',
               fontWeight: 600,
-              color: 'var(--color-primary, #FF6A2A)',
-              background: 'rgba(255, 106, 42, 0.1)',
+              color: 'var(--color-primary, #238B45)',
+              background: '#EAF6ED',
               padding: '1px 6px',
               borderRadius: 'var(--radius-xs, 6px)',
               flexShrink: 0,

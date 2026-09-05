@@ -258,8 +258,8 @@ export function CameraScreeningModal({
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 14px', borderBottom: '1px solid var(--border-light)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'linear-gradient(135deg,rgba(255,106,42,0.25),rgba(255,59,48,0.15))', border: '1px solid rgba(255,106,42,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Camera size={19} color="var(--accent-orange)" />
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: '#EAF6ED', border: '1px solid rgba(35,139,69,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Camera size={19} color="#238B45" />
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>AI Health Scanner</div>
@@ -272,7 +272,7 @@ export function CameraScreeningModal({
         </div>
 
         {modelLoading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 20px', background: 'rgba(59,130,246,0.1)', borderBottom: '1px solid rgba(59,130,246,0.2)', fontSize: 12, color: '#3B82F6' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 20px', background: '#EAF6ED', borderBottom: '1px solid rgba(35,139,69,0.2)', fontSize: 12, color: '#176B35' }}>
             <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
             Loading AI model in background…
           </div>
@@ -286,7 +286,7 @@ export function CameraScreeningModal({
               {/* Mode tabs */}
               <div style={{ display: 'flex', gap: 5, marginBottom: 14, background: 'var(--surface)', borderRadius: 10, padding: 4, border: '1px solid var(--border)' }}>
                 {(['camera', 'upload', 'video'] as Mode[]).map((m) => (
-                  <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: '8px 6px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: mode === m ? 'linear-gradient(135deg,#FF3B30,#FF7A18)' : 'transparent', color: mode === m ? '#fff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'all 0.2s' }}>
+                  <button key={m} onClick={() => setMode(m)} style={{ flex: 1, padding: '8px 6px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: mode === m ? 'linear-gradient(135deg,#238B45,#176B35)' : 'transparent', color: mode === m ? '#fff' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'all 0.2s' }}>
                     {m === 'camera' ? <Camera size={13} /> : m === 'upload' ? <Upload size={13} /> : <Video size={13} />}
                     {m === 'camera' ? 'Camera' : m === 'upload' ? 'Photo' : 'Video'}
                   </button>
@@ -347,7 +347,7 @@ export function CameraScreeningModal({
                       <div style={{ background: 'rgba(67,160,71,0.08)', border: '1px solid rgba(67,160,71,0.2)', borderRadius: 10, padding: '8px 14px', marginTop: 10, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                         Siguraduhing maliwanag · Buong katawan ng hayop · Huwag galawin ang camera
                       </div>
-                      <button onClick={handleCapture} disabled={!cameraActive} style={{ width: '100%', marginTop: 12, padding: '14px', borderRadius: 12, border: 'none', background: cameraActive ? 'linear-gradient(135deg,#FF3B30,#FF7A18)' : 'var(--surface)', color: cameraActive ? '#fff' : 'var(--text-secondary)', fontSize: 15, fontWeight: 800, cursor: cameraActive ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: cameraActive ? '0 6px 20px rgba(255,59,48,0.35)' : 'none', transition: 'all 0.2s' }}>
+                      <button onClick={handleCapture} disabled={!cameraActive} style={{ width: '100%', marginTop: 12, padding: '14px', borderRadius: 12, border: 'none', background: cameraActive ? 'linear-gradient(135deg,#238B45,#176B35)' : 'var(--surface)', color: cameraActive ? '#fff' : 'var(--text-secondary)', fontSize: 15, fontWeight: 800, cursor: cameraActive ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: cameraActive ? '0 6px 20px rgba(35,139,69,0.35)' : 'none', transition: 'all 0.2s' }}>
                         <Camera size={18} /> Kumuha ng Litrato
                       </button>
                     </div>
@@ -358,10 +358,10 @@ export function CameraScreeningModal({
               {/* Upload photo */}
               {mode === 'upload' && (
                 <div>
-                  <div onClick={() => fileInputRef.current?.click()} style={{ border: '2px dashed rgba(255,122,24,0.4)', borderRadius: 14, padding: '44px 20px', textAlign: 'center', cursor: 'pointer', background: 'rgba(255,122,24,0.04)', transition: 'all 0.2s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,122,24,0.7)'; e.currentTarget.style.background = 'rgba(255,122,24,0.08)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,122,24,0.4)'; e.currentTarget.style.background = 'rgba(255,122,24,0.04)'; }}>
-                    <ImageIcon size={36} color="rgba(255,122,24,0.6)" style={{ marginBottom: 10 }} />
+                  <div onClick={() => fileInputRef.current?.click()} style={{ border: '2px dashed rgba(35,139,69,0.4)', borderRadius: 14, padding: '44px 20px', textAlign: 'center', cursor: 'pointer', background: 'rgba(35,139,69,0.04)', transition: 'all 0.2s' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(35,139,69,0.7)'; e.currentTarget.style.background = 'rgba(35,139,69,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(35,139,69,0.4)'; e.currentTarget.style.background = 'rgba(35,139,69,0.04)'; }}>
+                    <ImageIcon size={36} color="rgba(35,139,69,0.6)" style={{ marginBottom: 10 }} />
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Pindutin para mag-upload ng litrato</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>JPG, PNG, WEBP · Hanggang 10MB</div>
                   </div>
@@ -372,13 +372,13 @@ export function CameraScreeningModal({
               {/* Upload video */}
               {mode === 'video' && (
                 <div>
-                  <div onClick={() => videoInputRef.current?.click()} style={{ border: '2px dashed rgba(59,130,246,0.4)', borderRadius: 14, padding: '44px 20px', textAlign: 'center', cursor: 'pointer', background: 'rgba(59,130,246,0.04)', transition: 'all 0.2s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.7)'; e.currentTarget.style.background = 'rgba(59,130,246,0.08)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; e.currentTarget.style.background = 'rgba(59,130,246,0.04)'; }}>
-                    <Video size={36} color="rgba(59,130,246,0.6)" style={{ marginBottom: 10 }} />
+                  <div onClick={() => videoInputRef.current?.click()} style={{ border: '2px dashed rgba(35,139,69,0.4)', borderRadius: 14, padding: '44px 20px', textAlign: 'center', cursor: 'pointer', background: 'rgba(35,139,69,0.04)', transition: 'all 0.2s' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(35,139,69,0.7)'; e.currentTarget.style.background = 'rgba(35,139,69,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(35,139,69,0.4)'; e.currentTarget.style.background = 'rgba(35,139,69,0.04)'; }}>
+                    <Video size={36} color="rgba(35,139,69,0.6)" style={{ marginBottom: 10 }} />
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Mag-upload ng maikling video clip</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>MP4, MOV, WEBM · Hanggang 50MB · 5–15 segundo</div>
-                    <div style={{ fontSize: 11, color: '#3B82F6', marginTop: 8 }}>Sinusuri ang kilos, sigla, at paglakad ng hayop</div>
+                    <div style={{ fontSize: 11, color: '#176B35', marginTop: 8 }}>Sinusuri ang kilos, sigla, at paglakad ng hayop</div>
                   </div>
                   <input ref={videoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoUpload} />
                 </div>
@@ -391,7 +391,7 @@ export function CameraScreeningModal({
             <div>
               <img src={capturedUrl} alt="Captured" style={{ width: '100%', borderRadius: 14, border: '1px solid var(--border)', display: 'block', maxHeight: 340, objectFit: 'contain', background: '#000' }} />
               {multiAngle && (
-                <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,122,24,0.07)', border: '1px solid rgba(255,122,24,0.2)', borderRadius: 8, fontSize: 12, color: 'var(--accent-orange)', fontWeight: 600 }}>
+                <div style={{ marginTop: 10, padding: '8px 12px', background: '#EAF6ED', border: '1px solid rgba(35,139,69,0.2)', borderRadius: 8, fontSize: 12, color: '#176B35', fontWeight: 600 }}>
                   Anggulo: {ANGLE_LABELS[currentAngle]}
                 </div>
               )}
@@ -399,7 +399,7 @@ export function CameraScreeningModal({
                 <button onClick={handleRetake} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <RefreshCw size={15} /> Kumuha Ulit
                 </button>
-                <button onClick={handleAnalyze} style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 6px 20px rgba(255,59,48,0.35)' }}>
+                <button onClick={handleAnalyze} style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#238B45,#176B35)', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 6px 20px rgba(35,139,69,0.35)' }}>
                   <Zap size={15} /> I-scan gamit ang AI
                 </button>
               </div>
@@ -409,8 +409,8 @@ export function CameraScreeningModal({
           {/* ── ANALYZING ── */}
           {step === 'analyzing' && (
             <div style={{ textAlign: 'center', padding: '44px 20px' }}>
-              <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'linear-gradient(135deg,rgba(255,106,42,0.2),rgba(255,59,48,0.1))', border: '2px solid rgba(255,106,42,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                <Loader2 size={30} color="var(--accent-orange)" style={{ animation: 'spin 1s linear infinite' }} />
+              <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'linear-gradient(135deg,rgba(35,139,69,0.2),rgba(23,107,53,0.1))', border: '2px solid rgba(35,139,69,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Loader2 size={30} color="#238B45" style={{ animation: 'spin 1s linear infinite' }} />
               </div>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Isinasagawa ang AI Health Scan…</div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
@@ -476,7 +476,7 @@ function ScanResultCard({
           </div>
         </div>
 
-        <button onClick={onRetake} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 4px 14px rgba(255,59,48,0.3)' }}>
+        <button onClick={onRetake} style={{ width: '100%', padding: '12px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#238B45,#176B35)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 4px 14px rgba(35,139,69,0.3)' }}>
           <RefreshCw size={14} /> Subukang Mag-scan Ulit
         </button>
       </div>
@@ -652,7 +652,7 @@ function ScanResultCard({
       </div>
 
       {/* Disclaimer */}
-      <div style={{ background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 11, color: '#3B82F6', lineHeight: 1.6, display: 'flex', gap: 8 }}>
+      <div style={{ background: 'rgba(35,139,69,0.07)', border: '1px solid rgba(35,139,69,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 11, color: '#176B35', lineHeight: 1.6, display: 'flex', gap: 8 }}>
         <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>{result.disclaimer}</span>
       </div>
@@ -665,7 +665,7 @@ function ScanResultCard({
         <button onClick={onRetake} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <RefreshCw size={14} /> I-scan Ulit
         </button>
-        <button onClick={onSave} disabled={saving} style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: saving ? 'var(--surface)' : 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: saving ? 'var(--text-secondary)' : '#fff', fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 6px 20px rgba(255,59,48,0.35)', transition: 'all 0.2s' }}>
+        <button onClick={onSave} disabled={saving} style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: saving ? 'var(--surface)' : 'linear-gradient(135deg,#238B45,#176B35)', color: saving ? 'var(--text-secondary)' : '#fff', fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 6px 20px rgba(35,139,69,0.35)', transition: 'all 0.2s' }}>
           {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Inililigtas…</> : <><CheckCircle size={15} /> I-save ang Screening</>}
         </button>
       </div>
@@ -688,7 +688,7 @@ function CameraErrorCard({ error, onSwitchUpload }: { error: CameraError; onSwit
       <XCircle size={32} color="#EF4444" style={{ marginBottom: 10 }} />
       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{msg.title}</div>
       <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.5 }}>{msg.desc}</div>
-      <button onClick={onSwitchUpload} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <button onClick={onSwitchUpload} style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#238B45,#176B35)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <Upload size={14} /> Mag-upload ng Litrato
       </button>
     </div>

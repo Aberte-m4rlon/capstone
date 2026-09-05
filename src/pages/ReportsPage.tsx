@@ -168,19 +168,19 @@ export function ReportsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: reportType === 'animal' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+            border: reportType === 'animal' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Mga Hayop
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: 'var(--color-primary, #FF6A2A)' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {activeAnimals.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -195,19 +195,19 @@ export function ReportsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: reportType === 'health' ? '2px solid #EF4444' : undefined,
+            border: reportType === 'health' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#EF4444' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Kalusugan
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <HeartPulse size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#EF4444' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {farmData.healthRecords.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -222,19 +222,19 @@ export function ReportsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: reportType === 'inventory' ? '2px solid #3B82F6' : undefined,
+            border: reportType === 'inventory' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Imbentaryo
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Package size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {farmData.inventory.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>

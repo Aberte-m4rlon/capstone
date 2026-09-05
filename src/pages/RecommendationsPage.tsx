@@ -51,11 +51,11 @@ export function RecommendationsPage() {
 
   const getSeverityIcon = (color: string) => {
     switch (color) {
-      case 'red': return <AlertTriangle size={16} color="#FF3B30" />;
-      case 'orange': return <AlertTriangle size={16} color="#FF7A18" />;
-      case 'yellow': return <Clock size={16} color="#FF9F0A" />;
-      case 'green': return <CheckCircle size={16} color="#FFB340" />;
-      default: return <Lightbulb size={16} color="#FF7A18" />;
+      case 'red': return <AlertTriangle size={16} color="#EF4444" />;
+      case 'orange': return <AlertTriangle size={16} color="#F59E0B" />;
+      case 'yellow': return <Clock size={16} color="#F59E0B" />;
+      case 'green': return <CheckCircle size={16} color="#238B45" />;
+      default: return <Lightbulb size={16} color="#238B45" />;
     }
   };
 
@@ -85,11 +85,11 @@ export function RecommendationsPage() {
       <Card variant="glass" padding="none" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
           <div style={{ fontWeight: 800, fontSize: 15 }}>Mga Prayoridad Ngayong Araw</div>
-          <Activity size={20} color="#FF7A18" />
+          <Activity size={20} color="#238B45" />
         </div>
         {priorities.length === 0 ? (
           <EmptyState
-            icon={<CheckCircle size={32} color="#FFB340" />}
+            icon={<CheckCircle size={32} color="#238B45" />}
             title="Maayos ang lahat!"
             description="Walang agarang prayoridad sa ngayon. Nasa maayos na kalagayan ang bukid."
           />
@@ -120,8 +120,8 @@ export function RecommendationsPage() {
                   justifyContent: 'center',
                   fontSize: 13,
                   fontWeight: 800,
-                  background: p.severity === 'urgent' || p.severity === 'critical' ? 'rgba(255,59,48,0.15)' : 'rgba(255,159,10,0.15)',
-                  color: p.severity === 'urgent' || p.severity === 'critical' ? '#FF3B30' : '#FF9F0A',
+                  background: p.severity === 'urgent' || p.severity === 'critical' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                  color: p.severity === 'urgent' || p.severity === 'critical' ? '#EF4444' : '#F59E0B',
                   flexShrink: 0,
                 }}>
                   {i + 1}
@@ -141,11 +141,11 @@ export function RecommendationsPage() {
       <Card variant="glass" padding="none">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
           <div style={{ fontWeight: 800, fontSize: 15 }}>Lahat ng Rekomendasyon</div>
-          <Lightbulb size={20} color="#FF9F0A" />
+          <Lightbulb size={20} color="#238B45" />
         </div>
         {filteredRecs.length === 0 ? (
           <EmptyState
-            icon={<CheckCircle size={32} color="#FFB340" />}
+            icon={<CheckCircle size={32} color="#238B45" />}
             title="Walang rekomendasyon sa kategoryang ito"
             description="Maayos ang kalagayan ng iyong bukid sa kasalukuyan."
           />

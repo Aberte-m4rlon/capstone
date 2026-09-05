@@ -69,9 +69,9 @@ export function StatCard({
     switch (effectiveStatus) {
       case 'primary':
         return {
-          iconBg: '#E8F5E9',
-          iconColor: 'var(--color-primary, #43A047)',
-          badgeBorder: 'rgba(67, 160, 71, 0.25)',
+          iconBg: '#EAF6ED',
+          iconColor: '#238B45',
+          badgeBorder: 'rgba(35, 139, 69, 0.16)',
         };
       case 'danger':
         return {
@@ -87,22 +87,22 @@ export function StatCard({
         };
       case 'success':
         return {
-          iconBg: '#E8F5E9',
-          iconColor: 'var(--color-success, #2E7D32)',
-          badgeBorder: 'rgba(46, 125, 50, 0.25)',
+          iconBg: '#EAF6ED',
+          iconColor: '#238B45',
+          badgeBorder: 'rgba(35, 139, 69, 0.16)',
         };
       case 'info':
         return {
-          iconBg: 'rgba(59, 130, 246, 0.14)',
-          iconColor: 'var(--color-info, #3B82F6)',
-          badgeBorder: 'rgba(59, 130, 246, 0.25)',
+          iconBg: '#EAF6ED',
+          iconColor: '#238B45',
+          badgeBorder: 'rgba(35, 139, 69, 0.16)',
         };
       case 'default':
       default:
         return {
-          iconBg: '#E8F5E9',
-          iconColor: 'var(--color-primary, #43A047)',
-          badgeBorder: 'var(--color-border, #E5EDE6)',
+          iconBg: '#EAF6ED',
+          iconColor: '#238B45',
+          badgeBorder: 'rgba(35, 139, 69, 0.16)',
         };
     }
   };
@@ -118,13 +118,13 @@ export function StatCard({
     >
       <div className="alpas-stat-header">
         <div className="alpas-stat-info">
-          <span className="alpas-stat-title">
+          <span className="alpas-stat-title" style={{ color: '#176B35', fontWeight: 700 }}>
             {displayTitle}
           </span>
           {loading ? (
             <div className="alpas-stat-loading" />
           ) : (
-            <div className="alpas-stat-value">
+            <div className="alpas-stat-value" style={{ color: '#238B45', fontWeight: 900 }}>
               {value}
             </div>
           )}
@@ -136,6 +136,7 @@ export function StatCard({
             style={{
               background: iconBg,
               color: iconColor,
+              border: '1px solid rgba(35, 139, 69, 0.16)',
             }}
           >
             {icon}
@@ -154,7 +155,7 @@ export function StatCard({
             </span>
           )}
           {displayDesc && (
-            <span className="alpas-stat-desc">
+            <span className="alpas-stat-desc" style={{ color: '#50645A' }}>
               {displayDesc}
             </span>
           )}

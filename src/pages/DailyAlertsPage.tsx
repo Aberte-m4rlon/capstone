@@ -144,19 +144,19 @@ export function DailyAlertsPage() {
     switch (type) {
       case 'health':
         return <HeartPulse size={18} color="#EF4444" />;
-      case 'vaccination':
-      case 'vaccine':
-        return <Syringe size={18} color="#F97316" />;
-      case 'breeding':
-        return <Heart size={18} color="#EC4899" />;
-      case 'weight':
-        return <Scale size={18} color="#EAB308" />;
-      case 'inventory':
-        return <Package size={18} color="#06B6D4" />;
       case 'expiry':
         return <AlertTriangle size={18} color="#F59E0B" />;
+      case 'vaccination':
+      case 'vaccine':
+        return <Syringe size={18} color="#238B45" />;
+      case 'breeding':
+        return <Heart size={18} color="#238B45" />;
+      case 'weight':
+        return <Scale size={18} color="#238B45" />;
+      case 'inventory':
+        return <Package size={18} color="#238B45" />;
       default:
-        return <Bell size={18} color="#10B981" />;
+        return <Bell size={18} color="#238B45" />;
     }
   };
 
@@ -229,19 +229,19 @@ export function DailyAlertsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: priorityFilter === 'All' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+            border: priorityFilter === 'All' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Lahat
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Bell size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: 'var(--color-primary, #FF6A2A)' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {rawAlerts.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -256,19 +256,19 @@ export function DailyAlertsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: priorityFilter === 'Unread' ? '2px solid #3B82F6' : undefined,
+            border: priorityFilter === 'Unread' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Hindi pa Nababasa
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Mail size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {unreadCount}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>

@@ -155,7 +155,7 @@ export function SettingsPage() {
       {/* ── Profile Section ── */}
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <User size={16} color="var(--color-brand-primary, #FF7A18)" />
+          <User size={16} color="var(--color-primary, #238B45)" />
           Profile ng User
         </div>
 
@@ -164,7 +164,7 @@ export function SettingsPage() {
           <div style={{ position: 'relative' }}>
             <div style={{
               width: 80, height: 80, borderRadius: '50%',
-              background: avatarUrl ? 'transparent' : 'linear-gradient(135deg, #FF7A18, #FF4B26)',
+              background: avatarUrl ? 'transparent' : 'linear-gradient(135deg, #238B45, #176B35)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 28, fontWeight: 800, color: '#fff',
               overflow: 'hidden', flexShrink: 0,
@@ -180,7 +180,7 @@ export function SettingsPage() {
               style={{
                 position: 'absolute', bottom: 0, right: 0,
                 width: 26, height: 26, borderRadius: '50%',
-                background: 'var(--color-brand-primary, #FF7A18)', color: '#fff', border: '2px solid var(--color-surface, #fff)',
+                background: 'var(--color-primary, #238B45)', color: '#fff', border: '2px solid var(--color-surface, #fff)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', fontSize: 12,
               }}

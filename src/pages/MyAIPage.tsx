@@ -23,9 +23,9 @@ export function MyAIPage() {
     }}>
       <div style={{
         width: 72, height: 72, borderRadius: 20,
-        background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+        background: 'linear-gradient(135deg, #238B45, #176B35)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 8px 28px rgba(255,59,48,0.38)',
+        boxShadow: '0 8px 28px rgba(35, 139, 69, 0.38)',
       }}>
         <Sparkles size={32} color="#fff" />
       </div>
@@ -41,10 +41,10 @@ export function MyAIPage() {
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: 8,
         padding: '10px 20px', borderRadius: 999,
-        background: 'rgba(255,106,42,0.12)', border: '1px solid rgba(255,106,42,0.30)',
-        fontSize: 13, color: '#FF7A18', fontWeight: 600,
+        background: '#EAF6ED', border: '1px solid rgba(35, 139, 69, 0.30)',
+        fontSize: 13, color: '#174B2A', fontWeight: 600,
       }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF7A18', animation: 'pulse 1.5s ease-in-out infinite' }} />
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#238B45', animation: 'pulse 1.5s ease-in-out infinite' }} />
         Lilipat sa Buod ng Bukid…
       </div>
       <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }`}</style>

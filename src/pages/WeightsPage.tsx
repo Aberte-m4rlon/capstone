@@ -188,12 +188,12 @@ export function WeightsPage() {
         {
           label: 'Timbang (kg)',
           data: records.map((r) => Number(r.weight_kg)),
-          borderColor: '#FF7A18',
-          backgroundColor: 'rgba(255,122,24,0.08)',
+          borderColor: '#238B45',
+          backgroundColor: 'rgba(35, 139, 69, 0.15)',
           fill: true,
           tension: 0.3,
           pointRadius: 4,
-          pointBackgroundColor: '#FF7A18',
+          pointBackgroundColor: '#238B45',
         },
       ],
     };
@@ -284,7 +284,7 @@ export function WeightsPage() {
                           {growth.trend === 'Good' ? 'Maganda' : growth.trend === 'Declining' ? 'Bumababa' : growth.trend === 'Slow' ? 'Mabagal' : growth.trend}
                         </Badge>
                       </td>
-                      <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>
+                      <td style={{ color: 'var(--color-primary, #238B45)', fontWeight: 600 }}>
                         {growth.daysToTarget !== null ? `${growth.daysToTarget} araw` : '—'}
                       </td>
                     </tr>
@@ -370,8 +370,8 @@ export function WeightsPage() {
                       {
                         label: 'Tinatayang Timbang',
                         data: mlGrowth.projectedWeights.map((p) => p.weight),
-                        borderColor: '#43A047',
-                        backgroundColor: 'rgba(67, 160, 71, 0.1)',
+                        borderColor: '#238B45',
+                        backgroundColor: 'rgba(35, 139, 69, 0.15)',
                         fill: false,
                         tension: 0.3,
                         pointRadius: 2,
@@ -379,7 +379,7 @@ export function WeightsPage() {
                       {
                         label: 'Mataas na Saklaw (Upper Bound)',
                         data: mlGrowth.projectedWeights.map((p) => p.upper),
-                        borderColor: 'rgba(255,106,42,0.3)',
+                        borderColor: 'rgba(35, 139, 69, 0.35)',
                         borderDash: [5, 5],
                         fill: false,
                         tension: 0.3,
@@ -388,7 +388,7 @@ export function WeightsPage() {
                       {
                         label: 'Mababang Saklaw (Lower Bound)',
                         data: mlGrowth.projectedWeights.map((p) => p.lower),
-                        borderColor: 'rgba(255,106,42,0.3)',
+                        borderColor: 'rgba(35, 139, 69, 0.35)',
                         borderDash: [5, 5],
                         fill: false,
                         tension: 0.3,

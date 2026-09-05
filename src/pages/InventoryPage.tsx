@@ -822,8 +822,8 @@ export function InventoryPage() {
                 fontWeight: 700,
                 padding: '3px 8px',
                 borderRadius: 6,
-                background: 'rgba(255, 106, 42, 0.12)',
-                color: 'var(--color-primary, #FF6A2A)',
+                background: '#EAF6ED',
+                color: 'var(--color-primary, #238B45)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.4px',
               }}
@@ -868,10 +868,10 @@ export function InventoryPage() {
           {/* 1. Livestock */}
           <div className="kpi-card" onClick={() => setActiveTab('livestock')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon green" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981' }}>
+              <div className="kpi-icon green" style={{ background: '#EAF6ED', color: '#238B45' }}>
                 <Layers size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Livestock</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Livestock</span>
             </div>
             <div className="kpi-value">{livestockMetrics.total}</div>
             <div className="kpi-label">Lahat ng Alaga</div>
@@ -883,10 +883,10 @@ export function InventoryPage() {
           {/* 2. Feed */}
           <div className="kpi-card" onClick={() => setActiveTab('feeds')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon orange" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B' }}>
+              <div className="kpi-icon orange" style={{ background: '#EAF6ED', color: '#238B45' }}>
                 <Wheat size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Feed</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Feed</span>
             </div>
             <div className="kpi-value">
               {totalFeedKg.toLocaleString('en-PH', { maximumFractionDigits: 1 })} <span style={{ fontSize: 14 }}>kg</span>
@@ -898,10 +898,10 @@ export function InventoryPage() {
           {/* 3. Health Supplies */}
           <div className="kpi-card" onClick={() => setActiveTab('health')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon red" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444' }}>
+              <div className="kpi-icon red" style={{ background: '#EAF6ED', color: '#238B45' }}>
                 <Pill size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Health Supplies</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Health Supplies</span>
             </div>
             <div className="kpi-value">{healthSuppliesStats.itemCount} <span style={{ fontSize: 14 }}>uri</span></div>
             <div className="kpi-label">Kalusugan at Gamot</div>
@@ -913,10 +913,10 @@ export function InventoryPage() {
           {/* 4. Farm Supplies */}
           <div className="kpi-card" onClick={() => setActiveTab('equipment')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon blue" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6' }}>
+              <div className="kpi-icon blue" style={{ background: '#EAF6ED', color: '#238B45' }}>
                 <Package size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Farm Supplies</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Farm Supplies</span>
             </div>
             <div className="kpi-value">{equipmentToolsStats.suppliesCount} <span style={{ fontSize: 14 }}>uri</span></div>
             <div className="kpi-label">Suplay sa Bukid</div>
@@ -928,10 +928,10 @@ export function InventoryPage() {
           {/* 5. Equipment */}
           <div className="kpi-card" onClick={() => setActiveTab('equipment')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon blue" style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#6366F1' }}>
+              <div className="kpi-icon blue" style={{ background: '#EAF6ED', color: '#238B45' }}>
                 <Wrench size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary, #64748B)' }}>Equipment</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Equipment</span>
             </div>
             <div className="kpi-value">{equipmentToolsStats.equipCount + equipmentToolsStats.toolsCount} <span style={{ fontSize: 14 }}>gamit</span></div>
             <div className="kpi-label">Farm Equipment</div>
@@ -1078,8 +1078,8 @@ export function InventoryPage() {
                   gap: 6,
                   padding: '4px 10px',
                   borderRadius: 8,
-                  background: 'rgba(59, 130, 246, 0.12)',
-                  color: '#2563EB',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  color: '#D97706',
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -1124,9 +1124,9 @@ export function InventoryPage() {
               fontWeight: 700,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              border: activeTab === tab.key ? '1px solid var(--color-primary, #FF6A2A)' : '1px solid transparent',
-              background: activeTab === tab.key ? 'rgba(255, 106, 42, 0.1)' : 'transparent',
-              color: activeTab === tab.key ? 'var(--color-primary, #FF6A2A)' : 'var(--color-text-secondary, #64748B)',
+              border: activeTab === tab.key ? '1px solid var(--color-primary, #238B45)' : '1px solid transparent',
+              background: activeTab === tab.key ? '#EAF6ED' : 'transparent',
+              color: activeTab === tab.key ? 'var(--color-primary, #238B45)' : 'var(--color-text-secondary, #64748B)',
               transition: 'all 0.15s ease',
             }}
           >
@@ -1144,7 +1144,7 @@ export function InventoryPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <GoatIcon size={20} color="var(--color-primary, #FF6A2A)" />
+                <GoatIcon size={20} color="var(--color-primary, #238B45)" />
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
                   Imbentaryo ng mga Hayop (Livestock Inventory)
                 </h3>
@@ -1168,7 +1168,7 @@ export function InventoryPage() {
                 type="button"
                 className="btn btn-ghost btn-sm"
                 onClick={() => navigate('/animals')}
-                style={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-primary, #FF6A2A)' }}
+                style={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-primary, #238B45)' }}
               >
                 Pamamahala ng Hayop <ArrowRight size={13} />
               </button>
@@ -1187,17 +1187,17 @@ export function InventoryPage() {
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--color-text-secondary, #64748B)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <GoatIcon size={14} color="var(--color-primary, #FF6A2A)" />
+                <GoatIcon size={14} color="#238B45" />
                 Uri at Kasarian (Species & Sex)
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Kambing (Goat):</span>
-                  <span style={{ fontWeight: 800, color: 'var(--color-primary, #FF6A2A)' }}>{livestockMetrics.goats} ulo</span>
+                  <span style={{ fontWeight: 800, color: '#238B45' }}>{livestockMetrics.goats} ulo</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Tupa (Sheep):</span>
-                  <span style={{ fontWeight: 800, color: '#3B82F6' }}>{livestockMetrics.sheep} ulo</span>
+                  <span style={{ fontWeight: 800, color: '#176B35' }}>{livestockMetrics.sheep} ulo</span>
                 </div>
                 <div style={{ borderTop: '1px dashed var(--color-border, #E2E8F0)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1221,22 +1221,22 @@ export function InventoryPage() {
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--color-text-secondary, #64748B)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Baby size={14} color="#06B6D4" />
+                <Baby size={14} color="#238B45" />
                 Yugto ng Edad (Age & Stage)
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Bisiro / Young (&lt; 12 mo):</span>
-                  <span style={{ fontWeight: 800, color: '#06B6D4' }}>{livestockMetrics.young} ulo</span>
+                  <span style={{ fontWeight: 800, color: '#238B45' }}>{livestockMetrics.young} ulo</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Matanda / Adult (≥ 12 mo):</span>
-                  <span style={{ fontWeight: 800, color: '#6366F1' }}>{livestockMetrics.adult} ulo</span>
+                  <span style={{ fontWeight: 800, color: '#176B35' }}>{livestockMetrics.adult} ulo</span>
                 </div>
                 <div style={{ borderTop: '1px dashed var(--color-border, #E2E8F0)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
                   <span style={{ color: 'var(--color-text-secondary, #64748B)' }}>Lahi / Breeding Stock:</span>
-                  <span style={{ fontWeight: 700, color: '#10B981' }}>{livestockMetrics.breedingFemales + livestockMetrics.breedingMales} handa</span>
+                  <span style={{ fontWeight: 700, color: '#238B45' }}>{livestockMetrics.breedingFemales + livestockMetrics.breedingMales} handa</span>
                 </div>
               </div>
             </div>
@@ -1251,13 +1251,13 @@ export function InventoryPage() {
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--color-text-secondary, #64748B)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Heart size={14} color="#EC4899" />
+                <Heart size={14} color="#238B45" />
                 Pagpaparami (Reproduction)
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Buntis (Pregnant):</span>
-                  <span style={{ fontWeight: 800, color: '#EC4899' }}>{livestockMetrics.pregnant} inahin</span>
+                  <span style={{ fontWeight: 800, color: '#238B45' }}>{livestockMetrics.pregnant} inahin</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Hindi Buntis:</span>
@@ -1346,7 +1346,7 @@ export function InventoryPage() {
                     <tbody>
                       {activeAnimals.slice(0, 15).map((a) => (
                         <tr key={a.id}>
-                          <td style={{ fontWeight: 800, color: 'var(--color-primary, #FF6A2A)' }}>{a.tag_id}</td>
+                          <td style={{ fontWeight: 800, color: 'var(--color-primary, #238B45)' }}>{a.tag_id}</td>
                           <td style={{ fontWeight: 600 }}>{a.name || 'Walang Pangalan'}</td>
                           <td>
                             <span className="badge" style={{ background: 'var(--color-surface-elevated, #F8FAFC)', border: '1px solid var(--color-border, #E2E8F0)', fontSize: 11 }}>
@@ -1363,7 +1363,7 @@ export function InventoryPage() {
                           </td>
                           <td style={{ fontSize: 12 }}>
                             {a.breeding_status === 'Pregnant' ? (
-                              <span style={{ color: '#EC4899', fontWeight: 700 }}>Buntis</span>
+                              <span style={{ color: '#176B35', fontWeight: 700 }}>Buntis</span>
                             ) : (
                               <span style={{ color: 'var(--color-text-secondary, #64748B)' }}>{a.breeding_status || 'Open'}</span>
                             )}
@@ -1373,7 +1373,7 @@ export function InventoryPage() {
                               type="button"
                               className="btn btn-ghost btn-sm"
                               onClick={() => navigate(`/animals/${a.id}`)}
-                              style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}
+                              style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary, #238B45)' }}
                             >
                               Tingnan
                             </button>
@@ -1388,7 +1388,7 @@ export function InventoryPage() {
                       <button
                         type="button"
                         onClick={() => navigate('/animals')}
-                        style={{ color: 'var(--color-primary, #FF6A2A)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, padding: 0 }}
+                        style={{ color: 'var(--color-primary, #238B45)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, padding: 0 }}
                       >
                         Tingnan ang lahat sa Animals Page &rarr;
                       </button>
@@ -1629,15 +1629,15 @@ export function InventoryPage() {
       {(activeTab === 'all' || activeTab !== 'livestock') && (
         <div className="card" style={{ padding: 18 }}>
           <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <DollarSign size={16} color="var(--color-primary, #FF6A2A)" />
+            <DollarSign size={16} color="#238B45" />
             Pangkalahatang Gastos at Halaga ng Imbentaryo (Inventory Financials)
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12, marginBottom: 12 }} className="inv-main-expense">
             {[
-              { label: 'Kabuuang Binili (Total Purchased)', value: summary.totalSpent, color: '#FF7A18' },
-              { label: 'Kabuuang Nagamit (Total Consumed)', value: summary.totalConsumedValue, color: '#EF4444' },
-              { label: 'Kasalukuyang Halaga (Stock Asset Value)', value: summary.currentInventoryValue, color: '#3B82F6' },
+              { label: 'Kabuuang Binili (Total Purchased)', value: summary.totalSpent, color: '#176B35' },
+              { label: 'Kabuuang Nagamit (Total Consumed)', value: summary.totalConsumedValue, color: '#50645A' },
+              { label: 'Kasalukuyang Halaga (Stock Asset Value)', value: summary.currentInventoryValue, color: '#238B45' },
             ].map((e) => (
               <div
                 key={e.label}
@@ -2095,7 +2095,7 @@ export function InventoryPage() {
                 {(() => {
                   const tots = itemTotals(historyItem.id, allTx);
                   return [
-                    { label: 'Kasalukuyang Stock', value: `${historyItem.quantity} ${historyItem.unit}`, color: '#FF7A18' },
+                    { label: 'Kasalukuyang Stock', value: `${historyItem.quantity} ${historyItem.unit}`, color: '#238B45' },
                     { label: 'Kabuuang Idinagdag', value: `+${tots.totalAdded} ${historyItem.unit}`, color: '#16A34A' },
                     { label: 'Kabuuang Nagamit', value: `−${tots.totalConsumed} ${historyItem.unit}`, color: '#EF4444' },
                     { label: 'Kabuuang Nabawas', value: `−${tots.totalRemoved} ${historyItem.unit}`, color: '#F59E0B' },

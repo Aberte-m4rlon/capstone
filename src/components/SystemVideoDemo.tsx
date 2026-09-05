@@ -62,7 +62,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'A smarter way to manage your goats and sheep',
     duration: 15,
     icon: Flame,
-    color: '#FF7A18',
+    color: '#238B45',
     tag: 'Welcome',
     badge: '0:00 - Intro',
     narration:
@@ -75,7 +75,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Overview of herd metrics, health scores & real-time priorities',
     duration: 20,
     icon: LayoutDashboard,
-    color: '#FF3B30',
+    color: '#176B35',
     tag: 'Dashboard',
     badge: '0:15 - Overview',
     narration:
@@ -88,7 +88,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Tag ID registration, pedigree details, breed & weight entry',
     duration: 20,
     icon: Plus,
-    color: '#FF9F0A',
+    color: '#238B45',
     tag: 'Registration',
     badge: '0:35 - Add Animal',
     narration:
@@ -101,7 +101,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Comprehensive lifetime records, pedigree genealogy & QR tag',
     duration: 20,
     icon: PawPrint,
-    color: '#FF7A18',
+    color: '#176B35',
     tag: 'Profile & QR',
     badge: '0:55 - Profile',
     narration:
@@ -114,7 +114,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Record temperature, heart rate, FAMACHA score & rumen motility',
     duration: 20,
     icon: HeartPulse,
-    color: '#FF3B30',
+    color: '#238B45',
     tag: 'Health Check',
     badge: '1:15 - Health',
     narration:
@@ -127,7 +127,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Automated statistical anomaly alerts & early symptom warning',
     duration: 15,
     icon: AlertTriangle,
-    color: '#D92D20',
+    color: '#EF4444',
     tag: 'Risk Indicator',
     badge: '1:35 - Risk Alert',
     narration:
@@ -140,7 +140,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Inbreeding coefficient safety check & kidding countdown',
     duration: 20,
     icon: Baby,
-    color: '#FF7A18',
+    color: '#176B35',
     tag: 'Genetics',
     badge: '1:50 - Breeding',
     narration:
@@ -153,7 +153,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Monitor average daily gain and polynomial weight forecasting',
     duration: 15,
     icon: Scale,
-    color: '#FF9F0A',
+    color: '#238B45',
     tag: 'Growth Curves',
     badge: '2:10 - Weight',
     narration:
@@ -166,7 +166,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Track feed conversion, milk yields & automated expiry alerts',
     duration: 15,
     icon: Package,
-    color: '#D92D20',
+    color: '#176B35',
     tag: 'Supplies & Yield',
     badge: '2:25 - Inventory',
     narration:
@@ -179,7 +179,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Proactive veterinary suggestions & bilingual farm queries',
     duration: 15,
     icon: Brain,
-    color: '#FF7A18',
+    color: '#238B45',
     tag: 'AI Assistant',
     badge: '2:40 - AI Assist',
     narration:
@@ -192,7 +192,7 @@ export const DEMO_CHAPTERS: DemoChapter[] = [
     subtitle: 'Modern intelligent agriculture for Philippine livestock raisers',
     duration: 15,
     icon: Sparkles,
-    color: '#FF3B30',
+    color: '#176B35',
     tag: 'Get Started',
     badge: '2:55 - Summary',
     narration:
@@ -454,18 +454,18 @@ export function SystemVideoDemo() {
             gap: 8,
             padding: '6px 18px',
             borderRadius: 999,
-            background: 'linear-gradient(135deg, rgba(255, 122, 24, 0.18), rgba(255, 59, 48, 0.08))',
-            border: '1px solid rgba(255, 122, 24, 0.35)',
+            background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.18), rgba(23, 107, 53, 0.08))',
+            border: '1px solid rgba(35, 139, 69, 0.35)',
             marginBottom: 16,
             fontSize: 12,
             fontWeight: 800,
-            color: '#FF9F0A',
+            color: '#238B45',
             textTransform: 'uppercase',
             letterSpacing: '0.8px',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 18px rgba(255, 122, 24, 0.20)',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 18px rgba(35, 139, 69, 0.20)',
           }}
         >
-          <Sparkles size={14} color="#FF9F0A" /> Interactive System Walkthrough
+          <Sparkles size={14} color="#238B45" /> Interactive System Walkthrough
         </div>
 
         <h2
@@ -506,7 +506,7 @@ export function SystemVideoDemo() {
           WebkitBackdropFilter: 'blur(35px) saturate(180%)',
           border: '1px solid rgba(255, 255, 255, 0.18)',
           boxShadow:
-            'inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(255, 122, 24, 0.18)',
+            'inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(35, 139, 69, 0.18)',
           overflow: 'hidden',
           color: '#fff',
           display: 'flex',
@@ -533,11 +533,11 @@ export function SystemVideoDemo() {
                 width: 34,
                 height: 34,
                 borderRadius: 10,
-                background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+                background: 'linear-gradient(135deg, #238B45, #176B35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(255, 59, 48, 0.40)',
+                boxShadow: '0 4px 16px rgba(35, 139, 69, 0.40)',
               }}
             >
               <currentChapter.icon size={18} color="#fff" />
@@ -556,9 +556,9 @@ export function SystemVideoDemo() {
                 fontSize: 11,
                 padding: '4px 12px',
                 borderRadius: 999,
-                background: 'rgba(255, 122, 24, 0.18)',
-                border: '1px solid rgba(255, 122, 24, 0.35)',
-                color: '#FF9F0A',
+                background: 'rgba(35, 139, 69, 0.18)',
+                border: '1px solid rgba(35, 139, 69, 0.35)',
+                color: '#66BB6A',
                 fontWeight: 800,
               }}
             >
@@ -641,7 +641,7 @@ export function SystemVideoDemo() {
                   fontWeight: 900,
                   textTransform: 'uppercase',
                   letterSpacing: '2px',
-                  color: '#FF9F0A',
+                  color: '#238B45',
                   marginBottom: 8,
                 }}
               >
@@ -693,7 +693,7 @@ export function SystemVideoDemo() {
                 backdropFilter: 'blur(24px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(24px) saturate(180%)',
                 border: '1px solid rgba(255, 255, 255, 0.16)',
-                borderLeft: '4px solid #FF7A18',
+                borderLeft: '4px solid #238B45',
                 boxShadow:
                   'inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 15px 40px rgba(0, 0, 0, 0.40)',
                 borderRadius: 18,
@@ -709,18 +709,18 @@ export function SystemVideoDemo() {
                   width: 32,
                   height: 32,
                   borderRadius: 10,
-                  background: 'rgba(255, 122, 24, 0.20)',
-                  border: '1px solid rgba(255, 122, 24, 0.40)',
+                  background: 'rgba(35, 139, 69, 0.20)',
+                  border: '1px solid rgba(35, 139, 69, 0.40)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
                 }}
               >
-                <Volume2 size={16} color="#FF9F0A" />
+                <Volume2 size={16} color="#238B45" />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: '#FF9F0A', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: '#238B45', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 2 }}>
                   Voice Narration
                 </div>
                 <div style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600, lineHeight: 1.5 }}>
@@ -750,8 +750,8 @@ export function SystemVideoDemo() {
               style={{
                 height: '100%',
                 width: `${(currentTime / TOTAL_DEMO_DURATION) * 100}%`,
-                background: 'linear-gradient(90deg, #FF3B30, #FF7A18, #FF9F0A)',
-                boxShadow: '0 0 14px rgba(255, 122, 24, 0.8)',
+                background: 'linear-gradient(90deg, #238B45, #176B35)',
+                boxShadow: '0 0 14px rgba(35, 139, 69, 0.8)',
                 transition: isPlaying ? 'width 0.1s linear' : 'none',
               }}
             />
@@ -779,9 +779,9 @@ export function SystemVideoDemo() {
                 width: 42,
                 height: 42,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+                background: 'linear-gradient(135deg, #238B45, #176B35)',
                 border: '1px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 4px 16px rgba(255, 59, 48, 0.40)',
+                boxShadow: '0 4px 16px rgba(35, 139, 69, 0.40)',
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
@@ -841,14 +841,14 @@ export function SystemVideoDemo() {
                   transition: 'all 0.2s',
                   background:
                     currentChapterIdx === idx
-                      ? 'linear-gradient(135deg, #FF3B30, #FF7A18)'
+                      ? 'linear-gradient(135deg, #238B45, #176B35)'
                       : 'rgba(255, 255, 255, 0.06)',
                   color: currentChapterIdx === idx ? '#fff' : '#A7B8CC',
                   border:
                     currentChapterIdx === idx
                       ? '1px solid rgba(255, 255, 255, 0.35)'
                       : '1px solid rgba(255, 255, 255, 0.08)',
-                  boxShadow: currentChapterIdx === idx ? '0 4px 14px rgba(255, 75, 43, 0.35)' : 'none',
+                  boxShadow: currentChapterIdx === idx ? '0 4px 14px rgba(35, 139, 69, 0.35)' : 'none',
                 }}
               >
                 {idx + 1}. {chap.tag}
@@ -886,11 +886,11 @@ export function SystemVideoDemo() {
               style={{
                 padding: '4px 10px',
                 borderRadius: 8,
-                background: showCaptions ? 'rgba(255, 122, 24, 0.25)' : 'rgba(255, 255, 255, 0.08)',
-                border: showCaptions ? '1px solid #FF7A18' : '1px solid rgba(255, 255, 255, 0.12)',
+                background: showCaptions ? 'rgba(35, 139, 69, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                border: showCaptions ? '1px solid #238B45' : '1px solid rgba(255, 255, 255, 0.12)',
                 fontSize: 11,
                 fontWeight: 800,
-                color: showCaptions ? '#FF9F0A' : '#CBD5E0',
+                color: showCaptions ? '#66BB6A' : '#CBD5E0',
                 cursor: 'pointer',
               }}
               title="Toggle Captions"
@@ -1112,7 +1112,7 @@ function DemoCursor({ x, y, clicking, label, visible }: { x: number; y: number; 
         </filter>
         <path
           d="M4 2L4 22L9 17L13 26L15.5 25L11.5 16L18 16Z"
-          fill={clicking ? '#FF7A18' : '#ffffff'}
+          fill={clicking ? '#238B45' : '#ffffff'}
           stroke="#333"
           strokeWidth="1"
           filter="url(#cs)"
@@ -1127,12 +1127,12 @@ function DemoCursor({ x, y, clicking, label, visible }: { x: number; y: number; 
           top: -4,
           background: 'rgba(0,0,0,0.82)',
           backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255,122,24,0.5)',
+          border: '1px solid rgba(35, 139, 69, 0.5)',
           borderRadius: 6,
           padding: '3px 8px',
           fontSize: 10,
           fontWeight: 700,
-          color: '#FF9F0A',
+          color: '#66BB6A',
           whiteSpace: 'nowrap',
           pointerEvents: 'none',
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
@@ -1185,7 +1185,7 @@ function SimulatedChapterView({ chapter, progress }: { chapter: DemoChapter; pro
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF3B30' }} />
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF9F0A' }} />
-          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF7A18' }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#238B45' }} />
           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginLeft: 8, fontFamily: 'monospace' }}>
             app.alpasfarm.ph/{chapter.screenType.replace('_', '-')}
           </span>
@@ -1236,11 +1236,11 @@ function IntroScreen({ progress }: { progress: number }) {
           width: 68,
           height: 68,
           borderRadius: 20,
-          background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+          background: 'linear-gradient(135deg, #238B45, #176B35)',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 8px 30px rgba(255, 75, 43, 0.45)',
+          boxShadow: '0 8px 30px rgba(35, 139, 69, 0.45)',
           marginBottom: 16,
           transform: `scale(${1 + Math.sin(progress * Math.PI) * 0.05})`,
           transition: 'transform 0.2s',
@@ -1255,9 +1255,9 @@ function IntroScreen({ progress }: { progress: number }) {
         Smart Farm Management System for Goats & Sheep. Complete recordkeeping, automated illness risk indicators, breeding genealogy & AI assistance.
       </p>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-        <span className="badge badge-orange">Livestock Records</span>
+        <span className="badge badge-healthy">Livestock Records</span>
         <span className="badge badge-healthy">ML Disease AI</span>
-        <span className="badge badge-orange">QR Ear Tags</span>
+        <span className="badge badge-healthy">QR Ear Tags</span>
       </div>
     </div>
   );
@@ -1269,36 +1269,36 @@ function DashboardScreen({ progress }: { progress: number }) {
     <div>
       {/* 3 Stat Cards on top */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
-        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,59,48,0.3)' }}>
+        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Total Animals</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginTop: 2 }}>42 Head</div>
-          <div style={{ fontSize: 9, color: '#FFB340', marginTop: 2 }}>+4 this month</div>
+          <div style={{ fontSize: 9, color: '#238B45', marginTop: 2 }}>+4 this month</div>
         </div>
-        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,159,10,0.3)' }}>
+        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(35,139,69,0.3)' }}>
           <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Healthy Herd</div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: '#FFB340', marginTop: 2 }}>95.2%</div>
-          <div style={{ fontSize: 9, color: '#FFB340', marginTop: 2 }}>Optimal vitals</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#238B45', marginTop: 2 }}>95.2%</div>
+          <div style={{ fontSize: 9, color: '#238B45', marginTop: 2 }}>Optimal vitals</div>
         </div>
-        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,59,48,0.3)' }}>
+        <div style={{ padding: 12, borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(239,68,68,0.3)' }}>
           <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Health Alerts</div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: '#FF3B30', marginTop: 2 }}>1 Alert</div>
-          <div style={{ fontSize: 9, color: '#FF3B30', marginTop: 2 }}>Requires check</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#EF4444', marginTop: 2 }}>1 Alert</div>
+          <div style={{ fontSize: 9, color: '#EF4444', marginTop: 2 }}>Requires check</div>
         </div>
       </div>
 
       {/* Quick Actions row */}
       <div style={{ display: 'flex', gap: 8, overflowX: 'hidden', paddingBottom: 6 }}>
         <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Plus size={12} color="#FF7A18" /> Add Animal
+          <Plus size={12} color="#238B45" /> Add Animal
         </div>
         <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <HeartPulse size={12} color="#FF7A18" /> Health Check
+          <HeartPulse size={12} color="#238B45" /> Health Check
         </div>
         <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Scale size={12} color="#FF7A18" /> Record Weight
+          <Scale size={12} color="#238B45" /> Record Weight
         </div>
         <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Baby size={12} color="#FF7A18" /> Breeding
+          <Baby size={12} color="#238B45" /> Breeding
         </div>
       </div>
     </div>
@@ -1308,10 +1308,10 @@ function DashboardScreen({ progress }: { progress: number }) {
 // 3. Add Animal Screen
 function AddAnimalScreen({ progress }: { progress: number }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 18, border: '1px solid rgba(255,122,24,0.3)' }}>
+    <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 16, padding: 18, border: '1px solid rgba(35,139,69,0.3)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>New Animal Registration Form</div>
-        <span style={{ fontSize: 10, background: 'rgba(255,122,24,0.2)', color: '#FF9F0A', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>
+        <span style={{ fontSize: 10, background: '#EAF6ED', color: '#174B2A', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>
           Auto-generating QR...
         </span>
       </div>
@@ -1319,7 +1319,7 @@ function AddAnimalScreen({ progress }: { progress: number }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
         <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
           <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Tag ID</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#FF9F0A' }}>TAG-BOER-045</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#238B45' }}>TAG-BOER-045</div>
         </div>
         <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
           <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Species & Breed</div>
@@ -1331,7 +1331,7 @@ function AddAnimalScreen({ progress }: { progress: number }) {
         </div>
         <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)' }}>
           <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Initial Weight</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#FFB340' }}>46.8 kg</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#238B45' }}>46.8 kg</div>
         </div>
       </div>
 
@@ -1350,7 +1350,7 @@ function AnimalProfileScreen({ progress }: { progress: number }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 14 }}>
       <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #FF3B30, #FF7A18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #238B45, #176B35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <PawPrint size={20} color="#fff" />
           </div>
           <div>
@@ -1359,17 +1359,17 @@ function AnimalProfileScreen({ progress }: { progress: number }) {
           </div>
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          Status: <strong style={{ color: '#FFB340' }}>Healthy</strong> • Pen A-1 • Weight: 68.4 kg
+          Status: <strong style={{ color: '#238B45' }}>Healthy</strong> • Pen A-1 • Weight: 68.4 kg
         </div>
         <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
           <span className="badge badge-healthy">Vaccinated</span>
-          <span className="badge badge-orange">Breeding Sire</span>
+          <span className="badge badge-healthy">Breeding Sire</span>
         </div>
       </div>
 
       <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#FF9F0A', marginBottom: 4 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#238B45', marginBottom: 4 }}>
             QR FIELD TAG EMBEDDED
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
@@ -1389,22 +1389,22 @@ function HealthScreen({ progress }: { progress: number }) {
   return (
     <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.1)' }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <HeartPulse size={16} color="#FF3B30" /> Daily Vitals & Clinical Observation Log
+        <HeartPulse size={16} color="#238B45" /> Daily Vitals & Clinical Observation Log
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
         <div style={{ background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 10 }}>
           <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Temperature</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#FFB340', marginTop: 2 }}>39.1 °C</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#238B45', marginTop: 2 }}>39.1 °C</div>
           <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Normal range</div>
         </div>
         <div style={{ background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 10 }}>
           <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>FAMACHA Score</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#FF9F0A', marginTop: 2 }}>Score 2</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#238B45', marginTop: 2 }}>Score 2</div>
           <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Optimal red</div>
         </div>
         <div style={{ background: 'rgba(0,0,0,0.3)', padding: 10, borderRadius: 10 }}>
           <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Rumen / Appetite</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#FFB340', marginTop: 2 }}>Active</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#238B45', marginTop: 2 }}>Active</div>
           <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Normal grazing</div>
         </div>
       </div>
@@ -1439,13 +1439,13 @@ function IllnessRiskScreen({ progress }: { progress: number }) {
 // 7. Breeding Screen
 function BreedingScreen({ progress }: { progress: number }) {
   return (
-    <div style={{ background: 'rgba(255,122,24,0.08)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,122,24,0.3)' }}>
+    <div style={{ background: 'rgba(35,139,69,0.08)', borderRadius: 16, padding: 16, border: '1px solid rgba(35,139,69,0.3)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: '#FF7A18' }}>GESTATION COUNTDOWN (Doe #BELLA)</span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: '#238B45' }}>GESTATION COUNTDOWN (Doe #BELLA)</span>
         <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>Day 115 / 150 (76%)</span>
       </div>
       <div style={{ height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.4)', overflow: 'hidden', marginBottom: 10 }}>
-        <div style={{ height: '100%', width: '76%', background: 'linear-gradient(90deg, #FF3B30, #FF7A18)' }} />
+        <div style={{ height: '100%', width: '76%', background: 'linear-gradient(90deg, #238B45, #176B35)' }} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 11 }}>
         <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
@@ -1454,7 +1454,7 @@ function BreedingScreen({ progress }: { progress: number }) {
         </div>
         <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 8 }}>
           <span style={{ color: 'var(--text-tertiary)' }}>Expected Kidding: </span>
-          <strong style={{ color: '#FF9F0A' }}>Sept 18 (20 days to pen)</strong>
+          <strong style={{ color: '#238B45' }}>Sept 18 (20 days to pen)</strong>
         </div>
       </div>
     </div>
@@ -1467,12 +1467,12 @@ function WeightScreen({ progress }: { progress: number }) {
     <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16, border: '1px solid rgba(255,255,255,0.1)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Weight Growth & Daily Gain Trajectory</span>
-        <span style={{ fontSize: 11, color: '#FFB340', fontWeight: 700 }}>+0.28 kg/day ADG</span>
+        <span style={{ fontSize: 11, color: '#238B45', fontWeight: 700 }}>+0.28 kg/day ADG</span>
       </div>
       <div style={{ height: 90, display: 'flex', alignItems: 'flex-end', gap: 8, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         {[38, 41, 45, 50, 54, 59, 64, 68.4].map((w, i) => (
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: '100%', height: `${(w / 75) * 70}px`, background: 'linear-gradient(180deg, #FF9F0A, #FF7A18)', borderRadius: 4 }} />
+            <div style={{ width: '100%', height: `${(w / 75) * 70}px`, background: 'linear-gradient(180deg, #238B45, #176B35)', borderRadius: 4 }} />
             <span style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>Wk {i + 1}</span>
           </div>
         ))}
@@ -1489,15 +1489,15 @@ function InventoryScreen({ progress }: { progress: number }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
       <div style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: '#FF7A18', marginBottom: 6 }}>FEED & MEDICINE STOCK</div>
-        <div style={{ fontSize: 12, color: '#fff', marginBottom: 4 }}>• Alfalfa Pellets: <strong style={{ color: '#FFB340' }}>42 bags</strong></div>
-        <div style={{ fontSize: 12, color: '#fff', marginBottom: 4 }}>• CDT Vaccine: <strong style={{ color: '#FF9F0A' }}>8 vials (Exp: Nov 2026)</strong></div>
-        <div style={{ fontSize: 12, color: '#fff' }}>• Dewormer: <strong style={{ color: '#FFB340' }}>14 doses</strong></div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: '#238B45', marginBottom: 6 }}>FEED & MEDICINE STOCK</div>
+        <div style={{ fontSize: 12, color: '#fff', marginBottom: 4 }}>• Alfalfa Pellets: <strong style={{ color: '#238B45' }}>42 bags</strong></div>
+        <div style={{ fontSize: 12, color: '#fff', marginBottom: 4 }}>• CDT Vaccine: <strong style={{ color: '#238B45' }}>8 vials (Exp: Nov 2026)</strong></div>
+        <div style={{ fontSize: 12, color: '#fff' }}>• Dewormer: <strong style={{ color: '#238B45' }}>14 doses</strong></div>
       </div>
       <div style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: '#FF9F0A', marginBottom: 6 }}>DAILY MILK YIELD</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: '#238B45', marginBottom: 6 }}>DAILY MILK YIELD</div>
         <div style={{ fontSize: 20, fontWeight: 900, color: '#fff' }}>48.5 L / day</div>
-        <div style={{ fontSize: 11, color: '#FFB340', marginTop: 2 }}>+12% yield improvement</div>
+        <div style={{ fontSize: 11, color: '#238B45', marginTop: 2 }}>+12% yield improvement</div>
       </div>
     </div>
   );
@@ -1506,16 +1506,16 @@ function InventoryScreen({ progress }: { progress: number }) {
 // 10. AI Assistant Screen
 function AIAssistantScreen({ progress }: { progress: number }) {
   return (
-    <div style={{ background: 'linear-gradient(135deg, rgba(255,122,24,0.12), rgba(6,21,37,0.95))', borderRadius: 16, padding: 16, border: '1px solid rgba(255,122,24,0.35)' }}>
+    <div style={{ background: 'linear-gradient(135deg, rgba(35,139,69,0.12), rgba(6,21,37,0.95))', borderRadius: 16, padding: 16, border: '1px solid rgba(35,139,69,0.35)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <Brain size={18} color="#FF9F0A" />
+        <Brain size={18} color="#238B45" />
         <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>AlpasFarm AI Smart Farm Assistant</span>
       </div>
       <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10, fontSize: 12, color: '#E2E8F0', marginBottom: 8 }}>
         <em>"Farmer Marlon, 3 does in Pen A are due for CDT boosters this Friday, and Feed conversion is up 14%."</em>
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
-        <span className="badge badge-orange">Tagalog/English Ready</span>
+        <span className="badge badge-healthy">Tagalog/English Ready</span>
         <span className="badge badge-healthy">Real-Time Sync</span>
       </div>
     </div>

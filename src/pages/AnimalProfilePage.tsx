@@ -29,20 +29,20 @@ import { MLScreeningPanel } from '../components/MLScreeningPanel';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const healthBadgeColor = (s: HealthStatus) =>
-  s === 'Healthy' ? '#16A34A' : s === 'Monitor' ? '#3B82F6' : s === 'At Risk' ? '#F59E0B' : '#EF4444';
+  s === 'Healthy' ? '#238B45' : s === 'Monitor' ? '#176B35' : s === 'At Risk' ? '#F59E0B' : '#EF4444';
 
 const healthBadgeBg = (s: HealthStatus) =>
-  s === 'Healthy' ? 'rgba(22,163,74,0.15)' : s === 'Monitor' ? 'rgba(59,130,246,0.15)' : s === 'At Risk' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)';
+  s === 'Healthy' ? '#EAF6ED' : s === 'Monitor' ? '#DDF0E2' : s === 'At Risk' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)';
 
 const riskColor = (score: number) => {
   if (score >= 70) return '#EF4444';
   if (score >= 45) return '#F59E0B';
-  if (score >= 20) return '#3B82F6';
-  return '#16A34A';
+  if (score >= 20) return '#176B35';
+  return '#238B45';
 };
 
 const vaccBadgeColor = (s: string) =>
-  s === 'Up to Date' ? '#FF7A18' : s === 'Due Soon' ? '#F59E0B' : s === 'Overdue' ? '#EF4444' : '#8AA0B8';
+  s === 'Up to Date' ? '#238B45' : s === 'Due Soon' ? '#F59E0B' : s === 'Overdue' ? '#EF4444' : '#78877F';
 
 // ─── Reusable StatRow ──────────────────────────────────────────────────────────
 function StatRow({ label, value, valueStyle }: { label: string; value: React.ReactNode; valueStyle?: React.CSSProperties }) {
@@ -193,23 +193,23 @@ export function AnimalProfilePage() {
       if (curr < prev - 5) {
         return {
           trend: 'Decreasing' as const,
-          color: '#16A34A',
-          bg: 'rgba(22, 163, 74, 0.1)',
+          color: '#238B45',
+          bg: '#EAF6ED',
           warning: null,
         };
       }
       return {
         trend: 'Stable' as const,
-        color: '#2563EB',
-        bg: 'rgba(37, 99, 235, 0.1)',
+        color: '#238B45',
+        bg: '#EAF6ED',
         warning: null,
       };
     }
     if (animalScreenings.length === 1) {
       return {
         trend: 'Stable' as const,
-        color: '#2563EB',
-        bg: 'rgba(37, 99, 235, 0.1)',
+        color: '#238B45',
+        bg: '#EAF6ED',
         warning: null,
       };
     }
@@ -371,7 +371,7 @@ export function AnimalProfilePage() {
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
         .card{border:2px solid #000;border-radius:16px;padding:28px 24px;max-width:300px;width:100%;text-align:center}
-        .brand{font-size:16px;font-weight:900;color:#FF7A18;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:6px}
+        .brand{font-size:16px;font-weight:900;color:#238B45;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:6px}
         img{width:220px;height:220px;margin:14px auto;display:block;border-radius:8px}
         .name{font-size:22px;font-weight:900;color:#1F2937;margin:8px 0 4px}
         .tag{font-size:13px;color:#6B7280;margin-bottom:3px}
@@ -400,10 +400,10 @@ export function AnimalProfilePage() {
     datasets: [{
       label: 'Weight (kg)',
       data: sortedWeights.map((w) => Number(w.weight_kg)),
-      borderColor: '#FF7A18',
-      backgroundColor: 'rgba(255,122,24,0.08)',
+      borderColor: '#238B45',
+      backgroundColor: 'rgba(35, 139, 69, 0.15)',
       fill: true, tension: 0.3, pointRadius: 4,
-      pointBackgroundColor: '#FF7A18',
+      pointBackgroundColor: '#238B45',
     }],
   };
 
@@ -478,10 +478,10 @@ export function AnimalProfilePage() {
             <div style={{
               width: 'clamp(56px,8vw,72px)', height: 'clamp(56px,8vw,72px)',
               borderRadius: 'var(--radius)',
-              background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+              background: 'linear-gradient(135deg, #238B45, #176B35)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 'clamp(22px,4vw,28px)', fontWeight: 900, color: '#fff',
-              boxShadow: '0 8px 24px rgba(255,59,48,0.35)',
+              boxShadow: '0 8px 24px rgba(35,139,69,0.35)',
               flexShrink: 0, border: '1px solid rgba(255,255,255,0.25)',
               letterSpacing: '-1px',
             }}>
@@ -498,7 +498,7 @@ export function AnimalProfilePage() {
                 {animal.name}
               </h1>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 6, display: 'flex', flexWrap: 'wrap' as const, gap: '4px 8px', alignItems: 'center' }}>
-                <span style={{ color: 'var(--accent-orange)', fontWeight: 700 }}>{animal.tag_id}</span>
+                <span style={{ color: 'var(--color-primary, #238B45)', fontWeight: 700 }}>{animal.tag_id}</span>
                 <span style={{ opacity: 0.4 }}>·</span>
                 <span>{animal.species === 'Goat' ? 'Kambing' : 'Tupa'}</span>
                 <span style={{ opacity: 0.4 }}>·</span>
@@ -554,10 +554,10 @@ export function AnimalProfilePage() {
                   fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' as const,
                   cursor: 'pointer', border: 'none', transition: 'all 0.2s ease',
                   background: tab === t.key
-                    ? 'linear-gradient(135deg, #FF3B30, #FF7A18)'
+                    ? 'linear-gradient(135deg, #238B45, #176B35)'
                     : 'transparent',
                   color: tab === t.key ? '#fff' : 'var(--text-secondary)',
-                  boxShadow: tab === t.key ? '0 4px 14px rgba(255,59,48,0.35)' : 'none',
+                  boxShadow: tab === t.key ? '0 4px 14px rgba(35,139,69,0.35)' : 'none',
                   letterSpacing: tab === t.key ? '0.2px' : '0',
                 }}
                 onMouseEnter={(e) => { if (tab !== t.key) e.currentTarget.style.background = 'var(--surface-hover)'; e.currentTarget.style.color = 'var(--text)'; }}
@@ -683,22 +683,22 @@ export function AnimalProfilePage() {
                         {
                           label: 'Tinatayang Risk',
                           data: riskProbs,
-                          borderColor: '#7C3AED',
-                          backgroundColor: 'rgba(124,58,237,0.1)',
+                          borderColor: '#238B45',
+                          backgroundColor: 'rgba(35, 139, 69, 0.15)',
                           fill: true,
                           tension: 0.4,
                           pointRadius: 4,
-                          pointBackgroundColor: '#7C3AED',
+                          pointBackgroundColor: '#238B45',
                         },
                         {
                           label: 'Pagsusuri sa Bukid',
                           data: riskScores,
-                          borderColor: '#F97316',
+                          borderColor: '#176B35',
                           backgroundColor: 'transparent',
                           borderDash: [5, 5],
                           tension: 0.4,
                           pointRadius: 3,
-                          pointBackgroundColor: '#F97316',
+                          pointBackgroundColor: '#176B35',
                         },
                       ],
                     }}
@@ -729,7 +729,7 @@ export function AnimalProfilePage() {
                 value={growth.weightChange !== null
                   ? `${growth.weightChange > 0 ? '+' : ''}${growth.weightChange} kg`
                   : '—'}
-                valueStyle={growth.weightChange !== null ? { color: growth.weightChange >= 0 ? '#FF7A18' : '#EF4444' } : {}}
+                valueStyle={growth.weightChange !== null ? { color: growth.weightChange >= 0 ? '#238B45' : '#EF4444' } : {}}
               />
               <StatRow label="Daily Gain" value={growth.dailyGain !== null ? `${growth.dailyGain} kg/day` : '—'} />
               <StatRow label="Trend" value={growth.trend || 'Insufficient data'} />
@@ -744,8 +744,8 @@ export function AnimalProfilePage() {
               <StatRow label="Status" value={
                 <StatusBadge
                   label={animal.breeding_status}
-                  color={animal.breeding_status === 'Pregnant' ? '#3B82F6' : animal.breeding_status === 'Open' ? '#FF7A18' : '#8AA0B8'}
-                  bg={animal.breeding_status === 'Pregnant' ? 'rgba(59,130,246,0.15)' : animal.breeding_status === 'Open' ? 'rgba(255,122,24,0.15)' : 'rgba(138,160,184,0.12)'}
+                  color={animal.breeding_status === 'Pregnant' ? '#176B35' : animal.breeding_status === 'Open' ? '#50645A' : '#78877F'}
+                  bg={animal.breeding_status === 'Pregnant' ? '#EAF6ED' : animal.breeding_status === 'Open' ? '#F4FAF5' : 'rgba(120,135,127,0.12)'}
                 />
               } />
               <StatRow label="Last Mating" value={formatDate(animal.last_mating_date)} />
@@ -754,8 +754,8 @@ export function AnimalProfilePage() {
                 <StatRow label="Readiness" value={
                   <StatusBadge
                     label={breedingAssessment.recommendation}
-                    color={breedingAssessment.recommendation === 'Ready' ? '#FF7A18' : breedingAssessment.recommendation === 'Monitor' ? '#F59E0B' : '#8AA0B8'}
-                    bg={breedingAssessment.recommendation === 'Ready' ? 'rgba(255,122,24,0.15)' : breedingAssessment.recommendation === 'Monitor' ? 'rgba(245,158,11,0.15)' : 'rgba(138,160,184,0.12)'}
+                    color={breedingAssessment.recommendation === 'Ready' ? '#238B45' : breedingAssessment.recommendation === 'Monitor' ? '#176B35' : '#78877F'}
+                    bg={breedingAssessment.recommendation === 'Ready' ? '#EAF6ED' : breedingAssessment.recommendation === 'Monitor' ? '#DDF0E2' : 'rgba(120,135,127,0.12)'}
                   />
                 } />
               )}
@@ -830,7 +830,7 @@ export function AnimalProfilePage() {
                         onClick={() => setCameraScreeningOpen(true)}
                         style={{
                           flex: 1, padding: '8px', borderRadius: 9, border: 'none',
-                          background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                          background: 'linear-gradient(135deg,#238B45,#176B35)',
                           color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                         }}
@@ -859,10 +859,10 @@ export function AnimalProfilePage() {
                     onClick={() => setCameraScreeningOpen(true)}
                     style={{
                       padding: '9px 16px', borderRadius: 10, border: 'none',
-                      background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                      background: 'linear-gradient(135deg,#238B45,#176B35)',
                       color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', gap: 6,
-                      boxShadow: '0 4px 14px rgba(255,59,48,0.3)',
+                      boxShadow: '0 4px 14px rgba(35,139,69,0.3)',
                     }}
                   >
                     <Camera size={14} /> Suriin ang Hayop
@@ -963,7 +963,7 @@ export function AnimalProfilePage() {
                 <div style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', padding: '4px 0' }}>
                   <Line data={weightChartData} options={{
                     responsive: true,
-                    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(6,18,32,0.92)', bodyColor: '#fff', titleColor: '#FF7A18' } },
+                    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(6,18,32,0.92)', bodyColor: '#fff', titleColor: '#238B45' } },
                     scales: {
                       x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-secondary)' as any } },
                       y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-secondary)' as any } },
@@ -1088,7 +1088,7 @@ export function AnimalProfilePage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
               <CardTitle icon={Package} title="Gamit at Supplies mula sa Imbentaryo (Inventory Usage)" />
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary, #238B45)' }}>
                   {animalInventoryUsage.length} naitalang paggamit
                 </span>
                 <Button
@@ -1191,10 +1191,10 @@ export function AnimalProfilePage() {
                       onClick={() => setCameraScreeningOpen(true)}
                       style={{
                         padding: '8px 16px', borderRadius: 10, border: 'none',
-                        background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                        background: 'linear-gradient(135deg,#238B45,#176B35)',
                         color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', gap: 6,
-                        boxShadow: '0 4px 14px rgba(255,59,48,0.3)',
+                        boxShadow: '0 4px 14px rgba(35,139,69,0.3)',
                       }}
                     >
                       <Camera size={14} /> Magsagawa ng Pagsusuri
@@ -1206,9 +1206,9 @@ export function AnimalProfilePage() {
                   {latest.notes && <StatRow label="Mga Tala" value={latest.notes} />}
                   <div style={{
                     marginTop: 12, padding: '10px 12px',
-                    background: 'rgba(59,130,246,0.07)',
-                    border: '1px solid rgba(59,130,246,0.18)',
-                    borderRadius: 8, fontSize: 11, color: '#3B82F6', lineHeight: 1.6,
+                    background: 'rgba(35,139,69,0.08)',
+                    border: '1px solid rgba(35,139,69,0.20)',
+                    borderRadius: 8, fontSize: 11, color: '#176B35', lineHeight: 1.6,
                   }}>
                     Ang camera screening ay paunang gabay lamang sa pagmamasid sa bukid at hindi opisyal na diagnosis ng beterinaryo.
                   </div>
@@ -1220,7 +1220,7 @@ export function AnimalProfilePage() {
             {animalScreenings.length === 0 && (
               <GlassCard style={{ marginBottom: 16 }}>
                 <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                  <Camera size={36} color="var(--accent-orange)" style={{ marginBottom: 12, opacity: 0.7 }} />
+                  <Camera size={36} color="var(--color-primary, #238B45)" style={{ marginBottom: 12, opacity: 0.7 }} />
                   <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>
                     No Camera Screenings Yet
                   </div>
@@ -1231,10 +1231,10 @@ export function AnimalProfilePage() {
                     onClick={() => setCameraScreeningOpen(true)}
                     style={{
                       padding: '10px 24px', borderRadius: 12, border: 'none',
-                      background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+                      background: 'linear-gradient(135deg,#238B45,#176B35)',
                       color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', gap: 8,
-                      boxShadow: '0 6px 20px rgba(255,59,48,0.35)',
+                      boxShadow: '0 6px 20px rgba(35,139,69,0.35)',
                     }}
                   >
                     <Camera size={16} /> Start Camera Screening
@@ -1292,7 +1292,7 @@ export function AnimalProfilePage() {
             <QRCanvas value={`https://capstone-delta-jet.vercel.app/public/${animal.id}`} size={240} />
             <div style={{ textAlign: 'center' }}>
               <p style={{ fontWeight: 800, fontSize: 16, margin: '0 0 2px' }}>{animal.name}</p>
-              <p style={{ color: 'var(--color-primary, #FF6A2A)', fontSize: 13, fontWeight: 600, margin: 0 }}>{animal.tag_id}</p>
+              <p style={{ color: 'var(--color-primary, #238B45)', fontSize: 13, fontWeight: 600, margin: 0 }}>{animal.tag_id}</p>
               <p style={{ color: 'var(--color-text-secondary, #64748B)', fontSize: 12, marginTop: 6 }}>Scan to view public animal profile</p>
             </div>
           </div>
@@ -1327,8 +1327,8 @@ export function AnimalProfilePage() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Tag size={16} color="#FF6A00" />
-                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
+                    <Tag size={16} color="var(--color-primary, #238B45)" />
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #238B45)', letterSpacing: '0.02em' }}>
                       {editForm.tag_id || '—'}
                     </span>
                   </div>
@@ -1554,7 +1554,7 @@ function ActionBtn({ icon, label, onClick, variant }: {
 }) {
   const colors = {
     neutral: { base: 'var(--surface)', border: 'var(--border)', text: 'var(--text-secondary)', hover: 'var(--surface-hover)' },
-    orange: { base: 'rgba(255,106,42,0.12)', border: 'rgba(255,106,42,0.35)', text: '#FF7A18', hover: 'rgba(255,106,42,0.22)' },
+    orange: { base: '#EAF6ED', border: 'rgba(35,139,69,0.35)', text: '#176B35', hover: '#DDF0E2' },
     red: { base: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.30)', text: '#EF4444', hover: 'rgba(239,68,68,0.20)' },
   }[variant];
 

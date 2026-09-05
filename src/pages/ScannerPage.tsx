@@ -314,8 +314,8 @@ export function ScannerPage() {
               id={CONTAINER_ID}
               style={{
                 borderRadius: 14,
-                border: scanState === 'scanning' ? '3px solid #FF7A18' : 'none',
-                boxShadow: scanState === 'scanning' ? '0 0 25px rgba(255, 122, 24, 0.35)' : 'none',
+                border: scanState === 'scanning' ? '3px solid #238B45' : 'none',
+                boxShadow: scanState === 'scanning' ? '0 0 25px rgba(35, 139, 69, 0.35)' : 'none',
                 display: scanState === 'starting' || scanState === 'scanning' ? 'block' : 'none',
                 background: '#000',
                 width: '100%',

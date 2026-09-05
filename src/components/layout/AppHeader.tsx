@@ -169,19 +169,19 @@ export function AppHeader({
     switch (t) {
       case 'health':
         return <HeartPulse size={16} color="#EF4444" />;
-      case 'vaccination':
-      case 'vaccine':
-        return <Syringe size={16} color="#F97316" />;
-      case 'breeding':
-        return <Heart size={16} color="#EC4899" />;
-      case 'weight':
-        return <Scale size={16} color="#EAB308" />;
-      case 'inventory':
-        return <Package size={16} color="#06B6D4" />;
       case 'expiry':
         return <AlertTriangle size={16} color="#F59E0B" />;
+      case 'vaccination':
+      case 'vaccine':
+        return <Syringe size={16} color="#238B45" />;
+      case 'breeding':
+        return <Heart size={16} color="#238B45" />;
+      case 'weight':
+        return <Scale size={16} color="#238B45" />;
+      case 'inventory':
+        return <Package size={16} color="#238B45" />;
       default:
-        return <Bell size={16} color="#10B981" />;
+        return <Bell size={16} color="#238B45" />;
     }
   };
 
@@ -369,7 +369,7 @@ export function AppHeader({
                               ? 'orange'
                               : n.priority === 'Success'
                               ? 'green'
-                              : 'blue'
+                              : 'green'
                           }`}
                           style={{ fontSize: 10, padding: '1px 6px' }}
                         >
@@ -382,7 +382,7 @@ export function AppHeader({
                               width: 6,
                               height: 6,
                               borderRadius: '50%',
-                              background: '#22C55E',
+                              background: '#238B45',
                               flexShrink: 0,
                               marginLeft: 'auto',
                             }}

@@ -346,7 +346,7 @@ export function VaccinationsPage() {
 
       {/* ── 3 Floating Liquid Glass Statistic Cards ───────────────── */}
       <div className="mobile-stats-grid-3 dashboard-stats stats-grid kpi-grid section-gap" style={{ marginBottom: 24 }}>
-        {/* Card 1: Up to Date (Warm Amber Glass) */}
+        {/* Card 1: Up to Date (Green Glass) */}
         <div
           onClick={() => setFStatus(fStatus === 'Up to Date' ? 'All' : 'Up to Date')}
           className="kpi-card stat-card mobile-stats-card-3"
@@ -355,11 +355,11 @@ export function VaccinationsPage() {
             padding: '20px 22px',
             cursor: 'pointer',
             background: fStatus === 'Up to Date'
-              ? 'linear-gradient(135deg, rgba(255, 179, 64, 0.24), rgba(255, 122, 24, 0.08))'
+              ? 'linear-gradient(135deg, rgba(35, 139, 69, 0.20), rgba(23, 107, 53, 0.08))'
               : 'linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.035))',
-            borderColor: fStatus === 'Up to Date' ? 'rgba(255, 179, 64, 0.45)' : 'rgba(255, 255, 255, 0.20)',
+            borderColor: fStatus === 'Up to Date' ? 'rgba(35, 139, 69, 0.45)' : 'rgba(35, 139, 69, 0.20)',
             boxShadow: fStatus === 'Up to Date'
-              ? 'inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 20px 50px rgba(255, 179, 64, 0.20)'
+              ? 'inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 20px 50px rgba(35, 139, 69, 0.20)'
               : 'inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 18px 45px rgba(0, 0, 0, 0.20)',
           }}
           onMouseEnter={(e) => {
@@ -374,9 +374,9 @@ export function VaccinationsPage() {
             <div
               className="kpi-icon"
               style={{
-                background: 'linear-gradient(135deg, rgba(255, 179, 64, 0.25), rgba(255, 122, 24, 0.08))',
-                border: '1px solid rgba(255, 179, 64, 0.35)',
-                color: '#FFB340',
+                background: '#EAF6ED',
+                border: '1px solid rgba(35, 139, 69, 0.25)',
+                color: '#238B45',
               }}
             >
               <ShieldCheck size={22} />
@@ -385,24 +385,24 @@ export function VaccinationsPage() {
               style={{
                 fontSize: 10,
                 fontWeight: 800,
-                color: '#FFB340',
+                color: '#176B35',
                 padding: '3px 9px',
                 borderRadius: 999,
-                background: 'rgba(255, 179, 64, 0.15)',
-                border: '1px solid rgba(255, 179, 64, 0.30)',
+                background: '#EAF6ED',
+                border: '1px solid rgba(35, 139, 69, 0.25)',
                 letterSpacing: '0.6px',
               }}
             >
               PROTEKTADO
             </span>
           </div>
-          <div className="kpi-value" style={{ position: 'relative', zIndex: 2, marginTop: 4 }}>
+          <div className="kpi-value" style={{ position: 'relative', zIndex: 2, marginTop: 4, color: '#238B45' }}>
             {upToDate}
           </div>
-          <div className="kpi-label" style={{ position: 'relative', zIndex: 2 }}>
+          <div className="kpi-label" style={{ position: 'relative', zIndex: 2, color: '#176B35' }}>
             UP TO DATE / UPDATED
           </div>
-          <div style={{ fontSize: 11, color: '#FFB340', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
+          <div style={{ fontSize: 11, color: '#176B35', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
             Aktibo at napatunayang proteksyon
           </div>
         </div>
@@ -435,9 +435,9 @@ export function VaccinationsPage() {
             <div
               className="kpi-icon"
               style={{
-                background: 'linear-gradient(135deg, rgba(255, 159, 10, 0.25), rgba(255, 106, 42, 0.08))',
-                border: '1px solid rgba(255, 159, 10, 0.35)',
-                color: '#FF9F0A',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.08))',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                color: '#D97706',
               }}
             >
               <Clock size={22} />
@@ -446,11 +446,11 @@ export function VaccinationsPage() {
               style={{
                 fontSize: 10,
                 fontWeight: 800,
-                color: '#FF9F0A',
+                color: '#D97706',
                 padding: '3px 9px',
                 borderRadius: 999,
-                background: 'rgba(255, 159, 10, 0.15)',
-                border: '1px solid rgba(255, 159, 10, 0.30)',
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.30)',
                 letterSpacing: '0.6px',
               }}
             >
@@ -463,7 +463,7 @@ export function VaccinationsPage() {
           <div className="kpi-label" style={{ position: 'relative', zIndex: 2 }}>
             DUE SOON / MALAPIT NA
           </div>
-          <div style={{ fontSize: 11, color: '#FF9F0A', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
+          <div style={{ fontSize: 11, color: '#D97706', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
             Kailangan sa loob ng {farmData.settings?.vaccine_due_days ?? 30} araw
           </div>
         </div>
@@ -643,8 +643,8 @@ export function VaccinationsPage() {
                               width: 34,
                               height: 34,
                               borderRadius: 10,
-                              background: 'linear-gradient(135deg, rgba(255, 106, 42, 0.18), rgba(255, 59, 48, 0.08))',
-                              border: '1px solid rgba(255, 106, 42, 0.30)',
+                              background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.18), rgba(23, 107, 53, 0.08))',
+                              border: '1px solid rgba(35, 139, 69, 0.30)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -652,7 +652,7 @@ export function VaccinationsPage() {
                               flexShrink: 0,
                             }}
                           >
-                            <Syringe size={14} color="#FF7A18" />
+                            <Syringe size={14} color="#238B45" />
                           </div>
                           <div>
                             <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: '13px' }}>{aName}</div>
@@ -686,7 +686,7 @@ export function VaccinationsPage() {
                               style={{
                                 fontSize: 11,
                                 fontWeight: 700,
-                                color: daysLeft < 0 ? '#FF3B30' : daysLeft <= 14 ? '#FF9F0A' : '#FFB340',
+                                color: daysLeft < 0 ? '#EF4444' : daysLeft <= 14 ? '#F59E0B' : '#238B45',
                               }}
                             >
                               {daysLeft < 0

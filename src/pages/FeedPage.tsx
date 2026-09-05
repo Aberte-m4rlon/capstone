@@ -313,7 +313,7 @@ export function FeedPage() {
                           <td style={{ color: eff.weightGainKg > 0 ? 'var(--color-success, #16A34A)' : 'inherit' }}>
                             {eff.weightGainKg > 0 ? `+${eff.weightGainKg} kg` : '—'}
                           </td>
-                          <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>
+                          <td style={{ color: 'var(--color-primary, #238B45)', fontWeight: 600 }}>
                             {eff.fcr !== null ? `${eff.fcr}:1` : '—'}
                           </td>
                           <td>

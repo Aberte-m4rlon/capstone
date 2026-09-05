@@ -198,8 +198,8 @@ export function AnalyticsPage() {
                     datasets: [{ 
                       label: 'Mga Tala', 
                       data: healthTrend.counts, 
-                      borderColor: '#FF7A18', 
-                      backgroundColor: 'rgba(255,122,24,0.15)', 
+                      borderColor: '#238B45', 
+                      backgroundColor: 'rgba(35, 139, 69, 0.15)', 
                       fill: true, 
                       tension: 0.3 
                     }] 
@@ -224,7 +224,7 @@ export function AnalyticsPage() {
                     labels: ['Malusog', 'Binabantayan', 'Nasa Panganib', 'Kritikal'], 
                     datasets: [{ 
                       data: healthDist, 
-                      backgroundColor: ['#FFB340', '#FF9F0A', '#FF7A18', '#FF3B30'], 
+                      backgroundColor: ['#238B45', '#3FAF55', '#F59E0B', '#EF4444'], 
                       borderWidth: 0 
                     }] 
                   }} 
@@ -257,8 +257,8 @@ export function AnalyticsPage() {
                     datasets: [{ 
                       label: 'Karaniwang Timbang (kg)', 
                       data: weightTrend.avgWeights, 
-                      borderColor: '#FF7A18', 
-                      backgroundColor: 'rgba(255,122,24,0.15)', 
+                      borderColor: '#238B45', 
+                      backgroundColor: 'rgba(35, 139, 69, 0.15)', 
                       fill: true, 
                       tension: 0.3 
                     }] 
@@ -283,7 +283,7 @@ export function AnalyticsPage() {
                     labels: ['Kambing', 'Tupa'], 
                     datasets: [{ 
                       data: speciesDist, 
-                      backgroundColor: ['#FF3B30', '#FF9F0A'], 
+                      backgroundColor: ['#176B35', '#238B45'], 
                       borderWidth: 0 
                     }] 
                   }} 
@@ -313,7 +313,7 @@ export function AnalyticsPage() {
                     labels: ['Buntis', 'Bukas (Open)', 'Handa (Ready)', 'Iba pa'], 
                     datasets: [{ 
                       data: breedingOverview, 
-                      backgroundColor: ['#FF7A18', '#A7B8CC', '#FFB340', '#475569'], 
+                      backgroundColor: ['#176B35', '#238B45', '#3FAF55', '#A3D9B1'], 
                       borderWidth: 0 
                     }] 
                   }} 
@@ -341,7 +341,7 @@ export function AnalyticsPage() {
                     labels: ['Kumpleto', 'Kailangan Na', 'Lampas Na sa Araw', 'Wala'], 
                     datasets: [{ 
                       data: vaccCompliance, 
-                      backgroundColor: ['#FFB340', '#FF9F0A', '#FF3B30', '#475569'], 
+                      backgroundColor: ['#238B45', '#3FAF55', '#EF4444', '#A3D9B1'], 
                       borderWidth: 0 
                     }] 
                   }} 
@@ -373,7 +373,7 @@ export function AnalyticsPage() {
                   datasets: [{ 
                     label: 'Bilang ng Gamit', 
                     data: invByCategory, 
-                    backgroundColor: '#FF7A18', 
+                    backgroundColor: '#238B45', 
                     borderRadius: 6 
                   }] 
                 }} 
@@ -398,7 +398,7 @@ export function AnalyticsPage() {
                   datasets: [{ 
                     label: 'Pakain (kg)', 
                     data: feedEfficiencyData.map((d) => d.feed), 
-                    backgroundColor: '#FF9F0A', 
+                    backgroundColor: '#238B45', 
                     borderRadius: 6 
                   }] 
                 }} 
@@ -415,9 +415,9 @@ export function AnalyticsPage() {
           )}
 
           {/* Health Anomaly Detection */}
-          <Card variant="glass" padding="md" style={{ marginBottom: 16, borderLeft: '4px solid #FF3B30' }}>
+          <Card variant="glass" padding="md" style={{ marginBottom: 16, borderLeft: '4px solid #EF4444' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-              <AlertCircle size={20} color="#FF3B30" />
+              <AlertCircle size={20} color="#EF4444" />
               <span style={{ fontWeight: 800, fontSize: 15 }}>Pagtukoy sa Hindi Pangkaraniwang Datos (Health Anomalies)</span>
               <Badge variant={anomalies.length > 0 ? 'danger' : 'warning'}>
                 {anomalies.length} {anomalies.length === 1 ? 'hindi pangkaraniwang datos' : 'mga hindi pangkaraniwang datos'} ang napansin
@@ -425,7 +425,7 @@ export function AnalyticsPage() {
             </div>
             {anomalies.length === 0 ? (
               <EmptyState
-                icon={<CheckCircle size={28} color="#FFB340" />}
+                icon={<CheckCircle size={28} color="#238B45" />}
                 title="Walang napansing abnormal na datos"
                 description="Lahat ng vital signs ay pasok sa karaniwang saklaw batay sa nakaraang datos."
               />
@@ -460,7 +460,7 @@ export function AnalyticsPage() {
                           <td style={{ padding: '10px 8px', fontWeight: 700 }}>{row.animal}</td>
                           <td style={{ padding: '10px 8px' }}>{row.anomaly.metric === 'temperature' ? 'Surface Temperature' : 'Tibok ng Puso (Heart Rate)'}</td>
                           <td style={{ padding: '10px 8px' }}>{row.anomaly.metric === 'temperature' ? (row.anomaly.zScore > 0 ? 'Mataas' : 'Mababa') : (row.anomaly.zScore > 0 ? 'Mabilis' : 'Mabagal')}</td>
-                          <td style={{ padding: '10px 8px', fontWeight: 800, color: Math.abs(row.anomaly.zScore) > 3 ? '#FF3B30' : '#FF9F0A' }}>{row.anomaly.zScore.toFixed(2)}</td>
+                          <td style={{ padding: '10px 8px', fontWeight: 800, color: Math.abs(row.anomaly.zScore) > 3 ? '#EF4444' : '#F59E0B' }}>{row.anomaly.zScore.toFixed(2)}</td>
                           <td style={{ padding: '10px 8px' }}>
                             <Badge variant={row.anomaly.severity === 'severe' ? 'danger' : row.anomaly.severity === 'moderate' ? 'warning' : 'neutral'} size="sm">
                               {row.anomaly.severity === 'severe' ? 'Malala' : row.anomaly.severity === 'moderate' ? 'Katamtaman' : 'Mababa'}
@@ -478,9 +478,9 @@ export function AnalyticsPage() {
 
           {/* Animal Clustering */}
           {clusters && (
-            <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #FF7A18', marginBottom: 20 }}>
+            <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #238B45', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                <Layers size={20} color="#FF7A18" />
+                <Layers size={20} color="#238B45" />
                 <span style={{ fontWeight: 800, fontSize: 15 }}>Pagpapangkat ng mga Hayop sa Bukid</span>
                 <Badge variant="warning">{clusters.k} pangkat · {clusters.converged ? 'nakumpleto' : 'natapos ang mga pagsusuri'}</Badge>
               </div>
@@ -490,7 +490,7 @@ export function AnalyticsPage() {
                   return (
                     <div key={c} style={{ padding: 16, borderRadius: 14, background: 'var(--color-surface-elevated, rgba(0,0,0,0.04))', border: '1px solid var(--border-light, rgba(255,255,255,0.08))' }}>
                       <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: ['#FFB340', '#FF7A18', '#FF9F0A', '#FF3B30'][c % 4] }} />
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: ['#238B45', '#176B35', '#43A047', '#2E7D32'][c % 4] }} />
                         {label}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{animalsInCluster.length} {animalsInCluster.length === 1 ? 'hayop' : 'mga hayop'}</div>

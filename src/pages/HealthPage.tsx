@@ -1010,8 +1010,8 @@ export function HealthPage() {
         <div className="quick-actions-grid">
           {/* Card 1: AI Health Scanner */}
           <div className="action-card" onClick={() => navigate('/camera-screening')}>
-            <div className="action-card-icon icon-purple">
-              <Camera size={22} color="#8B5CF6" />
+            <div className="action-card-icon icon-green">
+              <Camera size={22} color="#238B45" />
             </div>
             <div className="action-card-title">AI Health Scanner</div>
             <div className="action-card-desc">Visual screening at pagsusuri gamit ang camera</div>
@@ -1022,7 +1022,7 @@ export function HealthPage() {
 
           {/* Card 2: Record Health Check */}
           <div className="action-card" onClick={() => openPredictionModal()}>
-            <div className="action-card-icon icon-orange">
+            <div className="action-card-icon icon-green">
               <Stethoscope size={22} color="#238B45" />
             </div>
             <div className="action-card-title">Magtala ng Health Check</div>
@@ -1040,8 +1040,8 @@ export function HealthPage() {
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
           >
-            <div className="action-card-icon icon-blue">
-              <ClipboardList size={22} color="#3B82F6" />
+            <div className="action-card-icon icon-green">
+              <ClipboardList size={22} color="#238B45" />
             </div>
             <div className="action-card-title">Kasaysayan ng Kalusugan</div>
             <div className="action-card-desc">Tingnan ang lahat ng nakaraang health records</div>
@@ -1053,7 +1053,7 @@ export function HealthPage() {
           {/* Card 4: Health Reports */}
           <div className="action-card" onClick={() => navigate('/reports')}>
             <div className="action-card-icon icon-green">
-              <FileBarChart size={22} color="#10B981" />
+              <FileBarChart size={22} color="#238B45" />
             </div>
             <div className="action-card-title">Mga Ulat sa Kalusugan</div>
             <div className="action-card-desc">Bumuo ng diagnostic summaries at clinical export</div>
@@ -1243,10 +1243,10 @@ export function HealthPage() {
             gap: 10,
             padding: '10px 14px',
             borderRadius: 10,
-            background: 'rgba(59, 130, 246, 0.08)',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
+            background: '#EAF6ED',
+            border: '1px solid rgba(35, 139, 69, 0.2)',
             fontSize: 12,
-            color: '#1E40AF',
+            color: '#174B2A',
             lineHeight: 1.5,
             marginBottom: 14,
           }}>
@@ -1430,7 +1430,7 @@ export function HealthPage() {
           <div className="modal-camera-card">
             <div className="camera-header-row">
               <div className="camera-header-title">
-                <Camera size={16} color="#8B5CF6" />
+                <Camera size={16} color="#238B45" />
                 <span>3. Visual Health Scanner (Camera Scanner - Opsyonal):</span>
               </div>
               {cameraResult && (
@@ -1510,7 +1510,7 @@ export function HealthPage() {
             )}
 
             {cameraScanning && !cameraActive && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, color: '#8B5CF6', fontSize: 13, fontWeight: 700 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, color: '#238B45', fontSize: 13, fontWeight: 700 }}>
                 <RefreshCw size={16} className="animate-spin" /> Sinusuri ang kuha ng camera...
               </div>
             )}
@@ -1524,7 +1524,7 @@ export function HealthPage() {
             {cameraResult && (
               <div className={`scan-result-card ${cameraResult.goatDetected ? 'result-success' : 'result-error'}`}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: cameraResult.goatDetected ? '#7C3AED' : '#EF4444' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: cameraResult.goatDetected ? '#238B45' : '#EF4444' }}>
                     {cameraResult.goatDetected
                       ? `${cameraResult.species === 'sheep' ? 'Tupa' : 'Kambing'} ang nakita`
                       : 'Hindi ito kambing o tupa'}
@@ -1533,7 +1533,7 @@ export function HealthPage() {
                     Kalagayan: {cameraResult.riskLevelLabel}
                   </div>
                 </div>
-                <Activity size={18} color={cameraResult.goatDetected ? '#7C3AED' : '#EF4444'} />
+                <Activity size={18} color={cameraResult.goatDetected ? '#238B45' : '#EF4444'} />
               </div>
             )}
           </div>
@@ -2330,8 +2330,8 @@ export function HealthPage() {
         }
         .action-card:hover {
           transform: translateY(-2px);
-          border-color: var(--primary);
-          box-shadow: 0 8px 24px rgba(255, 122, 24, 0.15);
+          border-color: #238B45;
+          box-shadow: 0 8px 24px rgba(35, 139, 69, 0.15);
         }
         .action-card-icon {
           width: 42px;
@@ -2341,11 +2341,9 @@ export function HealthPage() {
           align-items: center;
           justify-content: center;
           margin-bottom: 12px;
+          background: #EAF6ED;
         }
-        .icon-purple { background: rgba(139, 92, 246, 0.12); }
-        .icon-orange { background: rgba(255, 122, 24, 0.12); }
-        .icon-blue { background: rgba(59, 130, 246, 0.12); }
-        .icon-green { background: rgba(16, 185, 129, 0.12); }
+        .icon-purple, .icon-orange, .icon-blue, .icon-green { background: #EAF6ED; color: #238B45; }
         .action-card-title {
           font-size: 14px;
           font-weight: 800;
@@ -2740,8 +2738,8 @@ export function HealthPage() {
           line-height: 1.5;
         }
         .detail-next-check-box {
-          background: rgba(59, 130, 246, 0.08);
-          border: 1px solid rgba(59, 130, 246, 0.25);
+          background: #EAF6ED;
+          border: 1px solid rgba(35, 139, 69, 0.25);
           border-radius: 12px;
           padding: 12px 16px;
         }
@@ -2757,7 +2755,7 @@ export function HealthPage() {
         .detail-next-check-val {
           font-size: 14px;
           font-weight: 700;
-          color: #2563EB;
+          color: #176B35;
         }
         .detail-disclaimer-box {
           display: flex;
@@ -2795,8 +2793,8 @@ export function HealthPage() {
           font-weight: 600;
         }
         .modal-context-card {
-          background: rgba(59, 130, 246, 0.06);
-          border: 1px solid rgba(59, 130, 246, 0.25);
+          background: rgba(35, 139, 69, 0.06);
+          border: 1px solid rgba(35, 139, 69, 0.25);
           border-radius: 12px;
           padding: 12px 16px;
           display: flex;
@@ -2809,7 +2807,7 @@ export function HealthPage() {
           gap: 6px;
           font-size: 12px;
           font-weight: 700;
-          color: #2563EB;
+          color: #176B35;
         }
         .context-grid {
           display: grid;
@@ -2939,8 +2937,8 @@ export function HealthPage() {
           align-items: center;
         }
         .result-success {
-          background: rgba(124, 58, 237, 0.08);
-          border: 1px solid rgba(124, 58, 237, 0.3);
+          background: #EAF6ED;
+          border: 1px solid rgba(35, 139, 69, 0.3);
         }
         .result-error {
           background: rgba(239, 68, 68, 0.08);

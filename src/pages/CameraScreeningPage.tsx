@@ -1648,7 +1648,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                     borderRadius: 10,
                     border: '1px solid #E5EDE6',
                     background: '#FFFFFF',
-                    color: '#2563EB',
+                    color: '#176B35',
                     fontSize: 12,
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -2269,10 +2269,10 @@ function ScanResultCard({
             gap: 8,
             padding: '10px 12px',
             borderRadius: 10,
-            background: 'rgba(59, 130, 246, 0.08)',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
+            background: '#EAF6ED',
+            border: '1px solid rgba(35, 139, 69, 0.2)',
             fontSize: 11,
-            color: '#1E40AF',
+            color: '#174B2A',
             lineHeight: 1.5,
           }}
         >
@@ -2293,7 +2293,7 @@ function ScanResultCard({
                 padding: '12px',
                 borderRadius: 10,
                 border: 'none',
-                background: 'linear-gradient(135deg, #FF6A2A 0%, #FF3B30 100%)',
+                background: 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
                 color: '#FFFFFF',
                 fontSize: 13,
                 fontWeight: 800,
@@ -2302,7 +2302,7 @@ function ScanResultCard({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 7,
-                boxShadow: '0 4px 12px rgba(255, 106, 42, 0.25)',
+                boxShadow: '0 4px 12px rgba(35, 139, 69, 0.25)',
               }}
             >
               <History size={16} /> Tingnan ang Health History
@@ -2317,7 +2317,7 @@ function ScanResultCard({
               padding: '12px',
               borderRadius: 10,
               border: 'none',
-              background: 'linear-gradient(135deg, #2E7D32 0%, #43A047 100%)',
+              background: 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
               color: '#FFFFFF',
               fontSize: 13,
               fontWeight: 800,
@@ -2326,7 +2326,7 @@ function ScanResultCard({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 7,
-              boxShadow: '0 4px 12px rgba(46, 125, 50, 0.2)',
+              boxShadow: '0 4px 12px rgba(35, 139, 69, 0.2)',
             }}
           >
             <Bot size={16} /> Itanong sa AI Farm Assistant

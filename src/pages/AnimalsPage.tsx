@@ -313,19 +313,19 @@ export function AnimalsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: fSpecies === 'All' && fSex === 'All' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+            border: fSpecies === 'All' && fSex === 'All' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-primary, #FF6A2A)' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Kabuuan
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(255, 106, 42, 0.12)', color: 'var(--color-primary, #FF6A2A)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: 'var(--color-primary, #FF6A2A)' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {animalStats.total} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -340,19 +340,19 @@ export function AnimalsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: fSpecies === 'Goat' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+            border: fSpecies === 'Goat' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Kambing
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Layers size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {animalStats.goats} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -367,19 +367,19 @@ export function AnimalsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: fSpecies === 'Sheep' ? '2px solid var(--color-primary, #FF6A2A)' : undefined,
+            border: fSpecies === 'Sheep' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#10B981' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Tupa
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Layers size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#10B981' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {animalStats.sheep} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -397,19 +397,19 @@ export function AnimalsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: fSex === 'Male' ? '2px solid #3B82F6' : undefined,
+            border: fSex === 'Male' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Lalaki (Male)
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {animalStats.males}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -424,19 +424,19 @@ export function AnimalsPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: fSex === 'Female' ? '2px solid #EC4899' : undefined,
+            border: fSex === 'Female' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#EC4899' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Babae (Female)
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#EC4899' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {animalStats.females}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -453,15 +453,15 @@ export function AnimalsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#10B981' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Bata (Young)
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Baby size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#10B981' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {animalStats.young}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -556,7 +556,7 @@ export function AnimalsPage() {
                       >
                         {a.name}
                       </td>
-                      <td style={{ color: 'var(--color-primary, #FF6A2A)', fontWeight: 600 }}>{a.tag_id}</td>
+                      <td style={{ color: 'var(--color-primary, #238B45)', fontWeight: 600 }}>{a.tag_id}</td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.species === 'Goat' ? 'Kambing' : 'Tupa'}</td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.breed ?? '—'}</td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.sex === 'Female' ? 'Babae' : 'Lalaki'}</td>
@@ -641,8 +641,8 @@ export function AnimalsPage() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Tag size={16} color="#FF6A00" />
-                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
+                    <Tag size={16} color="var(--color-primary, #238B45)" />
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #238B45)', letterSpacing: '0.02em' }}>
                       {form.tag_id || (editing ? '—' : 'Bumubuo ng ID...')}
                     </span>
                   </div>
@@ -767,7 +767,7 @@ export function AnimalsPage() {
               <div style={{ fontWeight: 800, fontSize: '17px', color: 'var(--color-text-primary, #0F172A)' }}>
                 {qrAnimal?.name}
               </div>
-              <div style={{ color: 'var(--color-primary, #FF6A2A)', fontSize: '13px', fontWeight: 600 }}>
+              <div style={{ color: 'var(--color-primary, #238B45)', fontSize: '13px', fontWeight: 600 }}>
                 {qrAnimal?.tag_id}
               </div>
               <p style={{ color: 'var(--color-text-muted, #64748B)', fontSize: '12px', marginTop: 6, margin: 0 }}>

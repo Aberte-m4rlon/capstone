@@ -71,16 +71,16 @@ function riskLabel(score: number): string {
 
 function healthStatusColor(status: string): string {
   if (status === 'Critical') return '#EF4444';
-  if (status === 'At Risk') return '#F97316';
-  if (status === 'Monitor') return '#3B82F6';
-  return '#16A34A';
+  if (status === 'At Risk') return '#F59E0B';
+  if (status === 'Monitor') return '#176B35';
+  return '#238B45';
 }
 
 function vaccColor(status: string): string {
   if (status === 'Overdue') return '#EF4444';
   if (status === 'Due Soon') return '#F59E0B';
-  if (status === 'Up to Date') return '#FF7A18';
-  return '#9CA3AF';
+  if (status === 'Up to Date') return '#238B45';
+  return '#78877F';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -105,15 +105,15 @@ export function PublicAnimalPage() {
     text: isDark ? '#F1F5F9' : '#1F2937',
     textSec: isDark ? '#94A3B8' : '#6B7280',
     nav: isDark ? 'rgba(13,27,42,0.96)' : 'rgba(255,255,255,0.96)',
-    tabActive: '#FF7A18',
+    tabActive: '#238B45',
     divider: isDark ? 'rgba(255,255,255,0.07)' : '#F3F4F6',
     headerBg: isDark ? '#0F1E2F' : '#FFFFFF',
     warning: isDark ? 'rgba(245,158,11,0.15)' : '#FEF3C7',
     warningBorder: isDark ? 'rgba(245,158,11,0.35)' : '#FCD34D',
     warningText: isDark ? '#FCD34D' : '#92400E',
-    info: isDark ? 'rgba(59,130,246,0.12)' : '#EFF6FF',
-    infoBorder: isDark ? 'rgba(59,130,246,0.30)' : '#BFDBFE',
-    infoText: isDark ? '#93C5FD' : '#1E40AF',
+    info: isDark ? 'rgba(35,139,69,0.15)' : '#EAF6ED',
+    infoBorder: isDark ? 'rgba(35,139,69,0.30)' : 'rgba(35,139,69,0.20)',
+    infoText: isDark ? '#A3D9B1' : '#174B2A',
   };
 
   useEffect(() => {
@@ -184,7 +184,7 @@ export function PublicAnimalPage() {
           </p>
           <Link to="/" style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '11px 22px', borderRadius: 10, background: 'linear-gradient(135deg,#FF3B30,#FF7A18)',
+            padding: '11px 22px', borderRadius: 10, background: 'linear-gradient(135deg,#238B45,#176B35)',
             color: '#fff', fontSize: 13, fontWeight: 700, textDecoration: 'none',
           }}>
             <PawPrint size={15} /> Go to AlpasFarm
@@ -213,14 +213,14 @@ export function PublicAnimalPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#FF3B30,#FF7A18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#238B45,#176B35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <PawPrint size={16} color="#fff" />
           </div>
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#FF7A18' }}>AlpasFarm</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#238B45' }}>AlpasFarm</span>
         </Link>
         <span style={{
           fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999,
-          background: 'rgba(255,122,24,0.15)', color: '#FF7A18', letterSpacing: '0.5px',
+          background: '#EAF6ED', color: '#176B35', letterSpacing: '0.5px',
           textTransform: 'uppercase',
         }}>
           QR View
@@ -238,10 +238,10 @@ export function PublicAnimalPage() {
           ) : (
             <div style={{
               width: 56, height: 56, borderRadius: 14,
-              background: 'linear-gradient(135deg, rgba(255,59,48,0.20), rgba(255,122,24,0.15))',
-              border: `2px solid rgba(255,122,24,0.30)`,
+              background: '#EAF6ED',
+              border: `2px solid rgba(35,139,69,0.30)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 24, fontWeight: 900, color: '#FF7A18', flexShrink: 0,
+              fontSize: 24, fontWeight: 900, color: '#238B45', flexShrink: 0,
             }}>
               {animal.name[0]?.toUpperCase()}
             </div>
@@ -279,8 +279,8 @@ export function PublicAnimalPage() {
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-              background: 'rgba(255,122,24,0.10)', border: '1px solid rgba(255,122,24,0.25)',
-              color: '#FF7A18',
+              background: '#EAF6ED', border: '1px solid rgba(35,139,69,0.25)',
+              color: '#176B35',
             }}>
               <PawPrint size={11} /> {animal.farm_name}
             </span>
@@ -314,9 +314,9 @@ export function PublicAnimalPage() {
             {/* Quick stats strip */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {[
-                { label: 'Weight', value: animal.weight_kg ? `${animal.weight_kg}kg` : '—', icon: Scale, color: '#3B82F6' },
+                { label: 'Weight', value: animal.weight_kg ? `${animal.weight_kg}kg` : '—', icon: Scale, color: '#238B45' },
                 { label: 'Temp', value: animal.current_temperature ? `${animal.current_temperature}°C` : '—', icon: HeartPulse, color: riskColor(animal.health_risk_score) },
-                { label: 'HR', value: animal.current_heart_rate ? `${animal.current_heart_rate}bpm` : '—', icon: Heart, color: '#EC4899' },
+                { label: 'HR', value: animal.current_heart_rate ? `${animal.current_heart_rate}bpm` : '—', icon: Heart, color: '#176B35' },
               ].map((s) => (
                 <div key={s.label} style={{ background: T.card, borderRadius: 14, padding: '12px 10px', border: `1px solid ${T.border}`, textAlign: 'center' }}>
                   <s.icon size={18} color={s.color} style={{ margin: '0 auto 5px' }} />
@@ -359,7 +359,7 @@ export function PublicAnimalPage() {
             {/* Identity card */}
             <div style={{ background: T.card, borderRadius: 16, padding: '14px 16px', border: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <PawPrint size={15} color="#FF7A18" />
+                <PawPrint size={15} color="#238B45" />
                 <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Identity</span>
               </div>
               <Row label="Species" value={animal.species} T={T} />
@@ -437,7 +437,7 @@ export function PublicAnimalPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ background: T.card, borderRadius: 16, padding: '16px', border: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <Heart size={15} color="#EC4899" />
+                <Heart size={15} color="#238B45" />
                 <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Breeding</span>
               </div>
               <Row label="Status" value={animal.breeding_status} T={T} bold />
@@ -447,7 +447,7 @@ export function PublicAnimalPage() {
 
             <div style={{ background: T.card, borderRadius: 16, padding: '16px', border: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <Syringe size={15} color="#FF7A18" />
+                <Syringe size={15} color="#238B45" />
                 <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Vaccination</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${T.divider}` }}>
@@ -466,7 +466,7 @@ export function PublicAnimalPage() {
 
             <div style={{ background: T.card, borderRadius: 16, padding: '16px', border: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <Scale size={15} color="#3B82F6" />
+                <Scale size={15} color="#238B45" />
                 <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Weight</span>
               </div>
               <Row label="Current Weight" value={animal.weight_kg ? `${animal.weight_kg} kg` : 'Not recorded'} T={T} bold />
@@ -491,9 +491,9 @@ export function PublicAnimalPage() {
           <Link to="/" style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
             padding: '11px 0', borderRadius: 12,
-            background: 'linear-gradient(135deg, #FF3B30, #FF7A18)',
+            background: 'linear-gradient(135deg, #238B45, #176B35)',
             color: '#fff', fontSize: 13, fontWeight: 700, textDecoration: 'none',
-            boxShadow: '0 4px 16px rgba(255,59,48,0.30)',
+            boxShadow: '0 4px 16px rgba(35,139,69,0.30)',
           }}>
             <Sparkles size={14} /> Open AlpasFarm
           </Link>

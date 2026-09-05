@@ -46,27 +46,27 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       switch (variant) {
         case 'primary':
           return {
-            background: 'var(--color-primary-gradient, linear-gradient(135deg, #43A047 0%, #2E7D32 100%))',
+            background: '#238B45',
             color: '#FFFFFF',
             border: 'none',
-            boxShadow: '0 4px 14px rgba(67, 160, 71, 0.35)',
+            boxShadow: '0 4px 14px rgba(35, 139, 69, 0.25)',
           };
         case 'secondary':
           return {
-            background: 'var(--color-surface, #FFFFFF)',
-            color: 'var(--color-text-primary, #1F2933)',
-            border: '1px solid var(--color-border, #DDE7DF)',
+            background: 'transparent',
+            color: '#176B35',
+            border: '1px solid #238B45',
           };
         case 'outline':
           return {
             background: 'transparent',
-            color: 'var(--color-primary, #43A047)',
-            border: '1.5px solid var(--color-primary, #43A047)',
+            color: '#176B35',
+            border: '1.5px solid #238B45',
           };
         case 'ghost':
           return {
-            background: 'transparent',
-            color: 'var(--color-text-secondary, #667085)',
+            background: '#EAF6ED',
+            color: '#176B35',
             border: 'none',
           };
         case 'danger':
@@ -78,10 +78,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           };
         case 'success':
           return {
-            background: 'var(--color-success, #2E7D32)',
+            background: '#238B45',
             color: '#FFFFFF',
             border: 'none',
-            boxShadow: '0 4px 14px rgba(46, 125, 50, 0.30)',
+            boxShadow: '0 4px 14px rgba(35, 139, 69, 0.25)',
           };
         case 'warning':
           return {
@@ -93,18 +93,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         case 'icon':
           return {
             background: 'var(--color-surface, #FFFFFF)',
-            color: 'var(--color-text-primary, #1F2933)',
-            border: '1px solid var(--color-border, #DDE7DF)',
-            padding: 0,
-            borderRadius: 'var(--radius-md, 14px)',
+            color: '#176B35',
+            border: '1px solid rgba(35, 139, 69, 0.15)',
           };
         case 'floating':
           return {
-            background: 'var(--color-primary-gradient, linear-gradient(135deg, #43A047 0%, #2E7D32 100%))',
+            background: '#238B45',
             color: '#FFFFFF',
             border: 'none',
             borderRadius: '50%',
-            boxShadow: 'var(--shadow-floating, 0 12px 32px rgba(67, 160, 71, 0.35))',
+            boxShadow: '0 8px 24px rgba(35, 139, 69, 0.35)',
             padding: 0,
           };
         default:

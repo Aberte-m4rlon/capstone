@@ -23,12 +23,12 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 function ToastIcon({ type }: { type: 'success' | 'error' | 'warning' | 'info' }) {
   const bg =
     type === 'success'
-      ? 'var(--color-success, #10B981)'
+      ? 'var(--color-success, #238B45)'
       : type === 'error'
       ? 'var(--color-danger, #EF4444)'
       : type === 'warning'
       ? 'var(--color-warning, #F59E0B)'
-      : 'var(--color-info, #3B82F6)';
+      : 'var(--color-info, #238B45)';
 
   return (
     <span
@@ -63,12 +63,12 @@ function ToastItem({ toast: t, onRemove }: { toast: Toast; onRemove: () => void 
 
   const border =
     t.type === 'success'
-      ? 'rgba(16, 185, 129, 0.35)'
+      ? 'rgba(35, 139, 69, 0.35)'
       : t.type === 'error'
       ? 'rgba(239, 68, 68, 0.35)'
       : t.type === 'warning'
       ? 'rgba(245, 158, 11, 0.35)'
-      : 'rgba(59, 130, 246, 0.35)';
+      : 'rgba(35, 139, 69, 0.35)';
 
   return (
     <div

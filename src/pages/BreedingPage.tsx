@@ -606,19 +606,19 @@ export function BreedingPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: fStatus === 'Pregnant' ? '2px solid #EC4899' : undefined,
+            border: fStatus === 'Pregnant' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#EC4899' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Buntis (Pregnant)
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Baby size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#EC4899' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {breedingStats.pregnant}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -633,19 +633,19 @@ export function BreedingPage() {
           className="stat-card"
           style={{
             cursor: 'pointer',
-            border: fStatus === 'Mated' ? '2px solid #3B82F6' : undefined,
+            border: fStatus === 'Mated' ? '2px solid #238B45' : undefined,
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Mating
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <HeartHandshake size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {breedingStats.mating}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -662,15 +662,15 @@ export function BreedingPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#F59E0B' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
               Manganganak
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Calendar size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#F59E0B' }}>
+            <div className="stat-card-value" style={{ color: '#238B45' }}>
               {breedingStats.expectedKidding}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -1016,7 +1016,7 @@ export function BreedingPage() {
                               variant="secondary"
                               size="sm"
                               onClick={() => openRegisterOffspring(b)}
-                              leftIcon={<Baby size={14} color="#FF6A00" />}
+                              leftIcon={<Baby size={14} color="#238B45" />}
                               title="Magrehistro ng supling"
                             >
                               Supling
@@ -1136,7 +1136,7 @@ export function BreedingPage() {
                       variant="secondary"
                       size="sm"
                       onClick={() => openRegisterOffspring(b)}
-                      leftIcon={<Baby size={14} color="#FF6A00" />}
+                      leftIcon={<Baby size={14} color="#238B45" />}
                       style={{ minHeight: 40 }}
                     >
                       Supling
@@ -1427,8 +1427,8 @@ export function BreedingPage() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Tag size={16} color="#FF6A00" />
-                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #FF6A00)', letterSpacing: '0.02em' }}>
+                    <Tag size={16} color="var(--color-primary, #238B45)" />
+                    <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary, #238B45)', letterSpacing: '0.02em' }}>
                       {offspringForm.tag_id || 'Bumubuo ng ID...'}
                     </span>
                   </div>

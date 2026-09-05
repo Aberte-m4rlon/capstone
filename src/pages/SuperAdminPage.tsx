@@ -65,9 +65,9 @@ type Tab = 'dashboard' | 'users' | 'system';
 
 // ── Role badge colours ─────────────────────────────────────────────────────────
 function roleBadge(role: UserRole) {
-  if (role === 'super_admin') return { bg: 'rgba(139,92,246,0.15)', color: '#7C3AED', border: 'rgba(139,92,246,0.35)', label: 'Super Admin' };
-  if (role === 'system_admin') return { bg: 'rgba(217,45,32,0.12)', color: '#D92D20', border: 'rgba(217,45,32,0.25)', label: 'System Admin' };
-  return { bg: 'rgba(255,106,42,0.12)', color: '#FF7A18', border: 'rgba(255,106,42,0.25)', label: 'Farm Manager' };
+  if (role === 'super_admin') return { bg: '#EAF6ED', color: '#176B35', border: 'rgba(23,107,53,0.25)', label: 'Super Admin' };
+  if (role === 'system_admin') return { bg: '#DDF0E2', color: '#238B45', border: 'rgba(35,139,69,0.25)', label: 'System Admin' };
+  return { bg: '#F4FAF5', color: '#50645A', border: 'rgba(80,100,90,0.20)', label: 'Farm Manager' };
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -322,9 +322,9 @@ export function SuperAdminPage() {
   const tabStyle = (t: Tab): React.CSSProperties => ({
     padding: '9px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700,
     cursor: 'pointer', border: 'none', whiteSpace: 'nowrap', transition: 'all 0.18s',
-    background: tab === t ? 'linear-gradient(135deg,#7C3AED,#9D4EDD)' : 'transparent',
+    background: tab === t ? '#238B45' : 'transparent',
     color: tab === t ? '#fff' : 'var(--text-secondary)',
-    boxShadow: tab === t ? '0 4px 12px rgba(124,58,237,0.35)' : 'none',
+    boxShadow: tab === t ? '0 4px 12px rgba(35,139,69,0.30)' : 'none',
   });
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -335,7 +335,7 @@ export function SuperAdminPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-text-primary, #0f172a)', margin: 0 }}>
-            <Crown size={22} color="#7C3AED" /> Super Admin Panel (Buong Kontrol sa Sistema)
+            <Crown size={22} color="#238B45" /> Super Admin Panel (Buong Kontrol sa Sistema)
           </h1>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4 }}>
             Buong pamamahala at kontrol sa sistema — <strong style={{ color: 'var(--color-text-primary, #0f172a)' }}>{user?.email}</strong>
@@ -370,18 +370,18 @@ export function SuperAdminPage() {
       {tab === 'dashboard' && (
         <>
           <div className="dashboard-stats stats-grid" style={{ marginBottom: 24 }}>
-            <StatCard icon={<Users size={18} />} accentColor="blue" value={loading ? '—' : stats.totalUsers} label="Kabuuang mga User" />
-            <StatCard icon={<Crown size={18} />} accentColor="red" value={loading ? '—' : stats.superAdmins} label="Super Admins" />
-            <StatCard icon={<ShieldCheck size={18} />} accentColor="orange" value={loading ? '—' : stats.sysAdmins} label="System Admins" />
+            <StatCard icon={<Users size={18} />} accentColor="green" value={loading ? '—' : stats.totalUsers} label="Kabuuang mga User" />
+            <StatCard icon={<Crown size={18} />} accentColor="green" value={loading ? '—' : stats.superAdmins} label="Super Admins" />
+            <StatCard icon={<ShieldCheck size={18} />} accentColor="green" value={loading ? '—' : stats.sysAdmins} label="System Admins" />
             <StatCard icon={<CheckCircle size={18} />} accentColor="green" value={loading ? '—' : stats.farmManagers} label="Farm Managers" />
-            <StatCard icon={<PawPrint size={18} />} accentColor="blue" value={loading ? '—' : stats.totalAnimals} label="Kabuuang mga Hayop" />
-            <StatCard icon={<HeartPulse size={18} />} accentColor="orange" value={loading ? '—' : stats.totalHealth} label="Mga Health Record" />
+            <StatCard icon={<PawPrint size={18} />} accentColor="green" value={loading ? '—' : stats.totalAnimals} label="Kabuuang mga Hayop" />
+            <StatCard icon={<HeartPulse size={18} />} accentColor="green" value={loading ? '—' : stats.totalHealth} label="Mga Health Record" />
           </div>
 
           {/* Role distribution */}
           <Card variant="glass" padding="lg" style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <UserCog size={16} color="#7C3AED" /> Distribusyon ng mga Tungkulin (Roles)
+              <UserCog size={16} color="#238B45" /> Distribusyon ng mga Tungkulin (Roles)
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {[
@@ -403,7 +403,7 @@ export function SuperAdminPage() {
           {/* Recent users */}
           <Card variant="glass" padding="none">
             <div style={{ fontWeight: 800, fontSize: 15, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border-light)' }}>
-              <Users size={16} color="#7C3AED" /> Lahat ng Nakarehistrong User
+              <Users size={16} color="#238B45" /> Lahat ng Nakarehistrong User
             </div>
             {loading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
@@ -541,7 +541,7 @@ export function SuperAdminPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Activity size={16} color="#7C3AED" /> Kalusugan ng Sistema (System Health)
+              <Activity size={16} color="#238B45" /> Kalusugan ng Sistema (System Health)
             </div>
             {[
               { label: 'Authentication (Pag-login / Pagrehistro)', status: 'Maayos / Umaandar', ok: true },
@@ -560,7 +560,7 @@ export function SuperAdminPage() {
 
           <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ShieldCheck size={16} color="#7C3AED" /> Antas ng mga Tungkulin (Role Hierarchy)
+              <ShieldCheck size={16} color="#238B45" /> Antas ng mga Tungkulin (Role Hierarchy)
             </div>
             {[
               { r: 'super_admin' as UserRole, desc: 'Buong access sa sistema. Namamahala sa lahat ng user, tungkulin, at mga setting ng buong platform.' },
@@ -579,7 +579,7 @@ export function SuperAdminPage() {
 
           <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Database size={16} color="#7C3AED" /> Impormasyon ng Database
+              <Database size={16} color="#238B45" /> Impormasyon ng Database
             </div>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
               <span><strong>Project:</strong> bsotlxbvanpwengftfli</span>
@@ -595,7 +595,7 @@ export function SuperAdminPage() {
           {/* ML Model Status */}
           <Card variant="glass" padding="lg">
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Brain size={16} color="#7C3AED" /> Modelo ng AI Health Risk (Machine Learning)
+              <Brain size={16} color="#238B45" /> Modelo ng AI Health Risk (Machine Learning)
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <Badge variant={mlCanPredict ? 'success' : 'warning'} size="sm">
@@ -655,7 +655,7 @@ export function SuperAdminPage() {
           <ModalHeader
             title="Palitan ang Tungkulin"
             subtitle={editRoleUser.email}
-            icon={<UserCog size={18} color="#7C3AED" />}
+            icon={<UserCog size={18} color="#238B45" />}
           />
           <ModalBody>
             <div style={{ marginBottom: 16 }}>
@@ -670,8 +670,8 @@ export function SuperAdminPage() {
               </Select>
             </FormField>
             {newRole === 'super_admin' && (
-              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.25)', marginTop: 12, fontSize: 12, color: 'var(--color-text-secondary, #475569)', display: 'flex', gap: 8 }}>
-                <AlertTriangle size={14} color="#7C3AED" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: '#EAF6ED', border: '1px solid rgba(35,139,69,0.25)', marginTop: 12, fontSize: 12, color: 'var(--color-text-secondary, #475569)', display: 'flex', gap: 8 }}>
+                <AlertTriangle size={14} color="#238B45" style={{ flexShrink: 0, marginTop: 1 }} />
                 Ang Super Admin ay may buong kontrol sa buong platform. Ipagkaloob lamang ito sa mga pinagkakatiwalaang kawani.
               </div>
             )}

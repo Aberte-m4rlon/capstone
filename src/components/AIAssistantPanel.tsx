@@ -715,9 +715,9 @@ export function AIAssistantPanel({ open, onClose }: Props) {
 
   const tagIcon = (tag?: string) => {
     if (tag === 'alert') return <AlertCircle size={11} color="#EF4444" />;
-    if (tag === 'insight') return <Brain size={11} color="#7C3AED" />;
+    if (tag === 'insight') return <Brain size={11} color="#238B45" />;
     if (tag === 'briefing') return <Zap size={11} color="#F59E0B" />;
-    if (tag === 'info') return <Lightbulb size={11} color="#3B82F6" />;
+    if (tag === 'info') return <Lightbulb size={11} color="#176B35" />;
     return null;
   };
 
@@ -745,10 +745,10 @@ export function AIAssistantPanel({ open, onClose }: Props) {
         {/* Status bar */}
         {!farmData.loading && (
           <div style={{ display: 'flex', gap: 8, padding: '6px 14px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
-            {ml.healthModel?.canPredict && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Brain size={10} color="#FF7A18"/>Pagsusuri sa Kalusugan</span>}
-            {anomalies.length > 0 && <span style={{ fontSize: 11, color: '#FF3B30', display:'flex', alignItems:'center', gap:3 }}><AlertCircle size={10}/>{anomalies.length} anomalya</span>}
-            {ml.growthPredictions.filter(g=>g.model).length > 0 && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><TrendingUp size={10} color="#FF9F0A"/>{ml.growthPredictions.filter(g=>g.model).length} pagtataya sa paglaki</span>}
-            {ml.clusters && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Zap size={10} color="#FFB340"/>{ml.clusters.k} mga pangkat</span>}
+            {ml.healthModel?.canPredict && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Brain size={10} color="#238B45"/>Pagsusuri sa Kalusugan</span>}
+            {anomalies.length > 0 && <span style={{ fontSize: 11, color: '#EF4444', display:'flex', alignItems:'center', gap:3 }}><AlertCircle size={10}/>{anomalies.length} anomalya</span>}
+            {ml.growthPredictions.filter(g=>g.model).length > 0 && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><TrendingUp size={10} color="#238B45"/>{ml.growthPredictions.filter(g=>g.model).length} pagtataya sa paglaki</span>}
+            {ml.clusters && <span style={{ fontSize: 11, color: 'var(--text-secondary)', display:'flex', alignItems:'center', gap:3 }}><Zap size={10} color="#176B35"/>{ml.clusters.k} mga pangkat</span>}
           </div>
         )}
 

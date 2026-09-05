@@ -43,14 +43,14 @@ const CATEGORY_TAGLISH: Record<ActivityCategory, string> = {
 };
 
 const CATEGORY_COLORS: Record<ActivityCategory, string> = {
-  Animal:      '#FF7A18',
-  Health:      '#FF3B30',
-  Weight:      '#FF9F0A',
-  Breeding:    '#FF7A18',
-  Vaccination: '#FFB340',
-  Feed:        '#FF9F0A',
-  Milk:        '#FFB340',
-  Inventory:   '#D92D20',
+  Animal:      '#238B45',
+  Health:      '#176B35',
+  Weight:      '#238B45',
+  Breeding:    '#176B35',
+  Vaccination: '#238B45',
+  Feed:        '#238B45',
+  Milk:        '#176B35',
+  Inventory:   '#238B45',
 };
 
 const CATEGORY_ICON_COMPONENTS: Record<ActivityCategory, LucideIcon> = {
@@ -102,7 +102,7 @@ export function ActivityLogPage() {
         description: `${animalName(r.animal_id)} — Antas ng Panganib: ${riskLabel} (${r.risk_score})${r.reasons ? ` · ${r.reasons.split(';')[0].trim()}` : ''}`,
         animal: animalName(r.animal_id),
         icon: 'HeartPulse',
-        color: r.risk_level === 'Critical' ? '#FF3B30' : r.risk_level === 'High' ? '#FF7A18' : r.risk_level === 'Moderate' ? '#FF9F0A' : '#FFB340',
+        color: r.risk_level === 'Critical' ? '#EF4444' : r.risk_level === 'High' ? '#EF4444' : r.risk_level === 'Moderate' ? '#F59E0B' : '#238B45',
       });
     });
 

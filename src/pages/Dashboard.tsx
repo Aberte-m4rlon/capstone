@@ -813,19 +813,19 @@ export function Dashboard() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: '12.5px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, color: '#3B82F6' }}>{speciesBreakdown.goat.male}</span>
+                <span style={{ fontWeight: 800, color: '#176B35' }}>{speciesBreakdown.goat.male}</span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Lalaki (Male)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, color: '#EC4899' }}>{speciesBreakdown.goat.female}</span>
+                <span style={{ fontWeight: 800, color: '#238B45' }}>{speciesBreakdown.goat.female}</span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Babae (Female)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, color: '#10B981' }}>{speciesBreakdown.goat.healthy}</span>
+                <span style={{ fontWeight: 800, color: '#238B45' }}>{speciesBreakdown.goat.healthy}</span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Malusog</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, color: speciesBreakdown.goat.attention > 0 ? '#EF4444' : '#64748B' }}>{speciesBreakdown.goat.attention}</span>
+                <span style={{ fontWeight: 800, color: speciesBreakdown.goat.attention > 0 ? '#EF4444' : '#50645A' }}>{speciesBreakdown.goat.attention}</span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Kailangan Bantayan</span>
               </div>
             </div>
@@ -838,7 +838,7 @@ export function Dashboard() {
             style={{
               padding: '16px 18px',
               borderRadius: 22,
-              border: speciesFilter === 'Sheep' ? '2px solid #3B82F6' : '1px solid rgba(23, 107, 53, 0.10)',
+              border: speciesFilter === 'Sheep' ? '2px solid #238B45' : '1px solid rgba(23, 107, 53, 0.10)',
               cursor: 'pointer',
               display: 'flex',
               flexDirection: 'column',
@@ -847,26 +847,26 @@ export function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--color-text-primary, #174B2A)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <Layers size={17} color="#3B82F6" />
+                <Layers size={17} color="#238B45" />
                 Kabuuan ng mga Tupa (Sheep)
               </span>
               <Badge variant="info" size="sm">{speciesBreakdown.sheep.total} Ulo</Badge>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: '12.5px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, color: '#3B82F6' }}>{speciesBreakdown.sheep.male}</span>
+                <span style={{ fontWeight: 800, color: '#176B35' }}>{speciesBreakdown.sheep.male}</span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Lalaki (Male)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, color: '#EC4899' }}>{speciesBreakdown.sheep.female}</span>
+                <span style={{ fontWeight: 800, color: '#238B45' }}>{speciesBreakdown.sheep.female}</span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Babae (Female)</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, color: '#10B981' }}>{speciesBreakdown.sheep.healthy}</span>
+                <span style={{ fontWeight: 800, color: '#238B45' }}>{speciesBreakdown.sheep.healthy}</span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Malusog</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontWeight: 800, color: speciesBreakdown.sheep.attention > 0 ? '#EF4444' : '#64748B' }}>{speciesBreakdown.sheep.attention}</span>
+                <span style={{ fontWeight: 800, color: speciesBreakdown.sheep.attention > 0 ? '#EF4444' : '#50645A' }}>{speciesBreakdown.sheep.attention}</span>
                 <span style={{ color: 'var(--color-text-secondary)' }}>Kailangan Bantayan</span>
               </div>
             </div>
@@ -1027,7 +1027,7 @@ export function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <Layers size={16} color="var(--color-primary, #FF6A2A)" />
+                        <Layers size={16} color="var(--color-primary, #238B45)" />
                         <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-text-primary)' }}>
                           {item.animal.name} ({item.animal.tag_id})
                         </span>
@@ -1140,15 +1140,15 @@ export function Dashboard() {
             }}
           >
             <div className="alpas-stat-header">
-              <span className="stat-card-label" style={{ fontWeight: 700, color: '#EC4899' }}>
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
                 Handa sa Pagpapalahi
               </span>
-              <div className="stat-card-icon" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <PawPrint size={16} />
               </div>
             </div>
             <div>
-              <div className="stat-card-value" style={{ color: '#EC4899' }}>
+              <div className="stat-card-value" style={{ color: '#238B45' }}>
                 {breedingStats.readyToBreedCount} <span style={{ fontSize: '11px', fontWeight: 600 }}>babae</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -1168,15 +1168,15 @@ export function Dashboard() {
             }}
           >
             <div className="alpas-stat-header">
-              <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
                 May Rekord ng Pagtatalik
               </span>
-              <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Activity size={16} />
               </div>
             </div>
             <div>
-              <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+              <div className="stat-card-value" style={{ color: '#238B45' }}>
                 {breedingStats.activeMatingCount} <span style={{ fontSize: '11px', fontWeight: 600 }}>rekord</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -1356,15 +1356,15 @@ export function Dashboard() {
             }}
           >
             <div className="alpas-stat-header">
-              <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+              <span className="stat-card-label" style={{ fontWeight: 700, color: inventoryStats.expiringCount > 0 ? '#F59E0B' : '#176B35' }}>
                 {FARM_LABELS.cardExpiringSoon}
               </span>
-              <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="stat-card-icon" style={{ background: inventoryStats.expiringCount > 0 ? 'rgba(245, 158, 11, 0.15)' : '#EAF6ED', color: inventoryStats.expiringCount > 0 ? '#F59E0B' : '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Package size={16} />
               </div>
             </div>
             <div>
-              <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+              <div className="stat-card-value" style={{ color: inventoryStats.expiringCount > 0 ? '#F59E0B' : '#238B45' }}>
                 {inventoryStats.expiringCount}
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -1408,15 +1408,15 @@ export function Dashboard() {
             }}
           >
             <div className="alpas-stat-header">
-              <span className="stat-card-label" style={{ fontWeight: 700, color: '#3B82F6' }}>
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
                 Kabuuang Gamit
               </span>
-              <div className="stat-card-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Package size={16} />
               </div>
             </div>
             <div>
-              <div className="stat-card-value" style={{ color: '#3B82F6' }}>
+              <div className="stat-card-value" style={{ color: '#238B45' }}>
                 {inventoryStats.totalItems} <span style={{ fontSize: '11px', fontWeight: 600 }}>uri</span>
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -1548,7 +1548,7 @@ export function Dashboard() {
               <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', display: 'block' }}>
                 Bilihin Ngayong Buwan (Purchases):
               </span>
-              <span style={{ fontSize: '17px', fontWeight: 800, color: '#3B82F6' }}>
+              <span style={{ fontSize: '17px', fontWeight: 800, color: '#238B45' }}>
                 ₱{inventoryStats.spentThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -1559,7 +1559,7 @@ export function Dashboard() {
               <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', display: 'block' }}>
                 Nagamit sa Bukid Ngayong Buwan (Usage/Feeds/Vaccines):
               </span>
-              <span style={{ fontSize: '17px', fontWeight: 800, color: '#F59E0B' }}>
+              <span style={{ fontSize: '17px', fontWeight: 800, color: '#176B35' }}>
                 ₱{inventoryStats.consumedValueMonth.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>

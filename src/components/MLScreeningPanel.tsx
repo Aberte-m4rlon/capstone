@@ -22,18 +22,18 @@ import type { HealthRecord, Animal } from '../types';
 // ── Colour helpers ────────────────────────────────────────────────────────────
 
 function statusColor(s: MLScreeningResult['screening_status'] | undefined): string {
-  if (s === 'needs_attention') return '#F97316';
-  return '#16A34A';
+  if (s === 'needs_attention') return '#EF4444';
+  return '#238B45';
 }
 
 function statusBg(s: MLScreeningResult['screening_status'] | undefined): string {
-  if (s === 'needs_attention') return 'rgba(249,115,22,0.10)';
-  return 'rgba(22,163,74,0.10)';
+  if (s === 'needs_attention') return 'rgba(239,68,68,0.10)';
+  return '#EAF6ED';
 }
 
 function statusBorder(s: MLScreeningResult['screening_status'] | undefined): string {
-  if (s === 'needs_attention') return 'rgba(249,115,22,0.30)';
-  return 'rgba(22,163,74,0.25)';
+  if (s === 'needs_attention') return 'rgba(239,68,68,0.30)';
+  return 'rgba(35,139,69,0.25)';
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -104,11 +104,11 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
           display: 'inline-flex', alignItems: 'center', gap: 7,
           padding: '9px 16px', borderRadius: 10, border: 'none',
           background: status === 'ready'
-            ? 'linear-gradient(135deg, rgba(124,58,237,0.18), rgba(124,58,237,0.10))'
+            ? 'linear-gradient(135deg, rgba(35,139,69,0.18), rgba(35,139,69,0.08))'
             : 'var(--surface)',
           borderWidth: 1, borderStyle: 'solid',
-          borderColor: status === 'ready' ? 'rgba(124,58,237,0.35)' : 'var(--border)',
-          color: status === 'ready' ? '#7C3AED' : 'var(--text-secondary)',
+          borderColor: status === 'ready' ? 'rgba(35,139,69,0.35)' : 'var(--border)',
+          color: status === 'ready' ? '#238B45' : 'var(--text-secondary)',
           fontSize: 13, fontWeight: 700, cursor: status === 'ready' ? 'pointer' : 'not-allowed',
           transition: 'all 0.2s',
         }}
@@ -162,12 +162,12 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Brain size={17} color="#7C3AED" />
+          <Brain size={17} color="#238B45" />
           <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>Pagsusuri sa Kalusugan</span>
         </div>
         <button
           onClick={() => runScreening(record, animal)}
-          style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(124,58,237,0.3)', background: 'rgba(124,58,237,0.06)', color: '#7C3AED', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+          style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px solid rgba(35,139,69,0.3)', background: 'rgba(35,139,69,0.08)', color: '#238B45', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
         >
           <Zap size={11} /> Re-run
         </button>
@@ -228,8 +228,8 @@ export function MLScreeningPanel({ record, animal, autoRun = false, compact = fa
       {/* Disclaimer */}
       <div style={{
         display: 'flex', gap: 8, padding: '9px 12px', borderRadius: 9,
-        background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.20)',
-        fontSize: 11, color: '#3B82F6', lineHeight: 1.55,
+        background: 'rgba(35,139,69,0.08)', border: '1px solid rgba(35,139,69,0.20)',
+        fontSize: 11, color: '#176B35', lineHeight: 1.55,
       }}>
         <Info size={13} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>{result.disclaimer}</span>

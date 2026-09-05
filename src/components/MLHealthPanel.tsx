@@ -10,35 +10,35 @@ import type { MLHealthPrediction } from '../lib/mlHealth';
 
 function riskColor(level: string): string {
   if (level === 'Critical') return '#EF4444';
-  if (level === 'High') return '#F97316';
+  if (level === 'High') return '#F59E0B';
   if (level === 'Moderate') return '#F59E0B';
-  return '#16A34A';
+  return '#238B45';
 }
 
 function riskBg(level: string): string {
   if (level === 'Critical') return 'rgba(239,68,68,0.10)';
-  if (level === 'High') return 'rgba(249,115,22,0.10)';
+  if (level === 'High') return 'rgba(245,158,11,0.10)';
   if (level === 'Moderate') return 'rgba(245,158,11,0.10)';
-  return 'rgba(22,163,74,0.10)';
+  return '#EAF6ED';
 }
 
 function combinedColor(assessment: string): string {
   if (assessment === 'Critical') return '#EF4444';
-  if (assessment === 'Alert') return '#F97316';
-  if (assessment === 'Monitor') return '#F59E0B';
-  return '#3B82F6';
+  if (assessment === 'Alert') return '#F59E0B';
+  if (assessment === 'Monitor') return '#176B35';
+  return '#238B45';
 }
 
 function TrendIcon({ trend }: { trend: string }) {
   if (trend === 'Worsening') return <TrendingUp size={14} color="#EF4444" />;
-  if (trend === 'Improving') return <TrendingDown size={14} color="#16A34A" />;
+  if (trend === 'Improving') return <TrendingDown size={14} color="#238B45" />;
   return <Minus size={14} color="#F59E0B" />;
 }
 
 function DirectionIcon({ dir }: { dir: 'up' | 'down' | 'neutral' }) {
   if (dir === 'up') return <span style={{ color: '#EF4444', fontSize: 11 }}>↑</span>;
-  if (dir === 'down') return <span style={{ color: '#16A34A', fontSize: 11 }}>↓</span>;
-  return <span style={{ color: '#94A3B8', fontSize: 11 }}>→</span>;
+  if (dir === 'down') return <span style={{ color: '#238B45', fontSize: 11 }}>↓</span>;
+  return <span style={{ color: '#78877F', fontSize: 11 }}>→</span>;
 }
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Brain size={18} color="#7C3AED" />
+          <Brain size={18} color="#238B45" />
           <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>Pagsusuri sa Kalusugan</span>
         </div>
         {onRerun && (
