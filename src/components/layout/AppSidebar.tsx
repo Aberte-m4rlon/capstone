@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, ShieldCheck } from 'lucide-react';
 import { AlpasLogo } from './AlpasLogo';
@@ -27,6 +28,8 @@ export function AppSidebar({
   user,
 }: AppSidebarProps) {
   const navigate = useNavigate();
+  const [isHovered, setIsHovered] = useState(false);
+
   // Dynamic Navigation Items strictly based on active user role
   const navItems = getNavItemsForRole(role);
 
@@ -52,12 +55,23 @@ export function AppSidebar({
     ? user.email.charAt(0).toUpperCase()
     : 'U';
 
-  // Desktop & Tablet Floating Capsule Navbar (Icon-only, 9999px border-radius)
+  // Desktop & Tablet Floating Capsule Navbar with Horizontal Hover Expansion (80px -> 260px)
   if (!isMobile) {
     return (
-      <aside className="alpas-sidebar desktop-sidebar" aria-label="Main Navigation">
+      <aside
+        className={`alpas-sidebar desktop-sidebar ${isHovered ? 'expanded' : ''}`}
+        aria-label="Main Navigation"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onFocus={() => setIsHovered(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) {
+            setIsHovered(false);
+          }
+        }}
+      >
         <div className="alpas-sidebar-inner">
-          {/* ── Top: Circular ALPASFARM Logo Container (48px) ── */}
+          {/* ── Top: ALPASFARM Logo Container (Collapsed: 48px circle, Expanded: Brand Header) ── */}
           <div className="alpas-nav-logo-wrap">
             <button
               type="button"
@@ -65,14 +79,20 @@ export function AppSidebar({
               className="alpas-nav-logo-btn"
               aria-label="AlpasFarm Dashboard"
             >
-              <GoatIcon size={26} color="#176B35" strokeWidth={2.4} />
+              <div className="alpas-nav-logo-icon">
+                <GoatIcon size={26} color="#176B35" strokeWidth={2.4} />
+              </div>
+              <div className="alpas-nav-logo-text-group">
+                <span className="alpas-nav-logo-title">ALPASFARM</span>
+                <span className="alpas-nav-logo-subtitle">Goat & Sheep Farm Management</span>
+              </div>
               <span className="alpas-nav-tooltip" role="tooltip">
                 ALPASFARM
               </span>
             </button>
           </div>
 
-          {/* ── Center: Vertical Icons List (Icon-only, hover tooltips) ── */}
+          {/* ── Center: Vertical Icons List (Fixed Left Icon Column, Hover reveals labels) ── */}
           <div className="alpas-nav-scroll-area">
             <nav className="alpas-nav-list" aria-label="Primary Navigation">
               {navItems.map((item) => {
@@ -94,7 +114,7 @@ export function AppSidebar({
             </nav>
           </div>
 
-          {/* ── Bottom: User Profile Avatar with Subtle Green Ring (44px) ── */}
+          {/* ── Bottom: User Profile Section (Collapsed: Avatar only, Expanded: Avatar + Name + Role) ── */}
           <div className="alpas-nav-profile-wrap">
             <button
               type="button"
@@ -102,15 +122,21 @@ export function AppSidebar({
               className="alpas-profile-avatar-btn"
               aria-label="Aking Profile at Settings"
             >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={userName || 'Avatar'}
-                  className="alpas-profile-avatar-img"
-                />
-              ) : (
-                <span className="alpas-profile-avatar-initials">{initials}</span>
-              )}
+              <div className="alpas-profile-avatar-box">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={userName || 'Avatar'}
+                    className="alpas-profile-avatar-img"
+                  />
+                ) : (
+                  <span className="alpas-profile-avatar-initials">{initials}</span>
+                )}
+              </div>
+              <div className="alpas-profile-info-group">
+                <span className="alpas-profile-name">{userName || 'User'}</span>
+                <span className="alpas-profile-role">{displayRoleLabel}</span>
+              </div>
               <span className="alpas-nav-tooltip" role="tooltip">
                 {userName ? `${userName} · ${displayRoleLabel}` : displayRoleLabel}
               </span>

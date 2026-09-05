@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Moon,
   Sun,
-  Menu,
   Search,
   Bell,
   Settings,
@@ -32,7 +31,7 @@ export interface SearchResult {
 export interface AppHeaderProps {
   title: string;
   subtitle?: string;
-  onOpenMobileNav: () => void;
+  onOpenMobileNav?: () => void;
   user: any;
   role: string | null;
   signOut: () => Promise<void>;
@@ -195,21 +194,18 @@ export function AppHeader({
 
   return (
     <header className="topbar">
-      {/* ── Left Section: Mobile Hamburger Toggle + Page Heading ── */}
+      {/* ── Left Section: Mobile Brand / Desktop Page Heading ── */}
       <div className="topbar-left">
-        <button
-          type="button"
-          className="topbar-hamburger-btn"
-          onClick={onOpenMobileNav}
-          aria-label="Open navigation menu"
+        {/* Mobile Header Branding: ALPASFARM (No hamburger menu) */}
+        <div
+          className="topbar-mobile-brand"
+          onClick={() => navigate(role === 'super_admin' ? '/super-admin' : '/dashboard')}
+          role="button"
+          tabIndex={0}
+          aria-label="AlpasFarm Home"
         >
-          <Menu size={20} />
-        </button>
-
-        {/* Mobile Header Branding: ☰ ALPASFARM 🔔 👤 */}
-        <div className="topbar-mobile-brand">
           <div className="topbar-mobile-logo-wrap">
-            <GoatIcon size={18} color="var(--color-primary, #43A047)" strokeWidth={2.4} />
+            <GoatIcon size={20} color="#238B45" strokeWidth={2.4} />
           </div>
           <span className="topbar-mobile-brand-title">ALPASFARM</span>
         </div>
