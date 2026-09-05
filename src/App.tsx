@@ -129,9 +129,10 @@ function AppRoutes() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage />} />
+        <Route path="/forgot-password" element={<AuthPage />} />
         <Route path="/public/:id" element={<PublicAnimalPage />} />
-        {/* Redirect everything else to landing */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Redirect unauthenticated requests to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
   }

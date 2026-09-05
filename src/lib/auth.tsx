@@ -98,6 +98,7 @@ interface AuthContextValue {
   signUp: (opts: SignUpOptions) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   verifyEmailOtp: (email: string, token: string, extraData?: { fullName?: string; farmName?: string }) => Promise<{ error: string | null }>;
   resendVerificationCode: (email: string) => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null; message?: string }>;
   // ── SMS / Phone Auth Methods ──
   signInWithPhoneOtp: (phone: string) => Promise<{ error: string | null; message?: string }>;
   signUpWithPhoneOtp: (opts: PhoneSignUpOptions) => Promise<{ error: string | null; message?: string }>;
@@ -254,7 +255,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const farmLocation = opts.farmLocation?.trim() || '';
 
     if (!email || !password || !fullName || !farmName) {
-      return { error: 'All required fields must be filled in.', needsConfirmation: false };
+      return { error: 'Pakilagay ang lahat ng kinakailangang impormasyon.', needsConfirmation: false };
+    }
+
+    if (password.length < 8) {
+      return { error: 'Ang password ay dapat may sapat na haba (hindi bababa sa 8 karakter).', needsConfirmation: false };
     }
 
     // 1. Create account & send verification via Firebase
@@ -276,15 +281,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error && !fbSignUp.success) {
       const msg = error.message?.toLowerCase() ?? '';
       if (msg.includes('already registered') || msg.includes('user already exists') || msg.includes('already been registered')) {
-        return { error: 'This email is already registered. Please sign in.', needsConfirmation: false };
+        return { error: 'May gumagamit na ng email na ito. Mangyaring mag-sign in.', needsConfirmation: false };
       }
       if (msg.includes('password') || msg.includes('weak')) {
-        return { error: 'Password is too weak. Use at least 8 characters with mixed case and a number.', needsConfirmation: false };
+        return { error: 'Ang password ay dapat may sapat na haba (hindi bababa sa 8 karakter).', needsConfirmation: false };
       }
       if (msg.includes('invalid') && msg.includes('email')) {
-        return { error: 'Please enter a valid email address.', needsConfirmation: false };
+        return { error: 'Pakilagay ang wastong email address.', needsConfirmation: false };
       }
-      return { error: fbSignUp.error || 'Unable to create account. Please try again.', needsConfirmation: false };
+      return { error: 'Hindi makagawa ng account sa ngayon. Pakisubukang muli mamaya.', needsConfirmation: false };
     }
 
     if (data?.user?.id) {
@@ -334,48 +339,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const trimmedPassword = password.trim();
 
     if (!trimmedEmail || !trimmedPassword) {
-      return { error: 'Invalid email or password.' };
+      return { error: '❌ Hindi tama ang email o password.' };
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: trimmedEmail,
-      password: trimmedPassword,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
 
-    if (error) {
-      const msg = error.message?.toLowerCase() ?? '';
-      if (
-        msg.includes('invalid') ||
-        msg.includes('credentials') ||
-        msg.includes('password') ||
-        msg.includes('not found') ||
-        msg.includes('email')
-      ) {
-        return { error: 'Invalid email or password.' };
+      if (error) {
+        const msg = error.message?.toLowerCase() ?? '';
+        if (
+          msg.includes('invalid') ||
+          msg.includes('credentials') ||
+          msg.includes('password') ||
+          msg.includes('not found') ||
+          msg.includes('email')
+        ) {
+          return { error: '❌ Hindi tama ang email o password.' };
+        }
+        if (msg.includes('not confirmed') || msg.includes('email_not_confirmed')) {
+          return { error: 'Pakikumpirma muna ang iyong email address bago mag-sign in.' };
+        }
+        if (msg.includes('fetch') || msg.includes('network') || msg.includes('enotfound')) {
+          return { error: 'Hindi makakonekta sa authentication server. Pakisubukang muli mamaya.' };
+        }
+        return { error: '❌ Hindi tama ang email o password.' };
       }
-      if (msg.includes('not confirmed')) {
-        return { error: 'Please verify your email address before signing in.' };
+
+      if (!data.user) {
+        return { error: '❌ Hindi tama ang email o password.' };
       }
-      return { error: 'Unable to sign in right now. Please try again.' };
+
+      const p = await fetchProfile(data.user.id, data.user.email);
+
+      if (!p.is_active) {
+        await supabase.auth.signOut();
+        setSession(null);
+        setProfile(null);
+        return {
+          error: '❌ Hindi aktibo ang iyong account. Makipag-ugnayan sa administrator.',
+        };
+      }
+
+      setProfile(p);
+      return { error: null };
+    } catch {
+      return { error: 'Hindi makakonekta sa authentication server. Pakisubukang muli mamaya.' };
     }
-
-    if (!data.user) {
-      return { error: 'Invalid email or password.' };
-    }
-
-    const p = await fetchProfile(data.user.id, data.user.email);
-
-    if (!p.is_active) {
-      await supabase.auth.signOut();
-      setSession(null);
-      setProfile(null);
-      return {
-        error: 'Your account is currently inactive. Please contact the system administrator.',
-      };
-    }
-
-    setProfile(p);
-    return { error: null };
   };
 
       // ── Sign in with Email Code (Sent via Firebase) ─────────────────────────────
@@ -792,6 +804,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ── Reset Password ──────────────────────────────────────────────────────────
+  const resetPassword = async (email: string): Promise<{ error: string | null; message?: string }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      return { error: 'Pakilagay ang iyong email address.' };
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(trimmedEmail)) {
+      return { error: 'Pakilagay ang wastong email address.' };
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) {
+        console.warn('resetPassword supabase notice:', error.message);
+      }
+      return {
+        error: null,
+        message: 'Ipinadala na ang link sa pag-reset ng password sa iyong email kung ito ay nakarehistro.',
+      };
+    } catch {
+      return {
+        error: null,
+        message: 'Ipinadala na ang link sa pag-reset ng password sa iyong email kung ito ay nakarehistro.',
+      };
+    }
+  };
+
   // ── Sign out ─────────────────────────────────────────────────────────────────
   const signOut = async () => {
     localStorage.removeItem('alpas_phone_user');
@@ -813,10 +855,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: profile?.role ?? null,
         loading,
         signIn,
-    signInWithEmailOtp,
+        signInWithEmailOtp,
         signUp,
         verifyEmailOtp,
         resendVerificationCode,
+        resetPassword,
         signInWithPhoneOtp,
         signUpWithPhoneOtp,
         verifyPhoneOtp,
