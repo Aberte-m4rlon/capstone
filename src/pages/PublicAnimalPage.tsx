@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PawPrint, AlertCircle, HeartPulse, Scale, Heart, Syringe, FileText, ArrowLeft, Sparkles, ExternalLink } from 'lucide-react';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { AlpasFarmLogo } from '../components/common/AlpasFarmLogo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PublicAnimal {
@@ -212,11 +213,8 @@ export function PublicAnimalPage() {
         padding: '12px 16px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#238B45,#176B35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <PawPrint size={16} color="#fff" />
-          </div>
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#238B45' }}>AlpasFarm</span>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} aria-label="AlpasFarm Home">
+          <AlpasFarmLogo size="mobile-header" style={{ maxHeight: 30, width: 'auto' }} />
         </Link>
         <span style={{
           fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999,

@@ -18,7 +18,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
-import { GoatIcon } from './GoatIcon';
+import { AlpasFarmLogo } from '../common/AlpasFarmLogo';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord, Notification } from '../../types';
 
 export interface SearchResult {
@@ -229,9 +229,9 @@ export function AppHeader({
   return (
     <div className="topbar-wrapper">
       <header className="topbar">
-        {/* ── Left Section: Mobile Brand / Desktop Page Heading ── */}
+        {/* ── Left Section: Mobile Brand / Desktop Page Heading & Brand ── */}
         <div className="topbar-left">
-          {/* Mobile Header Branding: ALPASFARM (No hamburger menu) */}
+          {/* Mobile Header Branding: Official ALPASFARM Logo (Compact, Vertically Centered, No hamburger menu) */}
           <div
             className="topbar-mobile-brand"
             onClick={() => navigate(role === 'super_admin' ? '/super-admin' : '/dashboard')}
@@ -239,10 +239,18 @@ export function AppHeader({
             tabIndex={0}
             aria-label="AlpasFarm Home"
           >
-            <div className="topbar-mobile-logo-wrap">
-              <GoatIcon size={20} color="#238B45" strokeWidth={2.4} />
-            </div>
-            <span className="topbar-mobile-brand-title">ALPASFARM</span>
+            <AlpasFarmLogo size="mobile-header" />
+          </div>
+
+          {/* Desktop Header Branding: Compact Official ALPASFARM Logo */}
+          <div
+            className="topbar-desktop-brand"
+            onClick={() => navigate(role === 'super_admin' ? '/super-admin' : '/dashboard')}
+            role="button"
+            tabIndex={0}
+            aria-label="AlpasFarm Home"
+          >
+            <AlpasFarmLogo size="header" />
           </div>
 
           {/* Desktop Heading Group */}

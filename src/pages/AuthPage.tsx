@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, defaultRouteForRole } from '../lib/auth';
 import { formatPhoneNumber } from '../lib/sms';
 import { useToast } from '../components/ui/Toast';
-import { GoatIcon } from '../components/layout/GoatIcon';
+import { AlpasFarmLogo } from '../components/common/AlpasFarmLogo';
 import {
   Eye, EyeOff, User, Lock, ArrowRight, AlertCircle,
   Mail, Building2, MapPin, CheckCircle2, UserPlus, LogIn,
@@ -1057,37 +1057,32 @@ export function AuthPage() {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // ── HEADER: CIRCULAR GLASS GOAT LOGO & BRANDING ────────────────────────────
+  // ── HEADER: OFFICIAL ALPASFARM LOGO & BRANDING ────────────────────────────
   // ════════════════════════════════════════════════════════════════════════════
   const logoBlock = (
-    <div style={{ textAlign: 'center', marginBottom: view === 'signup' ? 18 : 24 }}>
+    <div style={{ textAlign: 'center', marginBottom: view === 'signup' ? 14 : 18 }}>
       <div style={{
-        width: 68,
-        height: 68,
-        borderRadius: '9999px',
-        background: 'linear-gradient(135deg, rgba(35, 139, 69, 0.15) 0%, rgba(23, 107, 53, 0.08) 100%)',
-        border: '1.5px solid rgba(35, 139, 69, 0.22)',
-        color: '#238B45',
-        display: 'inline-flex',
-        alignItems: 'center',
+        display: 'flex',
         justifyContent: 'center',
+        alignItems: 'center',
         marginBottom: 10,
-        boxShadow: '0 8px 24px rgba(23, 107, 53, 0.12)',
       }}>
-        <GoatIcon size={34} color="#238B45" strokeWidth={2.4} />
+        <AlpasFarmLogo size="login" />
       </div>
       <h1 style={{
-        fontSize: 'clamp(22px, 4vw, 26px)',
+        fontSize: 'clamp(20px, 3.8vw, 24px)',
         fontWeight: 900,
         color: 'var(--text, #174B2A)',
         letterSpacing: '-0.5px',
         margin: '0 0 4px',
         lineHeight: 1.2,
       }}>
-        ALPAS<span style={{ color: '#238B45' }}>FARM</span>
+        {view === 'signup' ? 'Gumawa ng Account' : 'Magandang araw!'}
       </h1>
       <p style={{ fontSize: 13, color: 'var(--text-secondary, #4B6F57)', margin: 0, fontWeight: 500 }}>
-        Matalinong Pamamahala ng Bukid ng Kambing at Tupa
+        {view === 'signup'
+          ? 'Mag-register para makapagsimula sa ALPASFARM.'
+          : 'Mag-sign in sa iyong account'}
       </p>
     </div>
   );

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, ShieldCheck } from 'lucide-react';
 import { AlpasLogo } from './AlpasLogo';
-import { GoatIcon } from './GoatIcon';
+import { AlpasFarmLogo } from '../common/AlpasFarmLogo';
 import { SidebarItem } from './SidebarItem';
 import { AICloudLauncher } from './AICloudLauncher';
 import { getNavItemsForRole } from './navigationConfig';
@@ -71,21 +71,27 @@ export function AppSidebar({
         }}
       >
         <div className="alpas-sidebar-inner">
-          {/* ── Top: ALPASFARM Logo Container (Collapsed: 48px circle, Expanded: Brand Header) ── */}
+          {/* ── Top: ALPASFARM Logo Container (Collapsed: Emblem, Expanded: Full Official Logo) ── */}
           <div className="alpas-nav-logo-wrap">
             <button
               type="button"
               onClick={() => navigate(role === 'super_admin' ? '/super-admin' : '/dashboard')}
-              className="alpas-nav-logo-btn"
+              className={`alpas-nav-logo-btn ${isHovered ? 'is-expanded' : 'is-collapsed'}`}
               aria-label="AlpasFarm Dashboard"
+              style={{
+                width: isHovered ? '100%' : 52,
+                justifyContent: isHovered ? 'center' : 'center',
+                padding: isHovered ? '4px 6px' : 0,
+                borderRadius: isHovered ? 14 : '50%',
+              }}
             >
-              <div className="alpas-nav-logo-icon">
-                <GoatIcon size={26} color="#176B35" strokeWidth={2.4} />
-              </div>
-              <div className="alpas-nav-logo-text-group">
-                <span className="alpas-nav-logo-title">ALPASFARM</span>
-                <span className="alpas-nav-logo-subtitle">Goat & Sheep Farm Management</span>
-              </div>
+              {isHovered ? (
+                <AlpasFarmLogo size="sidebar" />
+              ) : (
+                <div className="alpas-nav-logo-icon">
+                  <AlpasFarmLogo variant="emblem" />
+                </div>
+              )}
               <span className="alpas-nav-tooltip" role="tooltip">
                 ALPASFARM
               </span>

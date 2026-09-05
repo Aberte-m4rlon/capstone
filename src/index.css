@@ -6627,8 +6627,23 @@ input[type="time"] {
   display: flex !important;
 }
 
+.topbar-desktop-brand {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+  margin-right: 8px !important;
+  padding-right: 14px !important;
+  border-right: 1px solid rgba(35, 139, 69, 0.16) !important;
+  line-height: 0 !important;
+}
+
+[data-theme="dark"] .topbar-desktop-brand {
+  border-right-color: rgba(35, 139, 69, 0.3) !important;
+}
+
 .topbar-mobile-brand {
-  display: none;
+  display: none !important;
 }
 
 /* ── RESPONSIVE ADAPTABILITY ── */
@@ -6718,24 +6733,17 @@ input[type="time"] {
     border: none !important;
   }
 
+  .topbar-desktop-brand {
+    display: none !important;
+  }
+
   .topbar-mobile-brand {
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
     min-width: 0 !important;
     cursor: pointer !important;
     user-select: none !important;
-  }
-
-  .topbar-mobile-logo-wrap {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 32px !important;
-    height: 32px !important;
-    border-radius: 50% !important;
-    background: rgba(35, 139, 69, 0.12) !important;
-    flex-shrink: 0 !important;
+    line-height: 0 !important;
   }
 
   .topbar-mobile-brand-title {
@@ -6914,5 +6922,150 @@ input[type="time"] {
   .dashboard-stats-3col {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
+}
+
+/* ==================================================
+   OFFICIAL ALPASFARM SYSTEM LOGO STYLES
+   ================================================== */
+.alpas-official-logo-img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* 1. Landing Page Hero Logo */
+.alpas-logo-hero {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 0 auto 28px !important;
+  width: 100% !important;
+  max-width: 340px !important;
+}
+
+.alpas-logo-hero .alpas-official-logo-img {
+  width: clamp(260px, 28vw, 340px) !important;
+  height: auto !important;
+  max-height: 220px !important;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .alpas-logo-hero {
+    max-width: 280px !important;
+  }
+  .alpas-logo-hero .alpas-official-logo-img {
+    width: clamp(220px, 26vw, 280px) !important;
+    max-height: 190px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .alpas-logo-hero {
+    max-width: 220px !important;
+    margin-bottom: 20px !important;
+  }
+  .alpas-logo-hero .alpas-official-logo-img {
+    width: clamp(170px, 52vw, 220px) !important;
+    max-height: 150px !important;
+  }
+}
+
+/* 2. Login & Sign Up Form Logo */
+.alpas-logo-login {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 0 auto 16px !important;
+  width: 100% !important;
+}
+
+.alpas-logo-login .alpas-official-logo-img {
+  width: clamp(180px, 22vw, 220px) !important;
+  height: auto !important;
+  max-height: 140px !important;
+}
+
+@media (max-width: 767px) {
+  .alpas-logo-login {
+    margin-bottom: 12px !important;
+  }
+  .alpas-logo-login .alpas-official-logo-img {
+    width: clamp(150px, 46vw, 185px) !important;
+    max-height: 115px !important;
+  }
+}
+
+/* 3. Header Logo - Desktop */
+.alpas-logo-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  cursor: pointer !important;
+}
+
+.alpas-logo-header .alpas-official-logo-img {
+  width: clamp(115px, 10vw, 140px) !important;
+  max-height: 44px !important;
+  height: auto !important;
+}
+
+/* 4. Header Logo - Mobile */
+.alpas-logo-mobile-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  height: 100% !important;
+}
+
+.alpas-logo-mobile-header .alpas-official-logo-img {
+  width: clamp(90px, 26vw, 115px) !important;
+  max-height: 38px !important;
+  height: auto !important;
+}
+
+/* 5. Desktop Floating Navbar - Expanded */
+.alpas-logo-sidebar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  padding: 4px 8px !important;
+  cursor: pointer !important;
+}
+
+.alpas-logo-sidebar .alpas-official-logo-img {
+  width: 165px !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: 58px !important;
+}
+
+/* 6. Desktop Floating Navbar - Collapsed Emblem */
+.alpas-logo-emblem-wrap {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(35, 139, 69, 0.08) !important;
+  border: 1px solid rgba(35, 139, 69, 0.20) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.alpas-logo-emblem-wrap:hover {
+  transform: scale(1.05) !important;
+  box-shadow: 0 4px 12px rgba(23, 107, 53, 0.18) !important;
+}
+
+[data-theme="dark"] .alpas-logo-emblem-wrap {
+  background: rgba(35, 139, 69, 0.16) !important;
+  border-color: rgba(35, 139, 69, 0.35) !important;
 }
 

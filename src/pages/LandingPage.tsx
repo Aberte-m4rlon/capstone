@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
+import { AlpasFarmLogo } from '../components/common/AlpasFarmLogo';
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -42,20 +43,20 @@ export function LandingPage() {
         zIndex: 100,
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
       }}>
-        <div style={{ fontSize: 20, fontWeight: 900, display: 'flex', alignItems: 'center', gap: 10, color: 'var(--accent)', letterSpacing: '-0.5px' }}>
-          <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, var(--accent), var(--accent-secondary))',
+        <div
+          onClick={() => navigate('/')}
+          style={{
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 8px 24px rgba(35, 139, 69, 0.3)'
-          }}>
-            <PawPrint size={22} color="#fff" />
-          </div>
-          AlpasFarm
+            textDecoration: 'none',
+          }}
+          aria-label="AlpasFarm Home"
+        >
+          <AlpasFarmLogo
+            size="header"
+            style={{ maxHeight: 38, width: 'auto' }}
+          />
         </div>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <button 
@@ -77,7 +78,7 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <section style={{ 
-        padding: '100px 40px', 
+        padding: '80px 24px 100px', 
         textAlign: 'center',
         background: `linear-gradient(135deg, 
           rgba(35, 139, 69, 0.08) 0%, 
@@ -86,51 +87,53 @@ export function LandingPage() {
         position: 'relative',
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          {/* ── Official ALPASFARM Logo (Centered Horizontally) ── */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 24,
+          }}>
+            <AlpasFarmLogo size="hero" />
+          </div>
+
           <div style={{
             display: 'inline-block',
-            padding: '8px 16px',
+            padding: '8px 18px',
             borderRadius: 999,
             background: 'var(--surface)',
             border: '1px solid var(--border)',
-            marginBottom: 24,
-            fontSize: 12,
+            marginBottom: 20,
+            fontSize: 13,
             fontWeight: 700,
             color: 'var(--accent)',
             textTransform: 'uppercase',
-            letterSpacing: '0.5px',
+            letterSpacing: '0.8px',
           }}>
-            Premium Farm Management Platform
+            Smart Farm, Healthy Herd
           </div>
 
           <h1 style={{
-            fontSize: '56px',
+            fontSize: 'clamp(28px, 4.5vw, 50px)',
             fontWeight: 900,
-            marginBottom: 24,
+            marginBottom: 20,
             color: 'var(--text)',
             letterSpacing: '-1px',
-            lineHeight: 1.1,
+            lineHeight: 1.15,
           }}>
-            Smart Farm Management<br />
-            <span style={{
-              background: 'linear-gradient(135deg, var(--text) 0%, var(--accent) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>
-              for Goats &amp; Sheep
-            </span>
+            Goat &amp; Sheep Farm Management System
           </h1>
 
           <p style={{
-            fontSize: '18px',
-            marginBottom: 40,
+            fontSize: 'clamp(15px, 1.8vw, 18px)',
+            marginBottom: 36,
             color: 'var(--text-secondary)',
             maxWidth: 700,
-            margin: '0 auto 40px',
+            margin: '0 auto 36px',
             lineHeight: 1.8,
             fontWeight: 500,
           }}>
-            Track health, breeding, nutrition, and more with AI-powered insights. Transform your farm into a data-driven operation.
+            Matalinong pamamahala sa kalusugan, pagpaparami (breeding), nutrisyon, screening, at imbentaryo gamit ang modernong AI at real-time analytics.
           </p>
 
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -140,14 +143,14 @@ export function LandingPage() {
               onClick={() => navigate('/login')}
               rightIcon={<ArrowRight size={18} />}
             >
-              Get Started Free
+              Mag-sign In
             </Button>
             <Button 
               variant="secondary"
               size="lg"
-              onClick={() => document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => navigate('/login?mode=signup')}
             >
-              Learn More
+              Mag-sign Up
             </Button>
           </div>
         </div>
@@ -567,9 +570,8 @@ export function LandingPage() {
         color: 'var(--text-secondary)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontWeight: 800 }}>
-            <PawPrint size={18} />
-            AlpasFarm
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+            <AlpasFarmLogo size="header" style={{ maxHeight: 32, width: 'auto' }} />
           </div>
           <p>&copy; 2026 AlpasFarm. Premium Smart Farm Management for Goats &amp; Sheep.</p>
         </div>
