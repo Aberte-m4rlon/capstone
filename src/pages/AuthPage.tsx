@@ -109,6 +109,7 @@ export function AuthPage() {
     signUpWithPhoneOtp,
     verifyPhoneOtp,
     resendPhoneOtp,
+    signInWithGoogle,
     role,
   } = useAuth();
 
@@ -257,6 +258,21 @@ export function AuthPage() {
     // Success notification and redirect
     toast.success('Magandang araw! Naka-sign in ka na.');
     navigate(defaultRouteForRole(role), { replace: true });
+  };
+
+  // ── Google Sign In (Gmail 1-Click via Firebase) ────────────────────────────
+  const handleGoogleSignIn = async () => {
+    if (loading) return;
+    setError(null);
+    setLoading(true);
+    const { error: err } = await signInWithGoogle();
+    setLoading(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    toast.success('Magandang araw! Matagumpay na nag-sign in gamit ang Google.');
+    navigate(defaultRouteForRole(role || 'farm_manager'), { replace: true });
   };
 
   // ── Send Email OTP Code for Sign In ───────────────────────────────────────
@@ -1418,6 +1434,45 @@ export function AuthPage() {
                       <Sparkles size={14} color="#176B35" />
                       Mag-sign In gamit ang 6-Digit Email Code
                     </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 8px' }}>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
+                      <span style={{ fontSize: 11, color: 'var(--text-secondary, #4B6F57)', fontWeight: 600 }}>o mag-sign in gamit ang Gmail</span>
+                      <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={loading}
+                      style={{
+                        width: '100%',
+                        height: 44,
+                        padding: '0 16px',
+                        background: '#FFFFFF',
+                        border: '1px solid rgba(35, 139, 69, 0.25)',
+                        borderRadius: 9999,
+                        color: '#174B2A',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 10,
+                        boxSizing: 'border-box',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                      </svg>
+                      Magpatuloy gamit ang Google
+                    </button>
                   </div>
                 </form>
               ) : (
@@ -1909,6 +1964,45 @@ export function AuthPage() {
                         <UserPlus size={16} /> Mag-sign Up
                       </>
                     )}
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 8px' }}>
+                    <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #4B6F57)', fontWeight: 600 }}>o magrehistro gamit ang Gmail</span>
+                    <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                    style={{
+                      width: '100%',
+                      height: 44,
+                      padding: '0 16px',
+                      background: '#FFFFFF',
+                      border: '1px solid rgba(35, 139, 69, 0.25)',
+                      borderRadius: 9999,
+                      color: '#174B2A',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 10,
+                      boxSizing: 'border-box',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                    </svg>
+                    Magrehistro gamit ang Google
                   </button>
                 </form>
               ) : (

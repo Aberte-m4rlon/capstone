@@ -12,6 +12,9 @@ import {
   isSignInWithEmailLink,
   signInWithEmailLink,
   applyActionCode,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
   type UserCredential,
   type User as FirebaseUser,
 } from 'firebase/auth';
@@ -308,4 +311,81 @@ export function checkFirebaseIncomingEmailLink(): {
   const isEmailLink = isSignInWithEmailLink(firebaseAuth, window.location.href);
   const savedEmail = window.localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY);
   return { isEmailLink, savedEmail };
+}
+
+/**
+ * Sign in with Google via Firebase Authentication
+ */
+export async function signInWithGoogleFirebase(): Promise<{
+  success: boolean;
+  user?: FirebaseUser;
+  error?: string;
+}> {
+  if (!isFirebaseConfigured() || !firebaseAuth) {
+    return {
+      success: false,
+      error: 'Firebase is not configured.',
+    };
+  }
+
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const userCredential = await signInWithPopup(firebaseAuth, provider);
+    return {
+      success: true,
+      user: userCredential.user,
+    };
+  } catch (err: any) {
+    console.error('[Firebase Google Auth] Sign in error:', err);
+    if (err.code === 'auth/popup-closed-by-user') {
+      return {
+        success: false,
+        error: 'Kinansela ang Google sign-in.',
+      };
+    }
+    return {
+      success: false,
+      error: err?.message || 'Nabigo ang Google sign-in.',
+    };
+  }
+}
+
+/**
+ * Send password reset email directly via Google Firebase
+ */
+export async function sendFirebasePasswordReset(email: string): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+}> {
+  if (!isFirebaseConfigured() || !firebaseAuth) {
+    return {
+      success: false,
+      error: 'Firebase is not configured.',
+    };
+  }
+
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail) {
+    return {
+      success: false,
+      error: 'Pakilagay ang iyong email address.',
+    };
+  }
+
+  try {
+    const actionCodeSettings = getActionCodeSettings(trimmedEmail);
+    await sendPasswordResetEmail(firebaseAuth, trimmedEmail, actionCodeSettings);
+    return {
+      success: true,
+      message: 'Ipinadala na ang password reset link sa iyong email (' + trimmedEmail + ').',
+    };
+  } catch (err: any) {
+    console.error('[Firebase Password Reset] Error:', err);
+    return {
+      success: false,
+      error: err?.message || 'Hindi maipadala ang password reset email.',
+    };
+  }
 }

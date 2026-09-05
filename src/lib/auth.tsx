@@ -1,15 +1,23 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { sendSmsOtp, verifySmsOtp, formatPhoneNumber } from './sms';
-import { isFirebaseConfigured } from './firebase';
-import { sendFirebasePhoneOtp, verifyFirebasePhoneOtp } from './firebasePhoneAuth';
+import { formatPhoneNumber } from './sms';
+import { isFirebaseConfigured, firebaseAuth } from './firebase';
+import {
+  sendFirebasePhoneOtp,
+  verifyFirebasePhoneOtp,
+  clearFirebasePhoneOtpCache,
+} from './firebasePhoneAuth';
 import {
   sendFirebaseEmailSignInCode,
   signUpWithFirebase,
+  signInWithFirebase,
   verifyFirebaseEmailLinkOrCode,
   checkFirebaseIncomingEmailLink,
+  signInWithGoogleFirebase,
+  sendFirebasePasswordReset,
 } from './firebaseEmailAuth';
+import { onAuthStateChanged } from 'firebase/auth';
 
 // ─── Role definitions ─────────────────────────────────────────────────────────
 export type UserRole = 'super_admin' | 'system_admin' | 'farm_manager';
@@ -104,6 +112,7 @@ interface AuthContextValue {
   signUpWithPhoneOtp: (opts: PhoneSignUpOptions) => Promise<{ error: string | null; message?: string }>;
   verifyPhoneOtp: (phone: string, token: string, extraData?: { fullName?: string; farmName?: string; farmLocation?: string }) => Promise<{ error: string | null }>;
   resendPhoneOtp: (phone: string) => Promise<{ error: string | null; message?: string }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -205,6 +214,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // 2. Listen to Firebase Auth state changes
+    let fbUnsubscribe: (() => void) | null = null;
+    if (isFirebaseConfigured() && firebaseAuth) {
+      fbUnsubscribe = onAuthStateChanged(firebaseAuth, async (fbUser) => {
+        if (!mounted) return;
+        if (fbUser) {
+          const email = fbUser.email || (fbUser.phoneNumber ? `${fbUser.phoneNumber.replace(/[^0-9]/g, '')}@phone.alpasfarm.local` : null);
+          const p = await fetchProfile(fbUser.uid, email);
+          if (mounted) {
+            setProfile(p);
+            setSession({
+              user: {
+                id: fbUser.uid,
+                email: email || undefined,
+                phone: fbUser.phoneNumber || undefined,
+                app_metadata: {},
+                user_metadata: { full_name: fbUser.displayName || p.full_name || 'Farm Manager' },
+                aud: 'authenticated',
+                created_at: fbUser.metadata.creationTime || new Date().toISOString(),
+              } as any,
+              access_token: await fbUser.getIdToken().catch(() => `fb_${fbUser.uid}`),
+              refresh_token: fbUser.refreshToken || `refresh_${fbUser.uid}`,
+              expires_in: 3600,
+              token_type: 'bearer',
+            });
+            setLoading(false);
+          }
+        }
+      });
+
+      // 3. Check if user opened the page from a Firebase email sign-in link
+      const { isEmailLink, savedEmail } = checkFirebaseIncomingEmailLink();
+      if (isEmailLink) {
+        let emailToUse = savedEmail;
+        if (!emailToUse && typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          emailToUse = urlParams.get('email');
+        }
+        if (emailToUse) {
+          verifyFirebaseEmailLinkOrCode(emailToUse, window.location.href)
+            .then(async (res) => {
+              if (res.success && res.user && mounted) {
+                const p = await fetchProfile(res.user.uid, res.user.email);
+                setProfile(p);
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    }
+
+    // 4. Supabase session listener (for legacy accounts)
     supabase.auth
       .getSession()
       .then(async ({ data }) => {
@@ -233,7 +294,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         const hasPhoneSession = localStorage.getItem('alpas_phone_user');
-        if (!hasPhoneSession) {
+        const hasFbUser = firebaseAuth?.currentUser;
+        if (!hasPhoneSession && !hasFbUser) {
           setProfile(null);
           setSession(null);
         }
@@ -243,6 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
+      if (fbUnsubscribe) fbUnsubscribe();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -333,7 +396,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null, needsConfirmation: true };
   };
 
-  // ── Sign in with Email + Password ───────────────────────────────────────────
+  // ── Sign in with Email + Password (Firebase + Supabase fallback) ────────────
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
@@ -343,6 +406,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      // 1. Try Firebase Authentication first
+      const fbRes = await signInWithFirebase(trimmedEmail, trimmedPassword);
+      if (fbRes.success && fbRes.user) {
+        const p = await fetchProfile(fbRes.user.uid, fbRes.user.email);
+        if (!p.is_active) {
+          await signOut();
+          return { error: '❌ Hindi aktibo ang iyong account. Makipag-ugnayan sa administrator.' };
+        }
+        setProfile(p);
+        return { error: null };
+      }
+
+      // 2. Fallback to Supabase for pre-existing accounts
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password: trimmedPassword,
@@ -362,10 +438,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (msg.includes('not confirmed') || msg.includes('email_not_confirmed')) {
           return { error: 'Pakikumpirma muna ang iyong email address bago mag-sign in.' };
         }
-        if (msg.includes('fetch') || msg.includes('network') || msg.includes('enotfound')) {
-          return { error: 'Hindi makakonekta sa authentication server. Pakisubukang muli mamaya.' };
-        }
-        return { error: '❌ Hindi tama ang email o password.' };
+        return { error: fbRes.error || '❌ Hindi tama ang email o password.' };
       }
 
       if (!data.user) {
@@ -390,34 +463,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-      // ── Sign in with Email Code (Sent via Firebase) ─────────────────────────────
+  // ── Sign in with Email OTP (Firebase Link/Code) ─────────────────────────────
   const signInWithEmailOtp = async (email: string): Promise<{ error: string | null; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) return { error: 'Please enter your email address.' };
+    if (!trimmedEmail) return { error: 'Pakilagay ang iyong email address.' };
 
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRe.test(trimmedEmail)) return { error: 'Please enter a valid email address.' };
+    if (!emailRe.test(trimmedEmail)) return { error: 'Pakilagay ang wastong email address.' };
 
-    // 1. Dispatch directly via Google Firebase
-    const fbRes = await sendFirebaseEmailSignInCode(trimmedEmail);
-    if (!fbRes.success) {
-      // Fallback to Supabase OTP if Firebase encounters a network/domain issue
-      const { error: sbErr } = await supabase.auth.signInWithOtp({
-        email: trimmedEmail,
-        options: { shouldCreateUser: false },
-      });
-      if (sbErr) {
-        return { error: fbRes.message || sbErr.message || 'Failed to send verification code to email.' };
+    try {
+      const fbRes = await sendFirebaseEmailSignInCode(trimmedEmail);
+      if (!fbRes.success) {
+        return { error: fbRes.message || 'Hindi maipadala ang verification mula sa Firebase.' };
       }
-    }
 
-    return {
-      error: null,
-      message: 'Verification code sent to ' + trimmedEmail + '.',
-    };
+      return {
+        error: null,
+        message: fbRes.message || `Ipinadala na ang verification link/code sa iyong email (${trimmedEmail}). Pakitingnan ang iyong inbox o i-click ang link.`,
+      };
+    } catch (err: any) {
+      return { error: err?.message || 'Hindi maipadala ang verification code sa email.' };
+    }
   };
 
-  // ── Verify Email OTP / Code (Firebase + Supabase) ───────────────────────────
+  // ── Verify Email OTP / Code (Firebase) ──────────────────────────────────────
   const verifyEmailOtp = async (
     email: string,
     token: string,
@@ -427,10 +496,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const trimmedToken = token.trim();
 
     if (!trimmedEmail) return { error: 'Email address is required.' };
-    if (!trimmedToken) return { error: 'Please enter the verification code.' };
+    if (!trimmedToken) return { error: 'Please enter the verification code or click the email link.' };
 
     try {
-      // 1. Check Firebase Email Verification / Code
+      // Primary: Google Firebase verification
       const fbVerify = await verifyFirebaseEmailLinkOrCode(trimmedEmail, trimmedToken);
       if (fbVerify.success && fbVerify.user) {
         const uid = fbVerify.user.uid;
@@ -470,160 +539,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: null };
       }
 
-      // 2. Check Supabase OTP verification
-      let res = await supabase.auth.verifyOtp({
+      // Fallback for legacy 6-digit numeric OTP code if sent prior
+      const { data: supaData, error: supaErr } = await supabase.auth.verifyOtp({
         email: trimmedEmail,
         token: trimmedToken,
         type: 'email',
       });
-
-      if (res.error) {
-        const signupRetry = await supabase.auth.verifyOtp({
-          email: trimmedEmail,
-          token: trimmedToken,
-          type: 'signup',
-        });
-        if (!signupRetry.error && signupRetry.data.user) {
-          res = signupRetry;
-        }
-      }
-
-      if (res.error) {
-        const mlRetry = await supabase.auth.verifyOtp({
-          email: trimmedEmail,
-          token: trimmedToken,
-          type: 'magiclink',
-        });
-        if (!mlRetry.error && mlRetry.data.user) {
-          res = mlRetry;
-        }
-      }
-
-      if (res.error) {
-        if (fbVerify.success) {
-          return { error: null };
-        }
-        const msg = res.error.message?.toLowerCase() ?? '';
-        if (msg.includes('expired')) {
-          return { error: 'The verification code has expired. Please click "Resend Code" to get a new code.' };
-        }
-        if (msg.includes('invalid') || msg.includes('token') || msg.includes('otp')) {
-          return { error: 'Invalid verification code. Please check your email and try again.' };
-        }
-        return { error: res.error.message || 'Verification failed. Please try again.' };
-      }
-
-      if (res.data.session && res.data.user) {
-        setSession(res.data.session);
-        const p = await fetchProfile(res.data.user.id, res.data.user.email);
-
-        if (extraData?.fullName && (!p.full_name || p.full_name === '')) {
-          try {
-            await supabase.from('profiles').upsert({
-              id: res.data.user.id,
-              role: p.role || 'farm_manager',
-              full_name: extraData.fullName,
-              is_active: true,
-              email: trimmedEmail,
-            }, { onConflict: 'id' });
-            p.full_name = extraData.fullName;
-          } catch { /* ignore */ }
-        }
-
-        if (extraData?.farmName) {
-          try {
-            await supabase.from('settings').upsert({
-              user_id: res.data.user.id,
-              farm_name: extraData.farmName,
-              target_weight_kg: 40,
-              gestation_days: 150,
-              temp_critical: 40,
-              heart_rate_high: 90,
-              expiry_warning_days: 15,
-              vaccine_due_days: 30,
-              breeding_min_age_months: 8,
-              breeding_min_weight_kg: 25,
-            }, { onConflict: 'user_id' });
-          } catch { /* ignore */ }
-        }
-
+      if (!supaErr && supaData?.user) {
+        const p = await fetchProfile(supaData.user.id, supaData.user.email);
         setProfile(p);
+        return { error: null };
       }
 
-      return { error: null };
+      return { error: fbVerify.error || 'Hindi ma-verify ang verification code. Pakisuri ang iyong email o mag-resend.' };
     } catch (err: any) {
-      return { error: err?.message || 'Network error during verification. Please check your connection.' };
+      return { error: err?.message || 'Network error habang nagve-verify. Pakisubukang muli.' };
     }
   };
 
-  // ── Resend Email Verification Code (via Firebase) ───────────────────────────
+  // ── Resend Email Verification Code ──────────────────────────────────────────
   const resendVerificationCode = async (email: string): Promise<{ error: string | null; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) return { error: 'Email address is required.' };
+    if (!trimmedEmail) return { error: 'Pakilagay ang iyong email address.' };
 
     try {
-      // 1. Resend via Firebase
       const fbRes = await sendFirebaseEmailSignInCode(trimmedEmail);
       if (!fbRes.success) {
-        // Fallback to Supabase resend
-        const { error } = await supabase.auth.resend({
-          type: 'signup',
-          email: trimmedEmail,
-        });
-
-        if (error) {
-          const retry = await supabase.auth.signInWithOtp({ email: trimmedEmail });
-          if (retry.error) {
-            return { error: fbRes.message || retry.error.message || 'Unable to resend verification code.' };
-          }
-        }
+        return { error: fbRes.message || 'Hindi maipadala muli ang code. Pakisubukang muli mamaya.' };
       }
-
-      return { error: null, message: 'A fresh verification code has been sent to ' + trimmedEmail + '.' };
+      return { error: null, message: `Muling ipinadala ang verification code/link sa ${trimmedEmail}.` };
     } catch (err: any) {
-      return { error: err?.message || 'Network error while resending verification code.' };
+      return { error: err?.message || 'Network error habang muling nagpapadala ng verification code.' };
     }
   };
 
   // ════════════════════════════════════════════════════════════════════════════
-  // ── REAL SMS / PHONE AUTH IMPLEMENTATION ────────────────────────────────────
+  // ── FIREBASE PHONE AUTHENTICATION (REAL SMS OTP) ────────────────────────────
   // ════════════════════════════════════════════════════════════════════════════
 
-  // ── Send SMS OTP for Sign In ────────────────────────────────────────────────
+  // ── Send SMS OTP for Sign In (Firebase Phone Auth) ──────────────────────────
   const signInWithPhoneOtp = async (
     phone: string,
   ): Promise<{ error: string | null; message?: string }> => {
     const formatted = formatPhoneNumber(phone);
     if (!formatted.valid) {
-      return { error: 'Please enter a valid Philippine mobile number (e.g., 0917 123 4567).' };
+      return { error: 'Pakilagay ang wastong Philippine mobile number (hal. 0917 123 4567).' };
     }
 
     try {
-      // 1. Firebase Phone Auth (10,000 Free Real SMS / month)
-      if (isFirebaseConfigured()) {
-        const fbRes = await sendFirebasePhoneOtp(formatted.e164);
-        if (fbRes.success) {
-          return { error: null, message: fbRes.message };
-        }
-        return { error: fbRes.message };
-      }
-
-      // 2. Fallback to Serverless SMS Gateway (if Firebase not configured)
-      const smsRes = await sendSmsOtp({ phone: formatted.e164 });
-      if (!smsRes.success) {
-        return { error: smsRes.message || 'Failed to send SMS code.' };
+      const fbRes = await sendFirebasePhoneOtp(formatted.e164);
+      if (!fbRes.success) {
+        return { error: fbRes.message || 'Hindi maipadala ang SMS verification code mula sa Firebase.' };
       }
 
       return {
         error: null,
-        message: smsRes.message,
+        message: fbRes.message,
       };
     } catch (err: any) {
-      return { error: err?.message || 'Failed to send SMS verification code.' };
+      return { error: err?.message || 'Hindi maipadala ang SMS verification code.' };
     }
   };
 
-  // ── Send SMS OTP for Sign Up ────────────────────────────────────────────────
+  // ── Send SMS OTP for Sign Up (Firebase Phone Auth) ──────────────────────────
   const signUpWithPhoneOtp = async (
     opts: PhoneSignUpOptions,
   ): Promise<{ error: string | null; message?: string }> => {
@@ -632,47 +610,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const farmName = opts.farmName.trim();
 
     if (!formatted.valid) {
-      return { error: 'Please enter a valid Philippine mobile number (e.g., 0917 123 4567).' };
+      return { error: 'Pakilagay ang wastong Philippine mobile number (hal. 0917 123 4567).' };
     }
     if (!fullName) {
-      return { error: 'Please enter your full name.' };
+      return { error: 'Pakilagay ang iyong buong pangalan.' };
     }
     if (!farmName) {
-      return { error: 'Please enter your farm name.' };
+      return { error: 'Pakilagay ang pangalan ng iyong farm.' };
     }
 
     try {
-      // 1. Firebase Phone Auth (10,000 Free Real SMS / month)
-      if (isFirebaseConfigured()) {
-        const fbRes = await sendFirebasePhoneOtp(formatted.e164);
-        if (fbRes.success) {
-          return { error: null, message: fbRes.message };
-        }
-        return { error: fbRes.message };
-      }
-
-      // 2. Fallback to Serverless SMS Gateway (if Firebase not configured)
-      const smsRes = await sendSmsOtp({
-        phone: formatted.e164,
-        fullName,
-        farmName,
-        farmLocation: opts.farmLocation,
-      });
-
-      if (!smsRes.success) {
-        return { error: smsRes.message || 'Failed to dispatch SMS code.' };
+      const fbRes = await sendFirebasePhoneOtp(formatted.e164);
+      if (!fbRes.success) {
+        return { error: fbRes.message || 'Hindi maipadala ang SMS verification code mula sa Firebase.' };
       }
 
       return {
         error: null,
-        message: smsRes.message,
+        message: fbRes.message,
       };
     } catch (err: any) {
-      return { error: err?.message || 'Error initiating phone sign-up.' };
+      return { error: err?.message || 'Error sa pag-dispatch ng SMS verification code mula sa Firebase.' };
     }
   };
 
-  // ── Verify SMS OTP ──────────────────────────────────────────────────────────
+  // ── Verify SMS OTP (Firebase Phone Auth) ────────────────────────────────────
   const verifyPhoneOtp = async (
     phone: string,
     token: string,
@@ -681,51 +643,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const formatted = formatPhoneNumber(phone);
     const trimmedToken = token.trim();
 
-    if (!formatted.valid) return { error: 'Invalid phone number.' };
-    if (!trimmedToken) return { error: 'Please enter the 6-digit SMS code.' };
+    if (!formatted.valid) return { error: 'Maling mobile number format.' };
+    if (!trimmedToken) return { error: 'Pakilagay ang 6-digit SMS verification code.' };
 
     try {
-      // 1. Try Supabase verifyOtp first if Supabase Phone Auth is active
-      try {
-        const supaRes = await supabase.auth.verifyOtp({
-          phone: formatted.e164,
-          token: trimmedToken,
-          type: 'sms',
-        });
-        if (!supaRes.error && supaRes.data.session) {
-          setSession(supaRes.data.session);
-          const p = await fetchProfile(supaRes.data.user!.id, supaRes.data.user!.email);
-          setProfile(p);
-          return { error: null };
-        }
-      } catch {
-        // Fall back to serverless SMS verification
+      const fbRes = await verifyFirebasePhoneOtp(trimmedToken);
+      if (!fbRes.success || !fbRes.user) {
+        return { error: fbRes.message || 'Maling verification code o nag-expire na ito.' };
       }
 
-      // 2. Verify with SMS API router
-      const verifyRes = await verifySmsOtp(formatted.e164, trimmedToken);
-      if (!verifyRes.success) {
-        return { error: verifyRes.error || 'Invalid or expired SMS code.' };
-      }
-
-      // Generate or retrieve phone user identifier
-      const cleanDigits = formatted.e164.replace(/[^0-9]/g, '');
-      const syntheticUserId = `phone_${cleanDigits}`;
-      const fullName = extraData?.fullName || verifyRes.user?.fullName || 'Farm Manager';
-      const farmName = extraData?.farmName || verifyRes.user?.farmName || 'My Farm';
+      const fbUser = fbRes.user;
+      const cleanDigits = (fbUser.phoneNumber || formatted.e164).replace(/[^0-9]/g, '');
+      const userId = fbUser.uid;
+      const fullName = extraData?.fullName || fbUser.displayName || 'Farm Manager';
+      const farmName = extraData?.farmName || 'My Farm';
 
       const userProfile: UserProfile = {
-        id: syntheticUserId,
+        id: userId,
         role: 'farm_manager',
         full_name: fullName,
-        phone: formatted.e164,
+        phone: fbUser.phoneNumber || formatted.e164,
         is_active: true,
       };
 
-      // Persist profile to Supabase if possible
+      // Persist profile to Supabase database
       try {
         await supabase.from('profiles').upsert({
-          id: syntheticUserId,
+          id: userId,
           role: 'farm_manager' as UserRole,
           full_name: fullName,
           is_active: true,
@@ -739,7 +683,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (farmName) {
         try {
           await supabase.from('settings').upsert({
-            user_id: syntheticUserId,
+            user_id: userId,
             farm_name: farmName,
             target_weight_kg: 40,
             gestation_days: 150,
@@ -757,24 +701,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const syntheticSession: any = {
         user: {
-          id: syntheticUserId,
-          phone: formatted.e164,
+          id: userId,
+          phone: fbUser.phoneNumber || formatted.e164,
           email: `${cleanDigits}@phone.alpasfarm.local`,
           app_metadata: {},
           user_metadata: { full_name: fullName },
           aud: 'authenticated',
           created_at: new Date().toISOString(),
         },
-        access_token: `sms_${cleanDigits}_${Date.now()}`,
-        refresh_token: `refresh_${cleanDigits}`,
+        access_token: await fbUser.getIdToken().catch(() => `fb_${userId}`),
+        refresh_token: fbUser.refreshToken || `refresh_${cleanDigits}`,
         expires_in: 604800,
         token_type: 'bearer',
       };
 
-      // Save to localStorage for phone session persistence
       localStorage.setItem('alpas_phone_user', JSON.stringify({
-        id: syntheticUserId,
-        phone: formatted.e164,
+        id: userId,
+        phone: fbUser.phoneNumber || formatted.e164,
         full_name: fullName,
         role: 'farm_manager',
       }));
@@ -784,27 +727,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error: null };
     } catch (err: any) {
-      return { error: err?.message || 'Error verifying SMS OTP.' };
+      return { error: err?.message || 'Error sa pag-verify ng Firebase SMS code.' };
     }
   };
 
-  // ── Resend Phone OTP ────────────────────────────────────────────────────────
+  // ── Resend Phone OTP (Firebase Phone Auth) ──────────────────────────────────
   const resendPhoneOtp = async (phone: string): Promise<{ error: string | null; message?: string }> => {
     const formatted = formatPhoneNumber(phone);
-    if (!formatted.valid) return { error: 'Invalid phone number.' };
+    if (!formatted.valid) return { error: 'Maling mobile number format.' };
 
     try {
-      const res = await sendSmsOtp({ phone: formatted.e164 });
-      if (!res.success) {
-        return { error: res.message || 'Unable to resend SMS.' };
+      const fbRes = await sendFirebasePhoneOtp(formatted.e164);
+      if (!fbRes.success) {
+        return { error: fbRes.message || 'Hindi maipadala muli ang SMS mula sa Firebase.' };
       }
-      return { error: null, message: res.message };
+      return { error: null, message: fbRes.message };
     } catch (err: any) {
-      return { error: err?.message || 'Network error while resending SMS.' };
+      return { error: err?.message || 'Network error habang muling nagpapadala ng SMS.' };
     }
   };
 
-  // ── Reset Password ──────────────────────────────────────────────────────────
+  // ── Reset Password (Firebase Auth) ──────────────────────────────────────────
   const resetPassword = async (email: string): Promise<{ error: string | null; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
@@ -816,12 +759,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+      const fbRes = await sendFirebasePasswordReset(trimmedEmail);
+      if (fbRes.success) {
+        return { error: null, message: fbRes.message };
+      }
+      // Try fallback to Supabase
+      await supabase.auth.resetPasswordForEmail(trimmedEmail, {
         redirectTo: `${window.location.origin}/login`,
       });
-      if (error) {
-        console.warn('resetPassword supabase notice:', error.message);
-      }
       return {
         error: null,
         message: 'Ipinadala na ang link sa pag-reset ng password sa iyong email kung ito ay nakarehistro.',
@@ -834,11 +779,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ── Sign In With Google (Firebase 1-Click Gmail) ────────────────────────────
+  const signInWithGoogle = async (): Promise<{ error: string | null }> => {
+    try {
+      const fbRes = await signInWithGoogleFirebase();
+      if (!fbRes.success || !fbRes.user) {
+        return { error: fbRes.error || 'Nabigo ang Google sign-in.' };
+      }
+
+      const user = fbRes.user;
+      const p = await fetchProfile(user.uid, user.email);
+
+      try {
+        await supabase.from('profiles').upsert({
+          id: user.uid,
+          role: p.role || 'farm_manager',
+          full_name: user.displayName || p.full_name || 'Farm Manager',
+          email: user.email,
+          is_active: true,
+        }, { onConflict: 'id' });
+      } catch {}
+
+      setProfile(p);
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || 'Nabigo ang Google sign-in.' };
+    }
+  };
+
   // ── Sign out ─────────────────────────────────────────────────────────────────
   const signOut = async () => {
     localStorage.removeItem('alpas_phone_user');
     setProfile(null);
     setSession(null);
+    clearFirebasePhoneOtpCache();
+    if (firebaseAuth) {
+      try {
+        await firebaseAuth.signOut();
+      } catch {}
+    }
     try {
       await supabase.auth.signOut();
     } catch {
@@ -864,6 +843,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUpWithPhoneOtp,
         verifyPhoneOtp,
         resendPhoneOtp,
+        signInWithGoogle,
         signOut,
       }}
     >

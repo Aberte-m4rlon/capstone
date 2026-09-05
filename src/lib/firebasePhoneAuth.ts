@@ -24,9 +24,11 @@ export function getOrCreateRecaptchaVerifier(containerId: string = 'recaptcha-co
       return recaptchaVerifierCache;
     }
 
-    const container = document.getElementById(containerId);
-    if (!container) {
-      console.warn('[Firebase Auth] reCAPTCHA container #' + containerId + ' not found in DOM.');
+    let container = document.getElementById(containerId);
+    if (!container && typeof document !== 'undefined') {
+      container = document.createElement('div');
+      container.id = containerId;
+      document.body.appendChild(container);
     }
 
     recaptchaVerifierCache = new RecaptchaVerifier(firebaseAuth, containerId, {
@@ -48,6 +50,20 @@ export function getOrCreateRecaptchaVerifier(containerId: string = 'recaptcha-co
   } catch (err) {
     console.error('[Firebase Auth] Failed to initialize RecaptchaVerifier:', err);
     return null;
+  }
+}
+
+export function hasPendingFirebasePhoneOtp(): boolean {
+  return confirmationResultCache !== null;
+}
+
+export function clearFirebasePhoneOtpCache(): void {
+  confirmationResultCache = null;
+  if (recaptchaVerifierCache) {
+    try {
+      recaptchaVerifierCache.clear();
+    } catch {}
+    recaptchaVerifierCache = null;
   }
 }
 
