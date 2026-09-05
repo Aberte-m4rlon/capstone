@@ -69,9 +69,10 @@ export function AppHeader({
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
-  const searchRef  = useRef<HTMLDivElement>(null);
-  const profileRef = useRef<HTMLDivElement>(null);
-  const notifRef   = useRef<HTMLDivElement>(null);
+  const searchRef       = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const profileRef      = useRef<HTMLDivElement>(null);
+  const notifRef        = useRef<HTMLDivElement>(null);
 
   // ── Dark mode ─────────────────────────────────────────────────────────────
   const [darkMode, setDarkMode] = useState<boolean>(() => localStorage.getItem('theme') === 'dark');
@@ -149,9 +150,15 @@ export function AppHeader({
   // ── Close dropdowns on outside click ─────────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (searchRef.current  && !searchRef.current.contains(e.target  as Node)) setSearchOpen(false);
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
-      if (notifRef.current   && !notifRef.current.contains(e.target   as Node)) setNotifOpen(false);
+      const target = e.target as Node;
+      if (
+        searchRef.current && !searchRef.current.contains(target) &&
+        (!mobileSearchRef.current || !mobileSearchRef.current.contains(target))
+      ) {
+        setSearchOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(target)) setProfileOpen(false);
+      if (notifRef.current   && !notifRef.current.contains(target))   setNotifOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -192,85 +199,90 @@ export function AppHeader({
     return acc;
   }, {});
 
-  return (
-    <header className="topbar">
-      {/* ── Left Section: Mobile Brand / Desktop Page Heading ── */}
-      <div className="topbar-left">
-        {/* Mobile Header Branding: ALPASFARM (No hamburger menu) */}
-        <div
-          className="topbar-mobile-brand"
-          onClick={() => navigate(role === 'super_admin' ? '/super-admin' : '/dashboard')}
-          role="button"
-          tabIndex={0}
-          aria-label="AlpasFarm Home"
-        >
-          <div className="topbar-mobile-logo-wrap">
-            <GoatIcon size={20} color="#238B45" strokeWidth={2.4} />
-          </div>
-          <span className="topbar-mobile-brand-title">ALPASFARM</span>
-        </div>
-
-        {/* Desktop Heading Group */}
-        <div className="topbar-heading-group">
-          <h1 className="topbar-title">{title}</h1>
-          {subtitle && <p className="topbar-sub">{subtitle}</p>}
-        </div>
-      </div>
-
-      {/* ── Center Section: Centered Responsive Global Search Bar ── */}
-      <div className="topbar-center" ref={searchRef}>
-        <div className="search-box">
-          <Search size={17} className="search-icon" />
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Maghanap ng hayop, ID, gamit, o record..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
-            aria-label="Global search"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              className="search-clear-btn"
-              onClick={() => {
-                setSearchQuery('');
-                setSearchResults([]);
-                setSearchOpen(false);
-              }}
-              aria-label="Clear search"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
-
-        {/* Search Results Dropdown */}
-        {searchOpen && searchResults.length > 0 && (
-          <div className="search-dropdown">
-            {Object.entries(groupedResults).map(([group, items]) => (
-              <div key={group} className="search-group">
-                <span className="search-group-title">{group}</span>
-                {items.map((res, i) => (
-                  <div
-                    key={i}
-                    className="search-result-item"
-                    onClick={() => {
-                      navigate(res.link);
-                      setSearchOpen(false);
-                      setSearchQuery('');
-                    }}
-                  >
-                    <span className="search-res-label">{res.label}</span>
-                    <span className="search-res-sub">{res.sub}</span>
-                  </div>
-                ))}
+  const renderSearchDropdown = () => {
+    if (!searchOpen || searchResults.length === 0) return null;
+    return (
+      <div className="search-dropdown">
+        {Object.entries(groupedResults).map(([group, items]) => (
+          <div key={group} className="search-group">
+            <span className="search-group-title">{group}</span>
+            {items.map((res, i) => (
+              <div
+                key={i}
+                className="search-result-item"
+                onClick={() => {
+                  navigate(res.link);
+                  setSearchOpen(false);
+                  setSearchQuery('');
+                }}
+              >
+                <span className="search-res-label">{res.label}</span>
+                <span className="search-res-sub">{res.sub}</span>
               </div>
             ))}
           </div>
-        )}
+        ))}
       </div>
+    );
+  };
+
+  return (
+    <div className="topbar-wrapper">
+      <header className="topbar">
+        {/* ── Left Section: Mobile Brand / Desktop Page Heading ── */}
+        <div className="topbar-left">
+          {/* Mobile Header Branding: ALPASFARM (No hamburger menu) */}
+          <div
+            className="topbar-mobile-brand"
+            onClick={() => navigate(role === 'super_admin' ? '/super-admin' : '/dashboard')}
+            role="button"
+            tabIndex={0}
+            aria-label="AlpasFarm Home"
+          >
+            <div className="topbar-mobile-logo-wrap">
+              <GoatIcon size={20} color="#238B45" strokeWidth={2.4} />
+            </div>
+            <span className="topbar-mobile-brand-title">ALPASFARM</span>
+          </div>
+
+          {/* Desktop Heading Group */}
+          <div className="topbar-heading-group">
+            <h1 className="topbar-title">{title}</h1>
+            {subtitle && <p className="topbar-sub">{subtitle}</p>}
+          </div>
+        </div>
+
+        {/* ── Center Section: Centered Responsive Global Search Bar (Desktop) ── */}
+        <div className="topbar-center desktop-search-only" ref={searchRef}>
+          <div className="search-box">
+            <Search size={17} className="search-icon" />
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Maghanap ng hayop, ID, gamit, o record..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
+              aria-label="Global search"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                  setSearchOpen(false);
+                }}
+                aria-label="Clear search"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {renderSearchDropdown()}
+        </div>
 
       {/* ── Right Section: Action Controls (Theme, Notifications, Profile) ── */}
       <div className="topbar-right">
@@ -494,5 +506,38 @@ export function AppHeader({
         </div>
       </div>
     </header>
+
+    {/* ── Mobile Separate Global Search Bar (9999px Glass Pill) ── */}
+    <div className="topbar-mobile-search" ref={mobileSearchRef}>
+      <div className="search-box">
+        <Search size={16} className="search-icon" />
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Maghanap ng hayop, ID, gamit, o record..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
+          aria-label="Mobile global search"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            className="search-clear-btn"
+            onClick={() => {
+              setSearchQuery('');
+              setSearchResults([]);
+              setSearchOpen(false);
+            }}
+            aria-label="Clear search"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+
+      {renderSearchDropdown()}
+    </div>
+  </div>
   );
 }
