@@ -6268,16 +6268,16 @@ input[type="time"] {
 
 /* ── Topbar Main Grid Layout (Desktop ≥ 1024px) ── */
 .topbar {
-  display: grid !important;
-  grid-template-columns: minmax(180px, 1fr) minmax(280px, clamp(280px, 32vw, 520px)) minmax(160px, 1fr) !important;
+  display: flex !important;
   align-items: center !important;
-  gap: 20px !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
   position: sticky !important;
   top: 16px !important;
   z-index: 90 !important;
   height: var(--header-height, 72px) !important;
   min-height: var(--header-height, 72px) !important;
-  padding: 0 32px !important;
+  padding: 0 28px !important;
   background: var(--header-bg) !important;
   backdrop-filter: blur(24px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
@@ -6293,13 +6293,30 @@ input[type="time"] {
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* ── Left Section: Heading & Mobile Brand (No Hamburger) ── */
-.topbar-left {
+/* ── 1. Logo Section & Divider ── */
+.logo-section {
   display: flex !important;
   align-items: center !important;
-  gap: 14px !important;
-  min-width: 0 !important;
-  justify-self: start !important;
+  flex-shrink: 0 !important;
+}
+
+.topbar-desktop-brand {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+  margin-right: 4px !important;
+  padding-right: 20px !important;
+  border-right: 1px solid rgba(35, 139, 69, 0.15) !important;
+  line-height: 0 !important;
+}
+
+[data-theme="dark"] .topbar-desktop-brand {
+  border-right-color: rgba(35, 139, 69, 0.30) !important;
+}
+
+.topbar-mobile-brand {
+  display: none !important;
 }
 
 .topbar-hamburger-btn {
@@ -6313,16 +6330,19 @@ input[type="time"] {
   border: none !important;
 }
 
+/* ── 2. Page Title Section ── */
+.page-title-section,
 .topbar-heading-group {
   display: flex !important;
   flex-direction: column !important;
   min-width: 0 !important;
+  flex-shrink: 0 !important;
   text-align: left !important;
 }
 
 .topbar-title {
-  font-size: clamp(20px, 1.7vw, 25px) !important;
-  font-weight: 900 !important;
+  font-size: clamp(19px, 1.6vw, 24px) !important;
+  font-weight: 800 !important;
   color: #174B2A !important;
   letter-spacing: -0.025em !important;
   line-height: 1.2 !important;
@@ -6339,7 +6359,7 @@ input[type="time"] {
 .topbar-sub {
   font-size: 13px !important;
   font-weight: 500 !important;
-  color: #50645A !important;
+  color: #607067 !important;
   line-height: 1.2 !important;
   margin: 3px 0 0 0 !important;
   white-space: nowrap !important;
@@ -6351,21 +6371,24 @@ input[type="time"] {
   color: #9EAF9F !important;
 }
 
-/* ── Center Section: Search Bar ── */
+/* ── 3. Search Section: Flexible & Non-Clipping ── */
+.search-section,
 .topbar-center {
   position: relative !important;
-  width: 100% !important;
-  max-width: 520px !important;
-  justify-self: center !important;
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  max-width: 480px !important;
+  margin: 0 16px !important;
   display: flex !important;
   justify-content: center !important;
 }
 
+.search-section .search-box,
 .topbar-center .search-box {
   position: relative !important;
   width: 100% !important;
   height: 44px !important;
-  border-radius: 999px !important;
+  border-radius: 9999px !important;
   background: var(--header-search-bg) !important;
   border: 1px solid var(--header-search-border) !important;
   box-shadow: 0 2px 8px rgba(23, 107, 53, 0.04) !important;
@@ -6375,18 +6398,21 @@ input[type="time"] {
   box-sizing: border-box !important;
 }
 
+.search-section .search-box:focus-within,
 .topbar-center .search-box:focus-within {
   background: #FFFFFF !important;
   border-color: #238B45 !important;
   box-shadow: 0 0 0 3px rgba(35, 139, 69, 0.16), 0 4px 14px rgba(23, 107, 53, 0.08) !important;
 }
 
+[data-theme="dark"] .search-section .search-box:focus-within,
 [data-theme="dark"] .topbar-center .search-box:focus-within {
   background: #1B291F !important;
   border-color: #2E9E55 !important;
   box-shadow: 0 0 0 3px rgba(35, 139, 69, 0.25) !important;
 }
 
+.search-section .search-icon,
 .topbar-center .search-icon {
   position: absolute !important;
   left: 16px !important;
@@ -6396,6 +6422,7 @@ input[type="time"] {
   pointer-events: none !important;
 }
 
+.search-section .search-input,
 .topbar-center .search-input {
   width: 100% !important;
   height: 100% !important;
@@ -6410,15 +6437,18 @@ input[type="time"] {
   box-sizing: border-box !important;
 }
 
+[data-theme="dark"] .search-section .search-input,
 [data-theme="dark"] .topbar-center .search-input {
   color: #F3F7F4 !important;
 }
 
+.search-section .search-input::placeholder,
 .topbar-center .search-input::placeholder {
-  color: #78877F !important;
-  opacity: 0.85 !important;
+  color: #7A8981 !important;
+  opacity: 1 !important;
 }
 
+.search-section .search-clear-btn,
 .topbar-center .search-clear-btn {
   position: absolute !important;
   right: 12px !important;
@@ -6437,11 +6467,13 @@ input[type="time"] {
   transition: all 0.15s ease !important;
 }
 
+[data-theme="dark"] .search-section .search-clear-btn,
 [data-theme="dark"] .topbar-center .search-clear-btn {
   background: rgba(255, 255, 255, 0.15) !important;
   color: #CBD5E1 !important;
 }
 
+.search-section .search-clear-btn:hover,
 .topbar-center .search-clear-btn:hover {
   background: rgba(239, 68, 68, 0.15) !important;
   color: #EF4444 !important;
@@ -6627,37 +6659,27 @@ input[type="time"] {
   display: flex !important;
 }
 
-.topbar-desktop-brand {
-  display: flex !important;
-  align-items: center !important;
-  flex-shrink: 0 !important;
-  cursor: pointer !important;
-  margin-right: 8px !important;
-  padding-right: 14px !important;
-  border-right: 1px solid rgba(35, 139, 69, 0.16) !important;
-  line-height: 0 !important;
-}
-
-[data-theme="dark"] .topbar-desktop-brand {
-  border-right-color: rgba(35, 139, 69, 0.3) !important;
-}
-
-.topbar-mobile-brand {
-  display: none !important;
-}
-
 /* ── RESPONSIVE ADAPTABILITY ── */
 
 /* Tablet (768px - 1023px) */
 @media (min-width: 768px) and (max-width: 1023px) {
   .topbar {
-    grid-template-columns: auto minmax(180px, 1fr) auto !important;
-    gap: 14px !important;
-    padding: 0 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 0 20px !important;
+  }
+
+  .search-section,
+  .topbar-center {
+    max-width: 320px !important;
+    margin: 0 8px !important;
   }
 
   .topbar-hamburger-btn {
-    display: flex !important;
+    display: none !important;
+    visibility: hidden !important;
   }
 
   .topbar-mobile-brand {
@@ -6665,7 +6687,7 @@ input[type="time"] {
   }
 
   .topbar-title {
-    font-size: 20px !important;
+    font-size: 19px !important;
   }
 
   .topbar-sub {
@@ -6688,7 +6710,7 @@ input[type="time"] {
     height: 52px !important;
     min-height: 52px !important;
     max-height: 52px !important;
-    padding: 0 14px !important;
+    padding: 8px 12px !important;
     gap: 10px !important;
     position: sticky !important;
     top: 8px !important;
@@ -6697,22 +6719,23 @@ input[type="time"] {
     width: calc(100% - 16px) !important;
     max-width: calc(100% - 16px) !important;
     border-radius: 15px !important;
-    background: rgba(255, 255, 255, 0.70) !important;
+    background: rgba(255, 255, 255, 0.90) !important;
     backdrop-filter: blur(20px) !important;
     -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(35, 139, 69, 0.12) !important;
-    box-shadow: 0 6px 20px rgba(23, 107, 53, 0.08) !important;
+    border: 1px solid rgba(35, 139, 69, 0.14) !important;
+    box-shadow: 0 4px 18px rgba(23, 107, 53, 0.08) !important;
     box-sizing: border-box !important;
     overflow: visible !important;
   }
 
   [data-theme="dark"] .topbar {
-    background: rgba(18, 30, 22, 0.75) !important;
+    background: rgba(18, 30, 22, 0.85) !important;
     border-color: rgba(35, 139, 69, 0.25) !important;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35) !important;
   }
 
-  /* Left: Brand Logo & Title (Hamburger is completely removed) */
+  /* Logo Section (Mobile official logo, vertically centered, NO hamburger icon) */
+  .logo-section,
   .topbar-left {
     display: flex !important;
     align-items: center !important;
@@ -6746,36 +6769,26 @@ input[type="time"] {
     line-height: 0 !important;
   }
 
-  .topbar-mobile-brand-title {
-    font-size: 15px !important;
-    font-weight: 900 !important;
-    letter-spacing: -0.02em !important;
-    color: #174B2A !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-
-  [data-theme="dark"] .topbar-mobile-brand-title {
-    color: #F3F7F4 !important;
-  }
-
+  .page-title-section,
   .topbar-heading-group {
     display: none !important;
   }
 
   /* Hide center search inside the 15px header card on mobile */
+  .search-section,
   .topbar .desktop-search-only {
     display: none !important;
   }
 
-  /* Right: Theme Toggle + Notif Bell + Circular Avatar */
+  /* Actions Section: Theme Toggle + Notif Bell + Circular Avatar */
+  .actions-section,
   .topbar-right {
     position: static !important;
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
     flex-shrink: 0 !important;
+    margin-left: auto !important;
   }
 
   .topbar-icon-btn {
@@ -6884,6 +6897,11 @@ input[type="time"] {
     color: #F3F7F4 !important;
   }
 
+  .topbar-mobile-search .search-input::placeholder {
+    color: #7A8981 !important;
+    opacity: 1 !important;
+  }
+
   .topbar-mobile-search .search-clear-btn {
     position: absolute !important;
     right: 12px !important;
@@ -6984,9 +7002,9 @@ input[type="time"] {
 }
 
 .alpas-logo-login .alpas-official-logo-img {
-  width: clamp(180px, 22vw, 220px) !important;
+  width: clamp(200px, 24vw, 245px) !important;
   height: auto !important;
-  max-height: 140px !important;
+  max-height: 150px !important;
 }
 
 @media (max-width: 767px) {
@@ -6994,8 +7012,8 @@ input[type="time"] {
     margin-bottom: 12px !important;
   }
   .alpas-logo-login .alpas-official-logo-img {
-    width: clamp(150px, 46vw, 185px) !important;
-    max-height: 115px !important;
+    width: clamp(155px, 46vw, 188px) !important;
+    max-height: 120px !important;
   }
 }
 
@@ -7008,7 +7026,7 @@ input[type="time"] {
 }
 
 .alpas-logo-header .alpas-official-logo-img {
-  width: clamp(115px, 10vw, 140px) !important;
+  width: clamp(120px, 11vw, 145px) !important;
   max-height: 44px !important;
   height: auto !important;
 }
@@ -7023,7 +7041,7 @@ input[type="time"] {
 }
 
 .alpas-logo-mobile-header .alpas-official-logo-img {
-  width: clamp(90px, 26vw, 115px) !important;
+  width: clamp(85px, 24vw, 110px) !important;
   max-height: 38px !important;
   height: auto !important;
 }

@@ -229,8 +229,8 @@ export function AppHeader({
   return (
     <div className="topbar-wrapper">
       <header className="topbar">
-        {/* ── Left Section: Mobile Brand / Desktop Page Heading & Brand ── */}
-        <div className="topbar-left">
+        {/* ── 1. Logo Section (Desktop Brand with Divider / Mobile Brand) ── */}
+        <div className="logo-section">
           {/* Mobile Header Branding: Official ALPASFARM Logo (Compact, Vertically Centered, No hamburger menu) */}
           <div
             className="topbar-mobile-brand"
@@ -242,7 +242,7 @@ export function AppHeader({
             <AlpasFarmLogo size="mobile-header" />
           </div>
 
-          {/* Desktop Header Branding: Compact Official ALPASFARM Logo */}
+          {/* Desktop Header Branding: Official ALPASFARM Logo with Subtle Divider */}
           <div
             className="topbar-desktop-brand"
             onClick={() => navigate(role === 'super_admin' ? '/super-admin' : '/dashboard')}
@@ -252,16 +252,16 @@ export function AppHeader({
           >
             <AlpasFarmLogo size="header" />
           </div>
-
-          {/* Desktop Heading Group */}
-          <div className="topbar-heading-group">
-            <h1 className="topbar-title">{title}</h1>
-            {subtitle && <p className="topbar-sub">{subtitle}</p>}
-          </div>
         </div>
 
-        {/* ── Center Section: Centered Responsive Global Search Bar (Desktop) ── */}
-        <div className="topbar-center desktop-search-only" ref={searchRef}>
+        {/* ── 2. Page Title Section ── */}
+        <div className="page-title-section">
+          <h1 className="topbar-title">{title}</h1>
+          {subtitle && <p className="topbar-sub">{subtitle}</p>}
+        </div>
+
+        {/* ── 3. Search Section: Flexible Non-Clipping Search (Desktop Only) ── */}
+        <div className="search-section desktop-search-only" ref={searchRef}>
           <div className="search-box">
             <Search size={17} className="search-icon" />
             <input
@@ -292,8 +292,8 @@ export function AppHeader({
           {renderSearchDropdown()}
         </div>
 
-      {/* ── Right Section: Action Controls (Theme, Notifications, Profile) ── */}
-      <div className="topbar-right">
+        {/* ── 4. Actions Section: Theme, Notifications, Profile ── */}
+        <div className="actions-section topbar-right">
         {/* Dark Mode Toggle */}
         <button
           type="button"

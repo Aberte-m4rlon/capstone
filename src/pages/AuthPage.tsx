@@ -31,11 +31,12 @@ function inputStyle(hasError?: boolean): React.CSSProperties {
   return {
     width: '100%',
     padding: '13px 14px 13px 44px',
-    background: 'var(--card-bg, rgba(255, 255, 255, 0.90))',
-    border: `1.5px solid ${hasError ? '#EF4444' : 'rgba(35, 139, 69, 0.20)'}`,
-    borderRadius: '14px',
-    color: 'var(--text, #174B2A)',
+    background: '#FFFFFF',
+    border: `1px solid ${hasError ? '#EF4444' : 'rgba(35, 139, 69, 0.18)'}`,
+    borderRadius: '15px',
+    color: '#174B2A',
     fontSize: '14px',
+    fontWeight: 500,
     outline: 'none',
     boxSizing: 'border-box',
     transition: 'border-color 0.2s, box-shadow 0.2s, background-color 0.2s',
@@ -62,8 +63,8 @@ function Field({
         <label style={{
           display: 'block',
           fontSize: 12,
-          fontWeight: 700,
-          color: 'var(--text, #174B2A)',
+          fontWeight: 600,
+          color: '#174B2A',
           textTransform: 'uppercase',
           letterSpacing: '0.4px',
         }}>
@@ -79,14 +80,14 @@ function Field({
             left: 14,
             top: '50%',
             transform: 'translateY(-50%)',
-            color: 'var(--text-secondary, #4B6F57)',
+            color: '#607067',
             pointerEvents: 'none',
           }}
         />
         {children}
       </div>
       {hint && (
-        <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-secondary, #667085)' }}>
+        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#607067' }}>
           {hint}
         </p>
       )}
@@ -495,7 +496,7 @@ export function AuthPage() {
           width: '540px',
           height: '540px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(35, 139, 69, 0.14) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(35, 139, 69, 0.05) 0%, transparent 70%)',
           top: '-120px',
           right: '-100px',
           zIndex: 0,
@@ -508,22 +509,9 @@ export function AuthPage() {
           width: '480px',
           height: '480px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(23, 107, 53, 0.10) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(23, 107, 53, 0.04) 0%, transparent 70%)',
           bottom: '-100px',
           left: '-80px',
-          zIndex: 0,
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          position: 'fixed',
-          width: '360px',
-          height: '360px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(129, 199, 132, 0.12) 0%, transparent 70%)',
-          top: '40%',
-          left: '10%',
           zIndex: 0,
           pointerEvents: 'none',
         }}
@@ -531,14 +519,14 @@ export function AuthPage() {
     </>
   );
 
-  // ── Thematic Glass Card Style ───────────────────────────────────────────────
+  // ── Crisp Modern Glass Card Style (High Contrast, Never Washed Out) ─────────
   const cardStyle: React.CSSProperties = {
-    background: 'rgba(255, 255, 255, 0.74)',
-    backdropFilter: 'blur(24px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+    background: 'rgba(255, 255, 255, 0.94)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
     border: '1px solid rgba(35, 139, 69, 0.14)',
     borderRadius: '24px',
-    boxShadow: '0 20px 60px rgba(23, 107, 53, 0.10), 0 2px 10px rgba(0, 0, 0, 0.03)',
+    boxShadow: '0 20px 60px rgba(23, 107, 53, 0.10)',
     width: '100%',
     maxWidth: view === 'signup' ? '540px' : '460px',
     padding: 'clamp(24px, 5vw, 36px)',
@@ -563,7 +551,7 @@ export function AuthPage() {
         position: 'relative',
       }}>
         {bg}
-        <div style={cardStyle}>
+        <div style={cardStyle} className="auth-card">
           <div style={{ textAlign: 'center' }}>
             <div style={{
               width: 72,
@@ -746,21 +734,21 @@ export function AuthPage() {
                 disabled={loading || verifySuccess || !verificationCode.trim()}
                 style={{
                   width: '100%',
-                  height: 50,
+                  height: 52,
                   padding: '0 20px',
                   background: verifySuccess
-                    ? 'linear-gradient(135deg, #238B45 0%, #176B35 100%)'
+                    ? '#238B45'
                     : loading || !verificationCode.trim()
                       ? 'rgba(35, 139, 69, 0.45)'
-                      : 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
+                      : '#238B45',
                   border: 'none',
                   borderRadius: 9999,
                   color: '#FFFFFF',
                   fontSize: 15,
-                  fontWeight: 800,
+                  fontWeight: 700,
                   boxShadow: (loading || !verificationCode.trim())
                     ? 'none'
-                    : '0 8px 24px rgba(23, 107, 53, 0.28)',
+                    : '0 6px 20px rgba(35, 139, 69, 0.25)',
                   cursor: (loading || !verificationCode.trim()) ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -768,6 +756,12 @@ export function AuthPage() {
                   gap: 8,
                   boxSizing: 'border-box',
                   transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && !verifySuccess && verificationCode.trim()) e.currentTarget.style.background = '#176B35';
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading && !verifySuccess && verificationCode.trim()) e.currentTarget.style.background = '#238B45';
                 }}
               >
                 {loading ? (
@@ -875,7 +869,7 @@ export function AuthPage() {
         position: 'relative',
       }}>
         {bg}
-        <div style={cardStyle}>
+        <div style={cardStyle} className="auth-card">
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <div style={{
               width: 68,
@@ -894,14 +888,14 @@ export function AuthPage() {
             </div>
             <h1 style={{
               fontSize: 'clamp(20px, 4vw, 24px)',
-              fontWeight: 900,
-              color: 'var(--text, #174B2A)',
+              fontWeight: 800,
+              color: '#174B2A',
               letterSpacing: '-0.4px',
               margin: '0 0 6px',
             }}>
               I-reset ang Password
             </h1>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary, #4B6F57)', margin: 0 }}>
+            <p style={{ fontSize: 13, color: '#607067', margin: 0 }}>
               Ilagay ang iyong rehistradong email upang makatanggap ng secure reset link.
             </p>
           </div>
@@ -991,15 +985,15 @@ export function AuthPage() {
                 disabled={loading}
                 style={{
                   width: '100%',
-                  height: 50,
+                  height: 52,
                   padding: '0 20px',
-                  background: loading ? 'rgba(35, 139, 69, 0.5)' : 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
+                  background: loading ? 'rgba(35, 139, 69, 0.6)' : '#238B45',
                   border: 'none',
                   borderRadius: 9999,
                   color: '#FFFFFF',
                   fontSize: 15,
-                  fontWeight: 800,
-                  boxShadow: loading ? 'none' : '0 8px 24px rgba(23, 107, 53, 0.25)',
+                  fontWeight: 700,
+                  boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
                   cursor: loading ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1008,6 +1002,12 @@ export function AuthPage() {
                   marginTop: 10,
                   boxSizing: 'border-box',
                   transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) e.currentTarget.style.background = '#176B35';
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) e.currentTarget.style.background = '#238B45';
                 }}
               >
                 {loading ? (
@@ -1051,7 +1051,12 @@ export function AuthPage() {
             </form>
           )}
         </div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 0.8s linear infinite;}`}</style>
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg); } }
+          .spin { animation: spin 0.8s linear infinite; }
+          .auth-card input::placeholder { color: #7A8981 !important; opacity: 1 !important; }
+          .auth-card input:focus { border-color: #238B45 !important; box-shadow: 0 0 0 3px rgba(35, 139, 69, 0.10) !important; outline: none !important; }
+        `}</style>
       </div>
     );
   }
@@ -1065,21 +1070,21 @@ export function AuthPage() {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: 12,
       }}>
         <AlpasFarmLogo size="login" />
       </div>
       <h1 style={{
         fontSize: 'clamp(20px, 3.8vw, 24px)',
-        fontWeight: 900,
-        color: 'var(--text, #174B2A)',
+        fontWeight: 800,
+        color: '#174B2A',
         letterSpacing: '-0.5px',
-        margin: '0 0 4px',
+        margin: '0 0 6px',
         lineHeight: 1.2,
       }}>
         {view === 'signup' ? 'Gumawa ng Account' : 'Magandang araw!'}
       </h1>
-      <p style={{ fontSize: 13, color: 'var(--text-secondary, #4B6F57)', margin: 0, fontWeight: 500 }}>
+      <p style={{ fontSize: '13.5px', color: '#607067', margin: 0, fontWeight: 500 }}>
         {view === 'signup'
           ? 'Mag-register para makapagsimula sa ALPASFARM.'
           : 'Mag-sign in sa iyong account'}
@@ -1093,11 +1098,12 @@ export function AuthPage() {
   const tabBar = (
     <div style={{
       display: 'flex',
-      background: 'rgba(35, 139, 69, 0.08)',
+      background: 'rgba(35, 139, 69, 0.06)',
       borderRadius: 9999,
       padding: 4,
       marginBottom: 18,
       gap: 4,
+      border: '1px solid rgba(35, 139, 69, 0.10)',
     }}>
       {([
         ['signin', <LogIn size={15} />, 'Mag-sign In'] as const,
@@ -1114,8 +1120,8 @@ export function AuthPage() {
               padding: '9px 12px',
               borderRadius: 9999,
               fontSize: 13,
-              fontWeight: isActive ? 800 : 600,
-              border: 'none',
+              fontWeight: isActive ? 700 : 600,
+              border: isActive ? '1px solid rgba(35, 139, 69, 0.20)' : '1px solid transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -1123,7 +1129,7 @@ export function AuthPage() {
               gap: 6,
               transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               background: isActive ? '#FFFFFF' : 'transparent',
-              color: isActive ? '#176B35' : 'var(--text-secondary, #4B6F57)',
+              color: isActive ? '#176B35' : '#527060',
               boxShadow: isActive ? '0 4px 12px rgba(23, 107, 53, 0.10)' : 'none',
             }}
           >
@@ -1153,19 +1159,20 @@ export function AuthPage() {
           padding: '8px 12px',
           borderRadius: 9999,
           fontSize: 12,
-          fontWeight: 700,
-          border: `1.5px solid ${method === 'email' ? '#238B45' : 'rgba(35, 139, 69, 0.16)'}`,
-          background: method === 'email' ? '#EAF6ED' : 'rgba(255, 255, 255, 0.8)',
-          color: method === 'email' ? '#176B35' : 'var(--text-secondary, #4B6F57)',
+          fontWeight: method === 'email' ? 700 : 600,
+          border: method === 'email' ? '1.5px solid #238B45' : '1px solid rgba(35, 139, 69, 0.18)',
+          background: method === 'email' ? '#EAF6ED' : '#FFFFFF',
+          color: method === 'email' ? '#176B35' : '#607067',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: 6,
+          boxShadow: method === 'email' ? '0 2px 6px rgba(35, 139, 69, 0.08)' : 'none',
           transition: 'all 0.15s ease',
         }}
       >
-        <Mail size={14} color={method === 'email' ? '#176B35' : '#4B6F57'} />
+        <Mail size={14} color={method === 'email' ? '#176B35' : '#607067'} />
         Email at Password
       </button>
 
@@ -1177,19 +1184,20 @@ export function AuthPage() {
           padding: '8px 12px',
           borderRadius: 9999,
           fontSize: 12,
-          fontWeight: 700,
-          border: `1.5px solid ${method === 'phone' ? '#238B45' : 'rgba(35, 139, 69, 0.16)'}`,
-          background: method === 'phone' ? '#EAF6ED' : 'rgba(255, 255, 255, 0.8)',
-          color: method === 'phone' ? '#176B35' : 'var(--text-secondary, #4B6F57)',
+          fontWeight: method === 'phone' ? 700 : 600,
+          border: method === 'phone' ? '1.5px solid #238B45' : '1px solid rgba(35, 139, 69, 0.18)',
+          background: method === 'phone' ? '#EAF6ED' : '#FFFFFF',
+          color: method === 'phone' ? '#176B35' : '#607067',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: 6,
+          boxShadow: method === 'phone' ? '0 2px 6px rgba(35, 139, 69, 0.08)' : 'none',
           transition: 'all 0.15s ease',
         }}
       >
-        <Smartphone size={14} color={method === 'phone' ? '#176B35' : '#4B6F57'} />
+        <Smartphone size={14} color={method === 'phone' ? '#176B35' : '#607067'} />
         Mobile SMS OTP
       </button>
     </div>
@@ -1207,7 +1215,7 @@ export function AuthPage() {
       position: 'relative',
     }}>
       {bg}
-      <div style={cardStyle}>
+      <div style={cardStyle} className="auth-card">
         <div style={{ position: 'relative' }}>
           {logoBlock}
           {tabBar}
@@ -1272,8 +1280,8 @@ export function AuthPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                       <label style={{
                         fontSize: 12,
-                        fontWeight: 700,
-                        color: 'var(--text, #174B2A)',
+                        fontWeight: 600,
+                        color: '#174B2A',
                         textTransform: 'uppercase',
                         letterSpacing: '0.4px',
                       }}>
@@ -1288,8 +1296,8 @@ export function AuthPage() {
                           border: 'none',
                           cursor: 'pointer',
                           color: '#238B45',
-                          fontSize: 12,
-                          fontWeight: 700,
+                          fontSize: 12.5,
+                          fontWeight: 600,
                           padding: 0,
                           textDecoration: 'underline',
                         }}
@@ -1306,7 +1314,7 @@ export function AuthPage() {
                           left: 14,
                           top: '50%',
                           transform: 'translateY(-50%)',
-                          color: 'var(--text-secondary, #4B6F57)',
+                          color: '#607067',
                           pointerEvents: 'none',
                         }}
                       />
@@ -1326,10 +1334,10 @@ export function AuthPage() {
                         }}
                         onFocus={(e) => {
                           e.target.style.borderColor = '#238B45';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
+                          e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
                           e.target.style.boxShadow = 'none';
                         }}
                       />
@@ -1346,7 +1354,7 @@ export function AuthPage() {
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
-                          color: 'var(--text-secondary, #4B6F57)',
+                          color: '#6A8173',
                           display: 'flex',
                           padding: 6,
                           borderRadius: 8,
@@ -1364,17 +1372,17 @@ export function AuthPage() {
                       disabled={loading}
                       style={{
                         width: '100%',
-                        height: 50,
+                        height: 52,
                         padding: '0 20px',
                         background: loading
-                          ? 'rgba(35, 139, 69, 0.5)'
-                          : 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
+                          ? 'rgba(35, 139, 69, 0.6)'
+                          : '#238B45',
                         border: 'none',
                         borderRadius: 9999,
                         color: '#FFFFFF',
                         fontSize: 15,
-                        fontWeight: 800,
-                        boxShadow: loading ? 'none' : '0 8px 24px rgba(23, 107, 53, 0.28)',
+                        fontWeight: 700,
+                        boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
                         cursor: loading ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -1382,6 +1390,12 @@ export function AuthPage() {
                         gap: 8,
                         boxSizing: 'border-box',
                         transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading) e.currentTarget.style.background = '#176B35';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loading) e.currentTarget.style.background = '#238B45';
                       }}
                     >
                       {loading ? (
@@ -1411,12 +1425,12 @@ export function AuthPage() {
                         width: '100%',
                         height: 44,
                         padding: '0 16px',
-                        background: 'rgba(35, 139, 69, 0.08)',
-                        border: '1px solid rgba(35, 139, 69, 0.20)',
+                        background: 'transparent',
+                        border: '1px solid rgba(35, 139, 69, 0.30)',
                         borderRadius: 9999,
                         color: '#176B35',
                         fontSize: 13,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         cursor: loading ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -1424,6 +1438,12 @@ export function AuthPage() {
                         gap: 6,
                         boxSizing: 'border-box',
                         transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading) e.currentTarget.style.background = 'rgba(35, 139, 69, 0.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!loading) e.currentTarget.style.background = 'transparent';
                       }}
                     >
                       <Sparkles size={14} color="#176B35" />
@@ -1673,8 +1693,8 @@ export function AuthPage() {
                     <label style={{
                       display: 'block',
                       fontSize: 12,
-                      fontWeight: 700,
-                      color: 'var(--text, #174B2A)',
+                      fontWeight: 600,
+                      color: '#174B2A',
                       marginBottom: 6,
                       textTransform: 'uppercase',
                       letterSpacing: '0.4px',
@@ -1689,7 +1709,7 @@ export function AuthPage() {
                           left: 14,
                           top: '50%',
                           transform: 'translateY(-50%)',
-                          color: 'var(--text-secondary, #4B6F57)',
+                          color: '#607067',
                           pointerEvents: 'none',
                         }}
                       />
@@ -1706,10 +1726,10 @@ export function AuthPage() {
                         style={{ ...inputStyle(!!error), padding: '13px 44px 13px 44px' }}
                         onFocus={(e) => {
                           e.target.style.borderColor = '#238B45';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
+                          e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
                           e.target.style.boxShadow = 'none';
                         }}
                       />
@@ -1725,7 +1745,7 @@ export function AuthPage() {
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
-                          color: 'var(--text-secondary, #4B6F57)',
+                          color: '#6A8173',
                           display: 'flex',
                           padding: 6,
                         }}
@@ -1750,11 +1770,11 @@ export function AuthPage() {
                             />
                           ))}
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-secondary, #4B6F57)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#607067' }}>
                           <span>Lakas ng Password: <strong style={{ color: pwStr.color }}>{pwStr.label}</strong></span>
                           <div style={{ display: 'flex', gap: 8 }}>
                             {[['8+ karakter', pwStr.checks.length], ['Malaking titik', pwStr.checks.upper], ['Numero', pwStr.checks.number]].map(([l, ok]) => (
-                              <span key={l as string} style={{ color: ok ? '#238B45' : 'var(--text-secondary, #667085)', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                              <span key={l as string} style={{ color: ok ? '#238B45' : '#607067', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                                 {ok ? <CheckCircle2 size={12} color="#238B45" /> : <span style={{ opacity: 0.5 }}>-</span>} {l}
                               </span>
                             ))}
@@ -1769,8 +1789,8 @@ export function AuthPage() {
                     <label style={{
                       display: 'block',
                       fontSize: 12,
-                      fontWeight: 700,
-                      color: 'var(--text, #174B2A)',
+                      fontWeight: 600,
+                      color: '#174B2A',
                       marginBottom: 6,
                       textTransform: 'uppercase',
                       letterSpacing: '0.4px',
@@ -1785,7 +1805,7 @@ export function AuthPage() {
                           left: 14,
                           top: '50%',
                           transform: 'translateY(-50%)',
-                          color: 'var(--text-secondary, #4B6F57)',
+                          color: '#607067',
                           pointerEvents: 'none',
                         }}
                       />
@@ -1805,10 +1825,10 @@ export function AuthPage() {
                         }}
                         onFocus={(e) => {
                           e.target.style.borderColor = '#238B45';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = (suConfirmPw && suPassword !== suConfirmPw) ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
+                          e.target.style.borderColor = (suConfirmPw && suPassword !== suConfirmPw) ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
                           e.target.style.boxShadow = 'none';
                         }}
                       />
@@ -1824,7 +1844,7 @@ export function AuthPage() {
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
-                          color: 'var(--text-secondary, #4B6F57)',
+                          color: '#6A8173',
                           display: 'flex',
                           padding: 6,
                         }}
@@ -1922,17 +1942,17 @@ export function AuthPage() {
                     disabled={loading}
                     style={{
                       width: '100%',
-                      height: 50,
+                      height: 52,
                       padding: '0 20px',
                       background: loading
-                        ? 'rgba(35, 139, 69, 0.5)'
-                        : 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
+                        ? 'rgba(35, 139, 69, 0.6)'
+                        : '#238B45',
                       border: 'none',
                       borderRadius: 9999,
                       color: '#FFFFFF',
                       fontSize: 15,
-                      fontWeight: 800,
-                      boxShadow: loading ? 'none' : '0 8px 24px rgba(23, 107, 53, 0.28)',
+                      fontWeight: 700,
+                      boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
                       cursor: loading ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -1940,6 +1960,12 @@ export function AuthPage() {
                       gap: 8,
                       boxSizing: 'border-box',
                       transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!loading) e.currentTarget.style.background = '#176B35';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!loading) e.currentTarget.style.background = '#238B45';
                     }}
                   >
                     {loading ? (
@@ -2139,17 +2165,17 @@ export function AuthPage() {
                     disabled={loading}
                     style={{
                       width: '100%',
-                      height: 50,
+                      height: 52,
                       padding: '0 20px',
                       background: loading
-                        ? 'rgba(35, 139, 69, 0.5)'
-                        : 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
+                        ? 'rgba(35, 139, 69, 0.6)'
+                        : '#238B45',
                       border: 'none',
                       borderRadius: 9999,
                       color: '#FFFFFF',
                       fontSize: 15,
-                      fontWeight: 800,
-                      boxShadow: loading ? 'none' : '0 8px 24px rgba(23, 107, 53, 0.28)',
+                      fontWeight: 700,
+                      boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
                       cursor: loading ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -2157,6 +2183,12 @@ export function AuthPage() {
                       gap: 8,
                       boxSizing: 'border-box',
                       transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!loading) e.currentTarget.style.background = '#176B35';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!loading) e.currentTarget.style.background = '#238B45';
                     }}
                   >
                     {loading ? (
@@ -2183,7 +2215,12 @@ export function AuthPage() {
           )}
         </div>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 0.8s linear infinite;}`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 0.8s linear infinite; }
+        .auth-card input::placeholder { color: #7A8981 !important; opacity: 1 !important; }
+        .auth-card input:focus { border-color: #238B45 !important; box-shadow: 0 0 0 3px rgba(35, 139, 69, 0.10) !important; outline: none !important; }
+      `}</style>
     </div>
   );
 }
