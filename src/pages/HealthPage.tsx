@@ -284,17 +284,20 @@ export function HealthPage() {
     cameraResult,
   ]);
 
-  // 4 Health Summary Statistics (Live Supabase DB Counts)
+  // 4 Health Summary Statistics (Priority Order: Gamot -> Atensyon -> Bantayan -> Maayos)
   const stats = useMemo(() => {
-    let highRisk = 0;
+    let needsMedication = 0;
+    let needsAttention = 0;
     let modRisk = 0;
     let lowRisk = 0;
 
     activeAnimals.forEach((a) => {
       const score = a.health_risk_score ?? 0;
-      if (score >= 65 || a.health_status === 'Critical' || a.health_status === 'At Risk') {
-        highRisk++;
-      } else if (score >= 35 || a.health_status === 'Monitor') {
+      if (score >= 80 || a.health_status === 'Critical' || a.health_status === 'Sick') {
+        needsMedication++;
+      } else if (score >= 50 || a.health_status === 'At Risk' || a.health_status === 'Needs Attention') {
+        needsAttention++;
+      } else if (score >= 25 || a.health_status === 'Monitor' || a.health_status === 'Under Observation') {
         modRisk++;
       } else {
         lowRisk++;
@@ -303,7 +306,8 @@ export function HealthPage() {
 
     return {
       total: activeAnimals.length,
-      highRisk,
+      needsMedication,
+      needsAttention,
       modRisk,
       lowRisk,
     };
@@ -678,7 +682,7 @@ export function HealthPage() {
       <div className="health-page-header">
         <div className="health-header-left">
           <div className="health-icon-badge">
-            <HeartPulse size={24} color="#FF7A18" />
+            <HeartPulse size={24} color="#238B45" />
           </div>
           <div>
             <h1 className="health-page-title">Health Monitoring</h1>
@@ -701,7 +705,7 @@ export function HealthPage() {
       <div className="prediction-hero-banner">
         <div className="hero-banner-content">
           <div className="hero-badge">
-            <Camera size={14} color="#FF7A18" />
+            <Camera size={14} color="#238B45" />
             <span>AI Health Scanner</span>
           </div>
           <h2 className="hero-banner-title">Awtomatikong AI Health Monitoring</h2>
@@ -745,36 +749,70 @@ export function HealthPage() {
         </div>
       </div>
 
-      {/* ── 3. 3 HEALTH SUMMARY METRIC CARDS (STRICTLY 3 COLUMNS) ── */}
-      <div className="health-summary-grid mobile-stats-grid-3">
-        {/* Healthy Card */}
-        <div className="health-stat-card low-risk-card mobile-stats-card-3">
+      {/* ── 3. 4 HEALTH SUMMARY METRIC CARDS (PRIORITY ORDER) ── */}
+      <div className="health-summary-grid">
+        {/* 1. Mga Hayop na Kailangan ng Gamot (🔴 Priority 1) */}
+        <div
+          className={`health-stat-card med-needed-card ${fRisk === 'critical' ? 'stat-card-active' : ''}`}
+          onClick={() => setFRisk(fRisk === 'critical' ? 'All' : 'critical')}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="stat-card-header">
-            <span className="stat-label low-risk-label">Healthy</span>
+            <span className="stat-label med-needed-label">🔴 Kailangan ng Gamot</span>
+            <AlertOctagon size={18} color="#EF4444" />
+          </div>
+          <div className="stat-value med-needed-value">
+            {stats.needsMedication} <span style={{ fontSize: '0.6em', fontWeight: 600 }}>ulo</span>
+          </div>
+          <div className="stat-subtext med-needed-subtext">Agad na bigyan ng lunas</div>
+        </div>
+
+        {/* 2. Mga Hayop na Kailangan ng Atensyon (🟠 Priority 2) */}
+        <div
+          className={`health-stat-card high-risk-card ${fRisk === 'high' ? 'stat-card-active' : ''}`}
+          onClick={() => setFRisk(fRisk === 'high' ? 'All' : 'high')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-label high-risk-label">🟠 Kailangan ng Atensyon</span>
+            <ShieldAlert size={18} color="#EA580C" />
+          </div>
+          <div className="stat-value high-risk-value">
+            {stats.needsAttention} <span style={{ fontSize: '0.6em', fontWeight: 600 }}>ulo</span>
+          </div>
+          <div className="stat-subtext high-risk-subtext">Agarang suriin</div>
+        </div>
+
+        {/* 3. Mga Hayop na Bantayan (🟡 Priority 3) */}
+        <div
+          className={`health-stat-card mod-risk-card ${fRisk === 'moderate' ? 'stat-card-active' : ''}`}
+          onClick={() => setFRisk(fRisk === 'moderate' ? 'All' : 'moderate')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-label mod-risk-label">🟡 Bantayan</span>
+            <AlertTriangle size={18} color="#D97706" />
+          </div>
+          <div className="stat-value mod-risk-value">
+            {stats.modRisk} <span style={{ fontSize: '0.6em', fontWeight: 600 }}>ulo</span>
+          </div>
+          <div className="stat-subtext mod-risk-subtext">Obserbahan ang sigla</div>
+        </div>
+
+        {/* 4. Mga Hayop na Maayos (🟢 Priority 4) */}
+        <div
+          className={`health-stat-card low-risk-card ${fRisk === 'low' ? 'stat-card-active' : ''}`}
+          onClick={() => setFRisk(fRisk === 'low' ? 'All' : 'low')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-label low-risk-label">🟢 Maayos</span>
             <CheckCircle2 size={18} color="#16A34A" />
           </div>
-          <div className="stat-value low-risk-value">{stats.lowRisk}</div>
-          <div className="stat-subtext low-risk-subtext">Maayos</div>
-        </div>
-
-        {/* Moderate Risk / Monitor Card */}
-        <div className="health-stat-card mod-risk-card mobile-stats-card-3">
-          <div className="stat-card-header">
-            <span className="stat-label mod-risk-label">Bantayan</span>
-            <AlertTriangle size={18} color="#F59E0B" />
+          <div className="stat-value low-risk-value">
+            {stats.lowRisk} <span style={{ fontSize: '0.6em', fontWeight: 600 }}>ulo</span>
           </div>
-          <div className="stat-value mod-risk-value">{stats.modRisk}</div>
-          <div className="stat-subtext mod-risk-subtext">Obserbahan</div>
-        </div>
-
-        {/* High Risk Card */}
-        <div className="health-stat-card high-risk-card mobile-stats-card-3">
-          <div className="stat-card-header">
-            <span className="stat-label high-risk-label">High Risk</span>
-            <ShieldAlert size={18} color="#EF4444" />
-          </div>
-          <div className="stat-value high-risk-value">{stats.highRisk}</div>
-          <div className="stat-subtext high-risk-subtext">Atensyon</div>
+          <div className="stat-subtext low-risk-subtext">Malusog ang kawan</div>
         </div>
       </div>
 
@@ -878,7 +916,7 @@ export function HealthPage() {
       <div className="health-trends-section">
         <div className="section-header">
           <div className="section-title-group">
-            <TrendingUp size={20} color="#FF7A18" />
+            <TrendingUp size={20} color="#238B45" />
             <h2 className="section-title">Health Risk Trends</h2>
           </div>
 
@@ -984,7 +1022,7 @@ export function HealthPage() {
           {/* Card 2: Record Health Check */}
           <div className="action-card" onClick={() => openPredictionModal()}>
             <div className="action-card-icon icon-orange">
-              <Stethoscope size={22} color="#FF7A18" />
+              <Stethoscope size={22} color="#238B45" />
             </div>
             <div className="action-card-title">Magtala ng Health Check</div>
             <div className="action-card-desc">Itala ang temperatura, vitals, at pisikal na obserbasyon</div>
@@ -1029,7 +1067,7 @@ export function HealthPage() {
       <div id="health-history-section" className="health-history-section">
         <div className="history-section-header">
           <div className="history-title-group">
-            <Stethoscope size={20} color="#FF7A18" />
+            <Stethoscope size={20} color="#238B45" />
             <h2 className="section-title">Kasaysayan at Talaan ng Kalusugan</h2>
           </div>
           <span className="history-count-badge">
@@ -1525,9 +1563,6 @@ export function HealthPage() {
                         <span className={`result-score-text score-${currentPrediction.riskLevel.toLowerCase().replace(' ', '-')}`}>
                           {currentPrediction.riskLevel}
                         </span>
-                        <span className="result-confidence">
-                          · {currentPrediction.confidencePercent}% ML Confidence
-                        </span>
                       </div>
                     </div>
 
@@ -1937,30 +1972,41 @@ export function HealthPage() {
         /* 3. Summary Metric Cards */
         .health-summary-grid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 14px;
           margin-bottom: 24px;
         }
         .health-stat-card {
-          border-radius: 16px;
+          border-radius: 20px;
           padding: 16px 20px;
-          transition: transform 0.15s ease;
+          background: rgba(255, 255, 255, 0.78);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          box-shadow: 0 4px 18px rgba(23, 107, 53, 0.05);
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
-        .total-card {
-          background: var(--surface);
-          border: 1px solid var(--border);
+        .health-stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(23, 107, 53, 0.08);
+        }
+        .med-needed-card {
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.35);
         }
         .high-risk-card {
-          background: rgba(239, 68, 68, 0.08);
-          border: 1px solid rgba(239, 68, 68, 0.3);
+          background: rgba(234, 88, 12, 0.08);
+          border: 1px solid rgba(234, 88, 12, 0.35);
         }
         .mod-risk-card {
           background: rgba(245, 158, 11, 0.08);
-          border: 1px solid rgba(245, 158, 11, 0.3);
+          border: 1px solid rgba(245, 158, 11, 0.35);
         }
         .low-risk-card {
-          background: rgba(22, 163, 74, 0.08);
-          border: 1px solid rgba(22, 163, 74, 0.3);
+          background: rgba(35, 139, 69, 0.08);
+          border: 1px solid rgba(35, 139, 69, 0.28);
+        }
+        .stat-card-active {
+          box-shadow: 0 0 0 2px #238B45, 0 8px 24px rgba(35, 139, 69, 0.18) !important;
         }
         .stat-card-header {
           display: flex;
@@ -1969,27 +2015,32 @@ export function HealthPage() {
         }
         .stat-label {
           font-size: 13px;
-          font-weight: 600;
+          font-weight: 700;
           color: var(--text-secondary);
         }
-        .high-risk-label { color: #EF4444; font-weight: 700; }
-        .mod-risk-label { color: #F59E0B; font-weight: 700; }
-        .low-risk-label { color: #16A34A; font-weight: 700; }
+        .med-needed-label { color: #DC2626; font-weight: 800; }
+        .high-risk-label { color: #EA580C; font-weight: 800; }
+        .mod-risk-label { color: #D97706; font-weight: 800; }
+        .low-risk-label { color: #16A34A; font-weight: 800; }
         .stat-value {
-          font-size: 28px;
+          font-size: 26px;
           font-weight: 900;
           margin-top: 6px;
-          color: var(--text);
+          color: #174B2A;
+          letter-spacing: -0.02em;
         }
-        .high-risk-value { color: #EF4444; }
-        .mod-risk-value { color: #F59E0B; }
+        .med-needed-value { color: #DC2626; }
+        .high-risk-value { color: #EA580C; }
+        .mod-risk-value { color: #D97706; }
         .low-risk-value { color: #16A34A; }
         .stat-subtext {
-          font-size: 12px;
+          font-size: 11.5px;
           color: var(--text-secondary);
           margin-top: 2px;
+          font-weight: 500;
         }
-        .high-risk-subtext { color: #EF4444; }
+        .med-needed-subtext { color: #EF4444; }
+        .high-risk-subtext { color: #EA580C; }
         .mod-risk-subtext { color: #D97706; }
         .low-risk-subtext { color: #16A34A; }
 
@@ -2814,9 +2865,9 @@ export function HealthPage() {
           transition: all 0.15s;
         }
         .symptom-chip-active {
-          border-color: #FF7A18;
-          background: rgba(255, 122, 24, 0.15);
-          color: var(--accent-orange);
+          border-color: #238B45;
+          background: rgba(35, 139, 69, 0.15);
+          color: #238B45;
           font-weight: 700;
         }
         .modal-camera-card {
@@ -3060,34 +3111,34 @@ export function HealthPage() {
             justify-content: center !important;
           }
 
-          /* Summary Cards — STRICTLY 3 COLUMNS */
+          /* Summary Cards — Responsive 2x2 Grid on Mobile */
           .health-summary-grid {
             display: grid !important;
-            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-            gap: 8px !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
             margin-bottom: 16px !important;
           }
           .health-stat-card {
-            padding: 8px 8px !important;
-            border-radius: 12px !important;
+            padding: 12px 14px !important;
+            border-radius: 16px !important;
             min-width: 0 !important;
             word-break: break-word !important;
             overflow-wrap: anywhere !important;
           }
           .stat-value {
-            font-size: 19px !important;
+            font-size: 20px !important;
             font-weight: 800 !important;
             line-height: 1.1 !important;
-            margin-top: 2px !important;
+            margin-top: 4px !important;
           }
           .stat-label {
-            font-size: 10.5px !important;
+            font-size: 11px !important;
           }
           .stat-subtext {
-            font-size: 9px !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
+            font-size: 10px !important;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
           }
           .quick-actions-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;

@@ -642,7 +642,7 @@ export function SuperAdminPage() {
             )}
             {!mlCanPredict && (
               <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.20)', fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 8 }}>
-                Paalala: Kinakailangan ng AI model ang hindi bababa sa 5 health records upang makapagsanay. Magdagdag ng mga talaan ng kalusugan sa bukid upang paganahin ang AI prediction.
+                Paalala: Kinakailangan ng sistema ang hindi bababa sa 5 health records upang makapagsanay. Magdagdag ng mga talaan ng kalusugan sa bukid upang paganahin ang maagang pagsusuri.
               </div>
             )}
           </Card>

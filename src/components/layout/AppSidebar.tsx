@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X, ShieldCheck } from 'lucide-react';
 import { AlpasLogo } from './AlpasLogo';
 import { SidebarItem } from './SidebarItem';
 import { AICloudLauncher } from './AICloudLauncher';
@@ -23,6 +23,17 @@ export function AppSidebar({
 }: AppSidebarProps) {
   // Dynamic Navigation Items strictly based on active user role
   const navItems = getNavItemsForRole(role);
+
+  const displayRoleLabel =
+    role === 'super_admin'
+      ? 'Super Admin'
+      : role === 'system_admin'
+      ? 'System Admin'
+      : role === 'farm_manager'
+      ? 'Farm Manager'
+      : role === 'worker'
+      ? 'Farm Worker'
+      : 'Super Admin';
 
   return (
     <aside
@@ -67,8 +78,14 @@ export function AppSidebar({
           </nav>
         </div>
 
-        {/* ── Bottom: AI Cloud Launcher Card ── */}
+        {/* ── Bottom: User Role Pill + AI Cloud Launcher Card ── */}
         <div className="alpas-sidebar-footer">
+          <div className="sidebar-role-pill">
+            <div className="sidebar-role-icon-wrap">
+              <ShieldCheck size={16} />
+            </div>
+            <span className="sidebar-role-label">{displayRoleLabel}</span>
+          </div>
           <AICloudLauncher onClick={onOpenAICloud} />
         </div>
       </div>

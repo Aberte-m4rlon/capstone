@@ -60,27 +60,27 @@ export function AlpasLogo({ collapsed = false, className = '', onClick }: AlpasL
       <div className="alpas-logo-text">
         <span
           style={{
-            fontSize: '16px',
+            fontSize: '16.5px',
             fontWeight: 900,
             letterSpacing: '-0.02em',
             lineHeight: 1.15,
-            color: 'var(--color-text-primary, #1F2933)',
+            color: '#174B2A',
           }}
         >
-          <span style={{ color: '#43A047' }}>ALPAS</span>
-          <span style={{ color: 'var(--color-text-primary, #1F2933)' }}>FARM</span>
+          <span style={{ color: '#238B45' }}>ALPAS</span>
+          <span style={{ color: '#174B2A' }}>FARM</span>
         </span>
         <span
           style={{
-            fontSize: '10.5px',
+            fontSize: '11px',
             fontWeight: 600,
             letterSpacing: '0.01em',
-            color: 'var(--color-text-secondary, #667085)',
-            marginTop: 1,
+            color: '#50645A',
+            marginTop: 2,
             whiteSpace: 'nowrap',
           }}
         >
-          Smart Farm, Healthy Herd
+          Smart Farm Management
         </span>
       </div>
     </div>

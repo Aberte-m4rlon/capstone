@@ -134,7 +134,7 @@ function answerFaq(q: string): { content: string; bullets?: string[] } | null {
 
   if (/logistic|health risk.*ai|risk.*model|machine learning|ml/.test(t)) return {
     content: 'Ang Health Risk AI ay gumagamit ng Logistic Regression na tinuruan sa iyong health records. Natutukoy nito ang kombinasyon ng vitals at sintomas na may kaugnayan sa mataas na risk score.',
-    bullets: ['14 na feature: temperatura, heart rate, respiratory rate, FAMACHA score, mucous membrane, bloat, gait, appetite, ubo, pagtatae, at iba pa', '300 epochs ng gradient descent training na may L2 regularization', 'Naglalabas ng probability ng risk 0–100%, importance ng features, at confidence score', 'Mas maraming health records = mas mahusay na accuracy'],
+    bullets: ['14 na senyales: temperatura, heart rate, bilis ng paghinga, FAMACHA score, mucous membrane, bloat, lakad, gana sa pagkain, ubo, pagtatae, at iba pa', 'Pagsusuri batay sa mga naitalang health records sa bukid', 'Naglalabas ng antas ng risk (0–100%), mga importanteng senyales, at katiyakan ng pagsusuri', 'Mas maraming health records = mas maaasahang gabay sa pagsusuri'],
   };
 
   if (/famacha/.test(t)) return {

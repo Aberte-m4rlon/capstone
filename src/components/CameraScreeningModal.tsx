@@ -594,7 +594,7 @@ function ScanResultCard({
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', background: 'var(--surface)', borderRadius: 6, padding: '6px 10px', marginBottom: 12, lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Info size={13} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-          <span>Ipinapakita ng <strong>AI Confidence</strong> kung gaano kaklaro ang visual features — hindi ito tiyak na diagnosis ng sakit.</span>
+          <span>Ipinapakita ng <strong>Katiyakan ng Pagsusuri</strong> kung gaano kaklaro ang mga katangian — hindi ito tiyak na diagnosis ng sakit.</span>
         </div>
 
         {/* Detected indicators */}
