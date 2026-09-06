@@ -1493,15 +1493,13 @@ What are the recommended early livestock interventions, supportive veterinary ca
                   Pangalan / Tag ng Hayop
                 </label>
                 <select
+                  className="form-select"
                   value={selectedAnimalId}
                   onChange={e => { setSelectedAnimalId(e.target.value); setSavedId(null); }}
                   style={{
                     width: '100%',
-                    padding: '10px 12px',
+                    padding: '10px 36px 10px 12px',
                     borderRadius: 10,
-                    border: '1px solid #D1D5DB',
-                    background: '#F9FAFB',
-                    color: '#1F2937',
                     fontSize: 13,
                     fontWeight: 600,
                     outline: 'none',

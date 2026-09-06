@@ -31,7 +31,7 @@ import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
 import { FormField, Select } from '../components/ui/Input';
-import { FilterToolbar, FilterSearch } from '../components/FilterToolbar';
+import { FilterToolbar, FilterSearch, FilterSelect } from '../components/FilterToolbar';
 import { formatDate } from '../lib/analytics';
 import { type UserRole, ALL_ROLES, getRoleLabel, SUPER_ADMIN_EMAILS_FALLBACK } from '../lib/auth';
 import { supabase } from '../lib/supabase';
@@ -450,13 +450,18 @@ export function SuperAdminPage() {
             <span style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{filtered.length} sa {users.length} mga user</span>
           }>
             <FilterSearch placeholder="Maghanap ng email, pangalan, bukid..." value={search} onChange={setSearch} minWidth={220} />
-            <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-              style={{ background: 'var(--filter-bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, color: 'var(--filter-text)', cursor: 'pointer', outline: 'none' }}>
-              <option value="all">Lahat ng Tungkulin</option>
-              <option value="super_admin">Super Admin</option>
-              <option value="system_admin">System Admin</option>
-              <option value="farm_manager">Farm Manager</option>
-            </select>
+            <FilterSelect
+              value={roleFilter}
+              onChange={setRoleFilter}
+              options={[
+                { value: 'all', label: 'Lahat ng Tungkulin' },
+                { value: 'super_admin', label: 'Super Admin' },
+                { value: 'system_admin', label: 'System Admin' },
+                { value: 'farm_manager', label: 'Farm Manager' },
+              ]}
+              ariaLabel="Lahat ng Tungkulin"
+              minWidth={170}
+            />
           </FilterToolbar>
 
           <Card variant="glass" padding="none">

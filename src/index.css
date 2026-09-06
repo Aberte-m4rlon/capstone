@@ -157,6 +157,15 @@
   --filter-chevron: #50645A;
   --filter-placeholder: #78877F;
 
+  --input-bg: #FFFFFF;
+  --input-text: #174B2A;
+  --input-border: rgba(35, 139, 69, 0.20);
+  --input-border-focus: #238B45;
+  --input-chevron: #50645A;
+  --input-option-bg: #FFFFFF;
+  --input-option-text: #174B2A;
+  --input-option-selected-bg: #EAF6ED;
+
   --toast-bg: rgba(255, 255, 255, 0.95);
   --toast-text: #174B2A;
   --toast-text-secondary: #50645A;
@@ -275,6 +284,15 @@
   --filter-wrapper-bg: rgba(255, 255, 255, 0.85);
   --filter-chevron: #50645A;
   --filter-placeholder: #78877F;
+
+  --input-bg: #FFFFFF;
+  --input-text: #174B2A;
+  --input-border: rgba(35, 139, 69, 0.20);
+  --input-border-focus: #238B45;
+  --input-chevron: #50645A;
+  --input-option-bg: #FFFFFF;
+  --input-option-text: #174B2A;
+  --input-option-selected-bg: #EAF6ED;
 }
 
 /* ── Dark mode (Deep Forest Nature Slate) ── */
@@ -389,6 +407,15 @@
   --filter-wrapper-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
   --filter-chevron: #9EAF9F;
   --filter-placeholder: #6C7F6E;
+
+  --input-bg: #1D2B22;
+  --input-text: #F3F7F4;
+  --input-border: rgba(67, 160, 71, 0.35);
+  --input-border-focus: #43A047;
+  --input-chevron: #9EAF9F;
+  --input-option-bg: #17231B;
+  --input-option-text: #F3F7F4;
+  --input-option-selected-bg: #233A29;
 }
 
 * {
@@ -2142,16 +2169,146 @@ select:-webkit-autofill:focus {
   -webkit-appearance: none;
   appearance: none;
   padding-right: 36px;
+  color: var(--input-text, #174B2A);
+  background-color: var(--input-bg, #FFFFFF);
+  border: 1px solid var(--input-border, rgba(35, 139, 69, 0.20));
+  color-scheme: light;
 }
 
-.form-select option {
-  background: #FFFFFF;
-  color: #174B2A;
+[data-theme="dark"] .form-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2381C784' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  color: var(--input-text, #F3F7F4);
+  background-color: var(--input-bg, #1D2B22);
+  border-color: var(--input-border, rgba(67, 160, 71, 0.35));
+  color-scheme: dark;
 }
 
-[data-theme="dark"] .form-select option {
-  background: #17231B;
-  color: #F3F7F4;
+/* ── Universal Select & Option Styles (Light & Dark Theme) ── */
+select {
+  color: var(--input-text, #174B2A);
+  background-color: var(--input-bg, #FFFFFF);
+  border-color: var(--input-border, rgba(35, 139, 69, 0.20));
+  color-scheme: light;
+}
+
+[data-theme="dark"] select {
+  color: var(--input-text, #F3F7F4);
+  background-color: var(--input-bg, #1D2B22);
+  border-color: var(--input-border, rgba(67, 160, 71, 0.35));
+  color-scheme: dark;
+}
+
+/* Force options to have proper background and readable text in all browsers */
+select option,
+select optgroup,
+.form-select option,
+.filter-select option,
+.alpas-select option,
+.modal-animal-select option,
+.select-input option {
+  background-color: #FFFFFF !important;
+  color: #174B2A !important;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+[data-theme="dark"] select option,
+[data-theme="dark"] select optgroup,
+[data-theme="dark"] .form-select option,
+[data-theme="dark"] .filter-select option,
+[data-theme="dark"] .alpas-select option,
+[data-theme="dark"] .modal-animal-select option,
+[data-theme="dark"] .select-input option {
+  background-color: #17231B !important;
+  color: #F3F7F4 !important;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+select option:disabled,
+select optgroup:disabled,
+.form-select option:disabled,
+.filter-select option:disabled,
+.alpas-select option:disabled,
+.modal-animal-select option:disabled,
+.select-input option:disabled {
+  color: #8C9B91 !important;
+  background-color: #F4F6F4 !important;
+}
+
+[data-theme="dark"] select option:disabled,
+[data-theme="dark"] select optgroup:disabled,
+[data-theme="dark"] .form-select option:disabled,
+[data-theme="dark"] .filter-select option:disabled,
+[data-theme="dark"] .alpas-select option:disabled,
+[data-theme="dark"] .modal-animal-select option:disabled,
+[data-theme="dark"] .select-input option:disabled {
+  color: #6C7D70 !important;
+  background-color: #141C16 !important;
+}
+
+/* Selected option in native dropdown */
+select option:checked,
+.form-select option:checked,
+.filter-select option:checked,
+.alpas-select option:checked,
+.modal-animal-select option:checked,
+.select-input option:checked {
+  background-color: #EAF6ED !important;
+  color: #174B2A !important;
+  font-weight: 700;
+}
+
+[data-theme="dark"] select option:checked,
+[data-theme="dark"] .form-select option:checked,
+[data-theme="dark"] .filter-select option:checked,
+[data-theme="dark"] .alpas-select option:checked,
+[data-theme="dark"] .modal-animal-select option:checked,
+[data-theme="dark"] .select-input option:checked {
+  background-color: #233A29 !important;
+  color: #81C784 !important;
+  font-weight: 700;
+}
+
+/* Hover & Focus state for .alpas-select */
+.alpas-select {
+  color: var(--input-text, #174B2A);
+  background-color: var(--input-bg, #FFFFFF);
+  border: 1px solid var(--input-border, rgba(35, 139, 69, 0.20));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color-scheme: light;
+}
+
+[data-theme="dark"] .alpas-select {
+  color-scheme: dark;
+}
+
+.alpas-select:hover:not(:disabled) {
+  border-color: var(--color-primary, #238B45) !important;
+}
+
+.alpas-select:focus {
+  border-color: var(--color-primary, #238B45) !important;
+  box-shadow: 0 0 0 3px rgba(35, 139, 69, 0.18) !important;
+}
+
+[data-theme="dark"] .alpas-select:focus {
+  border-color: #43A047 !important;
+  box-shadow: 0 0 0 3px rgba(67, 160, 71, 0.28) !important;
+}
+
+.alpas-select:disabled {
+  background-color: #F4F6F4 !important;
+  color: #8C9B91 !important;
+  border-color: rgba(35, 139, 69, 0.12) !important;
+  opacity: 0.85;
+}
+
+[data-theme="dark"] .alpas-select:disabled {
+  background-color: #141C16 !important;
+  color: #6C7D70 !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  opacity: 0.85;
 }
 
 .form-input:focus,

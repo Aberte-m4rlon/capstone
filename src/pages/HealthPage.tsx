@@ -27,6 +27,7 @@ import {
   Activity,
   ShieldAlert,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   Camera,
   Stethoscope,
@@ -1286,20 +1287,57 @@ export function HealthPage() {
           </div>
           {/* STEP 1: Animal Selector */}
           <div>
-            <label className="modal-step-label">
+            <label className="modal-step-label" htmlFor="manual-health-animal-select">
               1. Pumili ng Hayop *
             </label>
-            <select
-              className="input modal-animal-select"
-              value={selectedAnimalId}
-              onChange={(e) => setSelectedAnimalId(e.target.value)}
-            >
-              {activeAnimals.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.species === 'Sheep' ? 'Tupa' : 'Kambing'}: {a.name} ({a.tag_id}) — Health: {a.health_status}
-                </option>
-              ))}
-            </select>
+            <div className="modal-animal-select-wrapper">
+              <select
+                id="manual-health-animal-select"
+                className="modal-animal-select"
+                value={selectedAnimalId}
+                disabled={activeAnimals.length === 0}
+                onChange={(e) => setSelectedAnimalId(e.target.value)}
+                aria-label="Pumili ng Hayop"
+              >
+                {activeAnimals.length === 0 ? (
+                  <option value="" disabled>
+                    Wala pang hayop na nakarehistro.
+                  </option>
+                ) : (
+                  <>
+                    <option value="" disabled>-- Pumili ng Hayop --</option>
+                    {activeAnimals.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.tag_id} – {a.species === 'Sheep' ? 'Tupa' : 'Kambing'}{a.name && a.name !== a.tag_id ? ` (${a.name})` : ''}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+              <span className="modal-animal-select-chevron" aria-hidden="true">
+                <ChevronDown size={18} />
+              </span>
+            </div>
+
+            {/* Empty state alert when user has no active animals */}
+            {activeAnimals.length === 0 && (
+              <div className="modal-no-animals-notice">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>Wala pang hayop na nakarehistro.</span>
+                </div>
+                <button
+                  type="button"
+                  className="modal-add-animal-link-btn"
+                  onClick={() => {
+                    setModalOpen(false);
+                    navigate('/animals?action=add');
+                  }}
+                >
+                  Magdagdag muna ng hayop sa Mga Hayop &rarr;
+                </button>
+              </div>
+            )}
           </div>
 
           {/* STEP 2: Automated Database Context */}
@@ -3032,11 +3070,137 @@ export function HealthPage() {
           display: block;
           margin-bottom: 6px;
         }
+        .modal-animal-select-wrapper {
+          position: relative;
+          width: 100%;
+        }
         .modal-animal-select {
           width: 100%;
-          font-size: 15px;
-          padding: 10px 14px;
+          min-height: 44px;
+          height: 44px;
+          padding: 0 42px 0 14px;
+          font-size: 14px;
           font-weight: 600;
+          font-family: inherit;
+          border-radius: 12px;
+          outline: none;
+          appearance: none;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          cursor: pointer;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+          background-color: var(--color-surface-solid, #FFFFFF);
+          color: var(--color-text-primary, #174B2A);
+          -webkit-text-fill-color: var(--color-text-primary, #174B2A);
+          border: 1.5px solid var(--color-border, rgba(35, 139, 69, 0.22));
+          box-sizing: border-box;
+          color-scheme: light;
+        }
+        .modal-animal-select:hover:not(:disabled) {
+          border-color: var(--color-primary, #238B45);
+        }
+        .modal-animal-select:focus {
+          border-color: var(--color-primary, #238B45) !important;
+          box-shadow: 0 0 0 3.5px rgba(35, 139, 69, 0.18) !important;
+        }
+        .modal-animal-select:disabled {
+          cursor: not-allowed;
+          background-color: #F4F6F4;
+          color: #8C9B91;
+          -webkit-text-fill-color: #8C9B91;
+          border-color: rgba(35, 139, 69, 0.12);
+          opacity: 0.85;
+        }
+        [data-theme="dark"] .modal-animal-select {
+          background-color: #17231B;
+          color: #F3F7F4;
+          -webkit-text-fill-color: #F3F7F4;
+          border: 1.5px solid rgba(67, 160, 71, 0.35);
+          color-scheme: dark;
+        }
+        [data-theme="dark"] .modal-animal-select:hover:not(:disabled) {
+          border-color: #43A047;
+        }
+        [data-theme="dark"] .modal-animal-select:focus {
+          border-color: #43A047 !important;
+          box-shadow: 0 0 0 3.5px rgba(67, 160, 71, 0.28) !important;
+        }
+        [data-theme="dark"] .modal-animal-select:disabled {
+          background-color: #141C16;
+          color: #6C7D70;
+          -webkit-text-fill-color: #6C7D70;
+          border-color: rgba(255, 255, 255, 0.10);
+        }
+        .modal-animal-select option {
+          background-color: #FFFFFF !important;
+          color: #174B2A !important;
+          font-size: 14px;
+          padding: 8px 12px;
+        }
+        [data-theme="dark"] .modal-animal-select option {
+          background-color: #17231B !important;
+          color: #F3F7F4 !important;
+          font-size: 14px;
+          padding: 8px 12px;
+        }
+        .modal-animal-select option:disabled {
+          color: #8C9B91 !important;
+          background-color: #F4F6F4 !important;
+        }
+        [data-theme="dark"] .modal-animal-select option:disabled {
+          color: #6C7D70 !important;
+          background-color: #141C16 !important;
+        }
+        .modal-animal-select-chevron {
+          position: absolute;
+          right: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+          color: #176B35;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1;
+        }
+        [data-theme="dark"] .modal-animal-select-chevron {
+          color: #81C784;
+        }
+        .modal-no-animals-notice {
+          margin-top: 8px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          font-size: 12.5px;
+          line-height: 1.4;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+          background: #FEF3C7;
+          border: 1px solid rgba(245, 158, 11, 0.35);
+          color: #92400E;
+        }
+        [data-theme="dark"] .modal-no-animals-notice {
+          background: rgba(245, 158, 11, 0.12);
+          border-color: rgba(245, 158, 11, 0.30);
+          color: #FCD34D;
+        }
+        .modal-add-animal-link-btn {
+          background: none;
+          border: none;
+          color: inherit;
+          font-weight: 700;
+          font-size: 12px;
+          text-decoration: underline;
+          cursor: pointer;
+          padding: 0;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .modal-add-animal-link-btn:hover {
+          opacity: 0.85;
         }
         .modal-context-card {
           background: rgba(35, 139, 69, 0.06);

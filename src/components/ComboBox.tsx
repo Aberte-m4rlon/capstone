@@ -106,12 +106,13 @@ export function ComboBox({ value, onChange, options, placeholder = 'Search or ty
       {open && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
-          background: '#ffffff', border: '1px solid #E5E7EB',
-          borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+          background: 'var(--color-surface-solid, #ffffff)',
+          border: '1px solid var(--color-border, #E5E7EB)',
+          borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
           maxHeight: 220, overflowY: 'auto', marginTop: 2,
         }}>
           {filtered.length === 0 ? (
-            <div style={{ padding: '10px 14px', fontSize: 13, color: 'var(--text-secondary)' }}>
+            <div style={{ padding: '10px 14px', fontSize: 13, color: 'var(--color-text-secondary, #78877F)' }}>
               No matches — press Enter or continue typing to use "{query || value}"
             </div>
           ) : (
@@ -123,13 +124,14 @@ export function ComboBox({ value, onChange, options, placeholder = 'Search or ty
                 style={{
                   display: 'block', width: '100%', textAlign: 'left',
                   padding: '9px 14px', cursor: 'pointer', fontSize: 13,
-                  color: '#1F2937', borderBottom: '1px solid #E5E7EB',
+                  color: 'var(--color-text-primary, #1F2937)',
+                  borderBottom: '1px solid var(--color-border-light, #E5E7EB)',
                   fontWeight: option === value ? 700 : 400,
-                  background: option === value ? '#FEF2F2' : '#ffffff',
+                  background: option === value ? 'var(--color-primary-soft, #EAF6ED)' : 'transparent',
                   border: 'none',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#F5F5F5')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = option === value ? '#FEF2F2' : '#ffffff')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface-hover, rgba(35, 139, 69, 0.08))')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = option === value ? 'var(--color-primary-soft, #EAF6ED)' : 'transparent')}
               >
                 {option}
               </button>
