@@ -42,6 +42,7 @@ import {
   Thermometer,
   Calendar,
   ArrowUpRight,
+  ArrowRight,
   ShieldCheck,
   Info,
   Clock,
@@ -744,7 +745,7 @@ export function HealthPage() {
       <div className="health-page-header">
         <div className="health-header-left">
           <div className="health-icon-badge">
-            <HeartPulse size={24} color="#238B45" />
+            <HeartPulse size={22} color="#238B45" />
           </div>
           <div>
             <h1 className="health-page-title">Health Monitoring</h1>
@@ -753,58 +754,39 @@ export function HealthPage() {
             </p>
           </div>
         </div>
+      </div>
 
+      {/* ── 2. PRIMARY AI HEALTH SCANNER CTA ── */}
+      <div className="health-primary-cta-container">
         <button
-          className="btn btn-primary health-primary-btn"
+          type="button"
+          className="health-primary-scanner-btn"
           onClick={() => navigate('/camera-screening')}
         >
           <Camera size={18} />
-          <span>Buksan ang AI Health Scanner</span>
+          <span>AI Health Scanner</span>
+          <ArrowRight size={16} className="scanner-arrow-icon" />
         </button>
       </div>
 
-      {/* ── 2. AI HEALTH MONITORING HERO BANNER ── */}
+      {/* ── 3. AI HEALTH MONITORING FEATURE CARD ── */}
       <div className="prediction-hero-banner">
         <div className="hero-banner-content">
           <div className="hero-badge">
-            <Camera size={14} color="#238B45" />
+            <Camera size={13} color="#238B45" />
             <span>AI Health Scanner</span>
           </div>
-          <h2 className="hero-banner-title">Awtomatikong AI Health Monitoring</h2>
+          <h2 className="hero-banner-title">Automatic Health Monitoring</h2>
           <p className="hero-banner-desc">
-            Itutok ang camera sa kambing o tupa. Awtomatikong kikilalanin ng system ang hayop, susuriin ang visual indicators, titingnan ang records sa bukid, at magbibigay ng paunang pagsusuri nang mabilis at madali.
+            Itutok ang camera sa kambing o tupa. Awtomatikong kikilalanin ng system ang hayop at susuriin ang mga nakikitang senyales para makatulong sa health monitoring at magpaalala kung may posibleng alalahanin sa kalusugan.
           </p>
           <div className="hero-banner-actions">
             <button
-              className="btn btn-primary"
-              style={{
-                borderRadius: 12,
-                padding: '11px 22px',
-                fontWeight: 700,
-                fontSize: 14,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-              onClick={() => navigate('/camera-screening')}
-            >
-              <Camera size={16} />
-              <span>Buksan ang AI Health Scanner</span>
-            </button>
-            <button
-              className="btn btn-outline"
-              style={{
-                borderRadius: 12,
-                padding: '11px 20px',
-                fontWeight: 600,
-                fontSize: 14,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
+              type="button"
+              className="health-secondary-btn"
               onClick={() => openPredictionModal()}
             >
-              <Stethoscope size={16} />
+              <HeartPulse size={16} />
               <span>Manual Health Check (Opsyonal)</span>
             </button>
           </div>
@@ -951,20 +933,12 @@ export function HealthPage() {
                   {/* Card Action */}
                   <div className="card-action-row">
                     <button
-                      className="btn btn-primary btn-sm"
-                      style={{
-                        borderRadius: 8,
-                        fontWeight: 700,
-                        fontSize: 13,
-                        padding: '6px 14px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}
+                      type="button"
+                      className="priority-animal-check-btn"
                       onClick={() => navigate('/camera-screening?animalId=' + item.animal.id)}
                     >
                       <Camera size={14} />
-                      <span>I-scan gamit ang AI</span>
+                      <span>Suriin ang Hayop</span>
                     </button>
                   </div>
                 </div>
@@ -1069,19 +1043,7 @@ export function HealthPage() {
       <div className="quick-actions-section">
         <h2 className="section-title" style={{ marginBottom: 14 }}>Mabilis na Aksyon</h2>
         <div className="quick-actions-grid">
-          {/* Card 1: AI Health Scanner */}
-          <div className="action-card" onClick={() => navigate('/camera-screening')}>
-            <div className="action-card-icon icon-green">
-              <Camera size={22} color="#238B45" />
-            </div>
-            <div className="action-card-title">AI Health Scanner</div>
-            <div className="action-card-desc">Visual screening at pagsusuri gamit ang camera</div>
-            <div className="action-card-arrow">
-              <ArrowUpRight size={16} />
-            </div>
-          </div>
-
-          {/* Card 2: Record Health Check */}
+          {/* Card 1: Record Health Check */}
           <div className="action-card" onClick={() => openPredictionModal()}>
             <div className="action-card-icon icon-green">
               <Stethoscope size={22} color="#238B45" />
@@ -1093,7 +1055,7 @@ export function HealthPage() {
             </div>
           </div>
 
-          {/* Card 3: Health History */}
+          {/* Card 2: Health History */}
           <div
             className="action-card"
             onClick={() => {
@@ -1111,6 +1073,18 @@ export function HealthPage() {
             </div>
           </div>
 
+          {/* Card 3: Gamot at Deworming */}
+          <div className="action-card" onClick={() => setTreatmentModalOpen(true)}>
+            <div className="action-card-icon icon-green">
+              <Syringe size={22} color="#238B45" />
+            </div>
+            <div className="action-card-title">Gamot at Deworming</div>
+            <div className="action-card-desc">Magbigay ng gamot, purga, o bitamina mula sa imbentaryo</div>
+            <div className="action-card-arrow">
+              <ArrowUpRight size={16} />
+            </div>
+          </div>
+
           {/* Card 4: Health Reports */}
           <div className="action-card" onClick={() => navigate('/reports')}>
             <div className="action-card-icon icon-green">
@@ -1118,18 +1092,6 @@ export function HealthPage() {
             </div>
             <div className="action-card-title">Mga Ulat sa Kalusugan</div>
             <div className="action-card-desc">Bumuo ng diagnostic summaries at clinical export</div>
-            <div className="action-card-arrow">
-              <ArrowUpRight size={16} />
-            </div>
-          </div>
-
-          {/* Card 5: Gamot at Deworming */}
-          <div className="action-card" onClick={() => setTreatmentModalOpen(true)}>
-            <div className="action-card-icon icon-green" style={{ background: '#EAF6ED', color: '#238B45' }}>
-              <Syringe size={22} color="#238B45" />
-            </div>
-            <div className="action-card-title">Gamot at Deworming</div>
-            <div className="action-card-desc">Magbigay ng gamot, purga, o bitamina mula sa imbentaryo</div>
             <div className="action-card-arrow">
               <ArrowUpRight size={16} />
             </div>
@@ -2027,11 +1989,9 @@ export function HealthPage() {
         /* 1. Header */
         .health-page-header {
           display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          flex-wrap: wrap;
-          gap: 16px;
-          margin-bottom: 24px;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 10px;
         }
         .health-header-left {
           display: flex;
@@ -2042,11 +2002,16 @@ export function HealthPage() {
           width: 44px;
           height: 44px;
           border-radius: 12px;
-          background: rgba(255, 122, 24, 0.12);
+          background: rgba(35, 139, 69, 0.12);
+          border: 1px solid rgba(35, 139, 69, 0.22);
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+        }
+        [data-theme="dark"] .health-icon-badge {
+          background: rgba(35, 139, 69, 0.22);
+          border-color: rgba(129, 199, 132, 0.30);
         }
         .health-page-title {
           font-size: 24px;
@@ -2060,60 +2025,194 @@ export function HealthPage() {
           font-size: 13px;
           margin: 2px 0 0;
         }
-        .health-primary-btn {
-          padding: 12px 22px;
-          font-size: 14px;
-          font-weight: 700;
-          border-radius: 12px;
+
+        /* 2. Primary AI Health Scanner CTA */
+        .health-primary-cta-container {
+          width: 100%;
+          margin-bottom: 14px;
+        }
+        .health-primary-scanner-btn {
+          height: 44px;
+          min-height: 44px;
           display: inline-flex;
           align-items: center;
+          justify-content: center;
           gap: 8px;
-          min-height: 44px;
+          padding: 0 20px;
+          background: #238B45;
+          color: #FFFFFF;
+          border: 1px solid #1E7E34;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(35, 139, 69, 0.20);
+          transition: all 0.2s ease;
+          user-select: none;
+          box-sizing: border-box;
+          text-decoration: none;
+        }
+        .health-primary-scanner-btn:hover {
+          background: #1C7238;
+          border-color: #175B2D;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(35, 139, 69, 0.26);
+        }
+        .health-primary-scanner-btn:active {
+          transform: translateY(0);
+          background: #175B2D;
+        }
+        .health-primary-scanner-btn .scanner-arrow-icon {
+          margin-left: 2px;
+          transition: transform 0.2s ease;
+        }
+        .health-primary-scanner-btn:hover .scanner-arrow-icon {
+          transform: translateX(3px);
+        }
+        [data-theme="dark"] .health-primary-scanner-btn {
+          background: #238B45;
+          border-color: #2E9E55;
+          color: #FFFFFF;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+        }
+        [data-theme="dark"] .health-primary-scanner-btn:hover {
+          background: #2E9E55;
         }
 
-        /* 2. Hero Banner */
+        @media (min-width: 769px) {
+          .health-primary-cta-container {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 14px;
+          }
+          .health-primary-scanner-btn {
+            width: auto;
+            min-width: 250px;
+            padding: 0 24px;
+          }
+          .health-secondary-btn {
+            width: auto;
+            min-width: 220px;
+          }
+        }
+
+        /* 3. AI Health Monitoring Feature Card */
         .prediction-hero-banner {
-          background: linear-gradient(135deg, rgba(255, 122, 24, 0.15) 0%, rgba(255, 59, 48, 0.08) 100%);
-          border: 1px solid rgba(255, 122, 24, 0.35);
-          border-radius: 20px;
-          padding: 24px 28px;
-          margin-bottom: 24px;
+          background: linear-gradient(135deg, rgba(35, 139, 69, 0.08) 0%, rgba(35, 139, 69, 0.02) 100%);
+          border: 1px solid rgba(35, 139, 69, 0.22);
+          border-radius: 18px;
+          padding: 20px 24px;
+          margin-bottom: 16px;
           position: relative;
           overflow: hidden;
-          box-shadow: 0 10px 30px rgba(255, 122, 24, 0.08);
+          box-shadow: 0 4px 16px rgba(35, 139, 69, 0.04);
+        }
+        [data-theme="dark"] .prediction-hero-banner {
+          background: linear-gradient(135deg, rgba(35, 139, 69, 0.12) 0%, rgba(23, 35, 27, 0.6) 100%);
+          border-color: rgba(255, 255, 255, 0.12);
+          box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
         }
         .hero-badge {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          background: rgba(255, 122, 24, 0.18);
-          border: 1px solid rgba(255, 122, 24, 0.35);
-          border-radius: 20px;
-          padding: 4px 10px;
+          background: rgba(35, 139, 69, 0.12);
+          border: 1px solid rgba(35, 139, 69, 0.25);
+          border-radius: 999px;
+          padding: 3px 10px;
           font-size: 11px;
           font-weight: 800;
-          color: var(--accent-orange);
+          color: #238B45;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          margin-bottom: 10px;
+          margin-bottom: 8px;
+        }
+        [data-theme="dark"] .hero-badge {
+          background: rgba(35, 139, 69, 0.25);
+          border-color: rgba(129, 199, 132, 0.35);
+          color: #81C784;
         }
         .hero-banner-title {
-          font-size: 20px;
-          font-weight: 900;
+          font-size: 18px;
+          font-weight: 800;
           margin: 0 0 6px;
           color: var(--text);
+          letter-spacing: -0.01em;
         }
         .hero-banner-desc {
           font-size: 13px;
           color: var(--text-secondary);
           max-width: 680px;
           line-height: 1.5;
-          margin: 0 0 16px;
+          margin: 0 0 14px;
         }
         .hero-banner-actions {
           display: flex;
-          gap: 12px;
+          align-items: center;
+          gap: 10px;
           flex-wrap: wrap;
+        }
+
+        /* 4. Secondary Action Button (Outline) */
+        .health-secondary-btn {
+          height: 42px;
+          min-height: 42px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 0 16px;
+          background: rgba(255, 255, 255, 0.90);
+          color: var(--text-primary, #174B2A);
+          border: 1px solid rgba(35, 139, 69, 0.30);
+          border-radius: 12px;
+          font-size: 13.5px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          user-select: none;
+          box-sizing: border-box;
+        }
+        .health-secondary-btn:hover {
+          background: rgba(35, 139, 69, 0.08);
+          border-color: rgba(35, 139, 69, 0.50);
+          color: #1F7339;
+        }
+        .health-secondary-btn:active {
+          background: rgba(35, 139, 69, 0.14);
+        }
+        [data-theme="dark"] .health-secondary-btn {
+          background: rgba(26, 40, 31, 0.75);
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          color: #F3F7F4;
+        }
+        [data-theme="dark"] .health-secondary-btn:hover {
+          background: rgba(35, 139, 69, 0.22);
+          border-color: rgba(129, 199, 132, 0.45);
+          color: #81C784;
+        }
+
+        /* Priority Animal Check Button */
+        .priority-animal-check-btn {
+          height: 36px;
+          min-height: 36px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 0 14px;
+          background: #238B45;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 10px;
+          font-size: 12.5px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-sizing: border-box;
+        }
+        .priority-animal-check-btn:hover {
+          background: #1C7238;
         }
 
         /* 3. Summary Metric Cards */
@@ -3222,11 +3321,39 @@ export function HealthPage() {
         }
 
         @media (max-width: 768px) {
-          /* Compact AI Health Monitoring Hero Banner on Mobile */
+          .health-page-header {
+            gap: 10px !important;
+            margin-bottom: 10px !important;
+            flex-direction: row !important;
+            align-items: center !important;
+          }
+          .health-icon-badge {
+            width: 38px !important;
+            height: 38px !important;
+          }
+          .health-page-title {
+            font-size: 20px !important;
+          }
+          .health-page-subtitle {
+            font-size: 12px !important;
+          }
+          .health-primary-cta-container {
+            margin-bottom: 12px !important;
+          }
+          .health-primary-scanner-btn {
+            width: 100% !important;
+            height: 42px !important;
+            min-height: 42px !important;
+            font-size: 13.5px !important;
+            padding: 0 14px !important;
+            justify-content: center !important;
+          }
+
+          /* Compact AI Health Monitoring Card on Mobile */
           .prediction-hero-banner {
             padding: 14px 16px !important;
             border-radius: 14px !important;
-            margin-bottom: 14px !important;
+            margin-bottom: 16px !important;
           }
           .hero-badge {
             padding: 3px 8px !important;
@@ -3239,21 +3366,20 @@ export function HealthPage() {
             margin-bottom: 4px !important;
           }
           .hero-banner-desc {
-            font-size: 11.5px !important;
+            font-size: 12px !important;
             line-height: 1.4 !important;
             margin-bottom: 12px !important;
           }
           .hero-banner-actions {
             display: flex !important;
-            flex-direction: column !important;
-            gap: 8px !important;
             width: 100% !important;
           }
-          .hero-banner-actions .btn {
+          .health-secondary-btn {
             width: 100% !important;
             height: 42px !important;
+            min-height: 42px !important;
             font-size: 13px !important;
-            padding: 8px 14px !important;
+            padding: 0 14px !important;
             justify-content: center !important;
           }
 
@@ -3330,12 +3456,8 @@ export function HealthPage() {
             font-size: 18px !important;
           }
           .health-page-header {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .health-primary-btn {
-            width: 100%;
-            justify-content: center;
+            flex-direction: row;
+            align-items: center;
           }
           .priority-animals-grid {
             grid-template-columns: 1fr;
