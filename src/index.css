@@ -5820,12 +5820,12 @@ input[type="time"] {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: space-evenly;
+  justify-content: flex-start;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding: 6px 0;
+  padding: 4px 0;
   box-sizing: border-box;
 }
 
@@ -5837,21 +5837,27 @@ input[type="time"] {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: space-evenly;
+  justify-content: flex-start;
   width: 100%;
-  height: 100%;
-  gap: 6px;
+  min-height: 100%;
+  gap: 3px;
   margin: 0;
-  padding: 0;
+  padding: 2px 0;
 }
 
-/* ── Nav Items (Collapsed: 52px circle, Expanded: Full Rounded Pill) ── */
+@supports (justify-content: safe space-evenly) {
+  .alpas-sidebar.desktop-sidebar .alpas-nav-list {
+    justify-content: safe space-evenly;
+  }
+}
+
+/* ── Nav Items (Collapsed: 52px pill, Expanded: Full Rounded Pill) ── */
 .alpas-sidebar.desktop-sidebar .alpas-nav-item {
   width: 52px;
-  height: 52px;
+  height: 48px;
   min-width: 52px;
-  min-height: 52px;
-  border-radius: 50% !important;
+  min-height: 48px;
+  border-radius: 9999px !important;
   background: transparent !important;
   color: var(--sidebar-item-color, #176B35) !important;
   opacity: 0.85 !important;
@@ -5887,9 +5893,9 @@ input[type="time"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
-  min-width: 50px;
+  width: 52px;
+  height: 48px;
+  min-width: 52px;
   flex-shrink: 0;
   transition: all 180ms ease;
 }
@@ -5904,13 +5910,13 @@ input[type="time"] {
   color: #81C784;
 }
 
-/* ── Collapsed Active Nav Item: 52px circle, #238B45, white icon, subtle shadow ── */
+/* ── Collapsed Active Nav Item: 52px pill, #238B45, white icon, subtle shadow ── */
 .alpas-sidebar.desktop-sidebar .alpas-nav-item.active {
   width: 52px !important;
-  height: 52px !important;
+  height: 48px !important;
   min-width: 52px !important;
-  min-height: 52px !important;
-  border-radius: 50% !important;
+  min-height: 48px !important;
+  border-radius: 9999px !important;
   background: #238B45 !important;
   color: #FFFFFF !important;
   box-shadow: 0 6px 18px rgba(35, 139, 69, 0.25) !important;
