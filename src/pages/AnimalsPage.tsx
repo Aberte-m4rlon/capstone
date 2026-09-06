@@ -37,9 +37,10 @@ const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https:
 
 export function AnimalsPage() {
   const farmData = useFarmData();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const isSuperAdmin = profile?.role === 'super_admin';
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Animal | null>(null);
@@ -185,7 +186,11 @@ export function AnimalsPage() {
 
     try {
       if (editing) {
-        const { error } = await supabase.from('animals').update(payload).eq('id', editing.id);
+        let query = supabase.from('animals').update(payload).eq('id', editing.id);
+        if (!isSuperAdmin) {
+          query = query.eq('user_id', user.id);
+        }
+        const { error } = await query;
         if (error) throw error;
         toast('Matagumpay na na-save ang record.', 'success');
       } else {
@@ -219,8 +224,13 @@ export function AnimalsPage() {
   };
 
   const handleArchive = async (a: Animal) => {
+    if (!user) return;
     try {
-      const { error } = await supabase.from('animals').update({ archived: !a.archived }).eq('id', a.id);
+      let query = supabase.from('animals').update({ archived: !a.archived }).eq('id', a.id);
+      if (!isSuperAdmin) {
+        query = query.eq('user_id', user.id);
+      }
+      const { error } = await query;
       if (error) throw error;
       toast(a.archived ? 'Naibalik ang hayop sa aktibo.' : 'Nai-archive ang hayop.', 'success');
       farmData.refresh();
@@ -230,9 +240,13 @@ export function AnimalsPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || !user) return;
     try {
-      const { error } = await supabase.from('animals').delete().eq('id', confirmDelete.id);
+      let query = supabase.from('animals').delete().eq('id', confirmDelete.id);
+      if (!isSuperAdmin) {
+        query = query.eq('user_id', user.id);
+      }
+      const { error } = await query;
       if (error) throw error;
       toast('Matagumpay na na-delete ang record.', 'success');
       setConfirmDelete(null);

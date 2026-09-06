@@ -7,18 +7,31 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 
-type ReportType = 'animal' | 'health' | 'breeding' | 'weight' | 'vaccination' | 'inventory' | 'feed' | 'milk' | 'performance';
+type ReportType =
+  | 'animal'
+  | 'health'
+  | 'treatment'
+  | 'breeding'
+  | 'weight'
+  | 'vaccination'
+  | 'feed'
+  | 'inventory'
+  | 'ledger'
+  | 'milk'
+  | 'performance';
 
 const REPORT_LABELS: Record<ReportType, string> = {
   animal: 'Ulat ng mga Hayop',
   health: 'Ulat sa Kalusugan',
+  treatment: 'Ulat sa Gamot at Deworming',
   breeding: 'Ulat sa Pagpapalahi (Breeding)',
   vaccination: 'Ulat sa Pagbabakuna',
-  inventory: 'Ulat sa Imbentaryo',
-  performance: 'Pangkalahatang Buod ng Bukid',
-  weight: 'Ulat sa Timbang at Paglaki',
   feed: 'Ulat sa Pakain',
+  inventory: 'Ulat sa Imbentaryo (Balance)',
+  ledger: 'Talaan ng Paggalaw ng Imbentaryo (Ledger)',
+  weight: 'Ulat sa Timbang at Paglaki',
   milk: 'Ulat sa Produksyon ng Gatas',
+  performance: 'Pangkalahatang Buod ng Bukid',
 };
 
 export function ReportsPage() {
@@ -58,6 +71,26 @@ export function ReportsPage() {
           .filter((r) => inDateRange(r.record_date))
           .filter((r) => !search || animalName(r.animal_id).toLowerCase().includes(search.toLowerCase()))
           .map((r) => ({ date: r.record_date, animal: animalName(r.animal_id), temp: r.temperature, hr: r.heart_rate, risk: `${r.risk_level} (${r.risk_score})`, reasons: r.reasons || '—' }));
+      case 'treatment':
+        return farmData.healthRecords
+          .filter((r) => inDateRange(r.record_date))
+          .filter((r) => {
+            const text = `${r.notes ?? ''} ${r.reasons ?? ''} ${r.recommendation ?? ''}`;
+            return (
+              text.includes('Gamot') ||
+              text.includes('Deworming') ||
+              text.includes('Medication') ||
+              text.includes('Lunas')
+            );
+          })
+          .filter((r) => !search || animalName(r.animal_id).toLowerCase().includes(search.toLowerCase()) || (r.notes ?? '').toLowerCase().includes(search.toLowerCase()))
+          .map((r) => ({
+            date: r.record_date,
+            animal: animalName(r.animal_id),
+            treatment: r.reasons || 'Gamot / Lunas',
+            recommendation: r.recommendation || '—',
+            notes: r.notes || '—',
+          }));
       case 'breeding':
         return farmData.breedingRecords
           .filter((r) => inDateRange(r.mating_date))
@@ -73,15 +106,64 @@ export function ReportsPage() {
           .filter((r) => inDateRange(r.date_given))
           .filter((r) => !search || animalName(r.animal_id).toLowerCase().includes(search.toLowerCase()) || r.vaccine_name.toLowerCase().includes(search.toLowerCase()))
           .map((r) => ({ date: r.date_given, animal: animalName(r.animal_id), vaccine: r.vaccine_name, nextDue: r.next_due_date, vet: r.veterinarian }));
-      case 'inventory':
-        return farmData.inventory
-          .filter((r) => !search || r.name.toLowerCase().includes(search.toLowerCase()))
-          .map((r) => ({ name: r.name, category: r.category, qty: r.quantity, unit: r.unit, min: r.minimum_stock, expiry: r.expiry_date, status: inventoryStatus(r, farmData.settings?.expiry_warning_days ?? 15).label }));
       case 'feed':
         return farmData.feedRecords
           .filter((r) => inDateRange(r.record_date))
           .filter((r) => !search || animalName(r.animal_id).toLowerCase().includes(search.toLowerCase()))
           .map((r) => ({ date: r.record_date, animal: animalName(r.animal_id), type: r.feed_type, qty: r.quantity_kg, cost: r.cost }));
+      case 'inventory':
+        return farmData.inventory
+          .filter((r) => !search || r.name.toLowerCase().includes(search.toLowerCase()) || (r.category ?? '').toLowerCase().includes(search.toLowerCase()))
+          .map((r) => {
+            const txs = farmData.inventoryTransactions.filter((tx) => tx.inventory_item_id === r.id);
+            const totalIn = txs.filter((tx) => tx.type === 'STOCK_IN' || tx.type === 'RETURN').reduce((s, tx) => s + (tx.quantity || 0), 0);
+            const totalOut = txs.filter((tx) => tx.type === 'CONSUMPTION').reduce((s, tx) => s + (tx.quantity || 0), 0);
+            return {
+              name: r.name,
+              category: r.category,
+              current_balance: `${r.quantity} ${r.unit}`,
+              total_in: `${totalIn} ${r.unit}`,
+              total_consumed: `${totalOut} ${r.unit}`,
+              min: r.minimum_stock ? `${r.minimum_stock} ${r.unit}` : '—',
+              cost_per_unit: r.cost ? `₱${r.cost}` : '—',
+              expiry: r.expiry_date || 'Walang Expiry',
+              status: inventoryStatus(r, farmData.settings?.expiry_warning_days ?? 15).label,
+            };
+          });
+      case 'ledger':
+        return farmData.inventoryTransactions
+          .filter((tx) => !tx.created_at || inDateRange(tx.created_at.split('T')[0]))
+          .filter((tx) => {
+            const itemName = farmData.inventory.find((i) => i.id === tx.inventory_item_id)?.name ?? 'Kagamitan';
+            return !search || itemName.toLowerCase().includes(search.toLowerCase()) || (tx.reason ?? '').toLowerCase().includes(search.toLowerCase()) || (tx.notes ?? '').toLowerCase().includes(search.toLowerCase());
+          })
+          .map((tx) => {
+            const item = farmData.inventory.find((i) => i.id === tx.inventory_item_id);
+            const itemName = item?.name ?? 'Kagamitan';
+            const unit = tx.unit || item?.unit || '';
+            const typeLabel =
+              tx.type === 'STOCK_IN'
+                ? 'Pasok (Stock In)'
+                : tx.type === 'CONSUMPTION'
+                ? 'Nagamit (Consumption)'
+                : tx.type === 'ADJUSTMENT_IN' || tx.type === 'ADJUSTMENT_OUT'
+                ? 'Pagwawasto (Adjustment)'
+                : tx.type === 'REMOVAL'
+                ? 'Tinatanggal (Removal)'
+                : tx.type === 'RETURN'
+                ? 'Binalik (Return)'
+                : tx.type;
+            return {
+              date: tx.created_at ? tx.created_at.split('T')[0] : '—',
+              item: itemName,
+              type: typeLabel,
+              qty: `${tx.quantity} ${unit}`,
+              previous_stock: `${tx.previous_stock ?? '—'} ${unit}`,
+              new_stock: `${tx.new_stock ?? '—'} ${unit}`,
+              reason: tx.reason || '—',
+              notes: tx.notes || '—',
+            };
+          });
       case 'milk':
         return farmData.milkRecords
           .filter((r) => inDateRange(r.record_date))
@@ -317,6 +399,16 @@ export function ReportsPage() {
                       yield: 'Dami ng Gatas (L)',
                       metric: 'Sukat / Parameter',
                       value: 'Bilang / Halaga',
+                      treatment: 'Gamot / Lunas',
+                      recommendation: 'Dalas / Tagubilin',
+                      item: 'Kagamitan',
+                      previous_stock: 'Dating Stock',
+                      new_stock: 'Bagong Stock',
+                      current_balance: 'Kasalukuyang Stock',
+                      total_in: 'Kabuuang Pumasok',
+                      total_consumed: 'Kabuuang Nagamit',
+                      cost_per_unit: 'Presyo bawat Yunit',
+                      reason: 'Dahilan',
                     };
                     const colName = colMap[h] || (h.charAt(0).toUpperCase() + h.slice(1));
                     return (

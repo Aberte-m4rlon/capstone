@@ -164,7 +164,8 @@ async function syncScreeningToAnimalHealth(
         health_status: mappedStatus,
         health_risk_score: scoreVal,
       })
-      .eq('id', animalId);
+      .eq('id', animalId)
+      .eq('user_id', userId);
 
     // 2. Insert clinical record into health_records
     const conditionLabels = (result.indicators || []).map((i) => i.label).filter(Boolean);
@@ -176,6 +177,7 @@ async function syncScreeningToAnimalHealth(
     ].filter(Boolean).join(' ');
 
     await supabase.from('health_records').insert({
+      user_id: userId,
       animal_id: animalId,
       record_date: new Date().toISOString().split('T')[0],
       reasons: conditionLabels.length > 0 ? conditionLabels : ['AI Camera Health Screening'],
@@ -204,44 +206,51 @@ async function syncScreeningToAnimalHealth(
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 export function useAnimalScreenings(animalId: string | null) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const [screenings, setScreenings] = useState<CameraScreening[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user || !animalId) { setScreenings([]); return; }
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from('camera_health_screenings')
       .select('*')
-      .eq('user_id', user.id)
-      .eq('animal_id', animalId)
-      .order('created_at', { ascending: false });
+      .eq('animal_id', animalId);
+    if (!isSuperAdmin) {
+      query = query.eq('user_id', user.id);
+    }
+    const { data } = await query.order('created_at', { ascending: false });
     setScreenings((data as CameraScreening[]) ?? []);
     setLoading(false);
-  }, [user, animalId]);
+  }, [user, isSuperAdmin, animalId]);
 
   useEffect(() => { refresh(); }, [refresh]);
   return { screenings, loading, refresh };
 }
 
 export function useAllScreenings() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const [screenings, setScreenings] = useState<CameraScreening[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user) { setScreenings([]); return; }
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from('camera_health_screenings')
-      .select('*')
-      .eq('user_id', user.id)
+      .select('*');
+    if (!isSuperAdmin) {
+      query = query.eq('user_id', user.id);
+    }
+    const { data } = await query
       .order('created_at', { ascending: false })
       .limit(200);
     setScreenings((data as CameraScreening[]) ?? []);
     setLoading(false);
-  }, [user]);
+  }, [user, isSuperAdmin]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -259,12 +268,14 @@ export function useAllScreenings() {
 export async function deleteScreening(
   screeningId: string,
   imagePath: string | null,
+  userId?: string | null,
 ): Promise<{ error: string | null }> {
   if (imagePath) await supabase.storage.from(BUCKET).remove([imagePath]);
-  const { error } = await supabase
-    .from('camera_health_screenings')
-    .delete()
-    .eq('id', screeningId);
+  let query = supabase.from('camera_health_screenings').delete().eq('id', screeningId);
+  if (userId) {
+    query = query.eq('user_id', userId);
+  }
+  const { error } = await query;
   return { error: error?.message ?? null };
 }
 

@@ -18,8 +18,9 @@ import {
   Plus, Brain, TrendingUp, AlertCircle, Layers,
   HeartPulse, PawPrint, Scale, Baby, Package, AlertTriangle,
   Lightbulb, Activity, CheckCircle2, ChevronRight, Syringe,
-  ShieldAlert, Clock, Stethoscope, ArrowRight, DollarSign, Camera,
+  ShieldAlert, Clock, Stethoscope, ArrowRight, DollarSign, Camera, Pill,
 } from 'lucide-react';
+import { isFeedCategory } from '../lib/inventoryOperations';
 import { useMLInsights } from '../lib/mlHooks';
 import { Line, Doughnut } from 'react-chartjs-2';
 import {
@@ -182,6 +183,13 @@ export function Dashboard() {
       actionText: string;
     }> = [];
 
+    const medicationNeededList: Array<{
+      animal: typeof activeAnimals[0];
+      record?: typeof healthRecords[0];
+      concernText: string;
+      actionText: string;
+    }> = [];
+
     let healthyCount = 0;
 
     displayedAnimals.forEach((a) => {
@@ -190,8 +198,25 @@ export function Dashboard() {
         .sort((x, y) => new Date(y.record_date).getTime() - new Date(x.record_date).getTime());
       const latest = records[0];
 
+      // Check if animal has an active medication record in healthRecords
+      const hasActiveMed = records.some((r) => {
+        const text = `${r.notes ?? ''} ${r.reasons ?? ''} ${r.recommendation ?? ''}`;
+        const hasStatus = text.includes('Kailangan ng Gamot') || text.includes('Kasalukuyang Ginagamot') || text.includes('Hindi pa Nabibigyan');
+        const isDone = text.includes('Tapos na ang Gamot');
+        return hasStatus && !isDone;
+      });
+
       const score = Math.max(a.health_risk_score ?? 0, latest?.risk_score ?? 0);
       const status = a.health_status;
+
+      if (hasActiveMed || status === 'Critical' || (status === 'At Risk' && score >= 70)) {
+        medicationNeededList.push({
+          animal: a,
+          record: latest,
+          concernText: hasActiveMed ? 'Kasalukuyang Ginagamot' : 'Kailangan ng Gamot',
+          actionText: 'Tingnan o itala ang gamot',
+        });
+      }
 
       const isHigh = status === 'Critical' || (status === 'At Risk' && score >= 50) || latest?.risk_level === 'High' || score >= 50;
       const isModerate = !isHigh && (status === 'Monitor' || status === 'At Risk' || latest?.risk_level === 'Moderate' || score >= 25);
@@ -212,7 +237,7 @@ export function Dashboard() {
     const todayStr = new Date().toISOString().split('T')[0];
     const screenedTodayCount = (cameraScreenings || []).filter((s) => s.created_at && s.created_at.startsWith(todayStr)).length;
 
-    return { highRisk, moderateRisk, healthyCount, screenedTodayCount };
+    return { highRisk, moderateRisk, healthyCount, screenedTodayCount, medicationNeededList };
   }, [displayedAnimals, healthRecords, cameraScreenings]);
 
   // ── 3. Breeding & Gestation ────────────────────────────────────────────────
@@ -296,6 +321,8 @@ export function Dashboard() {
     let expiringCount = 0;
     let expiredCount = 0;
     let currentInventoryValue = 0;
+    let totalFeedKg = 0;
+    let feedItemsCount = 0;
 
     inventory.forEach((item) => {
       const st = inventoryStatus(item, settings?.expiry_warning_days ?? 15);
@@ -305,6 +332,11 @@ export function Dashboard() {
       if (st.status === 'Expiring Soon') expiringCount++;
       if (st.status === 'Expired') expiredCount++;
       currentInventoryValue += (item.quantity || 0) * (item.cost || 0);
+
+      if (isFeedCategory(item.category)) {
+        totalFeedKg += Number(item.quantity) || 0;
+        feedItemsCount++;
+      }
     });
 
     // Real financials from inventory_transactions
@@ -329,6 +361,8 @@ export function Dashboard() {
       lowStockCount,
       expiringCount,
       expiredCount,
+      totalFeedKg,
+      feedItemsCount,
       spentThisMonth,
       consumedValueMonth,
       currentInventoryValue,
@@ -403,10 +437,11 @@ export function Dashboard() {
         actions={[
           { label: 'Magdagdag ng Hayop', to: '/animals', icon: <Plus size={14} className="qa-plus-icon" /> },
           { label: 'Suriin ang Kalusugan', to: '/health', icon: <Stethoscope size={14} className="qa-plus-icon" /> },
+          { label: 'Magpakain sa Bukid', to: '/feed', icon: <Package size={14} className="qa-plus-icon" /> },
           { label: 'Magtala ng Timbang', to: '/weights', icon: <Scale size={14} className="qa-plus-icon" /> },
           { label: 'Pagpaparami', to: '/breeding', icon: <Baby size={14} className="qa-plus-icon" /> },
           { label: 'Magtala ng Bakuna', to: '/vaccinations', icon: <Syringe size={14} className="qa-plus-icon" /> },
-          { label: 'Kagamitan at Supplies', to: '/inventory', icon: <Package size={14} className="qa-plus-icon" /> },
+          { label: 'Gamot at Supplies', to: '/inventory', icon: <Pill size={14} className="qa-plus-icon" /> },
         ]}
       />
 
@@ -984,6 +1019,34 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+
+          {/* Kailangan ng Gamot */}
+          <div
+            onClick={() => navigate('/health')}
+            className="stat-card"
+            style={{
+              cursor: 'pointer',
+              background: healthScreening.medicationNeededList.length > 0 ? 'rgba(239, 68, 68, 0.08)' : 'var(--color-surface, rgba(255, 255, 255, 0.05))',
+              border: healthScreening.medicationNeededList.length > 0 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--color-border, rgba(226, 232, 240, 0.2))',
+            }}
+          >
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: healthScreening.medicationNeededList.length > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
+                Kailangan ng Gamot
+              </span>
+              <div className="stat-card-icon" style={{ background: healthScreening.medicationNeededList.length > 0 ? 'rgba(239, 68, 68, 0.20)' : 'rgba(100, 116, 139, 0.12)', color: healthScreening.medicationNeededList.length > 0 ? '#EF4444' : '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Pill size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="stat-card-value" style={{ color: healthScreening.medicationNeededList.length > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
+                {healthScreening.medicationNeededList.length} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
+                Aktibong gamutan
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Actionable Sick Animals Attention List */}
@@ -1395,8 +1458,8 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* Stock Status Cards (Strictly 3 Columns on Mobile) */}
-        <div className="dashboard-stats-3col">
+        {/* Stock Status Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
           {/* Total Items */}
           <div
             onClick={() => navigate('/inventory')}
@@ -1421,6 +1484,34 @@ export function Dashboard() {
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
                 Aktibo sa bodega
+              </div>
+            </div>
+          </div>
+
+          {/* Feed Stock (Pakain sa Bukid) */}
+          <div
+            onClick={() => navigate('/feed')}
+            className="stat-card"
+            style={{
+              cursor: 'pointer',
+              background: 'rgba(35, 139, 69, 0.08)',
+              border: '1px solid rgba(35, 139, 69, 0.25)',
+            }}
+          >
+            <div className="alpas-stat-header">
+              <span className="stat-card-label" style={{ fontWeight: 700, color: '#238B45' }}>
+                Pakain sa Bukid (Feeds)
+              </span>
+              <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Package size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="stat-card-value" style={{ color: '#238B45' }}>
+                {inventoryStats.totalFeedKg.toLocaleString('en-PH', { maximumFractionDigits: 1 })} <span style={{ fontSize: '11px', fontWeight: 600 }}>kg</span>
+              </div>
+              <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+                {inventoryStats.feedItemsCount} uri ng feeds sa stock
               </div>
             </div>
           </div>

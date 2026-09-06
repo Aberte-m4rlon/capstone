@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
+import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
 import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
@@ -13,10 +14,12 @@ import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2, Brain, TrendingUp } from 'lucide-react';
 import { formatDate, calculateFeedEfficiency, calculateMilkForecast } from '../lib/analytics';
 import { useMilkForecast, useFeedPrediction } from '../lib/mlHooks';
+import { isFeedCategory, consumeInventoryStock } from '../lib/inventoryOperations';
 import type { FeedRecord, MilkRecord } from '../types';
 
 const emptyForm = {
   animal_id: '',
+  inventory_item_id: '',
   record_date: new Date().toISOString().split('T')[0],
   feed_type: '',
   quantity_kg: '',
@@ -33,6 +36,8 @@ const emptyMilkForm = {
 
 export function FeedPage() {
   const farmData = useFarmData();
+  const { user, profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const { toast } = useToast();
   const feedPred = useFeedPrediction();
 
@@ -62,17 +67,34 @@ export function FeedPage() {
       .sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime());
   }, [farmData.milkRecords, fAnimal]);
 
+  const feedInventory = useMemo(() => {
+    return farmData.inventory.filter((i) => isFeedCategory(i.category));
+  }, [farmData.inventory]);
+
+  const selectedFeedItem = useMemo(() => {
+    return feedInventory.find((i) => i.id === form.inventory_item_id) || null;
+  }, [feedInventory, form.inventory_item_id]);
+
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...emptyForm, animal_id: activeAnimals[0]?.id ?? '' });
+    const firstAvailable = feedInventory.find((i) => Number(i.quantity) > 0) || feedInventory[0];
+    setForm({
+      ...emptyForm,
+      animal_id: activeAnimals[0]?.id ?? '',
+      inventory_item_id: firstAvailable?.id ?? '',
+      feed_type: firstAvailable?.name ?? '',
+      cost: firstAvailable?.cost ? String(firstAvailable.cost) : '',
+    });
     setErrors({});
     setModalOpen(true);
   };
 
   const openEdit = (r: FeedRecord) => {
     setEditing(r);
+    const matched = feedInventory.find((i) => i.name.toLowerCase() === r.feed_type.toLowerCase());
     setForm({
       animal_id: r.animal_id,
+      inventory_item_id: matched?.id ?? '',
       record_date: r.record_date,
       feed_type: r.feed_type,
       quantity_kg: String(r.quantity_kg),
@@ -86,49 +108,115 @@ export function FeedPage() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.animal_id) e.animal_id = 'Pumili ng hayop.';
-    if (!form.feed_type.trim()) e.feed_type = 'Kailangang ilagay ang uri ng pakain.';
-    if (!form.quantity_kg || isNaN(Number(form.quantity_kg)) || Number(form.quantity_kg) <= 0)
+    if (!editing && !form.inventory_item_id) {
+      e.inventory_item_id = 'Pumili ng pakain mula sa imbentaryo.';
+    } else if (!form.feed_type.trim()) {
+      e.feed_type = 'Kailangang ilagay ang uri ng pakain.';
+    }
+    const qty = Number(form.quantity_kg);
+    if (!form.quantity_kg || isNaN(qty) || qty <= 0) {
       e.quantity_kg = 'Maglagay ng wastong dami na higit sa 0.';
+    } else if (!editing && selectedFeedItem && qty > Number(selectedFeedItem.quantity)) {
+      e.quantity_kg = `❌ Hindi sapat ang stock. Available lang: ${selectedFeedItem.quantity} ${selectedFeedItem.unit}.`;
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
-    setSaving(true);
+    if (!validate() || !user) return;
 
-    const payload = {
-      animal_id: form.animal_id,
-      record_date: form.record_date,
-      feed_type: form.feed_type.trim(),
-      quantity_kg: Number(form.quantity_kg),
-      cost: form.cost ? Number(form.cost) : 0,
-      notes: form.notes.trim() || null,
-    };
+    const animal = farmData.animals.find((a) => a.id === form.animal_id);
+    if (!animal || (!isSuperAdmin && animal.user_id !== user.id)) {
+      toast('Walang pahintulot sa napiling hayop.', 'danger');
+      return;
+    }
+
+    setSaving(true);
+    const qty = Number(form.quantity_kg);
+    const feedName = selectedFeedItem ? selectedFeedItem.name : form.feed_type.trim();
 
     try {
       if (editing) {
-        const { error } = await supabase.from('feed_records').update(payload).eq('id', editing.id);
+        const payload = {
+          user_id: user.id,
+          animal_id: form.animal_id,
+          record_date: form.record_date,
+          feed_type: feedName,
+          quantity_kg: qty,
+          cost: form.cost ? Number(form.cost) : 0,
+          notes: form.notes.trim() || null,
+        };
+        let updateQuery = supabase.from('feed_records').update(payload).eq('id', editing.id);
+        if (!isSuperAdmin) {
+          updateQuery = updateQuery.eq('user_id', user.id);
+        }
+        const { error } = await updateQuery;
         if (error) throw error;
         toast('Na-update na ang rekord ng pakain.', 'success');
       } else {
-        const { error } = await supabase.from('feed_records').insert(payload);
-        if (error) throw error;
-        toast('Nai-save na ang rekord ng pakain.', 'success');
+        if (!selectedFeedItem) {
+          toast('Pumili ng wastong pakain mula sa imbentaryo.', 'danger');
+          setSaving(false);
+          return;
+        }
+
+        // 1. Consume from Inventory & Write to inventory_transactions ledger atomically
+        const consumeRes = await consumeInventoryStock({
+          userId: user.id,
+          isSuperAdmin,
+          item: selectedFeedItem,
+          quantity: qty,
+          usageType: 'feeding',
+          animalId: animal.id,
+          animalTag: animal.tag_id,
+          animalName: animal.name,
+          referenceType: 'animal',
+          referenceId: animal.id,
+          reason: 'Feeding / Pagpapakain',
+          notes: `Pakain: ${feedName} para kay ${animal.tag_id} (${animal.name || 'Walang Pangalan'}). ${form.notes.trim()}`.trim(),
+        });
+
+        if (!consumeRes.success) {
+          toast(consumeRes.error || 'Hindi sapat ang stock sa imbentaryo.', 'danger');
+          setSaving(false);
+          return;
+        }
+
+        // 2. Save Feed Record linked to the animal
+        const payload = {
+          user_id: user.id,
+          animal_id: form.animal_id,
+          record_date: form.record_date,
+          feed_type: feedName,
+          quantity_kg: qty,
+          cost: form.cost ? Number(form.cost) : (selectedFeedItem.cost ? +(qty * Number(selectedFeedItem.cost)).toFixed(2) : 0),
+          notes: form.notes.trim() || null,
+        };
+
+        const { error: feedErr } = await supabase.from('feed_records').insert(payload);
+        if (feedErr) throw feedErr;
+
+        toast(`Nai-save ang pakain! Nabawasan ng ${qty} ${selectedFeedItem.unit} ang ${selectedFeedItem.name} sa imbentaryo.`, 'success');
       }
+
       setModalOpen(false);
       farmData.refresh();
-    } catch {
-      toast('Hindi mai-save ang rekord ng pakain. Pakisubukang muli.', 'danger');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Hindi mai-save ang rekord ng pakain. Pakisubukang muli.', 'danger');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || !user) return;
     try {
-      const { error } = await supabase.from('feed_records').delete().eq('id', confirmDelete.id);
+      let deleteQuery = supabase.from('feed_records').delete().eq('id', confirmDelete.id);
+      if (!isSuperAdmin) {
+        deleteQuery = deleteQuery.eq('user_id', user.id);
+      }
+      const { error } = await deleteQuery;
       if (error) throw error;
       toast('Nabura na ang rekord ng pakain.', 'success');
       setConfirmDelete(null);
@@ -139,6 +227,7 @@ export function FeedPage() {
   };
 
   const handleMilkSave = async () => {
+    if (!user) return;
     const e: Record<string, string> = {};
     if (!milkForm.animal_id) e.animal_id = 'Pumili ng inahin.';
     if (!milkForm.yield_litres || isNaN(Number(milkForm.yield_litres)) || Number(milkForm.yield_litres) <= 0)
@@ -146,9 +235,16 @@ export function FeedPage() {
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
+    const animal = farmData.animals.find((a) => a.id === milkForm.animal_id);
+    if (!animal || (!isSuperAdmin && animal.user_id !== user.id)) {
+      toast('Walang pahintulot sa napiling inahin.', 'danger');
+      return;
+    }
+
     setSaving(true);
     try {
       const { error } = await supabase.from('milk_records').insert({
+        user_id: user.id,
         animal_id: milkForm.animal_id,
         record_date: milkForm.record_date,
         yield_litres: Number(milkForm.yield_litres),
@@ -167,8 +263,13 @@ export function FeedPage() {
   };
 
   const handleMilkDelete = async (m: MilkRecord) => {
+    if (!user) return;
     try {
-      const { error } = await supabase.from('milk_records').delete().eq('id', m.id);
+      let deleteQuery = supabase.from('milk_records').delete().eq('id', m.id);
+      if (!isSuperAdmin) {
+        deleteQuery = deleteQuery.eq('user_id', user.id);
+      }
+      const { error } = await deleteQuery;
       if (error) throw error;
       toast('Nabura na ang rekord ng gatas.', 'success');
       farmData.refresh();
@@ -595,21 +696,103 @@ export function FeedPage() {
               />
             </FormField>
 
-            <FormField label="Uri ng Pakain" required error={errors.feed_type}>
-              <Input
-                value={form.feed_type}
-                onChange={(e) => setForm({ ...form, feed_type: e.target.value })}
-                placeholder="Darak, damo, napier, commercial pellets..."
+            {feedInventory.length === 0 && (
+              <div
+                style={{
+                  background: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  color: '#92400E',
+                }}
+              >
+                ⚠️ Walang nakalistang pakain (Feed) sa iyong Farm Inventory.{' '}
+                <a href="/inventory" style={{ textDecoration: 'underline', fontWeight: 700 }}>
+                  Magdagdag muna sa Inventory
+                </a>{' '}
+                upang maitala ang pagpapakain at mabawasan ang stock.
+              </div>
+            )}
+
+            <FormField label="Pakain mula sa Farm Inventory" required error={errors.inventory_item_id || errors.feed_type}>
+              <Select
+                value={form.inventory_item_id}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const item = feedInventory.find((i) => i.id === selectedId);
+                  const q = Number(form.quantity_kg) || 0;
+                  setForm({
+                    ...form,
+                    inventory_item_id: selectedId,
+                    feed_type: item ? item.name : '',
+                    cost: item?.cost && q > 0 ? String(+(q * Number(item.cost)).toFixed(2)) : form.cost,
+                  });
+                }}
+                options={[
+                  {
+                    value: '',
+                    label: feedInventory.length === 0 ? 'Walang available na feed sa inventory...' : 'Pumili ng pakain mula sa imbentaryo...',
+                  },
+                  ...feedInventory.map((i) => ({
+                    value: i.id,
+                    label: `${i.name} — ${i.quantity} ${i.unit} available${Number(i.quantity) <= 0 ? ' (Ubos na ang Stock)' : ''}`,
+                    disabled: Number(i.quantity) <= 0,
+                  })),
+                ]}
               />
             </FormField>
 
+            {selectedFeedItem && (
+              <div
+                style={{
+                  background: Number(selectedFeedItem.quantity) <= 0 ? '#FEE2E2' : '#EAF6ED',
+                  border: `1px solid ${Number(selectedFeedItem.quantity) <= 0 ? '#FCA5A5' : '#C3E6CB'}`,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <span>
+                  <strong>Kasalukuyang Available:</strong>{' '}
+                  <span
+                    style={{
+                      color:
+                        Number(selectedFeedItem.quantity) <= 0
+                          ? '#EF4444'
+                          : Number(selectedFeedItem.quantity) <= Number(selectedFeedItem.minimum_stock)
+                          ? '#D97706'
+                          : '#238B45',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {selectedFeedItem.quantity} {selectedFeedItem.unit}
+                  </span>
+                </span>
+                <span>
+                  <strong>Halaga kada Yunit:</strong> ₱{selectedFeedItem.cost ?? 0} / {selectedFeedItem.unit}
+                </span>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Dami (kg)" required error={errors.quantity_kg}>
+              <FormField label={`Dami (${selectedFeedItem?.unit || 'kg'})`} required error={errors.quantity_kg}>
                 <Input
                   type="number"
                   step="0.1"
                   value={form.quantity_kg}
-                  onChange={(e) => setForm({ ...form, quantity_kg: e.target.value })}
+                  onChange={(e) => {
+                    const q = e.target.value;
+                    const autoCost =
+                      selectedFeedItem?.cost && Number(q) > 0
+                        ? String(+(Number(q) * Number(selectedFeedItem.cost)).toFixed(2))
+                        : form.cost;
+                    setForm({ ...form, quantity_kg: q, cost: autoCost });
+                  }}
+                  placeholder="Hal. 5"
                 />
               </FormField>
 
@@ -619,6 +802,7 @@ export function FeedPage() {
                   step="0.01"
                   value={form.cost}
                   onChange={(e) => setForm({ ...form, cost: e.target.value })}
+                  placeholder="0.00"
                 />
               </FormField>
             </div>

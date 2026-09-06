@@ -3,6 +3,7 @@ import { Sparkles, Send, X, Lightbulb, Brain, TrendingUp, AlertCircle, Zap, Refr
 import { useFarmData } from '../lib/useFarmData';
 import { useMLInsights, useAnomalyDetection } from '../lib/mlHooks';
 import { daysUntil, formatDate } from '../lib/analytics';
+import { isFeedCategory, isMedicineCategory, isDewormerCategory, isSupplementCategory } from '../lib/inventoryOperations';
 
 interface Msg { id: string; role: 'user' | 'assistant'; content: string; bullets?: string[]; tag?: string; }
 interface Props { open: boolean; onClose: () => void; }
@@ -56,6 +57,12 @@ function detect(q: string) {
            || t.match(/(?:ano ang kalagayan|kalagayan)\s+(?:ni|ng)\s+([a-zA-Z]+)/i);
     return m ? m[1] : null;
   })();
+
+  // Animals needing medication / sick animals
+  if (/sino.*gamot|kailangan.*gamot|may.*gamot|ginagamot|sinong.*sakit|may.*sakit|kailangan.*purga|hayop.*gamot/.test(t)) return { intent: 'medication_needed', animal };
+
+  // Feed stock / feeds inventory
+  if (/feed.*stock|stock.*feed|feeds.*stock|ilan.*feed|may.*feed|feed.*inventory|imbentaryo.*feed|stock.*pakain|pakain.*stock|ilan.*pakain|may.*pakain/.test(t)) return { intent: 'feed_stock', animal };
 
   // Pregnancy / conception date questions
   if (/exact|exactong|conception|consepsyon|due date|kidding date|petsa ng.*buntis|paano.*malalaman.*buntis|paano.*malalaman.*buntis|kung kailan.*buntis|paano.*tutukoy.*buntis/.test(t)) return { intent: 'pregnancy_date', animal };
@@ -268,6 +275,52 @@ function buildReply(
   if (intent === 'camera_screening') {
     const faq = answerFaq('camera');
     if (faq) return { ...faq, tag: 'insight' };
+  }
+
+  // ── Animals Needing Medication / Sick Animals ──────────────────────────────
+  if (intent === 'medication_needed') {
+    const medNeeded = active.filter((a) => {
+      if (a.health_status === 'Critical') return true;
+      const records = farmData.healthRecords.filter((r) => r.animal_id === a.id);
+      return records.some((r) => {
+        const text = `${r.notes ?? ''} ${r.reasons ?? ''} ${r.recommendation ?? ''}`;
+        return (
+          (text.includes('Kailangan ng Gamot') || text.includes('Kasalukuyang Ginagamot')) &&
+          !text.includes('Tapos na ang Gamot')
+        );
+      });
+    });
+
+    if (medNeeded.length === 0) {
+      return {
+        tag: 'ok',
+        content: 'Walang hayop na kasalukuyang nangangailangan ng gamot o sumasailalim sa aktibong gamutan sa bukid. Lahat ng hayop ay nasa ligtas na kalagayan.',
+      };
+    }
+
+    const bullets = medNeeded.map((a) => {
+      const rec = farmData.healthRecords.filter((r) => r.animal_id === a.id).slice(-1)[0];
+      const desc = rec?.reasons || rec?.notes || a.health_status;
+      return `${a.name} (${a.tag_id}) — ${a.health_status} [${desc}]`;
+    });
+
+    return {
+      tag: 'alert',
+      content: `May **${medNeeded.length} hayop** na nangangailangan ng gamot o kasalukuyang ginagamot:`,
+      bullets,
+    };
+  }
+
+  // ── Feed Stock Query ───────────────────────────────────────────────────────
+  if (intent === 'feed_stock') {
+    const feedItems = farmData.inventory.filter((i) => isFeedCategory(i.category));
+    const totalKg = feedItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+    const bullets = feedItems.map((i) => `${i.name}: ${i.quantity} ${i.unit} (minimum: ${i.minimum_stock ?? '—'} ${i.unit})`);
+    return {
+      tag: totalKg > 0 ? 'ok' : 'alert',
+      content: `Kasalukuyang may kabuuang **${totalKg.toLocaleString('en-PH', { maximumFractionDigits: 1 })} kg** ng feeds sa imbentaryo (${feedItems.length} uri):`,
+      bullets: bullets.length > 0 ? bullets : ['Walang naka-rekord na feed item sa iyong imbentaryo. Magdagdag sa Farm Inventory.'],
+    };
   }
 
   if (intent === 'pregnancy_date') {
@@ -581,6 +634,21 @@ function buildReply(
 
   // ── Inventory ───────────────────────────────────────────────────────────────
   if (intent === 'inventory') {
+    const isMed = /gamot|medicine|purga|deworm|bakuna|vaccine|supplement|vitamina/i.test(input);
+    if (isMed) {
+      const medItems = farmData.inventory.filter(
+        (i) => isMedicineCategory(i.category) || isDewormerCategory(i.category) || isSupplementCategory(i.category)
+      );
+      const bullets = medItems.map((i) => {
+        const exp = i.expiry_date ? ` · Expiry: ${i.expiry_date}` : '';
+        return `${i.name} (${i.category}): ${i.quantity} ${i.unit}${exp}`;
+      });
+      return {
+        tag: medItems.length > 0 ? 'ok' : 'alert',
+        content: `Mayroong **${medItems.length} uri ng gamot/dewormer/supplement** sa bodega:`,
+        bullets: bullets.length > 0 ? bullets : ['Walang gamot o bakuna na nakatala sa imbentaryo.'],
+      };
+    }
     const low = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock));
     const expired = farmData.inventory.filter((i) => i.expiry_date && new Date(i.expiry_date) < new Date());
     const bullets: string[] = [];

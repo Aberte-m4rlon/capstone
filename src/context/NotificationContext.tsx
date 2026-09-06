@@ -131,9 +131,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       );
 
       // 2. Persist to database in background
-      await notificationService.markAsRead(notificationId);
+      await notificationService.markAsRead(notificationId, user?.id);
     },
-    []
+    [user]
   );
 
   // Mark all notifications as read (Optimistic UI)
@@ -163,9 +163,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     async (notificationId: string) => {
       if (!notificationId) return;
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      await notificationService.deleteNotification(notificationId);
+      await notificationService.deleteNotification(notificationId, user?.id);
     },
-    []
+    [user]
   );
 
   // Clear all notifications (Optimistic UI)
@@ -196,7 +196,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         );
 
         // 2. Save to database in background
-        notificationService.markAsRead(notification.id).catch((err) => {
+        notificationService.markAsRead(notification.id, user?.id).catch((err) => {
           console.warn('Failed to save read state in DB:', err);
         });
       }

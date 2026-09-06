@@ -10,7 +10,7 @@ import { Input, FormField } from '../components/ui/Input';
 
 export function SettingsPage() {
   const farmData = useFarmData();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -117,8 +117,12 @@ export function SettingsPage() {
     if (!user) return;
     setSaving(true);
     try {
-      if (farmData.settings) {
-        const { error } = await supabase.from('settings').update(form).eq('id', farmData.settings.id);
+      if (farmData.settings && !farmData.settings.id.startsWith('default-settings-')) {
+        let updateQuery = supabase.from('settings').update({ ...form, user_id: user.id }).eq('id', farmData.settings.id);
+        if (profile?.role !== 'super_admin') {
+          updateQuery = updateQuery.eq('user_id', user.id);
+        }
+        const { error } = await updateQuery;
         if (error) throw error;
       } else {
         const { error } = await supabase.from('settings').insert({ ...form, user_id: user.id });

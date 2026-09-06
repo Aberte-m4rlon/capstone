@@ -60,16 +60,21 @@ export const notificationService = {
   /**
    * Mark a single notification as read permanently in Supabase.
    */
-  async markAsRead(notificationId: string): Promise<boolean> {
+  async markAsRead(notificationId: string, userId?: string): Promise<boolean> {
     if (!notificationId) return false;
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('notifications')
         .update({
           read: true,
         })
         .eq('id', notificationId);
 
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { error } = await query;
       if (error) {
         console.warn('notificationService.markAsRead failed:', error.message);
         return false;
@@ -110,14 +115,19 @@ export const notificationService = {
   /**
    * Delete a single notification.
    */
-  async deleteNotification(notificationId: string): Promise<boolean> {
+  async deleteNotification(notificationId: string, userId?: string): Promise<boolean> {
     if (!notificationId) return false;
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('notifications')
         .delete()
         .eq('id', notificationId);
 
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { error } = await query;
       if (error) {
         console.warn('notificationService.deleteNotification failed:', error.message);
         return false;

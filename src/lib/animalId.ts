@@ -1,4 +1,4 @@
-﻿import { supabase } from './supabase';
+import { supabase } from './supabase';
 import type { Animal, Species } from '../types';
 
 /**
@@ -102,11 +102,12 @@ export async function fetchNextUniqueAnimalId(
 }
 
 /**
- * Checks whether a specific tag_id is already registered in the database.
+ * Checks whether a specific tag_id is already registered in the user's farm.
  */
 export async function isAnimalIdAvailable(
   tagId: string,
-  excludeAnimalId?: string | null
+  excludeAnimalId?: string | null,
+  userId?: string | null,
 ): Promise<boolean> {
   if (!tagId || !tagId.trim()) return false;
   try {
@@ -114,6 +115,10 @@ export async function isAnimalIdAvailable(
       .from('animals')
       .select('id')
       .ilike('tag_id', tagId.trim());
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
 
     if (excludeAnimalId) {
       query = query.neq('id', excludeAnimalId);
@@ -145,25 +150,28 @@ export interface SaveAnimalResult {
 
 /**
  * Inserts a new animal with automatic duplicate prevention and race-condition retries.
- * If Supabase returns code 23505 (unique_violation) or duplicate key error,
- * the function increments the numeric suffix and retries seamlessly.
+ * Tag IDs are unique per farm (user_id).
  */
 export async function insertAnimalWithUniqueRetry(
-  payload: Partial<Animal> & { species: Species },
+  payload: Partial<Animal> & { species: Species; user_id?: string },
   options: InsertAnimalOptions = {}
 ): Promise<SaveAnimalResult> {
   const maxRetries = options.maxRetries ?? 5;
   const prefix = getSpeciesPrefix(payload.species);
 
-  // 1. Fetch current DB state to ensure starting candidate is fresh
-  const { data: currentAnimals } = await supabase.from('animals').select('tag_id, species');
+  // 1. Fetch current DB state for this user to ensure starting candidate is fresh
+  let freshQuery = supabase.from('animals').select('tag_id, species');
+  if (payload.user_id) {
+    freshQuery = freshQuery.eq('user_id', payload.user_id);
+  }
+  const { data: currentAnimals } = await freshQuery;
   let currentCandidate = payload.tag_id?.trim() || generateNextAnimalId(payload.species, currentAnimals || []);
 
   let hadConflict = false;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     // Check if current candidate is available before trying insert
-    const isAvailable = await isAnimalIdAvailable(currentCandidate);
+    const isAvailable = await isAnimalIdAvailable(currentCandidate, null, payload.user_id);
     if (!isAvailable) {
       hadConflict = true;
       const num = parseAnimalNumber(currentCandidate, prefix) || 0;

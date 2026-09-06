@@ -141,7 +141,8 @@ function getAnimalReadinessCardData(
 
 export function BreedingPage() {
   const farmData = useFarmData();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -358,7 +359,22 @@ export function BreedingPage() {
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!validate() || !user) return;
+
+    const female = farmData.animals.find((a) => a.id === form.animal_id);
+    if (!female || (!isSuperAdmin && female.user_id !== user.id)) {
+      toast('Walang pahintulot sa napiling babaeng hayop.', 'danger');
+      return;
+    }
+
+    if (form.partner_id) {
+      const partner = farmData.animals.find((a) => a.id === form.partner_id);
+      if (!partner || (!isSuperAdmin && partner.user_id !== user.id)) {
+        toast('Walang pahintulot sa napiling lalaking hayop.', 'danger');
+        return;
+      }
+    }
+
     setSaving(true);
 
     const kiddingDate =
@@ -367,6 +383,7 @@ export function BreedingPage() {
         : null;
 
     const payload = {
+      user_id: user.id,
       animal_id: form.animal_id,
       partner_id: form.partner_id || null,
       mating_date: form.mating_date,
@@ -377,7 +394,11 @@ export function BreedingPage() {
 
     try {
       if (editing) {
-        const { error } = await supabase.from('breeding_records').update(payload).eq('id', editing.id);
+        let updateQuery = supabase.from('breeding_records').update(payload).eq('id', editing.id);
+        if (!isSuperAdmin) {
+          updateQuery = updateQuery.eq('user_id', user.id);
+        }
+        const { error } = await updateQuery;
         if (error) throw error;
         toast('Matagumpay na na-update ang record ng breeding.', 'success');
       } else {
@@ -386,9 +407,8 @@ export function BreedingPage() {
         toast('Matagumpay na na-save ang record ng breeding.', 'success');
 
         if (kiddingDate && form.status === 'Pregnant') {
-          const female = farmData.animals.find((a) => a.id === form.animal_id);
           await createNotification(
-            female?.user_id ?? '',
+            user.id,
             'Breeding',
             `Inaasahang Panganganak: ${female?.name ?? 'Hayop'}`,
             `Ang ${female?.name ?? 'hayop'} ay inaasahang manganganak bandang ${formatDate(kiddingDate)}.`,
@@ -398,13 +418,18 @@ export function BreedingPage() {
         }
       }
 
-      await supabase
+      let animalUpdate = supabase
         .from('animals')
         .update({
           breeding_status: form.status,
           expected_kidding_date: kiddingDate,
         })
         .eq('id', form.animal_id);
+
+      if (!isSuperAdmin) {
+        animalUpdate = animalUpdate.eq('user_id', user.id);
+      }
+      await animalUpdate;
 
       setModalOpen(false);
       farmData.refresh();
@@ -416,9 +441,13 @@ export function BreedingPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || !user) return;
     try {
-      const { error } = await supabase.from('breeding_records').delete().eq('id', confirmDelete.id);
+      let deleteQuery = supabase.from('breeding_records').delete().eq('id', confirmDelete.id);
+      if (!isSuperAdmin) {
+        deleteQuery = deleteQuery.eq('user_id', user.id);
+      }
+      const { error } = await deleteQuery;
       if (error) throw error;
       toast('Matagumpay na nabura ang record ng breeding.', 'success');
       setConfirmDelete(null);

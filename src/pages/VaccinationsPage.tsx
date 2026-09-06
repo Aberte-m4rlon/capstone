@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 import { useFarmData } from '../lib/useFarmData';
+import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
 import { Modal, ModalHeader, ModalBody, ModalFooter, ConfirmDialog } from '../components/ui/Modal';
@@ -26,6 +27,7 @@ import {
 import { formatDate, daysUntil, vaccinationStatusFromDue } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
 import { GOAT_SHEEP_VACCINES, COMMON_VETS } from '../lib/farmDefaults';
+import { isVaccineCategory, consumeInventoryStock } from '../lib/inventoryOperations';
 import type { Vaccination } from '../types';
 
 const emptyForm = {
@@ -63,6 +65,8 @@ const specularHighlight: React.CSSProperties = {
 
 export function VaccinationsPage() {
   const farmData = useFarmData();
+  const { user, profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -112,9 +116,24 @@ export function VaccinationsPage() {
       .sort((a, b) => new Date(b.date_given).getTime() - new Date(a.date_given).getTime());
   }, [farmData.vaccinations, fStatus, searchQuery, farmData.settings, farmData.animals]);
 
+  const vaccineInventory = useMemo(() => {
+    return farmData.inventory.filter((i) => isVaccineCategory(i.category));
+  }, [farmData.inventory]);
+
+  const selectedVaccineItem = useMemo(() => {
+    return vaccineInventory.find((i) => i.id === form.inventory_item_id) || null;
+  }, [vaccineInventory, form.inventory_item_id]);
+
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...emptyForm, animal_id: activeAnimals[0]?.id ?? '' });
+    const firstVaccine = vaccineInventory.find((i) => Number(i.quantity) > 0) || vaccineInventory[0];
+    setForm({
+      ...emptyForm,
+      animal_id: activeAnimals[0]?.id ?? '',
+      inventory_item_id: firstVaccine?.id ?? '',
+      vaccine_name: firstVaccine?.name ?? '',
+      deduct_quantity: 1,
+    });
     setErrors({});
     setModalOpen(true);
   };
@@ -127,9 +146,9 @@ export function VaccinationsPage() {
     }
   }, [location.search]);
 
-
   const openEdit = (r: Vaccination) => {
     setEditing(r);
+    const matched = vaccineInventory.find((i) => i.name.toLowerCase() === r.vaccine_name.toLowerCase());
     setForm({
       animal_id: r.animal_id,
       vaccine_name: r.vaccine_name,
@@ -137,7 +156,7 @@ export function VaccinationsPage() {
       next_due_date: r.next_due_date ?? '',
       veterinarian: r.veterinarian ?? '',
       notes: r.notes ?? '',
-      inventory_item_id: '',
+      inventory_item_id: matched?.id ?? '',
       deduct_quantity: 1,
     });
     setErrors({});
@@ -147,70 +166,139 @@ export function VaccinationsPage() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.animal_id) e.animal_id = 'Pumili ng hayop.';
-    if (!form.vaccine_name.trim()) e.vaccine_name = 'Kailangan ang pangalan ng bakuna.';
-    if (!form.date_given) e.date_given = 'Kailangan ang vaccination date.';
+    if (!editing && !form.inventory_item_id) {
+      e.inventory_item_id = 'Pumili ng bakuna mula sa iyong Farm Inventory.';
+    } else if (!form.vaccine_name.trim()) {
+      e.vaccine_name = 'Kailangan ang pangalan ng bakuna.';
+    }
+    if (!form.date_given) e.date_given = 'Kailangan ang petsa ng bakuna.';
+
+    const doses = Number(form.deduct_quantity) || 0;
+    if (doses <= 0) {
+      e.deduct_quantity = 'Maglagay ng wastong dami ng bakuna (minimum: 1).';
+    } else if (!editing && selectedVaccineItem) {
+      const avail = Number(selectedVaccineItem.quantity) || 0;
+      if (doses > avail) {
+        e.deduct_quantity = `❌ Hindi sapat ang available na bakuna. Available lang: ${avail} ${selectedVaccineItem.unit}.`;
+      }
+      if (selectedVaccineItem.expiry_date && daysUntil(selectedVaccineItem.expiry_date) < 0) {
+        e.inventory_item_id = `⚠️ Expired na ang bakunang ito noong ${selectedVaccineItem.expiry_date}. Hindi ito maaaring gamitin.`;
+      }
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!validate() || !user) return;
+
+    const animal = farmData.animals.find((a) => a.id === form.animal_id);
+    if (!animal || (!isSuperAdmin && animal.user_id !== user.id)) {
+      toast('Walang pahintulot sa napiling hayop.', 'error');
+      return;
+    }
+
     setSaving(true);
-    const payload = {
-      animal_id: form.animal_id,
-      vaccine_name: form.vaccine_name.trim(),
-      date_given: form.date_given,
-      next_due_date: form.next_due_date || null,
-      veterinarian: form.veterinarian.trim() || null,
-      notes: form.notes.trim() || null,
-    };
+    const vaccName = selectedVaccineItem ? selectedVaccineItem.name : form.vaccine_name.trim();
+    const doses = Number(form.deduct_quantity) || 1;
+
     try {
       if (editing) {
-        const { error } = await supabase.from('vaccinations').update(payload).eq('id', editing.id);
+        const payload = {
+          user_id: user.id,
+          animal_id: form.animal_id,
+          vaccine_name: vaccName,
+          date_given: form.date_given,
+          next_due_date: form.next_due_date || null,
+          veterinarian: form.veterinarian.trim() || null,
+          notes: form.notes.trim() || null,
+        };
+        let updateQuery = supabase.from('vaccinations').update(payload).eq('id', editing.id);
+        if (!isSuperAdmin) {
+          updateQuery = updateQuery.eq('user_id', user.id);
+        }
+        const { error } = await updateQuery;
         if (error) throw error;
         toast('Matagumpay na na-update ang record ng bakuna.', 'success');
       } else {
+        if (!selectedVaccineItem) {
+          toast('Pumili ng wastong bakuna mula sa imbentaryo.', 'error');
+          setSaving(false);
+          return;
+        }
+
+        // 1. Consume vaccine from inventory & log transaction ledger atomically
+        const consumeRes = await consumeInventoryStock({
+          userId: user.id,
+          isSuperAdmin,
+          item: selectedVaccineItem,
+          quantity: doses,
+          usageType: 'vaccination',
+          animalId: animal.id,
+          animalTag: animal.tag_id,
+          animalName: animal.name,
+          referenceType: 'animal',
+          referenceId: animal.id,
+          reason: 'Vaccination / Pagbabakuna',
+          notes: `Bakuna: ${vaccName} (${doses} ${selectedVaccineItem.unit}) para kay ${animal.tag_id} (${animal.name || 'Walang Pangalan'}). Vet: ${form.veterinarian || 'N/A'}. ${form.notes.trim()}`.trim(),
+        });
+
+        if (!consumeRes.success) {
+          toast(consumeRes.error || 'Hindi sapat ang stock ng bakuna sa imbentaryo.', 'error');
+          setSaving(false);
+          return;
+        }
+
+        // 2. Insert into vaccinations table
+        const payload = {
+          user_id: user.id,
+          animal_id: form.animal_id,
+          vaccine_name: vaccName,
+          date_given: form.date_given,
+          next_due_date: form.next_due_date || null,
+          veterinarian: form.veterinarian.trim() || null,
+          notes: form.notes.trim() || null,
+        };
         const { error } = await supabase.from('vaccinations').insert(payload);
         if (error) throw error;
-        toast('Matagumpay na na-save ang record ng bakuna.', 'success');
-      }
-      const animal = farmData.animals.find((a) => a.id === form.animal_id);
-      if (animal) {
-        const vaccStatus = vaccinationStatusFromDue(form.next_due_date || null, farmData.settings?.vaccine_due_days ?? 30);
-        await supabase
-          .from('animals')
-          .update({ last_vaccine_date: form.date_given, next_vaccine_date: form.next_due_date || null, vaccination_status: vaccStatus })
-          .eq('id', form.animal_id);
-        if (vaccStatus === 'Overdue') {
-          await createNotification(animal.user_id, 'Vaccination', `${animal.name} — Lampas na sa schedule ng bakuna`, `${form.vaccine_name} ay dapat noong ${form.next_due_date}`, 'Critical', '/vaccinations');
-        } else if (vaccStatus === 'Due Soon') {
-          const days = form.next_due_date ? daysUntil(form.next_due_date) : null;
-          await createNotification(animal.user_id, 'Vaccination', `${animal.name} — Bakuna sa loob ng ${days} araw`, `${form.vaccine_name} schedule sa ${form.next_due_date}`, 'Warning', '/vaccinations');
-        }
+
+        toast(`Nai-save ang bakuna! Nabawasan ng ${doses} ${selectedVaccineItem.unit} ang ${selectedVaccineItem.name} sa imbentaryo.`, 'success');
       }
 
-      // Auto-deduct inventory if an inventory item was selected
-      if (!editing && form.inventory_item_id) {
-        const invItem = farmData.inventory.find((i) => i.id === form.inventory_item_id);
-        if (invItem) {
-          const qtyToDeduct = Number(form.deduct_quantity) || 1;
-          const newStock = Math.max(0, invItem.quantity - qtyToDeduct);
-          await supabase.from('inventory').update({ quantity: newStock }).eq('id', invItem.id);
-          await supabase.from('inventory_transactions').insert({
-            inventory_item_id: invItem.id,
-            type: 'CONSUMPTION',
-            quantity: qtyToDeduct,
-            unit: invItem.unit,
-            reason: 'Vaccination',
-            reference_type: 'animal',
-            reference_id: form.animal_id,
-            notes: `Bakuna: ${form.vaccine_name} para kay ${animal?.tag_id ?? ''} (${animal?.name ?? ''})`,
-            previous_stock: invItem.quantity,
-            new_stock: newStock,
-            cost_per_unit: invItem.cost ?? null,
-          });
-          toast(`Nai-bawas ang ${qtyToDeduct} ${invItem.unit} ng ${invItem.name} sa imbentaryo.`, 'success');
-        }
+      // Update animal vaccination status
+      const vaccStatus = vaccinationStatusFromDue(form.next_due_date || null, farmData.settings?.vaccine_due_days ?? 30);
+      let animalUpdate = supabase
+        .from('animals')
+        .update({
+          last_vaccine_date: form.date_given,
+          next_vaccine_date: form.next_due_date || null,
+          vaccination_status: vaccStatus,
+        })
+        .eq('id', form.animal_id);
+      if (!isSuperAdmin) {
+        animalUpdate = animalUpdate.eq('user_id', user.id);
+      }
+      await animalUpdate;
+
+      if (vaccStatus === 'Overdue') {
+        await createNotification(
+          user.id,
+          'Vaccination',
+          `${animal.name} — Lampas na sa schedule ng bakuna`,
+          `${vaccName} ay dapat noong ${form.next_due_date}`,
+          'Critical',
+          '/vaccinations'
+        );
+      } else if (vaccStatus === 'Due Soon') {
+        const days = form.next_due_date ? daysUntil(form.next_due_date) : null;
+        await createNotification(
+          user.id,
+          'Vaccination',
+          `${animal.name} — Bakuna sa loob ng ${days} araw`,
+          `${vaccName} schedule sa ${form.next_due_date}`,
+          'Warning',
+          '/vaccinations'
+        );
       }
 
       setModalOpen(false);
@@ -224,9 +312,13 @@ export function VaccinationsPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || !user) return;
     try {
-      const { error } = await supabase.from('vaccinations').delete().eq('id', confirmDelete.id);
+      let deleteQuery = supabase.from('vaccinations').delete().eq('id', confirmDelete.id);
+      if (!isSuperAdmin) {
+        deleteQuery = deleteQuery.eq('user_id', user.id);
+      }
+      const { error } = await deleteQuery;
       if (error) throw error;
       toast('Matagumpay na nabura ang record ng bakuna.', 'success');
       setConfirmDelete(null);
@@ -798,17 +890,131 @@ export function VaccinationsPage() {
               />
             </FormField>
 
-            <FormField label="Pangalan ng Bakuna" required error={errors.vaccine_name}>
-              <ComboBox
-                value={form.vaccine_name}
-                onChange={(v) => setForm({ ...form, vaccine_name: v })}
-                options={GOAT_SHEEP_VACCINES}
-                placeholder="Maghanap o maglagay ng pangalan ng bakuna (hal. CDT, Dewormer)..."
+            {vaccineInventory.length === 0 && (
+              <div
+                style={{
+                  background: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  color: '#92400E',
+                }}
+              >
+                ⚠️ Walang nakalistang bakuna (Vaccine) sa iyong Farm Inventory.{' '}
+                <a href="/inventory" style={{ textDecoration: 'underline', fontWeight: 700 }}>
+                  Magdagdag muna sa Inventory
+                </a>{' '}
+                upang maitala ang pagbabakuna at mabawasan ang stock.
+              </div>
+            )}
+
+            <FormField label="Bakuna mula sa Farm Inventory" required error={errors.inventory_item_id || errors.vaccine_name}>
+              <Select
+                value={form.inventory_item_id}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const item = vaccineInventory.find((i) => i.id === selectedId);
+                  setForm({
+                    ...form,
+                    inventory_item_id: selectedId,
+                    vaccine_name: item ? item.name : '',
+                  });
+                }}
+                options={[
+                  {
+                    value: '',
+                    label: vaccineInventory.length === 0 ? 'Walang bakuna sa inventory...' : 'Pumili ng bakuna mula sa imbentaryo...',
+                  },
+                  ...vaccineInventory.map((i) => ({
+                    value: i.id,
+                    label: `${i.name} — ${i.quantity} ${i.unit} available${Number(i.quantity) <= 0 ? ' (Ubos na ang Stock)' : ''}${
+                      i.expiry_date && daysUntil(i.expiry_date) < 0 ? ' (Expired na)' : ''
+                    }`,
+                    disabled: Number(i.quantity) <= 0 || (!!i.expiry_date && daysUntil(i.expiry_date) < 0),
+                  })),
+                ]}
               />
             </FormField>
 
+            {selectedVaccineItem && (
+              <div
+                style={{
+                  background:
+                    selectedVaccineItem.expiry_date && daysUntil(selectedVaccineItem.expiry_date) < 0
+                      ? '#FEE2E2'
+                      : Number(selectedVaccineItem.quantity) <= 0
+                      ? '#FEE2E2'
+                      : '#EAF6ED',
+                  border: `1px solid ${
+                    Number(selectedVaccineItem.quantity) <= 0 || (selectedVaccineItem.expiry_date && daysUntil(selectedVaccineItem.expiry_date) < 0)
+                      ? '#FCA5A5'
+                      : '#C3E6CB'
+                  }`,
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <span>
+                  <strong>Available Stock:</strong>{' '}
+                  <span
+                    style={{
+                      color:
+                        Number(selectedVaccineItem.quantity) <= 0
+                          ? '#EF4444'
+                          : Number(selectedVaccineItem.quantity) <= Number(selectedVaccineItem.minimum_stock)
+                          ? '#D97706'
+                          : '#238B45',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {selectedVaccineItem.quantity} {selectedVaccineItem.unit}
+                  </span>
+                </span>
+                {selectedVaccineItem.expiry_date && (
+                  <span>
+                    <strong>Expiry:</strong>{' '}
+                    <span
+                      style={{
+                        color: daysUntil(selectedVaccineItem.expiry_date) < 0 ? '#EF4444' : '#50645A',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {formatDate(selectedVaccineItem.expiry_date)}
+                    </span>
+                  </span>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Vaccination Date (Petsa ng Bakuna)" required error={errors.date_given}>
+              <FormField label={`Dami ng Dosis (${selectedVaccineItem?.unit || 'dose/s'})`} required error={errors.deduct_quantity}>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.deduct_quantity}
+                  onChange={(e) => setForm({ ...form, deduct_quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                  placeholder="1"
+                />
+              </FormField>
+
+              <FormField label="Veterinarian / Kawani">
+                <ComboBox
+                  value={form.veterinarian}
+                  onChange={(v) => setForm({ ...form, veterinarian: v })}
+                  options={COMMON_VETS}
+                  placeholder="Beterinaryo o nagbakuna..."
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <FormField label="Petsa ng Bakuna" required error={errors.date_given}>
                 <Input
                   type="date"
                   value={form.date_given}
@@ -816,7 +1022,7 @@ export function VaccinationsPage() {
                 />
               </FormField>
 
-              <FormField label="Next Due Date (Susunod na Iskedyul)">
+              <FormField label="Susunod na Iskedyul (Next Due Date)">
                 <Input
                   type="date"
                   value={form.next_due_date}
@@ -824,68 +1030,6 @@ export function VaccinationsPage() {
                 />
               </FormField>
             </div>
-
-            <FormField label="Veterinarian / Kawani">
-              <ComboBox
-                value={form.veterinarian}
-                onChange={(v) => setForm({ ...form, veterinarian: v })}
-                options={COMMON_VETS}
-                placeholder="Pangalan ng beterinaryo o nag-inject..."
-              />
-            </FormField>
-
-            {/* Optional Inventory Link */}
-            {!editing && (
-              <div
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.10)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Package size={15} /> I-bawas sa Imbentaryo (Deduct from Inventory)
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Opsyonal</span>
-                </div>
-                <Select
-                  value={form.inventory_item_id}
-                  onChange={(e) => setForm({ ...form, inventory_item_id: e.target.value })}
-                  options={[
-                    { value: '', label: 'Huwag magbawas sa imbentaryo' },
-                    ...farmData.inventory.map((item) => ({
-                      value: item.id,
-                      label: `${item.name} (${item.quantity} ${item.unit} available) — ${item.category}`,
-                    })),
-                  ]}
-                />
-                {form.inventory_item_id && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Dami na ibabawas (Dose/Qty):</span>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={form.deduct_quantity}
-                      onChange={(e) => setForm({ ...form, deduct_quantity: Math.max(1, parseInt(e.target.value) || 1) })}
-                      style={{
-                        width: 80,
-                        padding: '4px 8px',
-                        borderRadius: 6,
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        background: 'rgba(0, 0, 0, 0.2)',
-                        color: 'var(--text)',
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
 
             <FormField label="Mga Tala at Dosis">
               <textarea

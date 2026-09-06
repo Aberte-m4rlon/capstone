@@ -61,9 +61,11 @@ const EMPTY: FarmData = {
 const FarmDataContext = createContext<FarmData>(EMPTY);
 
 export function FarmDataProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [data, setData] = useState<FarmData>(EMPTY);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isSuperAdmin = profile?.role === 'super_admin';
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -72,6 +74,35 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      let animalsQ = supabase.from('animals').select('*').order('created_at', { ascending: false });
+      let healthQ = supabase.from('health_records').select('*').order('record_date', { ascending: false });
+      let weightQ = supabase.from('weight_records').select('*').order('record_date', { ascending: false });
+      let breedingQ = supabase.from('breeding_records').select('*').order('mating_date', { ascending: false });
+      let vaccQ = supabase.from('vaccinations').select('*').order('date_given', { ascending: false });
+      let inventoryQ = supabase.from('inventory').select('*').order('name', { ascending: true });
+      let invTxQ = supabase.from('inventory_transactions').select('*').order('created_at', { ascending: false }).limit(500);
+      let feedQ = supabase.from('feed_records').select('*').order('record_date', { ascending: false });
+      let milkQ = supabase.from('milk_records').select('*').order('record_date', { ascending: false });
+      let notifQ = supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50);
+      let recQ = supabase.from('recommendations').select('*').order('created_at', { ascending: false }).limit(50);
+      let settingsQ = supabase.from('settings').select('*');
+
+      // Strict user data isolation: non-super_admin users only receive their own farm records
+      if (!isSuperAdmin) {
+        animalsQ = animalsQ.eq('user_id', user.id);
+        healthQ = healthQ.eq('user_id', user.id);
+        weightQ = weightQ.eq('user_id', user.id);
+        breedingQ = breedingQ.eq('user_id', user.id);
+        vaccQ = vaccQ.eq('user_id', user.id);
+        inventoryQ = inventoryQ.eq('user_id', user.id);
+        invTxQ = invTxQ.eq('user_id', user.id);
+        feedQ = feedQ.eq('user_id', user.id);
+        milkQ = milkQ.eq('user_id', user.id);
+        notifQ = notifQ.eq('user_id', user.id);
+        recQ = recQ.eq('user_id', user.id);
+        settingsQ = settingsQ.eq('user_id', user.id);
+      }
+
       const [
         animalsRes,
         healthRes,
@@ -86,19 +117,35 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
         recRes,
         settingsRes,
       ] = await Promise.all([
-        supabase.from('animals').select('*').order('created_at', { ascending: false }),
-        supabase.from('health_records').select('*').order('record_date', { ascending: false }),
-        supabase.from('weight_records').select('*').order('record_date', { ascending: false }),
-        supabase.from('breeding_records').select('*').order('mating_date', { ascending: false }),
-        supabase.from('vaccinations').select('*').order('date_given', { ascending: false }),
-        supabase.from('inventory').select('*').order('name', { ascending: true }),
-        supabase.from('inventory_transactions').select('*').order('created_at', { ascending: false }).limit(500),
-        supabase.from('feed_records').select('*').order('record_date', { ascending: false }),
-        supabase.from('milk_records').select('*').order('record_date', { ascending: false }),
-        supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('recommendations').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('settings').select('*').maybeSingle(),
+        animalsQ,
+        healthQ,
+        weightQ,
+        breedingQ,
+        vaccQ,
+        inventoryQ,
+        invTxQ,
+        feedQ,
+        milkQ,
+        notifQ,
+        recQ,
+        settingsQ.maybeSingle(),
       ]);
+
+      const fallbackSettings: Settings = {
+        id: 'default-settings-' + user.id,
+        user_id: user.id,
+        farm_name: profile?.full_name ? `${profile.full_name}'s Farm` : 'My Farm',
+        target_weight_kg: 40,
+        gestation_days: 150,
+        temp_critical: 40,
+        heart_rate_high: 90,
+        expiry_warning_days: 15,
+        vaccine_due_days: 30,
+        breeding_min_age_months: 8,
+        breeding_min_weight_kg: 25,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
       setData({
         animals: (animalsRes.data as Animal[]) ?? [],
@@ -112,7 +159,7 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
         milkRecords: (milkRes.data as MilkRecord[]) ?? [],
         notifications: (notifRes.data as Notification[]) ?? [],
         recommendations: (recRes.data as Recommendation[]) ?? [],
-        settings: (settingsRes.data as Settings) ?? null,
+        settings: (settingsRes.data as Settings) ?? fallbackSettings,
         loading: false,
         refresh,
       });
@@ -120,7 +167,7 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
       console.error('Error fetching farm data:', err);
       setData((prev) => ({ ...prev, loading: false }));
     }
-  }, [user]);
+  }, [user, isSuperAdmin, profile?.full_name]);
 
   // Initial load
   useEffect(() => {
@@ -128,6 +175,7 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   // Realtime multi-table listener to keep state instantly synced across all tabs / devices
+  // Scoped to current user's user_id so changes from other farms are ignored
   useEffect(() => {
     if (!user) return;
 
@@ -138,22 +186,28 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
       }, 400);
     };
 
+    const filter = isSuperAdmin ? undefined : `user_id=eq.${user.id}`;
+
     const channel = supabase
       .channel('alpasfarm:live_data:' + user.id)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'animals' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'health_records' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'breeding_records' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vaccinations' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_transactions' }, debouncedRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_health_screenings' }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'animals', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'health_records', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'weight_records', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'breeding_records', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vaccinations', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_transactions', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feed_records', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'milk_records', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_health_screenings', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'settings', filter }, debouncedRefresh)
       .subscribe();
 
     return () => {
       if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
       supabase.removeChannel(channel);
     };
-  }, [user, refresh]);
+  }, [user, isSuperAdmin, refresh]);
 
   return (
     <FarmDataContext.Provider value={data}>

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useFarmData } from '../lib/useFarmData';
+import { useAuth } from '../lib/auth';
 
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/Toast';
@@ -27,6 +28,8 @@ const emptyForm = {
 
 export function WeightsPage() {
   const farmData = useFarmData();
+  const { user, profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,7 +96,14 @@ export function WeightsPage() {
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!validate() || !user) return;
+
+    const animal = farmData.animals.find((a) => a.id === form.animal_id);
+    if (!animal || (!isSuperAdmin && animal.user_id !== user.id)) {
+      toast('Walang pahintulot sa napiling hayop.', 'danger');
+      return;
+    }
+
     setSaving(true);
 
     const animalWeights = farmData.weightRecords
@@ -115,6 +125,7 @@ export function WeightsPage() {
     }
 
     const payload = {
+      user_id: user.id,
       animal_id: form.animal_id,
       record_date: form.record_date,
       weight_kg: Number(form.weight_kg),
@@ -126,7 +137,11 @@ export function WeightsPage() {
 
     try {
       if (editing) {
-        const { error } = await supabase.from('weight_records').update(payload).eq('id', editing.id);
+        let updateQuery = supabase.from('weight_records').update(payload).eq('id', editing.id);
+        if (!isSuperAdmin) {
+          updateQuery = updateQuery.eq('user_id', user.id);
+        }
+        const { error } = await updateQuery;
         if (error) throw error;
         toast('Na-update na ang rekord ng timbang.', 'success');
       } else {
@@ -135,10 +150,14 @@ export function WeightsPage() {
         toast('Nai-save na ang rekord ng timbang.', 'success');
       }
 
-      await supabase
+      let animalUpdate = supabase
         .from('animals')
         .update({ weight_kg: Number(form.weight_kg) })
         .eq('id', form.animal_id);
+      if (!isSuperAdmin) {
+        animalUpdate = animalUpdate.eq('user_id', user.id);
+      }
+      await animalUpdate;
 
       setModalOpen(false);
       farmData.refresh();
@@ -150,9 +169,13 @@ export function WeightsPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || !user) return;
     try {
-      const { error } = await supabase.from('weight_records').delete().eq('id', confirmDelete.id);
+      let deleteQuery = supabase.from('weight_records').delete().eq('id', confirmDelete.id);
+      if (!isSuperAdmin) {
+        deleteQuery = deleteQuery.eq('user_id', user.id);
+      }
+      const { error } = await deleteQuery;
       if (error) throw error;
       toast('Nabura na ang rekord ng timbang.', 'success');
       setConfirmDelete(null);

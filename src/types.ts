@@ -147,7 +147,32 @@ export interface Vaccination {
   updated_at: string;
 }
 
-export type InventoryCategory = 'Feed' | 'Medicine' | 'Vaccines' | 'Vitamins' | 'Supplements' | 'Supplies' | 'Equipment' | 'Tools' | 'Other';
+export type InventoryCategory =
+  | 'Feed'
+  | 'Medicine'
+  | 'Vaccine'
+  | 'Vaccines'
+  | 'Dewormer'
+  | 'Supplement'
+  | 'Supplements'
+  | 'Vitamins'
+  | 'Supplies'
+  | 'Equipment'
+  | 'Tools'
+  | 'Other';
+
+export type TreatmentStatus =
+  | 'Kailangan ng Gamot'
+  | 'Kasalukuyang Ginagamot'
+  | 'Tapos na ang Gamot'
+  | 'Hindi pa Nabibigyan'
+  | 'Bantayan';
+
+export type TreatmentUsageType =
+  | 'Medication'
+  | 'Deworming'
+  | 'Supplement'
+  | 'Treatment';
 
 export interface InventoryItem {
   id: string;

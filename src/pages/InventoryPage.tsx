@@ -137,7 +137,8 @@ const emptyForm = {
 
 export function InventoryPage() {
   const farmData = useFarmData();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -477,6 +478,11 @@ export function InventoryPage() {
     referenceType?: string | null,
     referenceId?: string | null,
   ): Promise<{ newStock: number } | null> => {
+    if (!user) return null;
+    if (!isSuperAdmin && item.user_id !== user.id) {
+      toast('Walang pahintulot sa gamit na ito sa imbentaryo.', 'danger');
+      return null;
+    }
     const sign = txSign(type);
     const prevStock = Number(item.quantity);
     const newStock = sign === '+' ? prevStock + qty : prevStock - qty;
@@ -487,6 +493,7 @@ export function InventoryPage() {
     }
 
     const { error: txErr } = await supabase.from('inventory_transactions').insert({
+      user_id: user.id,
       inventory_item_id: item.id,
       type,
       quantity: qty,
@@ -501,7 +508,11 @@ export function InventoryPage() {
     });
     if (txErr) throw txErr;
 
-    const { error: invErr } = await supabase.from('inventory').update({ quantity: newStock }).eq('id', item.id);
+    let invQuery = supabase.from('inventory').update({ quantity: newStock }).eq('id', item.id);
+    if (!isSuperAdmin) {
+      invQuery = invQuery.eq('user_id', user.id);
+    }
+    const { error: invErr } = await invQuery;
     if (invErr) throw invErr;
 
     return { newStock };
@@ -518,7 +529,12 @@ export function InventoryPage() {
   };
 
   const handleConsumeStock = async () => {
-    if (!consumeItem || consumeSaving) return;
+    if (!consumeItem || consumeSaving || !user) return;
+    if (!isSuperAdmin && consumeItem.user_id !== user.id) {
+      toast('Walang pahintulot sa gamit na ito.', 'danger');
+      return;
+    }
+
     const qty = Number(consumeQty);
     if (!consumeQty || isNaN(qty) || qty <= 0) {
       toast('Maglagay ng wastong dami.', 'danger');
@@ -531,6 +547,12 @@ export function InventoryPage() {
     setConsumeSaving(true);
     try {
       const targetAnimal = consumeAnimalId ? farmData.animals.find((a) => a.id === consumeAnimalId) : null;
+      if (consumeAnimalId && (!targetAnimal || (!isSuperAdmin && targetAnimal.user_id !== user.id))) {
+        toast('Walang pahintulot sa napiling hayop.', 'danger');
+        setConsumeSaving(false);
+        return;
+      }
+
       const txNotes = targetAnimal
         ? `Ginamit para kay ${targetAnimal.tag_id} (${targetAnimal.name || 'Walang Pangalan'})`
         : null;
@@ -553,6 +575,7 @@ export function InventoryPage() {
       // Link to clinical health audit trail if used for animal
       if (targetAnimal) {
         await supabase.from('health_records').insert({
+          user_id: user.id,
           animal_id: targetAnimal.id,
           record_date: consumeDate || new Date().toISOString().split('T')[0],
           reasons: [`Paggamit ng Imbentaryo: ${consumeItem.name}`],
@@ -731,10 +754,11 @@ export function InventoryPage() {
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!validate() || !user) return;
     setSaving(true);
     try {
       const payload = {
+        user_id: user.id,
         name: form.name.trim(),
         category: form.category,
         quantity: Number(form.quantity),
@@ -748,12 +772,22 @@ export function InventoryPage() {
       };
 
       if (editing) {
+        if (!isSuperAdmin && editing.user_id !== user.id) {
+          toast('Walang pahintulot na i-edit ang gamit na ito.', 'danger');
+          return;
+        }
+
         const qtyDiff = Number(form.quantity) - Number(editing.quantity);
-        const { error } = await supabase.from('inventory').update(payload).eq('id', editing.id);
+        let updateQuery = supabase.from('inventory').update(payload).eq('id', editing.id);
+        if (!isSuperAdmin) {
+          updateQuery = updateQuery.eq('user_id', user.id);
+        }
+        const { error } = await updateQuery;
         if (error) throw error;
 
         if (qtyDiff !== 0) {
           await supabase.from('inventory_transactions').insert({
+            user_id: user.id,
             inventory_item_id: editing.id,
             type: qtyDiff > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
             quantity: Math.abs(qtyDiff),
@@ -770,6 +804,7 @@ export function InventoryPage() {
 
         if (inserted && Number(form.quantity) > 0) {
           await supabase.from('inventory_transactions').insert({
+            user_id: user.id,
             inventory_item_id: inserted.id,
             type: 'STOCK_IN',
             quantity: Number(form.quantity),
@@ -793,10 +828,19 @@ export function InventoryPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || !user) return;
     try {
-      await supabase.from('inventory_transactions').delete().eq('inventory_item_id', confirmDelete.id);
-      const { error } = await supabase.from('inventory').delete().eq('id', confirmDelete.id);
+      let txDel = supabase.from('inventory_transactions').delete().eq('inventory_item_id', confirmDelete.id);
+      if (!isSuperAdmin) {
+        txDel = txDel.eq('user_id', user.id);
+      }
+      await txDel;
+
+      let invDel = supabase.from('inventory').delete().eq('id', confirmDelete.id);
+      if (!isSuperAdmin) {
+        invDel = invDel.eq('user_id', user.id);
+      }
+      const { error } = await invDel;
       if (error) throw error;
       toast('Matagumpay na nabura ang gamit sa imbentaryo.', 'success');
       setConfirmDelete(null);

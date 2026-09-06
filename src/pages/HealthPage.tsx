@@ -48,7 +48,12 @@ import {
   Info,
   Clock,
   AlertOctagon,
+  Syringe,
+  Pill,
+  Package,
 } from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { Input, Select, FormField } from '../components/ui/Input';
 import { formatDate } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
 import {
@@ -59,7 +64,8 @@ import {
 } from '../lib/earlyIllnessEngine';
 import { runCameraScreening, fileToCanvas, type ScanResult } from '../lib/cameraML';
 import { simplifyHealthObservation } from '../lib/farmerTerminology';
-import type { HealthRecord, Animal } from '../types';
+import type { HealthRecord, Animal, TreatmentStatus, TreatmentUsageType, HealthStatus } from '../types';
+import { isMedicineCategory, isDewormerCategory, isSupplementCategory, consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
 
 // Symptom Chip Definition
 interface SymptomChip {
@@ -208,7 +214,8 @@ export function getRecordRiskMeta(r: HealthRecord) {
 
 export function HealthPage() {
   const farmData = useFarmData();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -240,6 +247,21 @@ export function HealthPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<HealthRecord | null>(null);
+
+  // Medication / Treatment Modal State
+  const [treatmentModalOpen, setTreatmentModalOpen] = useState(false);
+  const [treatAnimalId, setTreatAnimalId] = useState('');
+  const [treatItemId, setTreatItemId] = useState('');
+  const [treatQty, setTreatQty] = useState('');
+  const [treatDosage, setTreatDosage] = useState('');
+  const [treatFrequency, setTreatFrequency] = useState('Once daily');
+  const [treatStartDate, setTreatStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [treatEndDate, setTreatEndDate] = useState('');
+  const [treatStatus, setTreatStatus] = useState<TreatmentStatus>('Kasalukuyang Ginagamot');
+  const [treatUsageType, setTreatUsageType] = useState<TreatmentUsageType>('Medication');
+  const [treatReason, setTreatReason] = useState('');
+  const [treatNotes, setTreatNotes] = useState('');
+  const [treatSaving, setTreatSaving] = useState(false);
 
   // Active animals list
   const activeAnimals = useMemo(() => {
@@ -292,9 +314,18 @@ export function HealthPage() {
     let lowRisk = 0;
 
     activeAnimals.forEach((a) => {
+      // Check if animal has an active medication record in healthRecords
+      const hasActiveMed = farmData.healthRecords.some((r) => {
+        if (r.animal_id !== a.id) return false;
+        const text = `${r.notes ?? ''} ${r.reasons ?? ''} ${r.recommendation ?? ''}`;
+        const hasStatus = text.includes('Kailangan ng Gamot') || text.includes('Kasalukuyang Ginagamot') || text.includes('Hindi pa Nabibigyan');
+        const isDone = text.includes('Tapos na ang Gamot');
+        return hasStatus && !isDone;
+      });
+
       const score = a.health_risk_score ?? 0;
       const status = (a.health_status as string) ?? '';
-      if (score >= 80 || status === 'Critical' || status === 'Sick') {
+      if (hasActiveMed || score >= 80 || status === 'Critical' || status === 'Sick') {
         needsMedication++;
       } else if (score >= 50 || status === 'At Risk' || status === 'Needs Attention') {
         needsAttention++;
@@ -312,7 +343,7 @@ export function HealthPage() {
       modRisk,
       lowRisk,
     };
-  }, [activeAnimals]);
+  }, [activeAnimals, farmData.healthRecords]);
 
   // Priority Health Alerts ("Animals Requiring Immediate Attention")
   const priorityAnimals = useMemo(() => {
@@ -537,7 +568,12 @@ export function HealthPage() {
 
   // Save Prediction to Database
   const handleSavePrediction = async () => {
-    if (!selectedAnimal || !currentPrediction) return;
+    if (!selectedAnimal || !currentPrediction || !user) return;
+
+    if (selectedAnimal.user_id !== user.id && !isSuperAdmin) {
+      toast('Walang pahintulot na magtala para sa hayop na ito.', 'error');
+      return;
+    }
 
     if (currentPrediction.status === 'INSUFFICIENT_EVIDENCE') {
       toast('Insufficient evidence. Please provide at least one observation or camera scan before saving.', 'warning');
@@ -577,6 +613,7 @@ export function HealthPage() {
           : 'Low';
 
       const healthPayload = {
+        user_id: user.id,
         animal_id: selectedAnimal.id,
         record_date: todayStr,
         temperature: riskInput.temperature,
@@ -612,7 +649,7 @@ export function HealthPage() {
       if (currentPrediction.riskScore >= 65) newHealthStatus = 'At Risk';
       else if (currentPrediction.riskScore >= 35) newHealthStatus = 'Monitor';
 
-      await supabase
+      let animalUpdate = supabase
         .from('animals')
         .update({
           health_status: newHealthStatus,
@@ -620,6 +657,11 @@ export function HealthPage() {
           current_temperature: riskInput.temperature,
         })
         .eq('id', selectedAnimal.id);
+
+      if (!isSuperAdmin) {
+        animalUpdate = animalUpdate.eq('user_id', user.id);
+      }
+      await animalUpdate;
 
       // Trigger automatic alert if significant risk increase or high risk
       if (currentPrediction.isSignificantIncrease || currentPrediction.riskScore >= 65) {
@@ -655,15 +697,140 @@ export function HealthPage() {
   };
 
   const handleDeleteRecord = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || !user) return;
     try {
-      const { error } = await supabase.from('health_records').delete().eq('id', confirmDelete.id);
+      let query = supabase.from('health_records').delete().eq('id', confirmDelete.id);
+      if (!isSuperAdmin) {
+        query = query.eq('user_id', user.id);
+      }
+      const { error } = await query;
       if (error) throw error;
       toast('Health record deleted successfully.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
       toast('Failed to delete record.', 'error');
+    }
+  };
+
+  const handleSaveTreatment = async () => {
+    if (!treatAnimalId || !treatItemId || !user) {
+      toast('Piliin ang hayop at ang gamot mula sa imbentaryo.', 'error');
+      return;
+    }
+
+    const animal = farmData.animals.find((a) => a.id === treatAnimalId);
+    if (!animal) {
+      toast('Hindi mahanap ang napiling hayop.', 'error');
+      return;
+    }
+    if (animal.user_id !== user.id && !isSuperAdmin) {
+      toast('Walang pahintulot na gamutin ang hayop na ito.', 'error');
+      return;
+    }
+
+    const item = farmData.inventory.find((i) => i.id === treatItemId);
+    if (!item) {
+      toast('Hindi mahanap ang gamot sa imbentaryo.', 'error');
+      return;
+    }
+    if (item.user_id !== user.id && !isSuperAdmin) {
+      toast('Walang pahintulot sa gamot na ito.', 'error');
+      return;
+    }
+
+    const qty = Number(treatQty);
+    if (!treatQty || isNaN(qty) || qty <= 0) {
+      toast('Maglagay ng wastong dami na ibabawas sa imbentaryo.', 'error');
+      return;
+    }
+    if (qty > Number(item.quantity)) {
+      toast(`❌ Hindi sapat ang stock ng gamot. Available lang: ${item.quantity} ${item.unit}.`, 'error');
+      return;
+    }
+
+    if (item.expiry_date && isItemExpired(item.expiry_date)) {
+      toast(`⚠️ Expired na ang gamot na ito noong ${item.expiry_date}. Hindi maaaring ibigay sa hayop.`, 'error');
+      return;
+    }
+
+    setTreatSaving(true);
+    try {
+      // 1. Consume from Inventory & write to inventory_transactions ledger atomically
+      const consumeRes = await consumeInventoryStock({
+        userId: user.id,
+        isSuperAdmin,
+        item,
+        quantity: qty,
+        usageType: treatUsageType === 'Deworming' ? 'deworming' : 'medication',
+        animalId: animal.id,
+        animalTag: animal.tag_id,
+        animalName: animal.name,
+        referenceType: 'animal',
+        referenceId: animal.id,
+        reason: `${treatUsageType} — ${treatStatus}: ${treatReason || item.name}`,
+        notes: `Gamot: ${item.name} (${qty} ${item.unit}). Dosis: ${treatDosage || `${qty} ${item.unit}`}, Dalas: ${treatFrequency}. Simula: ${treatStartDate}${
+          treatEndDate ? `, Hanggang: ${treatEndDate}` : ''
+        }. Katayuan: ${treatStatus}. ${treatNotes}`.trim(),
+      });
+
+      if (!consumeRes.success) {
+        toast(consumeRes.error || 'Hindi sapat ang stock sa imbentaryo.', 'error');
+        setTreatSaving(false);
+        return;
+      }
+
+      // 2. Insert into health_records for full clinical history & dashboard tracking
+      const isCompleted = treatStatus === 'Tapos na ang Gamot';
+      const isCritical = treatStatus === 'Kailangan ng Gamot' || treatStatus === 'Kasalukuyang Ginagamot';
+      const { error: healthErr } = await supabase.from('health_records').insert({
+        user_id: user.id,
+        animal_id: animal.id,
+        record_date: treatStartDate,
+        reasons: `Gamot / Lunas: ${item.name} (${treatStatus})`,
+        recommendation: `Katayuan ng Gamot: ${treatStatus}. Dalas: ${treatFrequency}.`,
+        notes: `Uri: ${treatUsageType} | Gamot: ${item.name} | Dami: ${qty} ${item.unit} | Dosis: ${treatDosage || `${qty} ${item.unit}`} | Dalas: ${treatFrequency} | Katayuan: ${treatStatus} | Simula: ${treatStartDate}${
+          treatEndDate ? ` | Hanggang: ${treatEndDate}` : ''
+        } | Dahilan: ${treatReason || 'Pangangasiwa ng Gamot'} | Tala: ${treatNotes}`.trim(),
+        risk_level: isCompleted ? 'Low' : isCritical ? 'Moderate' : 'Low',
+        risk_score: isCompleted ? 5 : isCritical ? 60 : 20,
+      });
+      if (healthErr) throw healthErr;
+
+      // 3. Synchronize animal's health_status
+      let newHealthStatus: HealthStatus | null = null;
+      if (isCompleted) {
+        newHealthStatus = 'Healthy';
+      } else if (isCritical) {
+        newHealthStatus = 'Critical';
+      }
+
+      if (newHealthStatus) {
+        let animalUpdate = supabase.from('animals').update({ health_status: newHealthStatus }).eq('id', animal.id);
+        if (!isSuperAdmin) {
+          animalUpdate = animalUpdate.eq('user_id', user.id);
+        }
+        await animalUpdate;
+      }
+
+      toast(`Nai-save ang ${treatUsageType}! Nabawasan ng ${qty} ${item.unit} ang ${item.name} sa imbentaryo.`, 'success');
+      setTreatmentModalOpen(false);
+      setTreatAnimalId('');
+      setTreatItemId('');
+      setTreatQty('');
+      setTreatDosage('');
+      setTreatFrequency('Once daily');
+      setTreatStartDate(new Date().toISOString().split('T')[0]);
+      setTreatEndDate('');
+      setTreatStatus('Kasalukuyang Ginagamot');
+      setTreatUsageType('Medication');
+      setTreatReason('');
+      setTreatNotes('');
+      farmData.refresh();
+    } catch (err: any) {
+      toast(err.message || 'Hindi mai-save ang paggamit ng gamot.', 'error');
+    } finally {
+      setTreatSaving(false);
     }
   };
 
@@ -1057,6 +1224,18 @@ export function HealthPage() {
             </div>
             <div className="action-card-title">Mga Ulat sa Kalusugan</div>
             <div className="action-card-desc">Bumuo ng diagnostic summaries at clinical export</div>
+            <div className="action-card-arrow">
+              <ArrowUpRight size={16} />
+            </div>
+          </div>
+
+          {/* Card 5: Gamot at Deworming */}
+          <div className="action-card" onClick={() => setTreatmentModalOpen(true)}>
+            <div className="action-card-icon icon-green" style={{ background: '#EAF6ED', color: '#238B45' }}>
+              <Syringe size={22} color="#238B45" />
+            </div>
+            <div className="action-card-title">Gamot at Deworming</div>
+            <div className="action-card-desc">Magbigay ng gamot, purga, o bitamina mula sa imbentaryo</div>
             <div className="action-card-arrow">
               <ArrowUpRight size={16} />
             </div>
@@ -1868,6 +2047,200 @@ export function HealthPage() {
         onConfirm={handleDeleteRecord}
         onCancel={() => setConfirmDelete(null)}
       />
+
+      {/* ── ADMINISTER TREATMENT & MEDICATION MODAL ── */}
+      <Modal open={treatmentModalOpen} onClose={() => setTreatmentModalOpen(false)} size="md">
+        <ModalHeader
+          title="Magtala ng Gamot o Purga mula sa Imbentaryo"
+          onClose={() => setTreatmentModalOpen(false)}
+        />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <FormField label="Piliin ang Hayop" required>
+                <select
+                  className="form-select"
+                  value={treatAnimalId}
+                  onChange={(e) => setTreatAnimalId(e.target.value)}
+                >
+                  <option value="">-- Piliin ang Hayop --</option>
+                  {activeAnimals.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.tag_id} {a.name ? `(${a.name})` : ''} — {a.species}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <FormField label="Uri ng Paggamot (Usage Type)" required>
+                <Select
+                  value={treatUsageType}
+                  onChange={(e) => setTreatUsageType(e.target.value as TreatmentUsageType)}
+                  options={[
+                    { value: 'Medication', label: 'Gamot (Medication)' },
+                    { value: 'Deworming', label: 'Purga (Deworming)' },
+                    { value: 'Supplement', label: 'Bitamina / Suplemento' },
+                    { value: 'Treatment', label: 'Iba pang Paggamot' },
+                  ]}
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Pumili ng Gamot mula sa Imbentaryo" required>
+              <select
+                className="form-select"
+                value={treatItemId}
+                onChange={(e) => setTreatItemId(e.target.value)}
+              >
+                <option value="">-- Piliin ang Item mula sa Imbentaryo --</option>
+                {farmData.inventory
+                  .filter((i) =>
+                    treatUsageType === 'Deworming'
+                      ? isDewormerCategory(i.category) || isMedicineCategory(i.category)
+                      : isMedicineCategory(i.category) || isSupplementCategory(i.category) || i.category === 'Supplies'
+                  )
+                  .map((i) => (
+                    <option key={i.id} value={i.id} disabled={Number(i.quantity) <= 0 || (!!i.expiry_date && isItemExpired(i.expiry_date))}>
+                      {i.name} ({i.category}) — Available: {i.quantity} {i.unit}
+                      {Number(i.quantity) <= 0 ? ' (Out of stock)' : ''}
+                      {i.expiry_date && isItemExpired(i.expiry_date) ? ' (Expired)' : ''}
+                    </option>
+                  ))}
+              </select>
+            </FormField>
+
+            {treatItemId && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: 'var(--surface-light, rgba(255,255,255,0.05))',
+                  border: '1px solid var(--border)',
+                  fontSize: 13,
+                }}
+              >
+                {(() => {
+                  const sel = farmData.inventory.find((i) => i.id === treatItemId);
+                  if (!sel) return null;
+                  const expired = sel.expiry_date && isItemExpired(sel.expiry_date);
+                  return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>
+                        Kasalukuyang stock: <strong style={{ color: expired ? '#EF4444' : '#238B45' }}>{sel.quantity} {sel.unit}</strong>
+                      </span>
+                      {sel.expiry_date && (
+                        <span style={{ color: expired ? '#EF4444' : 'var(--text-secondary)' }}>
+                          Expiry: {formatDate(sel.expiry_date)} {expired && '(Expired)'}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <FormField label="Dami na Ibabawas sa Stock (Qty)" required>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={treatQty}
+                  onChange={(e) => setTreatQty(e.target.value)}
+                  placeholder="Hal. 2"
+                />
+              </FormField>
+
+              <FormField label="Dosis (Dosage Text)">
+                <Input
+                  value={treatDosage}
+                  onChange={(e) => setTreatDosage(e.target.value)}
+                  placeholder="Hal. 2 ml subcutaneous, 1 tablet"
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <FormField label="Katayuan ng Gamot (Status)" required>
+                <Select
+                  value={treatStatus}
+                  onChange={(e) => setTreatStatus(e.target.value as TreatmentStatus)}
+                  options={[
+                    { value: 'Kasalukuyang Ginagamot', label: 'Kasalukuyang Ginagamot (Active)' },
+                    { value: 'Kailangan ng Gamot', label: 'Kailangan ng Gamot (Pending)' },
+                    { value: 'Tapos na ang Gamot', label: 'Tapos na ang Gamot (Completed)' },
+                    { value: 'Hindi pa Nabibigyan', label: 'Hindi pa Nabibigyan' },
+                    { value: 'Bantayan', label: 'Bantayan (Monitor)' },
+                  ]}
+                />
+              </FormField>
+
+              <FormField label="Dalas (Frequency)">
+                <Select
+                  value={treatFrequency}
+                  onChange={(e) => setTreatFrequency(e.target.value)}
+                  options={[
+                    { value: 'Once only', label: 'Isang beses lang' },
+                    { value: 'Once daily', label: 'Kada araw (Once daily)' },
+                    { value: 'Twice daily', label: 'Dalawang beses kada araw (Twice daily)' },
+                    { value: 'Every 3 araw', label: 'Kada 3 araw' },
+                    { value: 'Weekly', label: 'Kada linggo (Weekly)' },
+                  ]}
+                />
+              </FormField>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <FormField label="Petsa ng Simula (Start Date)" required>
+                <Input
+                  type="date"
+                  value={treatStartDate}
+                  onChange={(e) => setTreatStartDate(e.target.value)}
+                />
+              </FormField>
+
+              <FormField label="Petsa ng Pagtatapos (End Date / Duration)">
+                <Input
+                  type="date"
+                  value={treatEndDate}
+                  onChange={(e) => setTreatEndDate(e.target.value)}
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Dahilan / Karamdaman" required>
+              <Input
+                value={treatReason}
+                onChange={(e) => setTreatReason(e.target.value)}
+                placeholder="Hal. Lagnat, Ubo, Bulate, Bitamina"
+              />
+            </FormField>
+
+            <FormField label="Karagdagang Tala (Notes)">
+              <textarea
+                className="form-textarea"
+                value={treatNotes}
+                onChange={(e) => setTreatNotes(e.target.value)}
+                placeholder="Hal. Ibinigay matapos kumain. Bantayan kung may reaksyon..."
+                style={{ minHeight: 70 }}
+              />
+            </FormField>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setTreatmentModalOpen(false)}>
+            Kanselahin
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleSaveTreatment}
+            loading={treatSaving}
+            leftIcon={<Package size={14} />}
+          >
+            Itala at Bawasan ang Imbentaryo
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {/* ── EMBEDDED STYLES FOR RESPONSIVENESS & LIQUID GLASS UI ── */}
       <style>{`

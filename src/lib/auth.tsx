@@ -409,6 +409,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 1. Try Firebase Authentication first
       const fbRes = await signInWithFirebase(trimmedEmail, trimmedPassword);
       if (fbRes.success && fbRes.user) {
+        // Also sign in to Supabase so that Supabase RLS policies receive the authenticated user's JWT
+        await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        }).catch(() => {});
+
         const p = await fetchProfile(fbRes.user.uid, fbRes.user.email);
         if (!p.is_active) {
           await signOut();
