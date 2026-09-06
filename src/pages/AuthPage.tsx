@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth, defaultRouteForRole } from '../lib/auth';
+import { useAuth, defaultRouteForRole, SUPER_ADMIN_EMAILS_FALLBACK } from '../lib/auth';
 import { formatPhoneNumber } from '../lib/sms';
 import { useToast } from '../components/ui/Toast';
 import { AlpasFarmLogo } from '../components/common/AlpasFarmLogo';
+import { HelpSupportModal } from '../components/auth/HelpSupportModal';
+import { PrivacyTermsModal } from '../components/auth/PrivacyTermsModal';
 import {
   Eye, EyeOff, User, Lock, ArrowRight, AlertCircle,
   Mail, Building2, MapPin, CheckCircle2, UserPlus, LogIn,
@@ -196,6 +198,48 @@ export function AuthPage() {
       window.history.replaceState(null, '', '/login');
     }
   };
+
+  // ── Help & Support / Privacy & Terms Modals ─────────────────────────────────
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [legalTab, setLegalTab] = useState<'privacy' | 'terms'>('privacy');
+
+  const configuredAdminEmail = (import.meta.env.VITE_ADMIN_EMAIL as string | undefined)?.trim()
+    || (SUPER_ADMIN_EMAILS_FALLBACK && SUPER_ADMIN_EMAILS_FALLBACK.length > 0 ? SUPER_ADMIN_EMAILS_FALLBACK[0] : '');
+  const configuredAdminPhone = (import.meta.env.VITE_ADMIN_PHONE as string | undefined)?.trim() || '';
+
+  const openLegalModal = (tab: 'privacy' | 'terms') => {
+    setLegalTab(tab);
+    setShowLegalModal(true);
+  };
+
+  const authModals = (
+    <>
+      <HelpSupportModal
+        open={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        onSelectForgotPassword={() => {
+          setError(null);
+          switchView('forgot');
+        }}
+        onSelectVerifyHelp={() => {
+          setError(null);
+          const fallbackDest = method === 'phone' ? phoneInput : siEmail;
+          if (fallbackDest.trim()) setTargetDestination(fallbackDest.trim());
+          setActiveVerifyType(method === 'phone' ? 'phone' : 'email');
+          switchView('verify');
+        }}
+        adminEmail={configuredAdminEmail}
+        adminPhone={configuredAdminPhone}
+      />
+      <PrivacyTermsModal
+        open={showLegalModal}
+        onClose={() => setShowLegalModal(false)}
+        initialTab={legalTab}
+        adminEmail={configuredAdminEmail}
+      />
+    </>
+  );
 
   // ── Phone Sign In ───────────────────────────────────────────────────────────
   const handlePhoneSignIn = async (e: React.FormEvent) => {
@@ -846,9 +890,56 @@ export function AuthPage() {
                   Baguhin ang Pag-sign Up
                 </button>
               </div>
+
+              {/* Help and Privacy Links */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 16,
+                marginTop: 18,
+                paddingTop: 14,
+                borderTop: '1px solid rgba(35, 139, 69, 0.10)',
+                fontSize: 12.5,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowHelpModal(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary, #4B6F57)',
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                    fontSize: 12.5,
+                    padding: 0,
+                  }}
+                >
+                  Kailangan ng Tulong?
+                </button>
+                <span style={{ color: 'rgba(35, 139, 69, 0.3)' }}>•</span>
+                <button
+                  type="button"
+                  onClick={() => openLegalModal('privacy')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#607067',
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                    fontSize: 12.5,
+                    padding: 0,
+                  }}
+                >
+                  Privacy & Terms
+                </button>
+              </div>
             </div>
           </div>
         </div>
+        {authModals}
         <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 0.8s linear infinite;}`}</style>
       </div>
     );
@@ -1048,9 +1139,56 @@ export function AuthPage() {
                   <ArrowLeft size={14} /> Bumalik sa Mag-sign In
                 </button>
               </div>
+
+              {/* Help and Privacy Links */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 16,
+                marginTop: 18,
+                paddingTop: 14,
+                borderTop: '1px solid rgba(35, 139, 69, 0.10)',
+                fontSize: 12.5,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowHelpModal(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary, #4B6F57)',
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                    fontSize: 12.5,
+                    padding: 0,
+                  }}
+                >
+                  Kailangan ng Tulong?
+                </button>
+                <span style={{ color: 'rgba(35, 139, 69, 0.3)' }}>•</span>
+                <button
+                  type="button"
+                  onClick={() => openLegalModal('privacy')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#607067',
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                    fontSize: 12.5,
+                    padding: 0,
+                  }}
+                >
+                  Privacy & Terms
+                </button>
+              </div>
             </form>
           )}
         </div>
+        {authModals}
         <style>{`
           @keyframes spin { to { transform: rotate(360deg); } }
           .spin { animation: spin 0.8s linear infinite; }
@@ -1616,7 +1754,7 @@ export function AuthPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => alert('Para sa tulong o pagbawi ng account, makipag-ugnayan sa Farm System Administrator sa admin@alpasfarm.ph')}
+                  onClick={() => setShowHelpModal(true)}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -1626,9 +1764,41 @@ export function AuthPage() {
                     fontWeight: 600,
                     padding: 0,
                     textDecoration: 'underline',
+                    transition: 'color 0.15s ease',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#176B35')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary, #4B6F57)')}
                 >
                   Kailangan ng Tulong?
+                </button>
+              </div>
+
+              {/* Privacy & Terms Link */}
+              <div style={{
+                textAlign: 'center',
+                marginTop: 16,
+                paddingTop: 14,
+                borderTop: '1px solid rgba(35, 139, 69, 0.10)',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => openLegalModal('privacy')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#607067',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#176B35')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#607067')}
+                >
+                  Privacy & Terms
                 </button>
               </div>
             </>
@@ -1930,9 +2100,49 @@ export function AuthPage() {
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-secondary, #4B6F57)', lineHeight: 1.5 }}>
                       Sumasang-ayon ako sa ALPASFARM{' '}
-                      <span style={{ color: '#176B35', fontWeight: 700 }}>Mga Tuntunin ng Serbisyo</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openLegalModal('terms');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#176B35',
+                          fontWeight: 700,
+                          padding: 0,
+                          textDecoration: 'underline',
+                          fontSize: 'inherit',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        Mga Tuntunin ng Serbisyo
+                      </button>
                       {' '}at{' '}
-                      <span style={{ color: '#176B35', fontWeight: 700 }}>Patakaran sa Privacy</span>.
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openLegalModal('privacy');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#176B35',
+                          fontWeight: 700,
+                          padding: 0,
+                          textDecoration: 'underline',
+                          fontSize: 'inherit',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        Patakaran sa Privacy
+                      </button>.
                     </span>
                   </label>
 
@@ -2154,9 +2364,49 @@ export function AuthPage() {
                     </div>
                     <span style={{ fontSize: 12, color: 'var(--text-secondary, #4B6F57)', lineHeight: 1.5 }}>
                       Sumasang-ayon ako sa ALPASFARM{' '}
-                      <span style={{ color: '#176B35', fontWeight: 700 }}>Mga Tuntunin ng Serbisyo</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openLegalModal('terms');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#176B35',
+                          fontWeight: 700,
+                          padding: 0,
+                          textDecoration: 'underline',
+                          fontSize: 'inherit',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        Mga Tuntunin ng Serbisyo
+                      </button>
                       {' '}at{' '}
-                      <span style={{ color: '#176B35', fontWeight: 700 }}>Patakaran sa Privacy</span>.
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openLegalModal('privacy');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#176B35',
+                          fontWeight: 700,
+                          padding: 0,
+                          textDecoration: 'underline',
+                          fontSize: 'inherit',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        Patakaran sa Privacy
+                      </button>.
                     </span>
                   </label>
 
@@ -2211,10 +2461,54 @@ export function AuthPage() {
                   </button>
                 </form>
               )}
+              {/* Bottom Quick Help Links for Signup */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: 18,
+                paddingTop: 14,
+                borderTop: '1px solid rgba(35, 139, 69, 0.10)',
+                fontSize: 12.5,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowHelpModal(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary, #4B6F57)',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    padding: 0,
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Kailangan ng Tulong?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openLegalModal('privacy')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#607067',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    padding: 0,
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Privacy & Terms
+                </button>
+              </div>
             </>
           )}
         </div>
       </div>
+      {authModals}
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { animation: spin 0.8s linear infinite; }
