@@ -37,7 +37,7 @@ import {
   type BreedingAssessment,
 } from '../lib/analytics';
 import { createNotification } from '../lib/recommendations';
-import { generateNextAnimalId, fetchNextUniqueAnimalId, insertAnimalWithUniqueRetry } from '../lib/animalId';
+import { generateNextAnimalId, fetchNextUniqueAnimalId, insertAnimalWithUniqueRetry, createAnimalWithInitialWeight } from '../lib/animalId';
 import type { Animal, BreedingRecord, Species, Sex } from '../types';
 
 const emptyForm = {
@@ -495,6 +495,7 @@ export function BreedingPage() {
   };
 
   const handleSaveOffspring = async () => {
+    if (!user) return;
     if (!offspringForm.name.trim()) {
       toast('Pakilagay ang pangalan ng bagong silang na hayop.', 'warning');
       return;
@@ -512,7 +513,8 @@ export function BreedingPage() {
         user_id: user?.id,
       };
 
-      const result = await insertAnimalWithUniqueRetry(payload, {
+      const initialWeight = offspringForm.weight_kg ? Number(offspringForm.weight_kg) : null;
+      const result = await createAnimalWithInitialWeight(payload, initialWeight, {
         onAutoIncrement: (newId) => {
           setOffspringForm((prev) => ({ ...prev, tag_id: newId }));
         },
@@ -530,7 +532,11 @@ export function BreedingPage() {
           .eq('id', offspringMother.id);
       }
 
-      toast(`Matagumpay na nairehistro ang supling na may Tag ID: ${result.finalTagId}`, 'success');
+      if (result.initialWeightRecorded) {
+        toast(`Matagumpay na nairehistro ang supling (${result.finalTagId}) at na-record ang unang timbang.`, 'success');
+      } else {
+        toast(`Matagumpay na nairehistro ang supling na may Tag ID: ${result.finalTagId}`, 'success');
+      }
       setOffspringModalOpen(false);
       farmData.refresh();
     } catch (err) {

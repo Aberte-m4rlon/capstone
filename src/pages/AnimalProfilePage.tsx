@@ -1034,18 +1034,37 @@ export function AnimalProfilePage() {
                 </div>
                 <div className="table-wrap">
                   <table className="data-table">
-                    <thead><tr><th>Date</th><th>Weight</th><th>Change</th><th>Daily Gain</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Record Type</th><th>Weight</th><th>Change</th><th>Daily Gain</th><th>Notes</th></tr></thead>
                     <tbody>
-                      {[...animalWeights].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime()).map((w) => (
-                        <tr key={w.id}>
-                          <td>{formatDate(w.record_date)}</td>
-                          <td><strong>{w.weight_kg} kg</strong></td>
-                          <td style={{ color: w.weight_change_kg !== null && w.weight_change_kg < 0 ? '#EF4444' : 'inherit' }}>
-                            {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
-                          </td>
-                          <td>{w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}</td>
-                        </tr>
-                      ))}
+                      {[...animalWeights].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime()).map((w) => {
+                        const isInitial = w.previous_weight_kg === null || Boolean(w.notes && w.notes.toLowerCase().includes('initial'));
+                        return (
+                          <tr key={w.id}>
+                            <td>{formatDate(w.record_date)}</td>
+                            <td>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  background: isInitial ? 'rgba(35, 139, 69, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                                  color: isInitial ? '#238B45' : 'var(--text-secondary)',
+                                }}
+                              >
+                                {isInitial ? 'Initial Weight' : 'Weight Update'}
+                              </span>
+                            </td>
+                            <td><strong>{w.weight_kg} kg</strong></td>
+                            <td style={{ color: w.weight_change_kg !== null && w.weight_change_kg < 0 ? '#EF4444' : w.weight_change_kg !== null && w.weight_change_kg > 0 ? '#238B45' : 'inherit', fontWeight: 600 }}>
+                              {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
+                            </td>
+                            <td>{w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}</td>
+                            <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{w.notes || '—'}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

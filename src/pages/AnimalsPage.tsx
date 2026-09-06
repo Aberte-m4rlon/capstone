@@ -17,7 +17,7 @@ import { Icons } from '../lib/icons';
 import { Plus, Pencil, Trash2, Eye, Archive, RotateCcw, QrCode, Download, Printer, CheckCircle2, Sparkles, Tag, Layers, PawPrint, Baby } from 'lucide-react';
 import { ageLabel } from '../lib/analytics';
 import { getBreedsForSpecies, COLOR_MARKINGS } from '../lib/farmDefaults';
-import { generateNextAnimalId, fetchNextUniqueAnimalId, insertAnimalWithUniqueRetry } from '../lib/animalId';
+import { generateNextAnimalId, fetchNextUniqueAnimalId, insertAnimalWithUniqueRetry, createAnimalWithInitialWeight } from '../lib/animalId';
 import QRCode from 'qrcode';
 import type { Animal, Species, Sex } from '../types';
 
@@ -162,8 +162,12 @@ export function AnimalsPage() {
     if (!form.name.trim()) e.name = 'Kailangan ang pangalan ng hayop.';
     if (!form.species) e.species = 'Kailangan piliin ang species.';
     if (!form.sex) e.sex = 'Kailangan piliin ang kasarian.';
-    if (form.weight_kg && (isNaN(Number(form.weight_kg)) || Number(form.weight_kg) < 0))
-      e.weight_kg = 'Dapat positibong numero ang timbang.';
+    if (form.weight_kg !== '' && form.weight_kg !== null && form.weight_kg !== undefined) {
+      const w = Number(form.weight_kg);
+      if (isNaN(w) || w <= 0) {
+        e.weight_kg = 'Dapat positibong numero ang timbang na higit sa 0.';
+      }
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -194,11 +198,13 @@ export function AnimalsPage() {
         if (error) throw error;
         toast('Matagumpay na na-save ang record.', 'success');
       } else {
-        const result = await insertAnimalWithUniqueRetry(
+        const initialWeight = form.weight_kg ? Number(form.weight_kg) : null;
+        const result = await createAnimalWithInitialWeight(
           {
             ...payload,
             user_id: user.id,
           },
+          initialWeight,
           {
             onAutoIncrement: (newId) => {
               setForm((prev) => ({ ...prev, tag_id: newId }));
@@ -207,16 +213,25 @@ export function AnimalsPage() {
         );
 
         if (result.error) throw result.error;
-        if (result.hadConflict) {
-          toast(`Naresolba ang ID conflict. Matagumpay na na-save bilang ${result.finalTagId}.`, 'success');
+
+        if (result.initialWeightRecorded) {
+          if (result.hadConflict) {
+            toast(`Naresolba ang ID conflict bilang ${result.finalTagId}. Naidagdag na ang hayop at na-record ang unang timbang.`, 'success');
+          } else {
+            toast('Naidagdag na ang hayop at na-record ang unang timbang.', 'success');
+          }
         } else {
-          toast(`Matagumpay na naidagdag ang hayop (${result.finalTagId}).`, 'success');
+          if (result.hadConflict) {
+            toast(`Naresolba ang ID conflict bilang ${result.finalTagId}. Naidagdag na ang hayop.`, 'success');
+          } else {
+            toast('Naidagdag na ang hayop.', 'success');
+          }
         }
       }
       setModalOpen(false);
       farmData.refresh();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Hindi mai-save ang record. Pakisubukan muli.';
+      const msg = err instanceof Error ? err.message : 'Hindi na-record ang unang timbang. Pakisubukan muli.';
       toast(msg, 'danger');
     } finally {
       setSaving(false);

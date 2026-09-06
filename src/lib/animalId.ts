@@ -232,3 +232,158 @@ export async function insertAnimalWithUniqueRetry(
     hadConflict,
   };
 }
+
+export interface CreateAnimalWithWeightResult {
+  animal: Animal | null;
+  finalTagId: string;
+  hadConflict: boolean;
+  initialWeightRecorded: boolean;
+  error: Error | null;
+}
+
+/**
+ * Automatically records the initial weight for a newly registered animal.
+ * - Idempotent: checks if a weight record already exists for this animal before inserting.
+ * - Single source of truth: ensures previous_weight_kg, weight_change_kg, daily_gain_kg are null.
+ * - Standard notes: "Initial weight recorded during animal registration."
+ * - Scoped to the same user_id as the animal.
+ */
+export async function recordInitialAnimalWeight(
+  animal: { id: string; user_id: string; date_of_birth?: string | null },
+  weightKg: number,
+  recordDate?: string
+): Promise<{ success: boolean; error: Error | null }> {
+  const numWeight = Number(weightKg);
+  if (!numWeight || isNaN(numWeight) || numWeight <= 0) {
+    return { success: false, error: new Error('Dapat positibong numero ang timbang na higit sa 0.') };
+  }
+
+  try {
+    // Idempotency: verify no weight record exists yet for this animal
+    const { data: existing, error: checkErr } = await supabase
+      .from('weight_records')
+      .select('id')
+      .eq('animal_id', animal.id)
+      .limit(1);
+
+    if (checkErr) {
+      console.warn('Warning checking existing weight records:', checkErr);
+    }
+
+    if (existing && existing.length > 0) {
+      // Already has an initial weight record, do not duplicate
+      return { success: true, error: null };
+    }
+
+    const todayDate = recordDate || new Date().toISOString().split('T')[0];
+
+    const payload = {
+      user_id: animal.user_id,
+      animal_id: animal.id,
+      record_date: todayDate,
+      weight_kg: Math.round(numWeight * 100) / 100,
+      previous_weight_kg: null,
+      weight_change_kg: null,
+      daily_gain_kg: null,
+      notes: 'Initial weight recorded during animal registration.',
+    };
+
+    const { error: insertErr } = await supabase.from('weight_records').insert(payload);
+
+    if (insertErr) {
+      console.error('Failed to create initial weight record:', insertErr);
+      return { success: false, error: new Error('Hindi na-record ang unang timbang. Pakisubukan muli.') };
+    }
+
+    // Ensure animal's current weight_kg is in sync
+    await supabase.from('animals').update({ weight_kg: Math.round(numWeight * 100) / 100 }).eq('id', animal.id);
+
+    return { success: true, error: null };
+  } catch (err) {
+    console.error('Unexpected error recording initial weight:', err);
+    return { success: false, error: new Error('Hindi na-record ang unang timbang. Pakisubukan muli.') };
+  }
+}
+
+/**
+ * Creates an animal and its initial weight record atomically with compensating rollback.
+ * If initial weight is provided (> 0):
+ * 1. Creates animal
+ * 2. Creates initial weight record linked to that animal
+ * 3. If initial weight record creation fails, rolls back the created animal and returns an error
+ */
+export async function createAnimalWithInitialWeight(
+  payload: Partial<Animal> & { species: Species; user_id?: string },
+  initialWeightKg: number | null | undefined,
+  options: InsertAnimalOptions = {}
+): Promise<CreateAnimalWithWeightResult> {
+  const hasWeight = initialWeightKg !== null && initialWeightKg !== undefined && !isNaN(Number(initialWeightKg)) && Number(initialWeightKg) > 0;
+
+  // Validate weight if a value was provided but invalid (e.g. <= 0)
+  if (initialWeightKg !== null && initialWeightKg !== undefined && (initialWeightKg as any) !== '') {
+    const num = Number(initialWeightKg);
+    if (isNaN(num) || num <= 0) {
+      return {
+        animal: null,
+        finalTagId: '',
+        hadConflict: false,
+        initialWeightRecorded: false,
+        error: new Error('Dapat positibong numero ang timbang na higit sa 0.'),
+      };
+    }
+  }
+
+  // 1. Create animal
+  const animalResult = await insertAnimalWithUniqueRetry(payload, options);
+  if (animalResult.error || !animalResult.data) {
+    return {
+      animal: null,
+      finalTagId: animalResult.finalTagId,
+      hadConflict: animalResult.hadConflict,
+      initialWeightRecorded: false,
+      error: animalResult.error,
+    };
+  }
+
+  const createdAnimal = animalResult.data;
+
+  // If no initial weight was provided, return success immediately without fake records
+  if (!hasWeight) {
+    return {
+      animal: createdAnimal,
+      finalTagId: animalResult.finalTagId,
+      hadConflict: animalResult.hadConflict,
+      initialWeightRecorded: false,
+      error: null,
+    };
+  }
+
+  // 2. Create initial weight record
+  const weightResult = await recordInitialAnimalWeight(createdAnimal, Number(initialWeightKg));
+
+  if (!weightResult.success) {
+    // Transaction compensation / rollback: remove animal if initial weight creation fails
+    try {
+      await supabase.from('animals').delete().eq('id', createdAnimal.id).eq('user_id', createdAnimal.user_id);
+    } catch (cleanupErr) {
+      console.error('Failed rollback of animal after weight creation failure:', cleanupErr);
+    }
+
+    return {
+      animal: null,
+      finalTagId: animalResult.finalTagId,
+      hadConflict: animalResult.hadConflict,
+      initialWeightRecorded: false,
+      error: weightResult.error || new Error('Hindi na-record ang unang timbang. Pakisubukan muli.'),
+    };
+  }
+
+  return {
+    animal: createdAnimal,
+    finalTagId: animalResult.finalTagId,
+    hadConflict: animalResult.hadConflict,
+    initialWeightRecorded: true,
+    error: null,
+  };
+}
+

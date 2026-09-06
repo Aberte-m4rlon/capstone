@@ -177,6 +177,22 @@ export function WeightsPage() {
       }
       const { error } = await deleteQuery;
       if (error) throw error;
+
+      // Keep animals.weight_kg synchronized with the latest remaining valid weight record
+      const remaining = farmData.weightRecords
+        .filter((r) => r.animal_id === confirmDelete.animal_id && r.id !== confirmDelete.id)
+        .sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime());
+      const latestWeight = remaining[0] ? Number(remaining[0].weight_kg) : null;
+
+      let animalUpdate = supabase
+        .from('animals')
+        .update({ weight_kg: latestWeight })
+        .eq('id', confirmDelete.animal_id);
+      if (!isSuperAdmin) {
+        animalUpdate = animalUpdate.eq('user_id', user.id);
+      }
+      await animalUpdate;
+
       toast('Nabura na ang rekord ng timbang.', 'success');
       setConfirmDelete(null);
       farmData.refresh();
@@ -468,52 +484,65 @@ export function WeightsPage() {
                   <tr>
                     <th>Petsa</th>
                     <th>Hayop</th>
+                    <th>Uri ng Rekord</th>
                     <th>Timbang</th>
                     <th>Nakaraan</th>
                     <th>Pagbabago</th>
                     <th>Arawang Dagdag</th>
+                    <th>Mga Tala</th>
                     <th style={{ textAlign: 'right' }}>Mga Aksyon</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((w) => (
-                    <tr key={w.id}>
-                      <td>{formatDate(w.record_date)}</td>
-                      <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
-                        {animalName(w.animal_id)}
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{w.weight_kg} kg</td>
-                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
-                        {w.previous_weight_kg !== null ? `${w.previous_weight_kg} kg` : '—'}
-                      </td>
-                      <td
-                        style={{
-                          fontWeight: 600,
-                          color:
-                            w.weight_change_kg !== null && w.weight_change_kg > 0
-                              ? 'var(--color-success, #16A34A)'
-                              : w.weight_change_kg !== null && w.weight_change_kg < 0
-                              ? 'var(--color-danger, #EF4444)'
-                              : 'inherit',
-                        }}
-                      >
-                        {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
-                      </td>
-                      <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
-                        {w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/araw` : '—'}
-                      </td>
-                      <td>
-                        <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(w)} title="I-edit ang rekord ng timbang">
-                            <Pencil size={15} />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(w)} title="Burahin ang rekord ng timbang">
-                            <Trash2 size={15} />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((w) => {
+                    const isInitial = w.previous_weight_kg === null || Boolean(w.notes && w.notes.toLowerCase().includes('initial'));
+                    return (
+                      <tr key={w.id}>
+                        <td>{formatDate(w.record_date)}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--color-text-primary, #0F172A)' }}>
+                          {animalName(w.animal_id)}
+                        </td>
+                        <td>
+                          <Badge variant={isInitial ? 'success' : 'neutral'} size="sm">
+                            {isInitial ? 'Initial Weight' : 'Weight Update'}
+                          </Badge>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{w.weight_kg} kg</td>
+                        <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                          {w.previous_weight_kg !== null ? `${w.previous_weight_kg} kg` : '—'}
+                        </td>
+                        <td
+                          style={{
+                            fontWeight: 600,
+                            color:
+                              w.weight_change_kg !== null && w.weight_change_kg > 0
+                                ? 'var(--color-success, #16A34A)'
+                                : w.weight_change_kg !== null && w.weight_change_kg < 0
+                                ? 'var(--color-danger, #EF4444)'
+                                : 'inherit',
+                          }}
+                        >
+                          {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
+                        </td>
+                        <td style={{ color: 'var(--color-text-secondary, #475569)' }}>
+                          {w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/araw` : '—'}
+                        </td>
+                        <td style={{ fontSize: 12, color: 'var(--color-text-secondary, #64748B)', maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={w.notes || ''}>
+                          {w.notes || '—'}
+                        </td>
+                        <td>
+                          <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(w)} title="I-edit ang rekord ng timbang">
+                              <Pencil size={15} />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(w)} title="Burahin ang rekord ng timbang">
+                              <Trash2 size={15} />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
