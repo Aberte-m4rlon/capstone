@@ -1237,11 +1237,11 @@ export function InventoryPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Kambing (Goat):</span>
-                  <span style={{ fontWeight: 800, color: '#238B45' }}>{livestockMetrics.goats} ulo</span>
+                  <span style={{ fontWeight: 800, color: '#238B45' }}>{livestockMetrics.goats}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Tupa (Sheep):</span>
-                  <span style={{ fontWeight: 800, color: '#176B35' }}>{livestockMetrics.sheep} ulo</span>
+                  <span style={{ fontWeight: 800, color: '#176B35' }}>{livestockMetrics.sheep}</span>
                 </div>
                 <div style={{ borderTop: '1px dashed var(--color-border, #E2E8F0)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1271,11 +1271,11 @@ export function InventoryPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Bisiro / Young (&lt; 12 mo):</span>
-                  <span style={{ fontWeight: 800, color: '#238B45' }}>{livestockMetrics.young} ulo</span>
+                  <span style={{ fontWeight: 800, color: '#238B45' }}>{livestockMetrics.young}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Matanda / Adult (≥ 12 mo):</span>
-                  <span style={{ fontWeight: 800, color: '#176B35' }}>{livestockMetrics.adult} ulo</span>
+                  <span style={{ fontWeight: 800, color: '#176B35' }}>{livestockMetrics.adult}</span>
                 </div>
                 <div style={{ borderTop: '1px dashed var(--color-border, #E2E8F0)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>

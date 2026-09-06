@@ -460,7 +460,7 @@ export function Dashboard() {
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: (healthScreening.highRisk.length + healthScreening.moderateRisk.length) > 0 ? '#EF4444' : '#238B45' }} />
           </div>
           <div className="alert-value">
-            {healthScreening.highRisk.length + healthScreening.moderateRisk.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>ulo</span>
+            {healthScreening.highRisk.length + healthScreening.moderateRisk.length}
           </div>
           <span className="alert-action">
             Tingnan ngayon <ArrowRight size={13} />
@@ -620,7 +620,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="kpi-value">
-                {speciesBreakdown.goat.total} <span style={{ fontSize: '0.62em', fontWeight: 600 }}>ulo</span>
+                {speciesBreakdown.goat.total}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary, #50645A)', marginTop: 4 }}>
                 Kambing
@@ -647,7 +647,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="kpi-value">
-                {speciesBreakdown.sheep.total} <span style={{ fontSize: '0.62em', fontWeight: 600 }}>ulo</span>
+                {speciesBreakdown.sheep.total}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary, #50645A)', marginTop: 4 }}>
                 Tupa
@@ -674,7 +674,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="kpi-value">
-                {herdStats.total} <span style={{ fontSize: '0.62em', fontWeight: 600 }}>ulo</span>
+                {herdStats.total}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#238B45', marginTop: 4 }}>
                 kabuuang aktibong hayop
@@ -704,7 +704,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="kpi-value">
-                {herdStats.maleCount} <span style={{ fontSize: '0.62em', fontWeight: 600 }}>ulo</span>
+                {herdStats.maleCount}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary, #50645A)', marginTop: 4 }}>
                 Barako / Toro
@@ -731,7 +731,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="kpi-value">
-                {herdStats.femaleCount} <span style={{ fontSize: '0.62em', fontWeight: 600 }}>ulo</span>
+                {herdStats.femaleCount}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary, #50645A)', marginTop: 4 }}>
                 Inahin ({herdStats.pregnantCount} buntis)
@@ -758,7 +758,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="kpi-value">
-                {herdStats.youngCount} <span style={{ fontSize: '0.62em', fontWeight: 600 }}>ulo</span>
+                {herdStats.youngCount}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary, #50645A)', marginTop: 4 }}>
                 Bisiro / Kids / Lambs
@@ -788,7 +788,7 @@ export function Dashboard() {
                 <Layers size={17} color="#238B45" />
                 Kabuuan ng mga Kambing (Goats)
               </span>
-              <Badge variant="primary" size="sm">{speciesBreakdown.goat.total} Ulo</Badge>
+              <Badge variant="primary" size="sm">{speciesBreakdown.goat.total}</Badge>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: '12.5px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -829,7 +829,7 @@ export function Dashboard() {
                 <Layers size={17} color="#238B45" />
                 Kabuuan ng mga Tupa (Sheep)
               </span>
-              <Badge variant="info" size="sm">{speciesBreakdown.sheep.total} Ulo</Badge>
+              <Badge variant="info" size="sm">{speciesBreakdown.sheep.total}</Badge>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: '12.5px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -900,7 +900,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: HEALTH_TIERS.Low.color }}>
-                {healthScreening.healthyCount} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
+                {healthScreening.healthyCount}
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
                 Maayos ang kalagayan
@@ -928,7 +928,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: HEALTH_TIERS.Moderate.color }}>
-                {healthScreening.moderateRisk.length} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
+                {healthScreening.moderateRisk.length}
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
                 Bantayan sa bukid
@@ -956,7 +956,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: HEALTH_TIERS.High.color }}>
-                {healthScreening.highRisk.length} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
+                {healthScreening.highRisk.length}
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
                 Kailangan ng atensyon
@@ -984,7 +984,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: healthScreening.medicationNeededList.length > 0 ? '#EF4444' : 'var(--color-text-primary)' }}>
-                {healthScreening.medicationNeededList.length} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
+                {healthScreening.medicationNeededList.length}
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-secondary)' }}>
                 Aktibong gamutan
@@ -1126,7 +1126,7 @@ export function Dashboard() {
             </div>
             <div>
               <div className="stat-card-value" style={{ color: '#F59E0B' }}>
-                {breedingStats.pregnantCount} <span style={{ fontSize: '11px', fontWeight: 600 }}>ulo</span>
+                {breedingStats.pregnantCount}
               </div>
               <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
                 {breedingStats.nearKidding.length > 0

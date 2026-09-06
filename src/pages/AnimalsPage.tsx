@@ -355,7 +355,7 @@ export function AnimalsPage() {
           </div>
           <div>
             <div className="stat-card-value">
-              {animalStats.total} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
+              {animalStats.total}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
               kabuuang hayop
@@ -382,7 +382,7 @@ export function AnimalsPage() {
           </div>
           <div>
             <div className="stat-card-value">
-              {animalStats.goats} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
+              {animalStats.goats}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
               Mga Kambing
@@ -409,7 +409,7 @@ export function AnimalsPage() {
           </div>
           <div>
             <div className="stat-card-value">
-              {animalStats.sheep} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
+              {animalStats.sheep}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
               Mga Tupa

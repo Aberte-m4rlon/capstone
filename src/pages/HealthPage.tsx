@@ -808,7 +808,7 @@ export function HealthPage() {
             <AlertOctagon size={18} color="#EF4444" />
           </div>
           <div className="stat-value med-needed-value">
-            {stats.needsMedication} <span style={{ fontSize: '0.6em', fontWeight: 600 }}>ulo</span>
+            {stats.needsMedication}
           </div>
           <div className="stat-subtext med-needed-subtext">Agad na bigyan ng lunas</div>
         </div>
@@ -824,7 +824,7 @@ export function HealthPage() {
             <ShieldAlert size={18} color="#EA580C" />
           </div>
           <div className="stat-value high-risk-value">
-            {stats.needsAttention} <span style={{ fontSize: '0.6em', fontWeight: 600 }}>ulo</span>
+            {stats.needsAttention}
           </div>
           <div className="stat-subtext high-risk-subtext">Agarang suriin</div>
         </div>
@@ -840,7 +840,7 @@ export function HealthPage() {
             <AlertTriangle size={18} color="#D97706" />
           </div>
           <div className="stat-value mod-risk-value">
-            {stats.modRisk} <span style={{ fontSize: '0.6em', fontWeight: 600 }}>ulo</span>
+            {stats.modRisk}
           </div>
           <div className="stat-subtext mod-risk-subtext">Obserbahan ang sigla</div>
         </div>
@@ -856,7 +856,7 @@ export function HealthPage() {
             <CheckCircle2 size={18} color="#16A34A" />
           </div>
           <div className="stat-value low-risk-value">
-            {stats.lowRisk} <span style={{ fontSize: '0.6em', fontWeight: 600 }}>ulo</span>
+            {stats.lowRisk}
           </div>
           <div className="stat-subtext low-risk-subtext">Malusog ang kawan</div>
         </div>

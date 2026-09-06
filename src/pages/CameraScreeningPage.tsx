@@ -1296,7 +1296,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>👁️ Itutok sa mata</span>
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>🐐 Kita ang ulo</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>🐐 Kita ang hayop</span>
           </div>
         )}
       </div>
