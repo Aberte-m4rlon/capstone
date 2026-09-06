@@ -18,7 +18,7 @@ import {
   Plus, Brain, TrendingUp, AlertCircle, Layers,
   HeartPulse, PawPrint, Scale, Baby, Package, AlertTriangle,
   Lightbulb, Activity, CheckCircle2, ChevronRight, Syringe,
-  ShieldAlert, Clock, Stethoscope, ArrowRight, DollarSign, Camera, Pill,
+  ShieldAlert, Clock, Stethoscope, ArrowRight, DollarSign, Camera, Pill, Bandage,
 } from 'lucide-react';
 import { isFeedCategory } from '../lib/inventoryOperations';
 import { useMLInsights } from '../lib/mlHooks';
@@ -408,7 +408,7 @@ export function Dashboard() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28, paddingBottom: 32 }}>
+    <div className="dashboard-page-container">
       {/* ── HEADER: Salutation & Subtitle ─────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -440,8 +440,9 @@ export function Dashboard() {
           { label: 'Magpakain sa Bukid', to: '/feed', icon: <Package size={14} className="qa-plus-icon" /> },
           { label: 'Magtala ng Timbang', to: '/weights', icon: <Scale size={14} className="qa-plus-icon" /> },
           { label: 'Pagpaparami', to: '/breeding', icon: <Baby size={14} className="qa-plus-icon" /> },
+          { label: 'Magpagamot', to: '/health', icon: <Bandage size={14} className="qa-plus-icon" /> },
           { label: 'Magtala ng Bakuna', to: '/vaccinations', icon: <Syringe size={14} className="qa-plus-icon" /> },
-          { label: 'Gamot at Supplies', to: '/inventory', icon: <Pill size={14} className="qa-plus-icon" /> },
+          { label: 'Gamit at Supplies', to: '/inventory', icon: <Pill size={14} className="qa-plus-icon" /> },
         ]}
       />
 

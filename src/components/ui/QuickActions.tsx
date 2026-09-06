@@ -27,7 +27,7 @@ export function QuickActions({ actions, children, className = '' }: QuickActions
 
   if (children) {
     return (
-      <div className={`quick-actions-grid-container ${className}`}>
+      <div className={`quick-actions quick-actions-grid-container ${className}`}>
         {children}
       </div>
     );
@@ -36,7 +36,7 @@ export function QuickActions({ actions, children, className = '' }: QuickActions
   if (!actions || actions.length === 0) return null;
 
   return (
-    <div className={`quick-actions-grid-container ${className}`} role="toolbar" aria-label="Quick Actions">
+    <div className={`quick-actions quick-actions-grid-container ${className}`} role="toolbar" aria-label="Quick Actions">
       {actions.map((action, index) => {
         const handleClick = () => {
           if (action.disabled) return;

@@ -1398,13 +1398,37 @@ select:-webkit-autofill:focus {
 
 @media (max-width: 768px) {
   .quick-alert-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin-bottom: 0 !important;
+    padding: 2px 2px 8px !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x proximity !important;
   }
-}
 
-@media (max-width: 480px) {
-  .quick-alert-row {
-    grid-template-columns: 1fr;
+  .quick-alert-row::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  .quick-alert-card {
+    flex: 0 0 220px !important;
+    min-width: 220px !important;
+    max-width: 235px !important;
+    box-sizing: border-box !important;
+    scroll-snap-align: start !important;
+    padding: 13px 15px !important;
+    border-radius: 16px !important;
   }
 }
 
@@ -1486,28 +1510,36 @@ select:-webkit-autofill:focus {
   color: #EF4444;
 }
 
-/* ===== QUICK ACTIONS (PILLS) ===== */
-.quick-actions,
-.quick-actions-grid {
+/* Dashboard Main Container */
+.dashboard-page-container {
   display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 32px;
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 4px 2px 14px;
-  margin-bottom: 28px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-.quick-actions::-webkit-scrollbar,
-.quick-actions-grid::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+@media (max-width: 768px) {
+  .dashboard-page-container {
+    gap: 10px !important;
+    padding-bottom: 84px !important;
+  }
+}
+
+/* ===== QUICK ACTIONS (PILLS) ===== */
+.quick-actions,
+.quick-actions-grid,
+.quick-actions-grid-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 2px 8px;
+  margin-bottom: 20px;
 }
 
 .quick-action,
@@ -2911,17 +2943,20 @@ table.data-table {
   }
 
   .quick-actions,
-  .quick-actions-grid {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    gap: 10px;
-    padding: 4px 2px 12px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    -webkit-overflow-scrolling: touch;
+  .quick-actions-grid,
+  .quick-actions-grid-container {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 8px !important;
+    padding: 2px 2px 6px !important;
+    margin-bottom: 0 !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x proximity !important;
   }
 
   .dashboard-grid-2 {
@@ -3011,18 +3046,25 @@ table.data-table {
     font-size: 12px;
   }
 
-  /* Quick Actions — Compact TWO-COLUMN GRID on Mobile (< 768px) */
+  /* Quick Actions — Mobile: Single Horizontal Scrollable Row (< 768px) */
   .quick-actions,
   .quick-actions-grid,
   .quick-actions-grid-container {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
     gap: 8px !important;
     width: 100% !important;
     max-width: 100% !important;
-    overflow: visible !important;
-    padding: 0 !important;
-    margin-bottom: 20px !important;
+    box-sizing: border-box !important;
+    padding: 2px 2px 6px !important;
+    margin-bottom: 0 !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x proximity !important;
   }
 
   .quick-actions::-webkit-scrollbar,
@@ -3036,28 +3078,81 @@ table.data-table {
   .quick-action,
   .quick-action-btn,
   .qa-btn {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
     box-sizing: border-box !important;
-    height: 44px !important;
+    height: 38px !important;
     white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    overflow: visible !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 6px !important;
-    padding: 8px 10px !important;
+    padding: 0 14px !important;
     font-size: 12px !important;
-    border-radius: 12px !important;
+    font-weight: 600 !important;
+    border-radius: 9999px !important;
+    scroll-snap-align: start !important;
+    background: #FFFFFF !important;
+    border: 1px solid rgba(23, 107, 53, 0.16) !important;
+    color: #174B2A !important;
+    box-shadow: 0 2px 6px rgba(23, 107, 53, 0.05) !important;
+  }
+
+  [data-theme="dark"] .quick-action,
+  [data-theme="dark"] .quick-action-btn,
+  [data-theme="dark"] .qa-btn {
+    background: rgba(26, 40, 31, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    color: #F3F7F4 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .quick-action:hover,
+  .quick-action-btn:hover,
+  .qa-btn:hover,
+  .quick-action:active,
+  .quick-action-btn:active,
+  .qa-btn:active {
+    border-color: rgba(35, 139, 69, 0.5) !important;
+    color: #238B45 !important;
+  }
+
+  [data-theme="dark"] .quick-action:hover,
+  [data-theme="dark"] .quick-action-btn:hover,
+  [data-theme="dark"] .qa-btn:hover,
+  [data-theme="dark"] .quick-action:active,
+  [data-theme="dark"] .quick-action-btn:active,
+  [data-theme="dark"] .qa-btn:active {
+    border-color: rgba(67, 160, 71, 0.5) !important;
+    color: #81C784 !important;
   }
 
   .qa-btn-label {
     white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
     min-width: 0 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
+  .qa-icon-wrapper,
+  .qa-plus-icon,
+  .qa-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    color: #238B45 !important;
+  }
+
+  [data-theme="dark"] .qa-icon-wrapper,
+  [data-theme="dark"] .qa-plus-icon,
+  [data-theme="dark"] .qa-icon {
+    color: #81C784 !important;
   }
 
   /* Statistics & Summary Cards — STRICTLY 3 COLUMNS × 1 ROW on Mobile (< 768px) */
@@ -3334,16 +3429,42 @@ table.data-table {
   .quick-actions,
   .quick-actions-grid,
   .quick-actions-grid-container {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 6px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 8px !important;
+    margin-bottom: 0 !important;
   }
 
   .quick-action,
   .quick-action-btn,
   .qa-btn {
-    height: 40px !important;
-    padding: 6px 8px !important;
-    font-size: 11px !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    height: 36px !important;
+    padding: 0 12px !important;
+    font-size: 11.5px !important;
+  }
+
+  .quick-alert-row {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 8px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .quick-alert-card {
+    flex: 0 0 210px !important;
+    min-width: 210px !important;
+    max-width: 225px !important;
+    padding: 12px 14px !important;
   }
 
   .stats-grid,
