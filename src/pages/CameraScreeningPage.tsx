@@ -21,7 +21,8 @@ import {
   Loader2, Search, Info, WifiOff, History,
   Zap, ShieldAlert, Activity, Check,
   Bot, SwitchCamera, X, Play,
-  ArrowLeft, Settings, Image, Thermometer, Compass
+  ArrowLeft, Settings, Image, Thermometer, Compass,
+  ChevronDown, ChevronUp, Eye, HeartPulse
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -31,6 +32,12 @@ import { useAutoScan } from '../lib/useAutoScan';
 import { formatDate } from '../lib/analytics';
 import { supabase } from '../lib/supabase';
 import { fileToCanvas, type ScanResult } from '../lib/cameraML';
+import {
+  type RuleBasedScreeningResult,
+  type CombinedScreeningAssessment,
+  combineScreeningAssessments,
+  runRuleBasedScreening,
+} from '../lib/ruleBasedScreening';
 import { FARM_LABELS, simplifyHealthObservation } from '../lib/farmerTerminology';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -720,7 +727,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
 
           <div style={{ minWidth: 0, overflow: 'hidden' }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>AI Health Scanner</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Camera Health Screening</span>
               {selectedAnimal && (
                 <span style={{
                   flexShrink: 0,
@@ -929,7 +936,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
               <>
                 <Loader2 size={44} color="#43A047" style={{ animation: 'spin 1s linear infinite' }} />
                 <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF' }}>Sinisimulan ang camera...</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Inihahanda ang AI vision scanner...</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Inihahanda ang camera screening...</div>
               </>
             )}
 
@@ -940,7 +947,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                   Kailangan ang pahintulot sa camera para makapag-scan ng hayop.
                 </div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', maxWidth: 320, lineHeight: 1.5 }}>
-                  Pahintulutan ang camera sa iyong browser o device settings upang magamit ang AI Health Scanner.
+                  Pahintulutan ang camera sa iyong browser o device settings upang magamit ang Camera Health Screening.
                 </div>
                 <button
                   onClick={() => startCamera()}
@@ -1258,6 +1265,40 @@ What are the recommended early livestock interventions, supportive veterinary ca
             }}
           />
         )}
+
+        {/* ── CAMERA GUIDANCE HELPER (Section 10) ── */}
+        {permission === 'granted' && autoScan.state !== 'result' && autoScan.state !== 'scanning' && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 116,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(15, 23, 42, 0.78)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255, 255, 255, 0.16)',
+              borderRadius: 999,
+              padding: '6px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              zIndex: 25,
+              whiteSpace: 'nowrap',
+              maxWidth: '92%',
+              overflowX: 'auto',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+            }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>📷 Ilapit nang kaunti</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>💡 Siguraduhing maliwanag</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>👁️ Itutok sa mata</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>🐐 Kita ang ulo</span>
+          </div>
+        )}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════
@@ -1410,6 +1451,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
           <div style={{ width: '100%', maxWidth: 540, marginTop: 24, marginBottom: 40 }}>
             <ScanResultCard
               result={autoScan.result}
+              ruleResult={autoScan.ruleResult}
+              combined={autoScan.combinedAssessment}
               capturedUrl={autoScan.capturedUrl}
               species={autoScan.detectedSpecies ?? 'goat'}
               animal={selectedAnimal}
@@ -1418,6 +1461,11 @@ What are the recommended early livestock interventions, supportive veterinary ca
               saving={saving}
               savedId={savedId}
               onSave={handleSave}
+              onManualCheck={() => {
+                stopCamera();
+                const targetId = selectedAnimalId || selectedAnimal?.id || '';
+                navigate(targetId ? `/health?action=check&animalId=${targetId}` : `/health?action=check`);
+              }}
               onAskAICloud={() => handleAskAICloud(autoScan.result!, selectedAnimal?.name, selectedAnimal?.tag_id)}
               onRescan={autoScan.rescan}
               onViewHistory={selectedAnimal ? () => navigate(`/animals/${selectedAnimal.id}`) : undefined}
@@ -1994,9 +2042,11 @@ What are the recommended early livestock interventions, supportive veterinary ca
   );
 }
 
-// ── Scan Result Card Component (Section 14 Standard Layout) ───────────────────
+// ── Scan Result Card Component (Dual ML + Rule-Based Screening) ───────────────
 function ScanResultCard({
   result,
+  ruleResult,
+  combined,
   capturedUrl,
   species,
   animal,
@@ -2005,11 +2055,14 @@ function ScanResultCard({
   saving,
   savedId,
   onSave,
+  onManualCheck,
   onAskAICloud,
   onRescan,
   onViewHistory,
 }: {
   result: ScanResult;
+  ruleResult?: RuleBasedScreeningResult | null;
+  combined?: CombinedScreeningAssessment | null;
   capturedUrl: string | null;
   species: 'goat' | 'sheep';
   animal?: any;
@@ -2018,11 +2071,14 @@ function ScanResultCard({
   saving: boolean;
   savedId: string | null;
   onSave: () => void;
+  onManualCheck?: () => void;
   onAskAICloud: () => void;
   onRescan: () => void;
   onViewHistory?: () => void;
 }) {
-  // Non-target fallback
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Non-target fallback (Mandate 16)
   if (!result.goatDetected) {
     return (
       <div style={{ background: 'var(--surface, #FFFFFF)', border: '2px solid #DC2626', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 30px rgba(220, 38, 38, 0.2)' }}>
@@ -2034,10 +2090,10 @@ function ScanResultCard({
             <ShieldAlert size={44} color="#DC2626" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
-            Hindi ito kambing o tupa.
+            Hindi kambing o tupa ang nakita.
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary, #4B5563)', lineHeight: 1.6, marginBottom: 20 }}>
-            Ang AI Health Scanner ay para lamang sa mga kambing at tupa. Pakiharap ang camera sa kambing o tupa.
+            Pakisigurong kambing o tupa ang nasa camera bago mag-scan.
           </div>
           <button
             onClick={onRescan}
@@ -2045,7 +2101,7 @@ function ScanResultCard({
               padding: '12px 26px',
               borderRadius: 12,
               border: 'none',
-              background: '#43A047',
+              background: '#238B45',
               color: '#FFFFFF',
               fontSize: 14,
               fontWeight: 800,
@@ -2053,7 +2109,7 @@ function ScanResultCard({
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              boxShadow: '0 4px 14px rgba(67, 160, 71, 0.3)',
+              boxShadow: '0 4px 14px rgba(35, 139, 69, 0.3)',
             }}
           >
             <RefreshCw size={16} /> Subukang Mag-scan Ulit
@@ -2063,19 +2119,8 @@ function ScanResultCard({
     );
   }
 
-  const rLevel = result.riskLevel || 'LOW';
-  const rColor = riskColor(rLevel);
-  const rBg = riskBg(rLevel);
-  const rBorder = riskBorder(rLevel);
-
-  const riskLabel =
-    rLevel === 'CRITICAL' ? 'Mataas ang Risk / High Risk' :
-    rLevel === 'HIGH' ? 'Mataas ang Risk / High Risk' :
-    rLevel === 'MODERATE' ? 'Bantayan / Under Observation' :
-    'Maayos / Healthy';
-
-  const rawObservations = result.observations || [];
-  const displayObservations = (result.primaryIndicators && result.primaryIndicators.length > 0 ? result.primaryIndicators : rawObservations).map(simplifyHealthObservation);
+  // Combined assessment engine
+  const finalCombined = combined || combineScreeningAssessments(result, ruleResult || null);
 
   const targetAnimal = animal;
   const targetName = animalName || targetAnimal?.name;
@@ -2093,6 +2138,21 @@ function ScanResultCard({
     return mos > 0 ? `${yrs} taon ${mos} buwan` : `${yrs} taon`;
   })();
 
+  const speciesEmoji = species === 'sheep' ? '🐑' : '🐐';
+  const speciesLabel = species === 'sheep' ? 'Tupa' : 'Kambing';
+
+  // Finding status badge helpers
+  const getFindingStatusBadge = (status: string) => {
+    switch (status) {
+      case 'concern':
+        return { text: 'May Sign', color: '#D97706', bg: 'rgba(217, 119, 6, 0.12)' };
+      case 'insufficient_info':
+        return { text: 'Hindi Masuri', color: '#6B7280', bg: 'rgba(107, 114, 128, 0.12)' };
+      default:
+        return { text: 'Normal', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.12)' };
+    }
+  };
+
   return (
     <div
       style={{
@@ -2103,6 +2163,7 @@ function ScanResultCard({
         boxShadow: 'var(--shadow-lg, 0 12px 36px rgba(0,0,0,0.25))',
       }}
     >
+      {/* ── LIVE CAPTURE PREVIEW ── */}
       {capturedUrl && (
         <div style={{ position: 'relative', width: '100%', maxHeight: 200, overflow: 'hidden' }}>
           <img src={capturedUrl} alt="Captured scan" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
@@ -2129,33 +2190,123 @@ function ScanResultCard({
       )}
 
       <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* ── HEADER: TITLE & SPECIES/ANIMAL IDENTIFICATION ── */}
+        {/* ── HEADER: TITLE & SPECIES/ANIMAL IDENTIFICATION (Section 18) ── */}
         <div style={{ borderBottom: '1px solid var(--border-subtle, #F3F4F6)', paddingBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: '#43A047', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Activity size={14} color="#43A047" /> HEALTH SCREENING RESULT
+          <div style={{ fontSize: 11, fontWeight: 900, color: '#238B45', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Activity size={14} color="#238B45" /> VISUAL HEALTH SCREENING
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary, #1F2937)' }}>
-                {species === 'sheep' ? 'Tupa ang nakita.' : 'Kambing ang nakita.'}
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #6B7280)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                ANIMAL DETECTED
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary, #4B5563)', marginTop: 2 }}>
-                Hayop: {targetTag && targetName ? `${targetTag} (${targetName})` : targetName ? targetName : 'May hayop na nakita ngunit hindi pa kumpirmado ang tag.'}
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary, #1F2937)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                <span>{speciesEmoji} {speciesLabel}</span>
+                {targetTag && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#238B45', background: 'rgba(35, 139, 69, 0.1)', padding: '2px 8px', borderRadius: 6 }}>
+                    {targetTag}
+                  </span>
+                )}
               </div>
+              {targetName && (
+                <div style={{ fontSize: 12, color: 'var(--text-secondary, #4B5563)', marginTop: 2 }}>
+                  Pangalan: <strong>{targetName}</strong>
+                </div>
+              )}
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#16A34A', background: 'rgba(22, 163, 74, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
-                Visual Scan
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#16A34A', background: 'rgba(22, 163, 74, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
+                Camera Scan
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── HEALTH RISK & SCORE ── */}
+        {/* ── DUAL ASSESSMENT INDEPENDENT STATUS ROWS (Section 18) ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {/* ML Assessment Box */}
+          <div
+            style={{
+              background: 'var(--bg-secondary, #F9FAFB)',
+              border: '1px solid var(--border, #E5EDE6)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #6B7280)', textTransform: 'uppercase' }}>
+              ML Assessment
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  background: finalCombined.mlAssessment.status === 'concern' ? '#D97706' : '#16A34A',
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary, #1F2937)' }}>
+                {finalCombined.mlAssessment.status === 'concern' ? 'Posibleng alalahanin' : 'Walang alalahanin'}
+              </span>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted, #9CA3AF)' }}>
+              MobileNetV2 Vision Core
+            </div>
+          </div>
+
+          {/* Visual Screening Box */}
+          <div
+            style={{
+              background: 'var(--bg-secondary, #F9FAFB)',
+              border: '1px solid var(--border, #E5EDE6)',
+              borderRadius: 12,
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #6B7280)', textTransform: 'uppercase' }}>
+              Visual Screening
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  background:
+                    finalCombined.ruleAssessment.status === 'concern'
+                      ? '#D97706'
+                      : finalCombined.ruleAssessment.status === 'normal'
+                      ? '#16A34A'
+                      : '#9CA3AF',
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary, #1F2937)' }}>
+                {finalCombined.ruleAssessment.status === 'concern'
+                  ? 'May visual sign'
+                  : finalCombined.ruleAssessment.status === 'normal'
+                  ? 'Normal ang hitsura'
+                  : 'Hindi sapat'}
+              </span>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted, #9CA3AF)' }}>
+              Color & ROI Pixel Analysis
+            </div>
+          </div>
+        </div>
+
+        {/* ── COMBINED OVERALL HEALTH STATUS BANNER (Section 18) ── */}
         <div
           style={{
-            background: rBg,
-            border: `1px solid ${rBorder}`,
+            background: finalCombined.overallBadgeBg,
+            border: `1px solid ${finalCombined.overallBadgeBorder}`,
             borderRadius: 14,
             padding: '14px 18px',
             display: 'flex',
@@ -2166,190 +2317,116 @@ function ScanResultCard({
           }}
         >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              KALAGAYAN NG KALUSUGAN
+            <div style={{ fontSize: 11, fontWeight: 800, color: finalCombined.overallBadgeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              OVERALL STATUS
             </div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: rColor, marginTop: 2 }}>
-              {riskLabel}
+            <div style={{ fontSize: 18, fontWeight: 900, color: finalCombined.overallBadgeColor, marginTop: 2 }}>
+              {finalCombined.overallLabel}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-primary, #1F2937)', marginTop: 4, lineHeight: 1.4, maxWidth: 360 }}>
+              {finalCombined.summaryMessage}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: rColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Score ng Kalagayan
+            <div style={{ fontSize: 11, fontWeight: 700, color: finalCombined.overallBadgeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Screening Score
             </div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: rColor, marginTop: 2 }}>
-              {result.riskScore ?? 15} / 100
-            </div>
-          </div>
-        </div>
-
-        {/* ── AI FINDINGS ── */}
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            MGA NAKITA SA SCAN:
-          </div>
-          <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {displayObservations.map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: 7, fontSize: 12, color: 'var(--text-primary, #374151)', lineHeight: 1.5 }}>
-                <span style={{ color: '#43A047', fontWeight: 800 }}>•</span>
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── AVAILABLE INFORMATION (MULTI-SOURCE DATA FUSION) ── */}
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            IMPORMASYON SA BUKID:
-          </div>
-          <div style={{ background: 'var(--surface, #FFFFFF)', border: '1px solid var(--border, #E5E7EB)', borderRadius: 10, padding: '10px 14px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Edad:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{ageDisplay}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Timbang:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.weight_kg ? `${targetAnimal.weight_kg} kg` : 'Hindi nakatala'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Bakuna:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.vaccination_status || 'Up to date'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Nakaraang Health Status:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.health_risk_score !== undefined ? `${targetAnimal.health_status || 'Normal'} (${targetAnimal.health_risk_score})` : 'Low (0)'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border, #E5E7EB)', paddingTop: 6 }}>
-              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Surface Temperature:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-muted, #9CA3AF)' }}>Hindi nasukat</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Heart Rate:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-muted, #9CA3AF)' }}>Hindi nasukat</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Respiratory Rate:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-muted, #9CA3AF)' }}>Hindi nasukat</span>
-            </div>
-            <div style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--text-muted, #9CA3AF)', marginTop: 4 }}>
-              Hindi sinukat ang ibang vital signs sa visual screening na ito.
+            <div style={{ fontSize: 22, fontWeight: 900, color: finalCombined.overallBadgeColor, marginTop: 2 }}>
+              {finalCombined.overallScore} / 100
             </div>
           </div>
         </div>
 
-        {/* ── RECOMMENDATION (MANDATE 13) ── */}
+        {/* ── KEY OBSERVATIONS (Section 18) ── */}
+        {finalCombined.observations.length > 0 && (
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+              MGA NAPANSING KATANGIAN:
+            </div>
+            <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {finalCombined.observations.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: 7, fontSize: 12, color: 'var(--text-primary, #374151)', lineHeight: 1.5 }}>
+                  <span style={{ color: '#238B45', fontWeight: 800 }}>•</span>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── RECOMMENDATION (MANDATE 3 & 18 — NON-DIAGNOSTIC) ── */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            {rLevel === 'LOW' ? 'GABAY SA PAG-AALAGA:' : 'POSIBLENG PROBLEMA SA KALUSUGAN AT GABAY:'}
+            REKOMENDASYON:
           </div>
           <div
             style={{
-              background: rBg,
-              border: `1px solid ${rBorder}`,
+              background: finalCombined.overallBadgeBg,
+              border: `1px solid ${finalCombined.overallBadgeBorder}`,
               borderRadius: 10,
               padding: '12px 14px',
               fontSize: 12,
               color: 'var(--text-primary, #1F2937)',
               lineHeight: 1.5,
+              fontWeight: 500,
             }}
           >
-            {rLevel !== 'LOW'
-              ? (result.recommendation ? simplifyHealthObservation(result.recommendation) : 'May napansing posibleng problema sa kalusugan. Obserbahan muna ang hayop at tingnan kung may iba pang sintomas. Kumonsulta sa lisensyadong beterinaryo kung lumala ang sintomas.')
-              : 'Maayos ang nakitang pangkalahatang kalagayan ng hayop. Ipagpatuloy ang regular na pagpapakain, malinis na inumin, at pagmamasid sa kawan.'}
+            {finalCombined.recommendationMessage}
           </div>
         </div>
 
-        {/* Decision-Support Notice */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            padding: '10px 12px',
-            borderRadius: 10,
-            background: 'rgba(35, 139, 69, 0.12)',
-            border: '1px solid var(--border, rgba(35, 139, 69, 0.2))',
-            fontSize: 11,
-            color: 'var(--text-primary, #174B2A)',
-            lineHeight: 1.5,
-          }}
-        >
-          <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-          <div>
-            <strong>Paunawa:</strong> Ang resulta ng AI ay para lamang sa maagang pag-monitor at decision support, hindi kumpirmadong diagnosis ng lisensyadong beterinaryo. Kumonsulta sa beterinaryo para sa tamang gamutan.
-          </div>
-        </div>
-
-        {/* ── ACTION BUTTONS ── */}
+        {/* ── ACTION BUTTONS (Section 18 & 21) ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-          {/* View Animal Health History Button */}
-          {onViewHistory && (
+          {/* Primary Action Button: Manual Health Check */}
+          {onManualCheck && (
             <button
-              onClick={onViewHistory}
+              onClick={onManualCheck}
               style={{
                 width: '100%',
-                padding: '12px',
-                borderRadius: 10,
+                padding: '13px',
+                borderRadius: 12,
                 border: 'none',
                 background: 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
                 color: '#FFFFFF',
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 800,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 7,
-                boxShadow: '0 4px 12px rgba(35, 139, 69, 0.25)',
+                gap: 8,
+                boxShadow: '0 4px 14px rgba(35, 139, 69, 0.3)',
+                transition: 'opacity 0.15s ease',
               }}
             >
-              <History size={16} /> Tingnan ang Health History
+              <HeartPulse size={18} /> Mag-record ng Manual Health Check
             </button>
           )}
 
-          {/* Ask AI Farm Assistant Button */}
-          <button
-            onClick={onAskAICloud}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: 10,
-              border: 'none',
-              background: 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
-              color: '#FFFFFF',
-              fontSize: 13,
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 7,
-              boxShadow: '0 4px 12px rgba(35, 139, 69, 0.2)',
-            }}
-          >
-            <Bot size={16} /> Itanong sa AI Farm Assistant
-          </button>
-
-          {/* Automatic Save Indicator & Scan Again */}
+          {/* Secondary Actions Row */}
           <div style={{ display: 'flex', gap: 8 }}>
-            <div
+            <button
+              onClick={onSave}
+              disabled={saving}
               style={{
                 flex: 1,
                 padding: '10px',
                 borderRadius: 10,
-                background: '#E8F5E9',
-                border: '1px solid #C8E6C9',
-                color: '#2E7D32',
+                background: savedId ? '#E8F5E9' : '#F9FAFB',
+                border: savedId ? '1px solid #C8E6C9' : '1px solid var(--border, #E5EDE6)',
+                color: savedId ? '#2E7D32' : 'var(--text-primary, #1F2937)',
                 fontWeight: 700,
                 fontSize: 12,
+                cursor: saving ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 5,
               }}
             >
-              <Check size={14} /> Awtomatikong Na-save
-            </div>
+              <Check size={14} />
+              <span>{savedId ? 'Awtomatikong Na-save' : saving ? 'Sini-save...' : 'I-save ang Resulta'}</span>
+            </button>
 
             <button
               onClick={onRescan}
@@ -2357,9 +2434,9 @@ function ScanResultCard({
                 flex: 1,
                 padding: '10px',
                 borderRadius: 10,
-                border: '1px solid #E5EDE6',
-                background: '#F9FAFB',
-                color: '#1F2937',
+                border: '1px solid var(--border, #E5EDE6)',
+                background: 'var(--bg-secondary, #F9FAFB)',
+                color: 'var(--text-primary, #1F2937)',
                 fontWeight: 700,
                 fontSize: 12,
                 cursor: 'pointer',
@@ -2372,6 +2449,201 @@ function ScanResultCard({
               <RefreshCw size={13} /> I-scan Ulit
             </button>
           </div>
+
+          {/* View Animal Health History Button */}
+          {onViewHistory && (
+            <button
+              onClick={onViewHistory}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: 10,
+                border: '1px solid var(--border, #E5EDE6)',
+                background: 'var(--surface, #FFFFFF)',
+                color: '#238B45',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              <History size={14} /> Tingnan ang Health History ng Hayop
+            </button>
+          )}
+
+          {/* Ask AI Farm Assistant */}
+          <button
+            onClick={onAskAICloud}
+            style={{
+              width: '100%',
+              padding: '10px',
+              borderRadius: 10,
+              border: '1px solid rgba(35, 139, 69, 0.25)',
+              background: 'rgba(35, 139, 69, 0.05)',
+              color: '#238B45',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+          >
+            <Bot size={14} /> Itanong sa AI Farm Assistant
+          </button>
+        </div>
+
+        {/* ── COLLAPSIBLE ADVANCED DETAILS (Section 20) ── */}
+        <div style={{ borderTop: '1px solid var(--border-subtle, #F3F4F6)', paddingTop: 10 }}>
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            style={{
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              padding: '8px 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              color: 'var(--text-secondary, #4B5563)',
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Eye size={14} color="#238B45" />
+              <span>{showDetails ? 'Itago ang Detalye ng Assessment' : 'Detalye ng Assessment'}</span>
+            </span>
+            {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+
+          {showDetails && (
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeIn 0.2s ease-out' }}>
+              {/* ML Model Scores */}
+              <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
+                <div style={{ fontWeight: 800, color: 'var(--text-primary, #1F2937)', marginBottom: 6, textTransform: 'uppercase', fontSize: 11 }}>
+                  ML Model Breakdown
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Engine:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.detectionEngine || 'MobileNetV2'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Model Confidence:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.confidencePercent}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>ML Risk Score:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.riskScore} / 100</span>
+                </div>
+              </div>
+
+              {/* Anatomical Visual Screenings (Mandates 4-8) */}
+              <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
+                <div style={{ fontWeight: 800, color: 'var(--text-primary, #1F2937)', marginBottom: 8, textTransform: 'uppercase', fontSize: 11 }}>
+                  Visual Screening Breakdown
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(finalCombined.ruleAssessment.findings.length > 0
+                    ? finalCombined.ruleAssessment.findings
+                    : [
+                        { targetLabel: 'Mata / Talukap', status: 'normal', label: 'Normal ang hitsura', description: 'Walang nakitang pamumutla o paninilaw.' },
+                        { targetLabel: 'Ilong / Nguso', status: 'normal', label: 'Walang discharge', description: 'Malinis ang paligid ng nguso.' },
+                        { targetLabel: 'Bibig / Labi', status: 'normal', label: 'Normal', description: 'Walang kapansin-pansing pamamaga.' },
+                        { targetLabel: 'Balahibo / Katawan', status: 'normal', label: 'Pantay ang balahibo', description: 'Walang nakitang patches.' },
+                        { targetLabel: 'Tindig / Posture', status: 'normal', label: 'Maayos ang tindig', description: 'Normal ang postura.' },
+                      ]
+                  ).map((finding, idx) => {
+                    const badge = getFindingStatusBadge(finding.status);
+                    return (
+                      <div key={idx} style={{ borderBottom: idx < 4 ? '1px dashed var(--border, #E5EDE6)' : 'none', paddingBottom: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-primary, #1F2937)' }}>{finding.targetLabel}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: badge.color, background: badge.bg, padding: '2px 7px', borderRadius: 6 }}>
+                            {badge.text}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary, #4B5563)', marginTop: 2 }}>
+                          {finding.description}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Image Quality Breakdown (Mandate 9) */}
+              <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
+                <div style={{ fontWeight: 800, color: 'var(--text-primary, #1F2937)', marginBottom: 6, textTransform: 'uppercase', fontSize: 11 }}>
+                  Kalidad ng Larawan (Image Quality)
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Quality Score:</span>
+                  <span style={{ fontWeight: 600, color: '#238B45' }}>{finalCombined.technicalDetails.imageQualityScore} / 100</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Liwanag (Brightness):</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{finalCombined.technicalDetails.brightness}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Contrast:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{finalCombined.technicalDetails.contrast}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Kalinawan (Sharpness):</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{finalCombined.technicalDetails.blurScore}</span>
+                </div>
+              </div>
+
+              {/* Farm Context Information */}
+              <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ fontWeight: 800, color: 'var(--text-primary, #1F2937)', marginBottom: 4, textTransform: 'uppercase', fontSize: 11 }}>
+                  Impormasyon sa Bukid
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Edad:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{ageDisplay}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Timbang:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.weight_kg ? `${targetAnimal.weight_kg} kg` : 'Hindi nakatala'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Bakuna:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.vaccination_status || 'Up to date'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Nakaraang Health Status:</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.health_risk_score !== undefined ? `${targetAnimal.health_status || 'Normal'} (${targetAnimal.health_risk_score})` : 'Low (0)'}</span>
+                </div>
+              </div>
+
+              {/* Mandatory Non-Diagnostic Disclaimer (Mandate 3 & 22) */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(35, 139, 69, 0.08)',
+                  border: '1px solid rgba(35, 139, 69, 0.2)',
+                  fontSize: 11,
+                  color: 'var(--text-primary, #174B2A)',
+                  lineHeight: 1.5,
+                }}
+              >
+                <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <strong>Paunawa:</strong> Ang visual screening na ito ay gabay lamang para sa maagang pagmamasid at decision support. <strong>HINDI ito pamalit</strong> sa opisyal na diagnosis ng lisensyadong beterinaryo. Hindi ito awtomatikong nagrereseta ng gamot o nagbabawas ng imbentaryo.
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

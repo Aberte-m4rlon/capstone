@@ -34,6 +34,12 @@ import {
   type ScanResult,
   type FarmHealthContext,
 } from './cameraML';
+import {
+  runRuleBasedScreening,
+  combineScreeningAssessments,
+  type RuleBasedScreeningResult,
+  type CombinedScreeningAssessment,
+} from './ruleBasedScreening';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,6 +58,8 @@ export interface AutoScanStatus {
   state: ScanState;
   detection: DetectionResult | null;
   result: ScanResult | null;
+  ruleResult: RuleBasedScreeningResult | null;
+  combinedAssessment: CombinedScreeningAssessment | null;
   capturedUrl: string | null;
   capturedCanvas: HTMLCanvasElement | null;
   cooldownRemaining: number;
@@ -123,13 +131,21 @@ export function useAutoScan(options: {
   animalName?: string;
   speciesPreference?: 'auto' | 'goat' | 'sheep';
   farmContext?: FarmHealthContext;
-  onResult?: (result: ScanResult, canvas: HTMLCanvasElement, species: 'goat' | 'sheep') => void;
+  onResult?: (
+    result: ScanResult,
+    canvas: HTMLCanvasElement,
+    species: 'goat' | 'sheep',
+    ruleResult?: RuleBasedScreeningResult,
+    combined?: CombinedScreeningAssessment,
+  ) => void;
 }) {
   const { videoRef, animalId, animalName, speciesPreference = 'auto', farmContext, onResult } = options;
 
   const [state, setState]               = useState<ScanState>('idle');
   const [detection, setDetection]       = useState<DetectionResult | null>(null);
   const [result, setResult]             = useState<ScanResult | null>(null);
+  const [ruleResult, setRuleResult]     = useState<RuleBasedScreeningResult | null>(null);
+  const [combinedAssessment, setCombinedAssessment] = useState<CombinedScreeningAssessment | null>(null);
   const [capturedUrl, setCapturedUrl]   = useState<string | null>(null);
   const [capturedCanvas, setCapturedCanvas] = useState<HTMLCanvasElement | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
@@ -242,8 +258,14 @@ export function useAutoScan(options: {
         scanType: 'image',
       });
 
+      // Execute Rule-Based Visual Screening alongside existing ML
+      const ruleRes = runRuleBasedScreening(canvas);
+      const combined = combineScreeningAssessments(scanResult, ruleRes);
+
       if (!mountedRef.current) { scanningRef.current = false; return; }
       setResult(scanResult);
+      setRuleResult(ruleRes);
+      setCombinedAssessment(combined);
 
       if (!scanResult.goatDetected) {
         setState('other_detected');
@@ -259,7 +281,7 @@ export function useAutoScan(options: {
 
       setState('result');
       stateRef.current = 'result';
-      onResult?.(scanResult, canvas, species);
+      onResult?.(scanResult, canvas, species, ruleRes, combined);
 
       // Auto-transition to cooldown after 15 s
       setTimeout(() => {
@@ -410,6 +432,8 @@ export function useAutoScan(options: {
     stateRef.current = 'loading';
     setError(null);
     setResult(null);
+    setRuleResult(null);
+    setCombinedAssessment(null);
     setCapturedUrl(null);
     setCapturedCanvas(null);
     setDetection(null);
@@ -444,6 +468,8 @@ export function useAutoScan(options: {
   // ── Rescan ────────────────────────────────────────────────────────────────
   const rescan = useCallback(() => {
     setResult(null);
+    setRuleResult(null);
+    setCombinedAssessment(null);
     setCapturedUrl(null);
     setCapturedCanvas(null);
     setDetection(null);
@@ -487,6 +513,8 @@ export function useAutoScan(options: {
     state,
     detection,
     result,
+    ruleResult,
+    combinedAssessment,
     capturedUrl,
     capturedCanvas,
     cooldownRemaining,

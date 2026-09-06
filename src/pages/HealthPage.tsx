@@ -459,7 +459,8 @@ export function HealthPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('action') === 'add' || params.get('action') === 'check') {
-      openPredictionModal();
+      const qAnimal = params.get('animalId') || undefined;
+      openPredictionModal(qAnimal);
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);
@@ -765,7 +766,7 @@ export function HealthPage() {
           onClick={() => navigate('/camera-screening')}
         >
           <Camera size={18} />
-          <span>AI Health Scanner</span>
+          <span>Buksan ang Camera</span>
           <ArrowRight size={16} className="scanner-arrow-icon" />
         </button>
       </div>
@@ -775,7 +776,7 @@ export function HealthPage() {
         <div className="hero-banner-content">
           <div className="hero-badge">
             <Camera size={13} color="#238B45" />
-            <span>AI Health Scanner</span>
+            <span>Camera Health Screening</span>
           </div>
           <h2 className="hero-banner-title">Automatic Health Monitoring</h2>
           <p className="hero-banner-desc">
