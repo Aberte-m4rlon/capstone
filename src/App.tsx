@@ -201,21 +201,24 @@ function AppRoutes() {
 
 import { NotificationProvider } from './context/NotificationContext';
 import { FarmDataProvider } from './lib/useFarmData';
+import { ThemeProvider } from './context/ThemeContext';
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <ToastProvider>
-          <NotificationProvider>
-            <FarmDataProvider>
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </FarmDataProvider>
-          </NotificationProvider>
-        </ToastProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <NotificationProvider>
+              <FarmDataProvider>
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </FarmDataProvider>
+            </NotificationProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

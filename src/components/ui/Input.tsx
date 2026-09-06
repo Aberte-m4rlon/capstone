@@ -41,7 +41,7 @@ export function FormField({
             gap: 4,
             fontSize: '13px',
             fontWeight: 600,
-            color: '#174B2A',
+            color: 'var(--text-primary, #174B2A)',
             marginBottom: 6,
           }}
         >
@@ -68,7 +68,7 @@ export function FormField({
           style={{
             margin: '4px 0 0 0',
             fontSize: '12px',
-            color: '#50645A',
+            color: 'var(--text-secondary, #50645A)',
           }}
         >
           {displayHint}
@@ -138,9 +138,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             padding: `0 ${rightIcon ? '40px' : '14px'} 0 ${leftIcon ? '40px' : '14px'}`,
             fontSize: '13.5px',
             fontFamily: 'inherit',
-            color: '#174B2A',
-            background: 'rgba(255, 255, 255, 0.80)',
-            border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'rgba(35, 139, 69, 0.15)'}`,
+            color: 'var(--input-text, var(--text-primary, #174B2A))',
+            background: 'var(--input-bg, rgba(255, 255, 255, 0.80))',
+            border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--input-border, rgba(35, 139, 69, 0.15))'}`,
             borderRadius: 'var(--radius-md, 12px)',
             outline: 'none',
             transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
@@ -266,9 +266,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           padding: '10px 14px',
           fontSize: '13.5px',
           fontFamily: 'inherit',
-          color: '#174B2A',
-          background: 'rgba(255, 255, 255, 0.80)',
-          border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'rgba(35, 139, 69, 0.15)'}`,
+          color: 'var(--input-text, var(--text-primary, #174B2A))',
+          background: 'var(--input-bg, rgba(255, 255, 255, 0.80))',
+          border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--input-border, rgba(35, 139, 69, 0.15))'}`,
           borderRadius: 'var(--radius-md, 12px)',
           outline: 'none',
           transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
@@ -318,9 +318,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             padding: '0 36px 0 14px',
             fontSize: '13.5px',
             fontFamily: 'inherit',
-            color: '#174B2A',
-            background: 'rgba(255, 255, 255, 0.80)',
-            border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'rgba(35, 139, 69, 0.15)'}`,
+            color: 'var(--input-text, var(--text-primary, #174B2A))',
+            background: 'var(--input-bg, rgba(255, 255, 255, 0.80))',
+            border: `1px solid ${error ? 'var(--color-danger, #EF4444)' : 'var(--input-border, rgba(35, 139, 69, 0.15))'}`,
             borderRadius: 'var(--radius-md, 12px)',
             outline: 'none',
             appearance: 'none',

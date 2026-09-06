@@ -5,21 +5,14 @@ import {
   Heart, Syringe, Package, ScanLine, Calendar, Scale, HeartPulse, PawPrint, ArrowRight
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTheme } from '../context/ThemeContext';
 import { Button } from '../components/ui/Button';
 import { AlpasFarmLogo } from '../components/common/AlpasFarmLogo';
 
 export function LandingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem('theme') === 'dark';
-  });
-
-  useEffect(() => {
-    const theme = darkMode ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [darkMode]);
+  const { darkMode, toggleTheme } = useTheme();
 
   if (user) {
     navigate('/dashboard', { replace: true });
@@ -61,7 +54,7 @@ export function LandingPage() {
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <button 
             className="topbar-icon-btn"
-            onClick={() => setDarkMode(!darkMode)}
+            onClick={toggleTheme}
             style={{ width: 44, height: 44 }}
             aria-label="Toggle theme"
           >

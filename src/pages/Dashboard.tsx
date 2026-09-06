@@ -543,92 +543,35 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ── SPECIES QUICK FILTER TOOLBAR ── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
-          padding: '14px 20px',
-          borderRadius: 22,
-          background: 'rgba(255, 255, 255, 0.78)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(23, 107, 53, 0.10)',
-          boxShadow: '0 4px 18px rgba(23, 107, 53, 0.04)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(35, 139, 69, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#238B45' }}>
+      {/* ── Species Filter Toolbar (All / Goat / Sheep) ── */}
+      <div className="species-filter-bar">
+        <div className="species-filter-title">
+          <div className="species-filter-icon-circle">
             <Layers size={17} />
           </div>
-          <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--color-text-primary, #174B2A)' }}>
+          <span>
             Salain Ayon sa Hayop (Filter by Species):
           </span>
         </div>
-        <div style={{ display: 'inline-flex', background: 'rgba(35, 139, 69, 0.08)', borderRadius: 999, padding: 4, gap: 4 }}>
+        <div className="species-filter-track">
           <button
             type="button"
             onClick={() => setSpeciesFilter('All')}
-            style={{
-              padding: '6px 18px',
-              borderRadius: 999,
-              fontSize: '13px',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              background: speciesFilter === 'All' ? 'linear-gradient(135deg, #2E9E55 0%, #1F8340 100%)' : 'transparent',
-              color: speciesFilter === 'All' ? '#FFFFFF' : 'var(--color-text-primary, #174B2A)',
-              boxShadow: speciesFilter === 'All' ? '0 4px 12px rgba(35, 139, 69, 0.28)' : 'none',
-              transition: 'all 0.15s ease',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
+            className={`species-filter-btn ${speciesFilter === 'All' ? 'active' : ''}`}
           >
             <Layers size={14} /> Lahat (All) ({activeAnimals.length})
           </button>
           <button
             type="button"
             onClick={() => setSpeciesFilter('Goat')}
-            style={{
-              padding: '6px 18px',
-              borderRadius: 999,
-              fontSize: '13px',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              background: speciesFilter === 'Goat' ? 'linear-gradient(135deg, #2E9E55 0%, #1F8340 100%)' : 'transparent',
-              color: speciesFilter === 'Goat' ? '#FFFFFF' : 'var(--color-text-primary, #174B2A)',
-              boxShadow: speciesFilter === 'Goat' ? '0 4px 12px rgba(35, 139, 69, 0.28)' : 'none',
-              transition: 'all 0.15s ease',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
+            className={`species-filter-btn ${speciesFilter === 'Goat' ? 'active' : ''}`}
           >
             <Layers size={14} /> Kambing ({speciesBreakdown.goat.total})
           </button>
           <button
             type="button"
             onClick={() => setSpeciesFilter('Sheep')}
-            style={{
-              padding: '6px 18px',
-              borderRadius: 999,
-              fontSize: '13px',
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              background: speciesFilter === 'Sheep' ? 'linear-gradient(135deg, #2E9E55 0%, #1F8340 100%)' : 'transparent',
-              color: speciesFilter === 'Sheep' ? '#FFFFFF' : 'var(--color-text-primary, #174B2A)',
-              boxShadow: speciesFilter === 'Sheep' ? '0 4px 12px rgba(35, 139, 69, 0.28)' : 'none',
-              transition: 'all 0.15s ease',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
+            className={`species-filter-btn ${speciesFilter === 'Sheep' ? 'active' : ''}`}
           >
             <Layers size={14} /> Tupa ({speciesBreakdown.sheep.total})
           </button>

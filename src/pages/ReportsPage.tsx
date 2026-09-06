@@ -254,15 +254,15 @@ export function ReportsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Mga Hayop
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {activeAnimals.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -281,15 +281,15 @@ export function ReportsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Kalusugan
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <HeartPulse size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {farmData.healthRecords.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -308,15 +308,15 @@ export function ReportsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Imbentaryo
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Package size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {farmData.inventory.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>

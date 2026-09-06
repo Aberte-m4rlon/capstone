@@ -331,15 +331,15 @@ export function AnimalsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Kabuuan
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {animalStats.total} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -358,15 +358,15 @@ export function AnimalsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Kambing
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Layers size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {animalStats.goats} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -385,15 +385,15 @@ export function AnimalsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Tupa
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Layers size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {animalStats.sheep} <span style={{ fontSize: '0.65em', fontWeight: 600 }}>ulo</span>
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -415,15 +415,15 @@ export function AnimalsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Lalaki (Male)
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {animalStats.males}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -442,15 +442,15 @@ export function AnimalsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Babae (Female)
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {animalStats.females}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -467,15 +467,15 @@ export function AnimalsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Bata (Young)
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Baby size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {animalStats.young}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>

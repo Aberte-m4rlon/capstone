@@ -639,15 +639,15 @@ export function BreedingPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Buntis (Pregnant)
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Baby size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {breedingStats.pregnant}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -666,15 +666,15 @@ export function BreedingPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Mating
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <HeartHandshake size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {breedingStats.mating}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -691,15 +691,15 @@ export function BreedingPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Manganganak
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Calendar size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {breedingStats.expectedKidding}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>

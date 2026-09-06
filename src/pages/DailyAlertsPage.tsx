@@ -233,15 +233,15 @@ export function DailyAlertsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Lahat
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Bell size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {rawAlerts.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -260,15 +260,15 @@ export function DailyAlertsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#176B35' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
               Hindi pa Nababasa
             </span>
-            <div className="stat-card-icon" style={{ background: '#EAF6ED', color: '#238B45', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Mail size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#238B45' }}>
+            <div className="stat-card-value">
               {unreadCount}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
@@ -287,15 +287,15 @@ export function DailyAlertsPage() {
           }}
         >
           <div className="alpas-stat-header">
-            <span className="stat-card-label" style={{ fontWeight: 700, color: '#EF4444' }}>
+            <span className="stat-card-label" style={{ fontWeight: 700, color: 'var(--color-danger, #EF4444)' }}>
               Kailangan ng Aksyon
             </span>
-            <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stat-card-icon red" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <AlertTriangle size={15} />
             </div>
           </div>
           <div>
-            <div className="stat-card-value" style={{ color: '#EF4444' }}>
+            <div className="stat-card-value" style={{ color: 'var(--color-danger, #EF4444)' }}>
               {urgentCount}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>

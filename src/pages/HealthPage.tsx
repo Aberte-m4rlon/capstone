@@ -2126,15 +2126,16 @@ export function HealthPage() {
         .health-stat-card {
           border-radius: 20px;
           padding: 16px 20px;
-          background: rgba(255, 255, 255, 0.78);
+          background: var(--surface);
+          border: 1px solid var(--border);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-          box-shadow: 0 4px 18px rgba(23, 107, 53, 0.05);
+          box-shadow: var(--shadow-sm, 0 4px 18px rgba(23, 107, 53, 0.05));
           transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
         .health-stat-card:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(23, 107, 53, 0.08);
+          box-shadow: var(--shadow-hover, 0 8px 24px rgba(23, 107, 53, 0.08));
         }
         .med-needed-card {
           background: rgba(239, 68, 68, 0.08);
@@ -2173,7 +2174,7 @@ export function HealthPage() {
           font-size: 26px;
           font-weight: 900;
           margin-top: 6px;
-          color: #174B2A;
+          color: var(--text-primary);
           letter-spacing: -0.02em;
         }
         .med-needed-value { color: #DC2626; }

@@ -488,13 +488,13 @@ export function VaccinationsPage() {
               PROTEKTADO
             </span>
           </div>
-          <div className="kpi-value" style={{ position: 'relative', zIndex: 2, marginTop: 4, color: '#238B45' }}>
+          <div className="kpi-value" style={{ position: 'relative', zIndex: 2, marginTop: 4 }}>
             {upToDate}
           </div>
-          <div className="kpi-label" style={{ position: 'relative', zIndex: 2, color: '#176B35' }}>
+          <div className="kpi-label" style={{ position: 'relative', zIndex: 2 }}>
             UP TO DATE / UPDATED
           </div>
-          <div style={{ fontSize: 11, color: '#176B35', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary, #176B35)', marginTop: 3, fontWeight: 600, position: 'relative', zIndex: 2 }}>
             Aktibo at napatunayang proteksyon
           </div>
         </div>

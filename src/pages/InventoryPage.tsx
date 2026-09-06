@@ -912,10 +912,10 @@ export function InventoryPage() {
           {/* 1. Livestock */}
           <div className="kpi-card" onClick={() => setActiveTab('livestock')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon green" style={{ background: '#EAF6ED', color: '#238B45' }}>
+              <div className="kpi-icon green">
                 <Layers size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Livestock</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #176B35)' }}>Livestock</span>
             </div>
             <div className="kpi-value">{livestockMetrics.total}</div>
             <div className="kpi-label">Lahat ng Alaga</div>
@@ -927,10 +927,10 @@ export function InventoryPage() {
           {/* 2. Feed */}
           <div className="kpi-card" onClick={() => setActiveTab('feeds')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon orange" style={{ background: '#EAF6ED', color: '#238B45' }}>
+              <div className="kpi-icon orange">
                 <Wheat size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Feed</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #176B35)' }}>Feed</span>
             </div>
             <div className="kpi-value">
               {totalFeedKg.toLocaleString('en-PH', { maximumFractionDigits: 1 })} <span style={{ fontSize: 14 }}>kg</span>
@@ -942,10 +942,10 @@ export function InventoryPage() {
           {/* 3. Health Supplies */}
           <div className="kpi-card" onClick={() => setActiveTab('health')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon red" style={{ background: '#EAF6ED', color: '#238B45' }}>
+              <div className="kpi-icon red">
                 <Pill size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Health Supplies</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #176B35)' }}>Health Supplies</span>
             </div>
             <div className="kpi-value">{healthSuppliesStats.itemCount} <span style={{ fontSize: 14 }}>uri</span></div>
             <div className="kpi-label">Kalusugan at Gamot</div>
@@ -957,10 +957,10 @@ export function InventoryPage() {
           {/* 4. Farm Supplies */}
           <div className="kpi-card" onClick={() => setActiveTab('equipment')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon blue" style={{ background: '#EAF6ED', color: '#238B45' }}>
+              <div className="kpi-icon blue">
                 <Package size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Farm Supplies</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #176B35)' }}>Farm Supplies</span>
             </div>
             <div className="kpi-value">{equipmentToolsStats.suppliesCount} <span style={{ fontSize: 14 }}>uri</span></div>
             <div className="kpi-label">Suplay sa Bukid</div>
@@ -972,10 +972,10 @@ export function InventoryPage() {
           {/* 5. Equipment */}
           <div className="kpi-card" onClick={() => setActiveTab('equipment')} style={{ cursor: 'pointer' }}>
             <div className="kpi-top">
-              <div className="kpi-icon blue" style={{ background: '#EAF6ED', color: '#238B45' }}>
+              <div className="kpi-icon blue">
                 <Wrench size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35' }}>Equipment</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #176B35)' }}>Equipment</span>
             </div>
             <div className="kpi-value">{equipmentToolsStats.equipCount + equipmentToolsStats.toolsCount} <span style={{ fontSize: 14 }}>gamit</span></div>
             <div className="kpi-label">Farm Equipment</div>

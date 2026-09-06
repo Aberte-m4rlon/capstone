@@ -18,6 +18,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
+import { useTheme } from '../../context/ThemeContext';
 import { AlpasFarmLogo } from '../common/AlpasFarmLogo';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord, Notification } from '../../types';
 
@@ -74,13 +75,8 @@ export function AppHeader({
   const profileRef      = useRef<HTMLDivElement>(null);
   const notifRef        = useRef<HTMLDivElement>(null);
 
-  // ── Dark mode ─────────────────────────────────────────────────────────────
-  const [darkMode, setDarkMode] = useState<boolean>(() => localStorage.getItem('theme') === 'dark');
-  useEffect(() => {
-    const theme = darkMode ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [darkMode]);
+  // ── Theme context ─────────────────────────────────────────────────────────
+  const { darkMode, toggleTheme } = useTheme();
 
   // ── Search logic ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -298,8 +294,8 @@ export function AppHeader({
         <button
           type="button"
           className="topbar-icon-btn theme-toggle-btn"
-          onClick={() => setDarkMode(!darkMode)}
-          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          onClick={toggleTheme}
+          aria-label={darkMode ? 'Lumipat sa light mode' : 'Lumipat sa dark mode'}
           title={darkMode ? 'Light mode' : 'Dark mode'}
         >
           {darkMode ? <Sun size={19} /> : <Moon size={19} />}

@@ -33,10 +33,10 @@ function inputStyle(hasError?: boolean): React.CSSProperties {
   return {
     width: '100%',
     padding: '13px 14px 13px 44px',
-    background: '#FFFFFF',
-    border: `1px solid ${hasError ? '#EF4444' : 'rgba(35, 139, 69, 0.18)'}`,
+    background: 'var(--input-bg, #FFFFFF)',
+    border: `1px solid ${hasError ? '#EF4444' : 'var(--input-border, rgba(35, 139, 69, 0.18))'}`,
     borderRadius: '15px',
-    color: '#174B2A',
+    color: 'var(--input-text, #174B2A)',
     fontSize: '14px',
     fontWeight: 500,
     outline: 'none',
@@ -66,7 +66,7 @@ function Field({
           display: 'block',
           fontSize: 12,
           fontWeight: 600,
-          color: '#174B2A',
+          color: 'var(--text-primary, #174B2A)',
           textTransform: 'uppercase',
           letterSpacing: '0.4px',
         }}>
@@ -82,14 +82,14 @@ function Field({
             left: 14,
             top: '50%',
             transform: 'translateY(-50%)',
-            color: '#607067',
+            color: 'var(--text-secondary, #607067)',
             pointerEvents: 'none',
           }}
         />
         {children}
       </div>
       {hint && (
-        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#607067' }}>
+        <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-secondary, #607067)' }}>
           {hint}
         </p>
       )}
@@ -565,12 +565,12 @@ export function AuthPage() {
 
   // ── Crisp Modern Glass Card Style (High Contrast, Never Washed Out) ─────────
   const cardStyle: React.CSSProperties = {
-    background: 'rgba(255, 255, 255, 0.94)',
+    background: 'var(--surface, rgba(255, 255, 255, 0.94))',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    border: '1px solid rgba(35, 139, 69, 0.14)',
+    border: '1px solid var(--border, rgba(35, 139, 69, 0.14))',
     borderRadius: '24px',
-    boxShadow: '0 20px 60px rgba(23, 107, 53, 0.10)',
+    boxShadow: 'var(--shadow-lg, 0 20px 60px rgba(23, 107, 53, 0.10))',
     width: '100%',
     maxWidth: view === 'signup' ? '540px' : '460px',
     padding: 'clamp(24px, 5vw, 36px)',

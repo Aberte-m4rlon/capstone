@@ -2027,7 +2027,7 @@ function ScanResultCard({
   // Non-target fallback
   if (!result.goatDetected) {
     return (
-      <div style={{ background: '#FFFFFF', border: '2px solid #DC2626', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 30px rgba(220, 38, 38, 0.2)' }}>
+      <div style={{ background: 'var(--surface, #FFFFFF)', border: '2px solid #DC2626', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 30px rgba(220, 38, 38, 0.2)' }}>
         {capturedUrl && (
           <img src={capturedUrl} alt="Screened Non-Target" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
         )}
@@ -2038,7 +2038,7 @@ function ScanResultCard({
           <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
             Hindi ito kambing o tupa.
           </div>
-          <div style={{ fontSize: 13, color: '#4B5563', lineHeight: 1.6, marginBottom: 20 }}>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary, #4B5563)', lineHeight: 1.6, marginBottom: 20 }}>
             Ang AI Health Scanner ay para lamang sa mga kambing at tupa. Pakiharap ang camera sa kambing o tupa.
           </div>
           <button
@@ -2098,11 +2098,11 @@ function ScanResultCard({
   return (
     <div
       style={{
-        background: '#FFFFFF',
-        border: '1px solid #E5EDE6',
+        background: 'var(--surface, #FFFFFF)',
+        border: '1px solid var(--border, #E5EDE6)',
         borderRadius: 20,
         overflow: 'hidden',
-        boxShadow: '0 12px 36px rgba(0,0,0,0.25)',
+        boxShadow: 'var(--shadow-lg, 0 12px 36px rgba(0,0,0,0.25))',
       }}
     >
       {capturedUrl && (
@@ -2132,16 +2132,16 @@ function ScanResultCard({
 
       <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* ── HEADER: TITLE & SPECIES/ANIMAL IDENTIFICATION ── */}
-        <div style={{ borderBottom: '1px solid #F3F4F6', paddingBottom: 12 }}>
+        <div style={{ borderBottom: '1px solid var(--border-subtle, #F3F4F6)', paddingBottom: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 900, color: '#43A047', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
             <Activity size={14} color="#43A047" /> HEALTH SCREENING RESULT
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#1F2937' }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary, #1F2937)' }}>
                 {species === 'sheep' ? 'Tupa ang nakita.' : 'Kambing ang nakita.'}
               </div>
-              <div style={{ fontSize: 13, color: '#4B5563', marginTop: 2 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary, #4B5563)', marginTop: 2 }}>
                 Hayop: {targetTag && targetName ? `${targetTag} (${targetName})` : targetName ? targetName : 'May hayop na nakita ngunit hindi pa kumpirmado ang tag.'}
               </div>
             </div>
@@ -2187,12 +2187,12 @@ function ScanResultCard({
 
         {/* ── AI FINDINGS ── */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
             MGA NAKITA SA SCAN:
           </div>
-          <div style={{ background: '#F9FAFB', border: '1px solid #E5EDE6', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {displayObservations.map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: 7, fontSize: 12, color: '#374151', lineHeight: 1.5 }}>
+              <div key={idx} style={{ display: 'flex', gap: 7, fontSize: 12, color: 'var(--text-primary, #374151)', lineHeight: 1.5 }}>
                 <span style={{ color: '#43A047', fontWeight: 800 }}>•</span>
                 <span>{item}</span>
               </div>
@@ -2202,39 +2202,39 @@ function ScanResultCard({
 
         {/* ── AVAILABLE INFORMATION (MULTI-SOURCE DATA FUSION) ── */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
             IMPORMASYON SA BUKID:
           </div>
-          <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 10, padding: '10px 14px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ background: 'var(--surface, #FFFFFF)', border: '1px solid var(--border, #E5E7EB)', borderRadius: 10, padding: '10px 14px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Edad:</span>
-              <span style={{ fontWeight: 600, color: '#1F2937' }}>{ageDisplay}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Timbang:</span>
-              <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.weight_kg ? `${targetAnimal.weight_kg} kg` : 'Hindi nakatala'}</span>
+              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Edad:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{ageDisplay}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Bakuna:</span>
-              <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.vaccination_status || 'Up to date'}</span>
+              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Timbang:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.weight_kg ? `${targetAnimal.weight_kg} kg` : 'Hindi nakatala'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Nakaraang Health Status:</span>
-              <span style={{ fontWeight: 600, color: '#1F2937' }}>{targetAnimal?.health_risk_score !== undefined ? `${targetAnimal.health_status || 'Normal'} (${targetAnimal.health_risk_score})` : 'Low (0)'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #E5E7EB', paddingTop: 6 }}>
-              <span style={{ color: '#6B7280' }}>Surface Temperature:</span>
-              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Hindi nasukat</span>
+              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Bakuna:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.vaccination_status || 'Up to date'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Heart Rate:</span>
-              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Hindi nasukat</span>
+              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Nakaraang Health Status:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.health_risk_score !== undefined ? `${targetAnimal.health_status || 'Normal'} (${targetAnimal.health_risk_score})` : 'Low (0)'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border, #E5E7EB)', paddingTop: 6 }}>
+              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Surface Temperature:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-muted, #9CA3AF)' }}>Hindi nasukat</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6B7280' }}>Respiratory Rate:</span>
-              <span style={{ fontWeight: 600, color: '#9CA3AF' }}>Hindi nasukat</span>
+              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Heart Rate:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-muted, #9CA3AF)' }}>Hindi nasukat</span>
             </div>
-            <div style={{ fontSize: 11, fontStyle: 'italic', color: '#9CA3AF', marginTop: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Respiratory Rate:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-muted, #9CA3AF)' }}>Hindi nasukat</span>
+            </div>
+            <div style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--text-muted, #9CA3AF)', marginTop: 4 }}>
               Hindi sinukat ang ibang vital signs sa visual screening na ito.
             </div>
           </div>
@@ -2242,7 +2242,7 @@ function ScanResultCard({
 
         {/* ── RECOMMENDATION (MANDATE 13) ── */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
             {rLevel === 'LOW' ? 'GABAY SA PAG-AALAGA:' : 'POSIBLENG PROBLEMA SA KALUSUGAN AT GABAY:'}
           </div>
           <div
@@ -2252,7 +2252,7 @@ function ScanResultCard({
               borderRadius: 10,
               padding: '12px 14px',
               fontSize: 12,
-              color: '#1F2937',
+              color: 'var(--text-primary, #1F2937)',
               lineHeight: 1.5,
             }}
           >
@@ -2269,10 +2269,10 @@ function ScanResultCard({
             gap: 8,
             padding: '10px 12px',
             borderRadius: 10,
-            background: '#EAF6ED',
-            border: '1px solid rgba(35, 139, 69, 0.2)',
+            background: 'rgba(35, 139, 69, 0.12)',
+            border: '1px solid var(--border, rgba(35, 139, 69, 0.2))',
             fontSize: 11,
-            color: '#174B2A',
+            color: 'var(--text-primary, #174B2A)',
             lineHeight: 1.5,
           }}
         >
