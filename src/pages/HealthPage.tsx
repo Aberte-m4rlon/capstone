@@ -37,8 +37,6 @@ import {
   ChevronDown,
   ChevronRight,
   Brain,
-  Upload,
-  RefreshCw,
   HelpCircle,
   TrendingUp,
   Thermometer,
@@ -62,7 +60,6 @@ import {
   type EarlyIllnessPredictionResult,
   type FarmerObservations,
 } from '../lib/earlyIllnessEngine';
-import { runCameraScreening, fileToCanvas, type ScanResult } from '../lib/cameraML';
 import { simplifyHealthObservation } from '../lib/farmerTerminology';
 import type { HealthRecord, Animal, TreatmentStatus, TreatmentUsageType, HealthStatus } from '../types';
 import { isMedicineCategory, isDewormerCategory, isSupplementCategory, consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
@@ -228,15 +225,6 @@ export function HealthPage() {
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [notes, setNotes] = useState<string>('');
 
-  // Camera ML state inside prediction modal
-  const [cameraActive, setCameraActive] = useState(false);
-  const [cameraScanning, setCameraScanning] = useState(false);
-  const [cameraResult, setCameraResult] = useState<ScanResult | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   // Filters & UI State
   const [fRisk, setFRisk] = useState<string>('All');
   const [fAnimal, setFAnimal] = useState<string>('All');
@@ -291,7 +279,6 @@ export function HealthPage() {
       pastHealthRecords: farmData.healthRecords,
       weightRecords: farmData.weightRecords,
       vaccinations: farmData.vaccinations,
-      cameraResult,
     });
   }, [
     selectedAnimal,
@@ -303,7 +290,6 @@ export function HealthPage() {
     farmData.healthRecords,
     farmData.weightRecords,
     farmData.vaccinations,
-    cameraResult,
   ]);
 
   // 4 Health Summary Statistics (Priority Order: Gamot -> Atensyon -> Bantayan -> Maayos)
@@ -464,9 +450,6 @@ export function HealthPage() {
     setObsActivity(null);
     setSelectedSymptoms([]);
     setNotes('');
-    setCameraActive(false);
-    setCameraResult(null);
-    setCameraError(null);
     setModalOpen(true);
   };
 
@@ -478,87 +461,6 @@ export function HealthPage() {
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);
-
-
-  // Close Camera Stream helper
-  const stopCameraStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  };
-
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      stopCameraStream();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraActive(true);
-    } catch (err: any) {
-      console.error('Camera access error:', err);
-      setCameraError('Unable to access camera. Please check camera permissions or upload an image.');
-      setCameraActive(false);
-    }
-  };
-
-  const captureAndScanCamera = async () => {
-    if (!videoRef.current) return;
-    setCameraScanning(true);
-    setCameraError(null);
-    try {
-      const video = videoRef.current;
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas context unavailable');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const result = await runCameraScreening(canvas, selectedAnimalId);
-      setCameraResult(result);
-      if (!result.goatDetected) {
-        toast('This is not a goat or sheep. Please scan a goat or sheep.', 'warning');
-      } else {
-        toast('Camera visual assessment completed successfully!', 'success');
-      }
-      stopCameraStream();
-    } catch (err: any) {
-      setCameraError(err.message || 'Camera screening failed.');
-    } finally {
-      setCameraScanning(false);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setCameraScanning(true);
-    setCameraError(null);
-    try {
-      const canvas = await fileToCanvas(file);
-      const result = await runCameraScreening(canvas, selectedAnimalId);
-      setCameraResult(result);
-      if (!result.goatDetected) {
-        toast('This is not a goat or sheep. Please upload a goat or sheep image.', 'warning');
-      } else {
-        toast('Image assessment completed successfully!', 'success');
-      }
-    } catch (err: any) {
-      setCameraError(err.message || 'Image evaluation failed.');
-    } finally {
-      setCameraScanning(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
   const toggleSymptom = (id: string) => {
     setSelectedSymptoms((prev) =>
@@ -576,7 +478,7 @@ export function HealthPage() {
     }
 
     if (currentPrediction.status === 'INSUFFICIENT_EVIDENCE') {
-      toast('Insufficient evidence. Please provide at least one observation or camera scan before saving.', 'warning');
+      toast('Kulang ang impormasyon. Maglagay ng kahit isang obserbasyon bago i-save.', 'warning');
       return;
     }
 
@@ -687,7 +589,6 @@ export function HealthPage() {
 
       toast('Early Illness Prediction saved successfully!', 'success');
       setModalOpen(false);
-      stopCameraStream();
       farmData.refresh();
     } catch (err: any) {
       toast(err.message || 'Unable to save record.', 'error');
@@ -833,13 +734,6 @@ export function HealthPage() {
       setTreatSaving(false);
     }
   };
-
-  // Clean up camera stream when modal closes
-  useEffect(() => {
-    if (!modalOpen) {
-      stopCameraStream();
-    }
-  }, [modalOpen]);
 
   const animalName = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Unknown Animal';
   const animalTag = (id: string) => farmData.animals.find((a) => a.id === id)?.tag_id ?? '';
@@ -1401,18 +1295,12 @@ export function HealthPage() {
       {/* ── 8. EARLY ILLNESS PREDICTION MODAL (100% ENGLISH) ── */}
       <Modal
         open={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          stopCameraStream();
-        }}
+        onClose={() => setModalOpen(false)}
         size="lg"
       >
         <ModalHeader
           title="Manual Health Check (Para sa Beterinaryo o Farm Staff)"
-          onClose={() => {
-            setModalOpen(false);
-            stopCameraStream();
-          }}
+          onClose={() => setModalOpen(false)}
         />
         <ModalBody>
         <div className="modal-inner-flow">
@@ -1605,119 +1493,7 @@ export function HealthPage() {
             </div>
           </div>
 
-          {/* STEP 4: Camera ML Visual Scanner */}
-          <div className="modal-camera-card">
-            <div className="camera-header-row">
-              <div className="camera-header-title">
-                <Camera size={16} color="#238B45" />
-                <span>3. Visual Health Scanner (Camera Scanner - Opsyonal):</span>
-              </div>
-              {cameraResult && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  style={{ fontSize: 11, color: '#EF4444' }}
-                  onClick={() => setCameraResult(null)}
-                >
-                  I-clear ang Scan
-                </button>
-              )}
-            </div>
-
-            {/* Controls */}
-            {!cameraResult && !cameraActive && (
-              <div className="camera-action-buttons">
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  style={{ borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                  onClick={startCamera}
-                >
-                  <Camera size={14} />
-                  <span>Simulan ang Live Camera</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  style={{ borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload size={14} />
-                  <span>Mag-upload ng Litrato</span>
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={handleFileUpload}
-                />
-              </div>
-            )}
-
-            {cameraActive && (
-              <div className="camera-live-container">
-                <div className="camera-video-wrapper">
-                  <video ref={videoRef} playsInline autoPlay muted style={{ width: '100%', display: 'block' }} />
-                  {cameraScanning && (
-                    <div className="camera-scanning-overlay">
-                      <RefreshCw size={20} className="animate-spin" />
-                      <span>Sinusuri ang kuha ng camera...</span>
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    style={{ borderRadius: 8 }}
-                    onClick={captureAndScanCamera}
-                    disabled={cameraScanning}
-                  >
-                    Kumuha at I-scan Ngayon
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    style={{ borderRadius: 8 }}
-                    onClick={stopCameraStream}
-                  >
-                    I-cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {cameraScanning && !cameraActive && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, color: '#238B45', fontSize: 13, fontWeight: 700 }}>
-                <RefreshCw size={16} className="animate-spin" /> Sinusuri ang kuha ng camera...
-              </div>
-            )}
-
-            {cameraError && (
-              <div className="camera-error-banner">
-                {cameraError}
-              </div>
-            )}
-
-            {cameraResult && (
-              <div className={`scan-result-card ${cameraResult.goatDetected ? 'result-success' : 'result-error'}`}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: cameraResult.goatDetected ? '#238B45' : '#EF4444' }}>
-                    {cameraResult.goatDetected
-                      ? `${cameraResult.species === 'sheep' ? 'Tupa' : 'Kambing'} ang nakita`
-                      : 'Hindi ito kambing o tupa'}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                    Kalagayan: {cameraResult.riskLevelLabel}
-                  </div>
-                </div>
-                <Activity size={18} color={cameraResult.goatDetected ? '#238B45' : '#EF4444'} />
-              </div>
-            )}
-          </div>
-
-          {/* STEP 5: Instant Real-Time Prediction Output */}
+          {/* Instant Real-Time Prediction Output */}
           {currentPrediction && (
             <div>
               {currentPrediction.status === 'INSUFFICIENT_EVIDENCE' ? (
@@ -1725,10 +1501,10 @@ export function HealthPage() {
                   <HelpCircle size={24} color="#D97706" style={{ flexShrink: 0 }} />
                   <div>
                     <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#92400E' }}>
-                      Kulang ang Datos — Mag-rescan o maglagay ng health check
+                      Kulang ang Datos — Maglagay ng obserbasyon sa kalusugan
                     </h4>
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: '#78350F' }}>
-                      Mangyaring maglagay ng kahit isang clinical parameter (temperatura, gana, sigla) o magsagawa ng camera scan.
+                      Mangyaring maglagay ng kahit isang clinical parameter (temperatura, gana, o sigla).
                     </p>
                   </div>
                 </div>
@@ -1814,10 +1590,7 @@ export function HealthPage() {
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => {
-                setModalOpen(false);
-                stopCameraStream();
-              }}
+              onClick={() => setModalOpen(false)}
             >
               I-cancel
             </button>
