@@ -11,5 +11,4 @@ export * from './MobileBottomNav';
 export * from './MobileNavItem';
 export * from './QuickAddSheet';
 export * from './MoreMenuSheet';
-
-
+export * from './SheepIcon';

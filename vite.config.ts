@@ -6,9 +6,12 @@ function localApiPlugin() {
     name: 'local-api-handler',
     configureServer(server: any) {
       server.middlewares.use(async (req: any, res: any, next: any) => {
-        if (req.url && req.url.startsWith('/api/auth/sms')) {
+        if (req.url && (req.url.startsWith('/api/auth/sms') || req.url.startsWith('/api/public-animal'))) {
           try {
-            const { default: handler } = await server.ssrLoadModule('/api/auth/sms.ts');
+            const modulePath = req.url.startsWith('/api/public-animal')
+              ? '/api/public-animal.ts'
+              : '/api/auth/sms.ts';
+            const { default: handler } = await server.ssrLoadModule(modulePath);
             let body = '';
             req.on('data', (chunk: any) => { body += chunk.toString(); });
             req.on('end', async () => {
@@ -17,6 +20,10 @@ function localApiPlugin() {
               } catch {
                 req.body = {};
               }
+              // Parse query parameters
+              const urlObj = new URL(req.url, 'http://localhost');
+              req.query = Object.fromEntries(urlObj.searchParams.entries());
+
               const vercelRes = {
                 statusCode: 200,
                 status(code: number) {

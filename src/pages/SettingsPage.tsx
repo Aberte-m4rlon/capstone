@@ -3,7 +3,7 @@ import { useFarmData } from '../lib/useFarmData';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../components/ui/Toast';
-import { Camera, KeyRound, Eye, EyeOff, User } from 'lucide-react';
+import { Camera, KeyRound, Eye, EyeOff, User, Phone, Mail, MapPin, Building2, ShieldCheck } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, FormField } from '../components/ui/Input';
@@ -84,6 +84,37 @@ export function SettingsPage() {
 
   const initials = user?.email ? user.email[0].toUpperCase() : 'F';
 
+  // Owner & Public Profile contact & privacy state
+  const [ownerName, setOwnerName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [farmLocation, setFarmLocation] = useState('');
+  const [showContactNumber, setShowContactNumber] = useState(true);
+  const [showEmail, setShowEmail] = useState(true);
+  const [showFarmLocation, setShowFarmLocation] = useState(true);
+
+  useEffect(() => {
+    if (profile?.full_name) {
+      setOwnerName(profile.full_name);
+    } else if (user?.user_metadata?.full_name) {
+      setOwnerName(user.user_metadata.full_name);
+    }
+    if (user?.user_metadata?.phone) {
+      setContactNumber(user.user_metadata.phone);
+    }
+    if (user?.user_metadata?.location || user?.user_metadata?.farm_location) {
+      setFarmLocation(user.user_metadata.location || user.user_metadata.farm_location);
+    }
+    if (user?.user_metadata?.show_contact_number !== undefined) {
+      setShowContactNumber(Boolean(user.user_metadata.show_contact_number));
+    }
+    if (user?.user_metadata?.show_email !== undefined) {
+      setShowEmail(Boolean(user.user_metadata.show_email));
+    }
+    if (user?.user_metadata?.show_farm_location !== undefined) {
+      setShowFarmLocation(Boolean(user.user_metadata.show_farm_location));
+    }
+  }, [user, profile]);
+
   const [form, setForm] = useState({
     farm_name: 'AlpasFarm',
     target_weight_kg: 40,
@@ -128,7 +159,24 @@ export function SettingsPage() {
         const { error } = await supabase.from('settings').insert({ ...form, user_id: user.id });
         if (error) throw error;
       }
-      toast('Matagumpay na na-save ang mga setting.', 'success');
+      // Update owner profile & public privacy settings
+      await supabase.auth.updateUser({
+        data: {
+          full_name: ownerName,
+          phone: contactNumber,
+          location: farmLocation,
+          farm_location: farmLocation,
+          show_contact_number: showContactNumber,
+          show_email: showEmail,
+          show_farm_location: showFarmLocation,
+        },
+      });
+
+      if (profile?.id) {
+        await supabase.from('profiles').update({ full_name: ownerName }).eq('id', profile.id);
+      }
+
+      toast('Matagumpay na na-save ang mga setting at profile.', 'success');
       farmData.refresh();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'May problema sa pag-save ng mga setting.', 'danger');
@@ -263,11 +311,67 @@ export function SettingsPage() {
         </div>
       </Card>
 
+      {/* ── Impormasyon ng Bukid at Pampublikong Profile ── */}
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
-        <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 14 }}>Impormasyon ng Bukid</div>
-        <FormField label="Pangalan ng Bukid">
-          <Input value={form.farm_name} onChange={(e) => setForm({ ...form, farm_name: e.target.value })} />
-        </FormField>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 15, marginBottom: 4 }}>
+          <Building2 size={16} color="var(--color-primary, #238B45)" />
+          Impormasyon ng Bukid at Pampublikong Profile
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 16 }}>
+          Pamahalaan ang mga detalye ng iyong bukid at piliin kung anong impormasyon sa pakikipag-ugnayan ang makikita sa pampublikong QR profile ng iyong mga alaga.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 16 }}>
+          <FormField label="Pangalan ng Bukid" hint="Halimbawa: Dela Cruz Goat Farm o AlpasFarm">
+            <Input value={form.farm_name} onChange={(e) => setForm({ ...form, farm_name: e.target.value })} />
+          </FormField>
+          <FormField label="Pangalan ng May-ari" hint="Makikita sa public contact card kung papahintulutan">
+            <Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Juan Dela Cruz" />
+          </FormField>
+          <FormField label="Numero ng Telepono / Mobile" hint="Gagamitin para sa tawag o mensahe mula sa public QR">
+            <Input value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} placeholder="09123456789" />
+          </FormField>
+          <FormField label="Lokasyon ng Bukid" hint="Halimbawa: Bongabong, Oriental Mindoro">
+            <Input value={farmLocation} onChange={(e) => setFarmLocation(e.target.value)} placeholder="Bongabong, Oriental Mindoro" />
+          </FormField>
+        </div>
+
+        {/* Public Profile Privacy Controls */}
+        <div style={{ borderTop: '1px solid var(--border-light, rgba(255,255,255,0.08))', paddingTop: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13, marginBottom: 10, color: 'var(--color-text-primary, #1e293b)' }}>
+            <ShieldCheck size={15} color="var(--color-primary, #238B45)" />
+            Mga Kontrol sa Privacy ng Pampublikong Profile
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showContactNumber}
+                onChange={(e) => setShowContactNumber(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--color-primary, #238B45)' }}
+              />
+              <span>Ipakita ang Numero ng Telepono sa Public Profile</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showEmail}
+                onChange={(e) => setShowEmail(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--color-primary, #238B45)' }}
+              />
+              <span>Ipakita ang Email Address sa Public Profile</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showFarmLocation}
+                onChange={(e) => setShowFarmLocation(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--color-primary, #238B45)' }}
+              />
+              <span>Ipakita ang Lokasyon ng Bukid sa Public Profile</span>
+            </label>
+          </div>
+        </div>
       </Card>
 
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
