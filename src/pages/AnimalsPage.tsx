@@ -175,10 +175,11 @@ export function AnimalsPage() {
     if (!form.name.trim()) e.name = 'Kailangan ang pangalan ng hayop.';
     if (!form.species) e.species = 'Kailangan piliin ang species.';
     if (!form.sex) e.sex = 'Kailangan piliin ang kasarian.';
-    if (form.weight_kg !== '' && form.weight_kg !== null && form.weight_kg !== undefined) {
-      const w = Number(form.weight_kg);
-      if (isNaN(w) || w <= 0) {
-        e.weight_kg = 'Dapat positibong numero ang timbang na higit sa 0.';
+    const trimmedWeight = form.weight_kg !== '' && form.weight_kg !== null && form.weight_kg !== undefined ? String(form.weight_kg).trim() : '';
+    if (trimmedWeight !== '') {
+      const w = Number(trimmedWeight);
+      if (isNaN(w) || w < 0) {
+        e.weight_kg = 'Dapat wastong numero ang timbang (hal. 35.5).';
       }
     }
     setErrors(e);
@@ -189,6 +190,11 @@ export function AnimalsPage() {
     if (!validate() || !user) return;
     setSaving(true);
 
+    const parsedWeight =
+      form.weight_kg !== '' && form.weight_kg !== null && form.weight_kg !== undefined && Number(form.weight_kg) > 0
+        ? Number(form.weight_kg)
+        : null;
+
     const payload = {
       tag_id: form.tag_id.trim(),
       name: form.name.trim(),
@@ -197,7 +203,7 @@ export function AnimalsPage() {
       sex: form.sex,
       date_of_birth: form.date_of_birth || null,
       color_markings: form.color_markings.trim() || null,
-      weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
+      weight_kg: parsedWeight,
       notes: form.notes.trim() || null,
     };
 
@@ -211,7 +217,7 @@ export function AnimalsPage() {
         if (error) throw error;
         toast('Matagumpay na na-save ang record.', 'success');
       } else {
-        const initialWeight = form.weight_kg ? Number(form.weight_kg) : null;
+        const initialWeight = parsedWeight;
         const result = await createAnimalWithInitialWeight(
           {
             ...payload,
@@ -779,13 +785,18 @@ export function AnimalsPage() {
                   onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
                 />
               </FormField>
-              <FormField label="Timbang (kg)" error={errors.weight_kg}>
+              <FormField
+                label="Timbang (kg) (Opsyonal)"
+                helperText="Maaaring laktawan kung wala pang timbang ang hayop"
+                error={errors.weight_kg}
+              >
                 <Input
                   type="number"
                   step="0.1"
+                  min="0"
                   value={form.weight_kg}
                   onChange={(e) => setForm({ ...form, weight_kg: e.target.value })}
-                  placeholder="35.5"
+                  placeholder="Opsyonal (hal. 35.5)"
                 />
               </FormField>
             </div>

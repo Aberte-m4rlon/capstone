@@ -1532,13 +1532,14 @@ export function BreedingPage() {
                 />
               </FormField>
 
-              <FormField label="Timbang sa Kapanganakan (kg)">
+              <FormField label="Timbang sa Kapanganakan (kg) (Opsyonal)" helperText="Opsyonal: Maaaring iwanang blangko">
                 <Input
                   type="number"
                   step="0.1"
+                  min="0"
                   value={offspringForm.weight_kg}
                   onChange={(e) => setOffspringForm({ ...offspringForm, weight_kg: e.target.value })}
-                  placeholder="3.0"
+                  placeholder="Opsyonal (hal. 3.0)"
                 />
               </FormField>
             </div>

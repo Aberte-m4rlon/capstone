@@ -271,7 +271,7 @@ export function AnimalProfilePage() {
         species: editForm.species, breed: editForm.breed.trim() || null, sex: editForm.sex,
         date_of_birth: editForm.date_of_birth || null,
         color_markings: editForm.color_markings.trim() || null,
-        weight_kg: editForm.weight_kg ? Number(editForm.weight_kg) : null,
+        weight_kg: editForm.weight_kg !== '' && editForm.weight_kg !== null && Number(editForm.weight_kg) > 0 ? Number(editForm.weight_kg) : null,
         notes: editForm.notes.trim() || null,
       }).eq('id', animal.id);
 
@@ -1563,8 +1563,15 @@ export function AnimalProfilePage() {
               <FormField label="Birth Date">
                 <Input type="date" value={editForm.date_of_birth} onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })} />
               </FormField>
-              <FormField label="Weight (kg)">
-                <Input type="number" step="0.1" value={editForm.weight_kg} onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })} />
+              <FormField label="Weight (kg) (Optional)" helperText="Maaaring laktawan kung wala pang timbang">
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={editForm.weight_kg}
+                  onChange={(e) => setEditForm({ ...editForm, weight_kg: e.target.value })}
+                  placeholder="Opsyonal (hal. 35.5)"
+                />
               </FormField>
             </div>
             <FormField label="Notes">

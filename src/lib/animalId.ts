@@ -317,24 +317,33 @@ export async function createAnimalWithInitialWeight(
   initialWeightKg: number | null | undefined,
   options: InsertAnimalOptions = {}
 ): Promise<CreateAnimalWithWeightResult> {
-  const hasWeight = initialWeightKg !== null && initialWeightKg !== undefined && !isNaN(Number(initialWeightKg)) && Number(initialWeightKg) > 0;
+  const hasWeight =
+    initialWeightKg !== null &&
+    initialWeightKg !== undefined &&
+    (initialWeightKg as any) !== '' &&
+    !isNaN(Number(initialWeightKg)) &&
+    Number(initialWeightKg) > 0;
 
-  // Validate weight if a value was provided but invalid (e.g. <= 0)
+  // Validate weight if a value was provided but invalid (< 0 or NaN)
   if (initialWeightKg !== null && initialWeightKg !== undefined && (initialWeightKg as any) !== '') {
     const num = Number(initialWeightKg);
-    if (isNaN(num) || num <= 0) {
+    if (isNaN(num) || num < 0) {
       return {
         animal: null,
         finalTagId: '',
         hadConflict: false,
         initialWeightRecorded: false,
-        error: new Error('Dapat positibong numero ang timbang na higit sa 0.'),
+        error: new Error('Dapat positibong numero ang timbang.'),
       };
     }
   }
 
-  // 1. Create animal
-  const animalResult = await insertAnimalWithUniqueRetry(payload, options);
+  // 1. Create animal (weight_kg is optional: null if not provided or 0)
+  const animalPayload = {
+    ...payload,
+    weight_kg: hasWeight ? Number(initialWeightKg) : null,
+  };
+  const animalResult = await insertAnimalWithUniqueRetry(animalPayload, options);
   if (animalResult.error || !animalResult.data) {
     return {
       animal: null,
