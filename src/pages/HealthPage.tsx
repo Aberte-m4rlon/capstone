@@ -65,6 +65,7 @@ import {
 import { simplifyHealthObservation } from '../lib/farmerTerminology';
 import type { HealthRecord, Animal, TreatmentStatus, TreatmentUsageType, HealthStatus } from '../types';
 import { isMedicineCategory, isDewormerCategory, isSupplementCategory, consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
+import { AnimalCameraScanModal } from '../components/domain/health';
 
 // Symptom Chip Definition
 interface SymptomChip {
@@ -220,6 +221,12 @@ export function HealthPage() {
 
   // Modal & Prediction State
   const [modalOpen, setModalOpen] = useState(false);
+  const [cameraScanModalOpen, setCameraScanModalOpen] = useState(false);
+  const [scannedConfirmation, setScannedConfirmation] = useState<{
+    tag_id: string;
+    species: string;
+    name: string;
+  } | null>(null);
   const [selectedAnimalId, setSelectedAnimalId] = useState<string>('');
   const [obsTemp, setObsTemp] = useState<string>('');
   const [obsAppetite, setObsAppetite] = useState<'Normal' | 'Reduced' | 'None' | null>(null);
@@ -452,7 +459,25 @@ export function HealthPage() {
     setObsActivity(null);
     setSelectedSymptoms([]);
     setNotes('');
+    setScannedConfirmation(null);
     setModalOpen(true);
+  };
+
+  const handleAnimalScannedFromCamera = (animal: Animal) => {
+    setSelectedAnimalId(animal.id);
+    setScannedConfirmation({
+      tag_id: animal.tag_id,
+      species: animal.species,
+      name: animal.name || animal.tag_id,
+    });
+    // Fresh observation fields as required by specification
+    setObsTemp('');
+    setObsAppetite(null);
+    setObsActivity(null);
+    setSelectedSymptoms([]);
+    setNotes('');
+    setCameraScanModalOpen(false);
+    toast(`Nahanap: ${animal.name || animal.tag_id} (${animal.tag_id})`, 'success');
   };
 
   const location = useLocation();
@@ -1283,42 +1308,138 @@ export function HealthPage() {
           }}>
             <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
-              <strong>Opsyonal na Health Form:</strong> Ang form na ito ay para sa manual na pagsusuri ng beterinaryo o farm staff. Para sa mabilisang herd screening gamit ang camera, gamitin ang <strong>AI Health Scanner</strong>.
+              <strong>Manual Health Check:</strong> Gamitin ang camera para i-scan ang animal QR o Tag ID, o piliin ang hayop mula sa listahan upang awtomatikong makuha ang mga tala nito mula sa database.
             </div>
           </div>
-          {/* STEP 1: Animal Selector */}
+          {/* STEP 1: Animal Selector or Camera Scan */}
           <div>
             <label className="modal-step-label" htmlFor="manual-health-animal-select">
               1. Pumili ng Hayop *
             </label>
-            <div className="modal-animal-select-wrapper">
-              <select
-                id="manual-health-animal-select"
-                className="modal-animal-select"
-                value={selectedAnimalId}
-                disabled={activeAnimals.length === 0}
-                onChange={(e) => setSelectedAnimalId(e.target.value)}
-                aria-label="Pumili ng Hayop"
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+              <button
+                type="button"
+                onClick={() => setCameraScanModalOpen(true)}
+                className="btn btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '11px 18px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  borderRadius: 12,
+                  background: '#16A34A',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
+                  width: '100%',
+                }}
               >
-                {activeAnimals.length === 0 ? (
-                  <option value="" disabled>
-                    Wala pang hayop na nakarehistro.
-                  </option>
-                ) : (
-                  <>
-                    <option value="" disabled>-- Pumili ng Hayop --</option>
-                    {activeAnimals.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.tag_id} – {a.species === 'Sheep' ? 'Tupa' : 'Kambing'}{a.name && a.name !== a.tag_id ? ` (${a.name})` : ''}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-              <span className="modal-animal-select-chevron" aria-hidden="true">
-                <ChevronDown size={18} />
-              </span>
+                <Camera size={18} />
+                <span>Buksan ang Camera</span>
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>o kaya</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              </div>
+
+              <div className="modal-animal-select-wrapper">
+                <select
+                  id="manual-health-animal-select"
+                  className="modal-animal-select"
+                  value={selectedAnimalId}
+                  disabled={activeAnimals.length === 0}
+                  onChange={(e) => {
+                    setSelectedAnimalId(e.target.value);
+                    setScannedConfirmation(null);
+                  }}
+                  aria-label="Pumili ng Hayop"
+                >
+                  {activeAnimals.length === 0 ? (
+                    <option value="" disabled>
+                      Wala pang hayop na nakarehistro.
+                    </option>
+                  ) : (
+                    <>
+                      <option value="" disabled>-- Pumili ng Hayop --</option>
+                      {activeAnimals.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.tag_id} – {a.species === 'Sheep' ? 'Tupa' : 'Kambing'}{a.name && a.name !== a.tag_id ? ` (${a.name})` : ''}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                <span className="modal-animal-select-chevron" aria-hidden="true">
+                  <ChevronDown size={18} />
+                </span>
+              </div>
             </div>
+
+            {/* Confirmation Card: Hayop na Nakilala mula sa Camera */}
+            {scannedConfirmation && (
+              <div
+                style={{
+                  background: '#ECFDF5',
+                  border: '1px solid #A7F3D0',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  marginBottom: 14,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CheckCircle2 size={18} color="#059669" />
+                    <span style={{ fontWeight: 800, fontSize: 13, color: '#065F46' }}>
+                      Hayop na Nakilala
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      background: '#D1FAE5',
+                      color: '#047857',
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                    }}
+                  >
+                    {scannedConfirmation.tag_id}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: 13, color: '#064E3B', fontWeight: 600, paddingLeft: 26 }}>
+                  {scannedConfirmation.species === 'Sheep' ? 'Tupa' : 'Kambing'}
+                  {scannedConfirmation.name && scannedConfirmation.name !== scannedConfirmation.tag_id
+                    ? ` • ${scannedConfirmation.name}`
+                    : ''}
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 12,
+                    color: '#047857',
+                    paddingLeft: 26,
+                    marginTop: 2,
+                  }}
+                >
+                  <CheckCircle2 size={14} />
+                  <span>Na-fill na ang impormasyon mula sa database.</span>
+                </div>
+              </div>
+            )}
 
             {/* Empty state alert when user has no active animals */}
             {activeAnimals.length === 0 && (
@@ -2015,6 +2136,23 @@ export function HealthPage() {
           </Button>
         </ModalFooter>
       </Modal>
+
+      {/* ── CAMERA SCAN MODAL FOR MANUAL HEALTH CHECK ── */}
+      <AnimalCameraScanModal
+        open={cameraScanModalOpen}
+        onClose={() => setCameraScanModalOpen(false)}
+        onAnimalFound={handleAnimalScannedFromCamera}
+        onManualSelectRequest={() => {
+          setCameraScanModalOpen(false);
+          setTimeout(() => {
+            const selectEl = document.getElementById('manual-health-animal-select');
+            if (selectEl) selectEl.focus();
+          }, 100);
+        }}
+        farmAnimals={activeAnimals}
+        currentUserId={user?.id}
+        isSuperAdmin={isSuperAdmin}
+      />
 
       {/* ── EMBEDDED STYLES FOR RESPONSIVENESS & LIQUID GLASS UI ── */}
       <style>{`

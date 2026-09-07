@@ -1860,3 +1860,107 @@ export function canvasToBlob(canvas: HTMLCanvasElement, quality = 0.85): Promise
 
 // Legacy ScreeningResult alias for backward compat
 export type ScreeningResult = ScanResult;
+
+export interface LivestockSpeciesDetection {
+  detected: boolean;
+  species: 'Goat' | 'Sheep' | 'Other';
+  label: string;
+  confidence: number;
+}
+
+/**
+ * Evaluates an image/video frame using MobileNet features to identify species (Goat, Sheep, or Other).
+ * Strict zero-guessing: does not create diagnoses or assign an animal ID.
+ */
+export async function identifyLivestockSpecies(
+  canvas: HTMLCanvasElement
+): Promise<LivestockSpeciesDetection> {
+  try {
+    const model = await getModel();
+    if (model && typeof (model as any).classify === 'function') {
+      const predictions: Array<{ className: string; probability: number }> =
+        await (model as any).classify(canvas, 5);
+
+      if (predictions && predictions.length > 0) {
+        const top = predictions[0];
+        const lowerName = top.className.toLowerCase();
+
+        // Check ImageNet classes for sheep vs goat
+        const isSheep =
+          lowerName.includes('sheep') ||
+          lowerName.includes('ram') ||
+          lowerName.includes('bighorn');
+        const isGoat =
+          lowerName.includes('goat') ||
+          lowerName.includes('ibex') ||
+          lowerName.includes('capra');
+
+        if (isSheep && top.probability >= 0.25) {
+          return {
+            detected: true,
+            species: 'Sheep',
+            label: 'Hayop na nakita: Tupa',
+            confidence: top.probability,
+          };
+        }
+        if (isGoat && top.probability >= 0.25) {
+          return {
+            detected: true,
+            species: 'Goat',
+            label: 'Hayop na nakita: Kambing',
+            confidence: top.probability,
+          };
+        }
+
+        // Check if any other prediction in top 3 is goat or sheep
+        for (let i = 1; i < Math.min(3, predictions.length); i++) {
+          const p = predictions[i];
+          const pName = p.className.toLowerCase();
+          if ((pName.includes('sheep') || pName.includes('ram') || pName.includes('bighorn')) && p.probability >= 0.2) {
+            return {
+              detected: true,
+              species: 'Sheep',
+              label: 'Hayop na nakita: Tupa',
+              confidence: p.probability,
+            };
+          }
+          if ((pName.includes('goat') || pName.includes('ibex')) && p.probability >= 0.2) {
+            return {
+              detected: true,
+              species: 'Goat',
+              label: 'Hayop na nakita: Kambing',
+              confidence: p.probability,
+            };
+          }
+        }
+      }
+    }
+
+    // Fallback or secondary confirmation via feature activation
+    const features = await extractFeatures(canvas);
+    const detection = detectGoat(features);
+
+    if (detection.detected) {
+      return {
+        detected: true,
+        species: 'Goat',
+        label: 'Hayop na nakita: Kambing',
+        confidence: detection.confidence,
+      };
+    }
+
+    return {
+      detected: false,
+      species: 'Other',
+      label: 'Hindi ito mukhang kambing o tupa.',
+      confidence: detection.confidence,
+    };
+  } catch (err) {
+    return {
+      detected: false,
+      species: 'Other',
+      label: 'Hindi ito mukhang kambing o tupa.',
+      confidence: 0,
+    };
+  }
+}
