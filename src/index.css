@@ -7619,3 +7619,339 @@ input[type="time"] {
   box-shadow: 0 4px 14px rgba(67, 160, 71, 0.40) !important;
 }
 
+/* ==========================================================================
+   ANIMAL SALES PAGE (BENTA NG HAYOP) — NATURE DESIGN SYSTEM
+   ========================================================================== */
+
+.sales-page-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 32px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sales-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  width: 100%;
+}
+
+.sales-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sales-header-icon-box {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--color-primary-soft, #EAF6ED);
+  color: var(--color-primary, #238B45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(35, 139, 69, 0.18);
+  box-shadow: 0 4px 12px rgba(35, 139, 69, 0.08);
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .sales-header-icon-box {
+  background: rgba(35, 139, 69, 0.20);
+  color: #5ED989;
+  border-color: rgba(35, 139, 69, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.sales-header-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-text-primary, #0F172A);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+[data-theme="dark"] .sales-header-title {
+  color: #F8FAFC;
+}
+
+.sales-header-desc {
+  margin: 4px 0 0;
+  color: var(--color-text-secondary, #475569);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .sales-header-desc {
+  color: #94A3B8;
+}
+
+.sales-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .sales-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .sales-stats-grid > div:last-child {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 380px) {
+  .sales-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .sales-stats-grid > div:last-child {
+    grid-column: auto;
+  }
+}
+
+.sales-stat-card {
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, rgba(35, 139, 69, 0.15));
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card, 0 4px 16px rgba(23, 107, 53, 0.05));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 110px;
+  box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.sales-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(35, 139, 69, 0.35);
+  box-shadow: 0 8px 24px rgba(23, 107, 53, 0.10);
+}
+
+[data-theme="dark"] .sales-stat-card {
+  background: #17231B;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .sales-stat-card:hover {
+  border-color: rgba(67, 160, 71, 0.40);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.50);
+}
+
+.sales-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sales-stat-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-secondary, #475569);
+}
+
+[data-theme="dark"] .sales-stat-label {
+  color: #94A3B8;
+}
+
+.sales-stat-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-primary-soft, #EAF6ED);
+  color: var(--color-primary, #238B45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(35, 139, 69, 0.16);
+}
+
+[data-theme="dark"] .sales-stat-icon-wrap {
+  background: rgba(35, 139, 69, 0.20);
+  color: #5ED989;
+  border-color: rgba(35, 139, 69, 0.30);
+}
+
+.sales-stat-value {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--color-text-primary, #0F172A);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="dark"] .sales-stat-value {
+  color: #F8FAFC;
+}
+
+.sales-stat-value.green {
+  color: #238B45;
+}
+
+[data-theme="dark"] .sales-stat-value.green {
+  color: #4ADE80;
+}
+
+.sales-stat-subtext {
+  font-size: 11.5px;
+  color: var(--color-text-muted, #64748B);
+  margin-top: 3px;
+}
+
+[data-theme="dark"] .sales-stat-subtext {
+  color: #64748B;
+}
+
+/* Outstanding Balance Alert */
+.sales-balance-alert {
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+[data-theme="dark"] .sales-balance-alert {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.40);
+}
+
+.sales-balance-text {
+  font-size: 13.5px;
+  color: #92400E;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+[data-theme="dark"] .sales-balance-text {
+  color: #FDE68A;
+}
+
+/* Desktop vs Mobile History Views */
+@media (max-width: 767px) {
+  .desktop-sales-table {
+    display: none !important;
+  }
+  .mobile-sales-cards {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 14px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .desktop-sales-table {
+    display: block !important;
+  }
+  .mobile-sales-cards {
+    display: none !important;
+  }
+}
+
+.mobile-sale-card {
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, rgba(35, 139, 69, 0.14));
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.mobile-sale-card:hover,
+.mobile-sale-card:active {
+  transform: translateY(-1px);
+  border-color: rgba(35, 139, 69, 0.35);
+}
+
+[data-theme="dark"] .mobile-sale-card {
+  background: #17231B;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* Badges */
+.sale-badge-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #EAF6ED;
+  color: #176B35;
+  border: 1px solid #C7E9C0;
+}
+
+[data-theme="dark"] .sale-badge-paid {
+  background: rgba(35, 139, 69, 0.25);
+  color: #5ED989;
+  border-color: rgba(35, 139, 69, 0.40);
+}
+
+.sale-badge-partial {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.14);
+  color: #B45309;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+[data-theme="dark"] .sale-badge-partial {
+  background: rgba(245, 158, 11, 0.20);
+  color: #FCD34D;
+  border-color: rgba(245, 158, 11, 0.40);
+}
+
+.sale-badge-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+[data-theme="dark"] .sale-badge-pending {
+  background: rgba(100, 116, 139, 0.22);
+  color: #CBD5E1;
+  border-color: rgba(100, 116, 139, 0.35);
+}
+
+

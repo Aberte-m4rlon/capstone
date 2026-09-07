@@ -5,21 +5,19 @@ import {
   Scale,
   Plus,
   Search,
-  Filter,
   CheckCircle2,
   AlertCircle,
   Clock,
   Calendar,
   User,
   Phone,
-  FileText,
   X,
-  ChevronRight,
   TrendingUp,
   Receipt,
   Info,
   Check,
   ArrowRight,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useFarmData } from '../lib/useFarmData';
@@ -28,13 +26,18 @@ import {
   calculatePricePerKg,
   recordAnimalSale,
 } from '../lib/sales';
-import type { Animal, AnimalSale, PaymentStatus } from '../types';
-import toast from 'react-hot-toast';
+import type { AnimalSale, PaymentStatus } from '../types';
+import { useToast } from '../components/ui/Toast';
+import { Card, CardContent } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '../components/ui/Modal';
+import { EmptyState } from '../components/ui/EmptyState';
 
 export function SalesPage() {
   const { user, role } = useAuth();
   const isSuperAdmin = role === 'super_admin';
-  const { animals, sales, refresh, loading } = useFarmData();
+  const { animals, sales, refresh } = useFarmData();
+  const { toast } = useToast();
   const location = useLocation();
 
   // Modal states
@@ -92,19 +95,14 @@ export function SalesPage() {
     return Math.max(0, price - received);
   }, [sellingPrice, amountReceived, paymentStatus]);
 
-  // User-scoped sales records
-  const userSales = useMemo(() => {
-    return sales;
-  }, [sales]);
-
   // Summary Metrics
   const metrics = useMemo(() => {
-    return calculateSalesMetrics(userSales);
-  }, [userSales]);
+    return calculateSalesMetrics(sales);
+  }, [sales]);
 
   // Filtered sales records for the table
   const filteredSales = useMemo(() => {
-    return userSales.filter((s) => {
+    return sales.filter((s) => {
       // Search filter
       const matchesSearch =
         searchQuery === '' ||
@@ -120,7 +118,7 @@ export function SalesPage() {
 
       return matchesSearch && matchesSpecies && matchesPayment;
     });
-  }, [userSales, searchQuery, speciesFilter, paymentFilter]);
+  }, [sales, searchQuery, speciesFilter, paymentFilter]);
 
   // Reset selling form
   const resetForm = () => {
@@ -151,17 +149,17 @@ export function SalesPage() {
   const handleProceedToConfirm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAnimal) {
-      toast.error('Pumili muna ng hayop na ibebenta.');
+      toast('Pumili muna ng hayop na ibebenta.', 'danger');
       return;
     }
     const weightNum = parseFloat(soldWeight);
     if (isNaN(weightNum) || weightNum <= 0) {
-      toast.error('Kailangang timbangin muna ang hayop bago ito maibenta. Ilagay ang wastong timbang (kg).');
+      toast('Kailangang timbangin muna ang hayop bago ito maibenta. Ilagay ang wastong timbang (kg).', 'danger');
       return;
     }
     const priceNum = parseFloat(sellingPrice);
     if (isNaN(priceNum) || priceNum <= 0) {
-      toast.error('Ilagay ang wastong presyo ng pagbebenta (₱).');
+      toast('Ilagay ang wastong presyo ng pagbebenta (₱).', 'danger');
       return;
     }
     setFormStep('confirm');
@@ -195,825 +193,1356 @@ export function SalesPage() {
     setSubmitting(false);
 
     if (res.success) {
-      toast.success(`Matagumpay na naibenta ang ${selectedAnimal.tag_id} (${selectedAnimal.name || 'Hayop'})!`);
+      toast(`Matagumpay na naibenta ang ${selectedAnimal.tag_id} (${selectedAnimal.name || 'Hayop'})!`, 'success');
       handleCloseModal();
       await refresh();
     } else {
-      toast.error(res.error || 'Nagkaroon ng problema sa pagtatala ng benta.');
+      toast(res.error || 'Nagkaroon ng problema sa pagtatala ng benta.', 'danger');
     }
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <DollarSign className="text-emerald-700" size={28} />
-            Benta ng Hayop
-          </h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Pamahalaan ang pagbebenta ng mga alagang hayop, kailangang timbang bago ibenta, at kita ng bukid.
-          </p>
+    <div className="sales-page-container">
+      {/* ── 3. & 4. Page Header & Primary Action ── */}
+      <div className="sales-header">
+        <div className="sales-header-left">
+          <div className="sales-header-icon-box">
+            <DollarSign size={24} />
+          </div>
+          <div>
+            <h1 className="sales-header-title">
+              Benta ng Hayop
+            </h1>
+            <p className="sales-header-desc">
+              Pamamahala sa pagbebenta ng mga alagang hayop at kita ng bukid.
+            </p>
+          </div>
         </div>
-        <button
-          onClick={handleOpenModal}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-medium rounded-lg shadow-sm transition-colors"
-        >
-          <Plus size={18} />
-          Magbenta ng Hayop
-        </button>
+
+        {/* Primary Action Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Button
+            variant="primary"
+            onClick={handleOpenModal}
+            leftIcon={<Plus size={16} />}
+            style={{ fontWeight: 700 }}
+          >
+            Magbenta ng Hayop
+          </Button>
+        </div>
       </div>
 
-      {/* ── Summary Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── 5. Sales Summary Cards ── */}
+      <div className="sales-stats-grid">
         {/* Card 1: Total Animals Sold */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-gray-600 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Mga Nabentang Hayop</span>
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-              <CheckCircle2 size={18} />
+        <div className="sales-stat-card">
+          <div className="sales-stat-top">
+            <span className="sales-stat-label">Mga Nabentang Hayop</span>
+            <div className="sales-stat-icon-wrap">
+              <CheckCircle2 size={17} />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{metrics.totalSold}</div>
-            <div className="text-xs text-gray-500 mt-1">Kabuuang bilang na naibenta</div>
+            <div className="sales-stat-value">
+              {metrics.totalSold} <span style={{ fontSize: '15px', fontWeight: 600 }}>ulo</span>
+            </div>
+            <div className="sales-stat-subtext">Kabuuang bilang</div>
           </div>
         </div>
 
-        {/* Card 2: Total Money Received */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-gray-600 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total na Natanggap</span>
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-              <DollarSign size={18} />
+        {/* Card 2: Total Revenue */}
+        <div className="sales-stat-card">
+          <div className="sales-stat-top">
+            <span className="sales-stat-label">Kabuuang Benta</span>
+            <div className="sales-stat-icon-wrap">
+              <TrendingUp size={17} />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-emerald-700">
+            <div className="sales-stat-value green">
+              ₱{metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="sales-stat-subtext">Total na benta</div>
+          </div>
+        </div>
+
+        {/* Card 3: Actual Money Received */}
+        <div className="sales-stat-card">
+          <div className="sales-stat-top">
+            <span className="sales-stat-label">Aktwal na Natanggap</span>
+            <div className="sales-stat-icon-wrap">
+              <Receipt size={17} />
+            </div>
+          </div>
+          <div>
+            <div className="sales-stat-value green">
               ₱{metrics.totalReceived.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Aktwal na salaping natanggap</div>
+            <div className="sales-stat-subtext">Salaping natanggap</div>
           </div>
         </div>
 
-        {/* Card 3: Total Weight Sold */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-gray-600 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Kabuuang Timbang</span>
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-              <Scale size={18} />
+        {/* Card 4: Total Weight Sold */}
+        <div className="sales-stat-card">
+          <div className="sales-stat-top">
+            <span className="sales-stat-label">Kabuuang Timbang</span>
+            <div className="sales-stat-icon-wrap">
+              <Scale size={17} />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{metrics.totalWeight} kg</div>
-            <div className="text-xs text-gray-500 mt-1">Timbang bago ibenta</div>
+            <div className="sales-stat-value">
+              {metrics.totalWeight} <span style={{ fontSize: '15px', fontWeight: 600 }}>kg</span>
+            </div>
+            <div className="sales-stat-subtext">Timbang naibenta</div>
           </div>
         </div>
 
-        {/* Card 4: Average Price per KG */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-gray-600 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Average Presyo / Kilo</span>
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-              <TrendingUp size={18} />
+        {/* Card 5: Average Price per KG */}
+        <div className="sales-stat-card">
+          <div className="sales-stat-top">
+            <span className="sales-stat-label">Average Presyo / Kilo</span>
+            <div className="sales-stat-icon-wrap">
+              <DollarSign size={17} />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="sales-stat-value">
               ₱{metrics.avgPricePerKg.toFixed(2)}
-              <span className="text-xs font-normal text-gray-500 ml-1">/ kg</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-secondary, #475569)', marginLeft: 3 }}>
+                /kg
+              </span>
             </div>
-            <div className="text-xs text-gray-500 mt-1">Average presyo bawat kilo</div>
+            <div className="sales-stat-subtext">Average price</div>
           </div>
         </div>
       </div>
 
-      {/* Alert Card if there is Remaining Balance */}
+      {/* Outstanding Balance Alert Card */}
       {metrics.totalRemainingBalance > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-amber-900">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="text-amber-600 shrink-0" size={20} />
+        <div className="sales-balance-alert">
+          <div className="sales-balance-text">
+            <AlertCircle size={20} color="#D97706" style={{ flexShrink: 0 }} />
             <div>
-              <span className="font-semibold text-sm">May mga benta na hindi pa buo ang bayad: </span>
-              <span className="text-sm">Kabuuang balanse na dapat kubrahin ay </span>
-              <span className="font-bold text-amber-800">
-                ₱{metrics.totalRemainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
+              <strong>Paalala sa Balanse: </strong>
+              May natitirang kabuuang balanse na <strong>₱{metrics.totalRemainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> na kailangan pang kubrahin.
             </div>
           </div>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPaymentFilter('May Kulang')}
-            className="text-xs font-semibold text-amber-800 underline hover:text-amber-950 shrink-0"
+            style={{ borderColor: '#D97706', color: '#D97706', fontWeight: 700, flexShrink: 0 }}
           >
-            Tingnan ang may kulang
-          </button>
+            I-filter ang May Kulang
+          </Button>
         </div>
       )}
 
-      {/* ── Search & Filter Bar ── */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3 md:space-y-0 md:flex md:items-center md:justify-between gap-4">
-        {/* Search Input */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            placeholder="Hanapin ayon sa Tag ID, Pangalan, o Bumibili..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-3">
-          {/* Species */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 hidden sm:inline">Uri:</span>
-            <select
-              value={speciesFilter}
-              onChange={(e) => setSpeciesFilter(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+      {/* ── 6. Search + Filter Section ── */}
+      <Card variant="default" padding="sm">
+        <CardContent>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+              padding: '4px 6px',
+            }}
+          >
+            {/* Search Input */}
+            <div
+              style={{
+                position: 'relative',
+                flex: '1 1 260px',
+                minWidth: '220px',
+              }}
             >
-              <option value="all">Lahat ng Uri</option>
-              <option value="Goat">Kambing</option>
-              <option value="Sheep">Tupa</option>
-            </select>
-          </div>
+              <Search
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-text-muted, #64748B)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Hanapin ang hayop sa Tag ID, pangalan, bumibili..."
+                style={{
+                  width: '100%',
+                  height: '40px',
+                  padding: '0 34px 0 36px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                  background: 'var(--input-bg, rgba(255, 255, 255, 0.85))',
+                  color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                  fontSize: '13.5px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--color-text-muted, #64748B)',
+                    padding: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title="Burahin ang paghahanap"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
 
-          {/* Payment Status */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 hidden sm:inline">Bayad:</span>
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            {/* Filter Dropdowns */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '0 1 auto' }}>
+              {/* Species Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-secondary, #475569)' }}>
+                  Uri:
+                </label>
+                <select
+                  value={speciesFilter}
+                  onChange={(e) => setSpeciesFilter(e.target.value)}
+                  style={{
+                    height: '40px',
+                    padding: '0 28px 0 12px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                    background: 'var(--input-bg, rgba(255, 255, 255, 0.85))',
+                    color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="all">Lahat ng Uri</option>
+                  <option value="Goat">Kambing</option>
+                  <option value="Sheep">Tupa</option>
+                </select>
+              </div>
+
+              {/* Payment Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-secondary, #475569)' }}>
+                  Bayad:
+                </label>
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value)}
+                  style={{
+                    height: '40px',
+                    padding: '0 28px 0 12px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                    background: 'var(--input-bg, rgba(255, 255, 255, 0.85))',
+                    color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="all">Lahat ng Status</option>
+                  <option value="Bayad na">Bayad na</option>
+                  <option value="May Kulang">May Kulang</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+
+              {/* Reset button */}
+              {(searchQuery || speciesFilter !== 'all' || paymentFilter !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSpeciesFilter('all');
+                    setPaymentFilter('all');
+                  }}
+                  style={{ fontSize: '12px', color: 'var(--color-text-muted, #64748B)' }}
+                >
+                  I-reset
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── 7. & 8. Sales History Section ── */}
+      <Card variant="default" padding="none">
+        <div
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '16px',
+                fontWeight: 800,
+                color: 'var(--color-text-primary, #0F172A)',
+              }}
             >
-              <option value="all">Lahat ng Status</option>
-              <option value="Bayad na">Bayad na</option>
-              <option value="May Kulang">May Kulang</option>
-              <option value="Pending">Pending</option>
-            </select>
+              Kasaysayan ng Pagbebenta
+            </h2>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '2px 9px',
+                borderRadius: '999px',
+                background: 'var(--color-primary-soft, #EAF6ED)',
+                color: 'var(--color-primary, #238B45)',
+                fontSize: '12px',
+                fontWeight: 800,
+              }}
+            >
+              {filteredSales.length}
+            </span>
           </div>
-        </div>
-      </div>
 
-      {/* ── Sales Records Table / List ── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <div className="font-semibold text-gray-900 text-sm">
-            Kasaysayan ng Pagbebenta ({filteredSales.length})
-          </div>
           {filteredSales.length > 0 && (
-            <div className="text-xs text-gray-500">
-              Kabuuang Halaga: ₱{filteredSales.reduce((sum, s) => sum + s.selling_price, 0).toLocaleString()}
+            <div style={{ fontSize: '12.5px', color: 'var(--color-text-secondary, #475569)' }}>
+              Kabuuang Benta:{' '}
+              <strong style={{ color: 'var(--color-primary, #238B45)' }}>
+                ₱{filteredSales.reduce((sum, s) => sum + s.selling_price, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </strong>
             </div>
           )}
         </div>
 
-        {filteredSales.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-400 mb-3">
-              <Receipt size={24} />
+        <CardContent style={{ padding: 0 }}>
+          {filteredSales.length === 0 ? (
+            <div style={{ padding: '40px 20px' }}>
+              <EmptyState
+                icon={<Receipt size={36} />}
+                title="Walang naitalang benta"
+                description={
+                  searchQuery || speciesFilter !== 'all' || paymentFilter !== 'all'
+                    ? 'Walang tumutugma sa iyong filter o hinahanap.'
+                    : 'Wala pang naibentang hayop. Kapag nagbenta ka ng kambing o tupa, lalabas dito ang detalye ng benta.'
+                }
+                actionLabel="Magbenta ng Hayop"
+                onAction={handleOpenModal}
+              />
             </div>
-            <h3 className="text-base font-semibold text-gray-800">Walang natagpuang tala ng benta</h3>
-            <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1 mb-4">
-              {searchQuery || speciesFilter !== 'all' || paymentFilter !== 'all'
-                ? 'Walang tumutugma sa iyong filter o hinahanap.'
-                : 'Wala pang naitalang benta ng alagang hayop sa iyong bukid.'}
-            </p>
-            {userSales.length === 0 && (
-              <button
-                onClick={handleOpenModal}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800 transition-colors"
-              >
-                <Plus size={15} />
-                Magbenta ng Unang Hayop
-              </button>
-            )}
-          </div>
-        ) : (
-          <div>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-700">
-                <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3">Hayop</th>
-                    <th className="px-4 py-3">Timbang</th>
-                    <th className="px-4 py-3">Presyo</th>
-                    <th className="px-4 py-3">Presyo/kg</th>
-                    <th className="px-4 py-3">Bumibili</th>
-                    <th className="px-4 py-3">Petsa</th>
-                    <th className="px-4 py-3">Katayuan</th>
-                    <th className="px-4 py-3 text-right">Aksyon</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredSales.map((sale) => (
-                    <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-gray-900">{sale.animal_tag_id}</div>
-                        <div className="text-xs text-gray-500">
-                          {sale.animal_name} • {sale.species === 'Goat' ? 'Kambing' : sale.species === 'Sheep' ? 'Tupa' : sale.species}
+          ) : (
+            <div>
+              {/* Desktop Table View */}
+              <div className="desktop-sales-table table-wrap" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Hayop</th>
+                      <th>Timbang</th>
+                      <th>Presyo</th>
+                      <th>Presyo/Kilo</th>
+                      <th>Bayad</th>
+                      <th>Petsa</th>
+                      <th style={{ textAlign: 'right' }}>Aksyon</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSales.map((sale) => (
+                      <tr key={sale.id}>
+                        <td>
+                          <div style={{ fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
+                            {sale.animal_tag_id}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>
+                            {sale.animal_name} • {sale.species === 'Goat' ? 'Kambing' : 'Tupa'}
+                          </div>
+                        </td>
+                        <td style={{ fontWeight: 600, color: 'var(--color-text-primary, #0F172A)' }}>
+                          {sale.sold_weight} kg
+                        </td>
+                        <td style={{ fontWeight: 800, color: 'var(--color-primary, #238B45)' }}>
+                          ₱{sale.selling_price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ fontSize: '12.5px', color: 'var(--color-text-secondary, #475569)' }}>
+                          {sale.price_per_kg ? `₱${sale.price_per_kg.toFixed(2)}/kg` : '—'}
+                        </td>
+                        <td>
+                          {sale.payment_status === 'Bayad na' && (
+                            <span className="sale-badge-paid">
+                              <CheckCircle2 size={12} />
+                              Bayad na
+                            </span>
+                          )}
+                          {sale.payment_status === 'May Kulang' && (
+                            <span className="sale-badge-partial">
+                              <Clock size={12} />
+                              Kulang: ₱{sale.remaining_balance.toLocaleString()}
+                            </span>
+                          )}
+                          {sale.payment_status === 'Pending' && (
+                            <span className="sale-badge-pending">
+                              <AlertCircle size={12} />
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: '12.5px', color: 'var(--color-text-secondary, #475569)', whiteSpace: 'nowrap' }}>
+                          {new Date(sale.sale_date).toLocaleDateString('fil-PH', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setSelectedSaleDetail(sale)}
+                            style={{ fontSize: '12px', padding: '4px 10px', height: '30px' }}
+                          >
+                            Tingnan
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="mobile-sales-cards">
+                {filteredSales.map((sale) => (
+                  <div
+                    key={sale.id}
+                    className="mobile-sale-card"
+                    onClick={() => setSelectedSaleDetail(sale)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                      <div>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
+                          {sale.animal_tag_id}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {sale.sold_weight} kg
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-emerald-800">
-                        ₱{sale.selling_price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">
-                        {sale.price_per_kg ? `₱${sale.price_per_kg.toFixed(2)}/kg` : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-gray-900 font-medium">{sale.buyer_name || 'Hindi tinukoy'}</div>
-                        {sale.buyer_contact && (
-                          <div className="text-xs text-gray-500">{sale.buyer_contact}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
-                        {new Date(sale.sale_date).toLocaleDateString('fil-PH', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>
+                          {sale.animal_name} • {sale.species === 'Goat' ? 'Kambing' : 'Tupa'}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-primary, #238B45)' }}>
+                          ₱{sale.selling_price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary, #475569)', marginTop: 2 }}>
+                          {sale.sold_weight} kg
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: 8,
+                        paddingTop: 8,
+                        borderTop: '1px dashed var(--color-border, rgba(35, 139, 69, 0.12))',
+                        fontSize: '12px',
+                        color: 'var(--color-text-secondary, #475569)',
+                      }}
+                    >
+                      <div>
+                        <span>Presyo/kg: </span>
+                        <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>
+                          {sale.price_per_kg ? `₱${sale.price_per_kg.toFixed(2)}/kg` : '—'}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Petsa: </span>
+                        <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>
+                          {sale.sale_date}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 4 }}>
+                      <div>
                         {sale.payment_status === 'Bayad na' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                            <CheckCircle2 size={12} />
+                          <span className="sale-badge-paid">
+                            <CheckCircle2 size={11} />
                             Bayad na
                           </span>
                         )}
                         {sale.payment_status === 'May Kulang' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                            <Clock size={12} />
+                          <span className="sale-badge-partial">
+                            <Clock size={11} />
                             Kulang: ₱{sale.remaining_balance.toLocaleString()}
                           </span>
                         )}
                         {sale.payment_status === 'Pending' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
-                            <AlertCircle size={12} />
+                          <span className="sale-badge-pending">
+                            <AlertCircle size={11} />
                             Pending
                           </span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setSelectedSaleDetail(sale)}
-                          className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors"
-                        >
-                          Tingnan
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
 
-            {/* Mobile Stacked Card View */}
-            <div className="md:hidden divide-y divide-gray-100">
-              {filteredSales.map((sale) => (
-                <div
-                  key={sale.id}
-                  onClick={() => setSelectedSaleDetail(sale)}
-                  className="p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <div className="font-semibold text-gray-900 text-base">{sale.animal_tag_id}</div>
-                      <div className="text-xs text-gray-500">
-                        {sale.animal_name} • {sale.species === 'Goat' ? 'Kambing' : 'Tupa'}
-                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary, #238B45)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        Tingnan ang detalye &rarr;
+                      </span>
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold text-emerald-800 text-base">
-                        ₱{sale.selling_price.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-500">{sale.sold_weight} kg</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── 9. SELLING FORM MODAL (+ Magbenta ng Hayop) ── */}
+      <Modal
+        open={isSellModalOpen}
+        onClose={handleCloseModal}
+        size="lg"
+      >
+        <ModalHeader
+          title={formStep === 'input' ? 'Magbenta ng Hayop' : 'Kumpirmahin ang Pagbebenta'}
+          subtitle={
+            formStep === 'input'
+              ? 'Itala ang pagbebenta ng alagang hayop kasama ang aktwal na timbang bago ibenta.'
+              : 'Suriin ang mga detalye bago opisyal na i-save ang benta sa database.'
+          }
+          icon={<DollarSign size={20} />}
+          onClose={handleCloseModal}
+        />
+        <ModalBody>
+          {formStep === 'input' ? (
+            <form id="sellForm" onSubmit={handleProceedToConfirm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Field 1: Select Animal */}
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: 'var(--color-text-primary, #0F172A)',
+                    marginBottom: 6,
+                  }}
+                >
+                  Pumili ng Hayop na Ibebenta <span style={{ color: 'var(--color-danger, #EF4444)' }}>*</span>
+                </label>
+                <select
+                  value={selectedAnimalId}
+                  onChange={(e) => {
+                    setSelectedAnimalId(e.target.value);
+                    const a = availableAnimals.find((x) => x.id === e.target.value);
+                    if (a && a.weight_kg) {
+                      setSoldWeight(String(a.weight_kg));
+                    } else {
+                      setSoldWeight('');
+                    }
+                  }}
+                  required
+                  style={{
+                    width: '100%',
+                    height: '42px',
+                    padding: '0 12px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                    background: 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                    color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <option value="">-- Pumili sa aktibong mga hayop --</option>
+                  {availableAnimals.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.tag_id} — {a.name || 'Walang pangalan'} ({a.species === 'Goat' ? 'Kambing' : 'Tupa'})
+                      {a.weight_kg ? ` [Huling timbang: ${a.weight_kg}kg]` : ''}
+                    </option>
+                  ))}
+                </select>
+                {availableAnimals.length === 0 && (
+                  <p style={{ fontSize: '12px', color: '#D97706', marginTop: 4 }}>
+                    Walang aktibong hayop na magagamit para ibenta sa kasalukuyan.
+                  </p>
+                )}
+              </div>
+
+              {/* Animal Preview Box */}
+              {selectedAnimal && (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    background: 'var(--color-primary-soft, #EAF6ED)',
+                    border: '1px solid rgba(35, 139, 69, 0.20)',
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-primary, #238B45)' }}>
+                    {selectedAnimal.tag_id} ({selectedAnimal.name || 'Hayop'})
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                      gap: 8,
+                      fontSize: '12px',
+                      color: 'var(--color-text-secondary, #475569)',
+                      marginTop: 6,
+                    }}
+                  >
+                    <div>Uri: <strong>{selectedAnimal.species === 'Goat' ? 'Kambing' : 'Tupa'}</strong></div>
+                    <div>Kasarian: <strong>{selectedAnimal.sex === 'Female' ? 'Babae' : 'Lalaki'}</strong></div>
+                    <div>Breed: <strong>{selectedAnimal.breed || 'N/A'}</strong></div>
+                    <div>Huling Timbang: <strong>{selectedAnimal.weight_kg ? `${selectedAnimal.weight_kg} kg` : 'Wala pa'}</strong></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Field 2: Weight Before Sale (MANDATORY) */}
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'var(--color-surface, #FFFFFF)',
+                  border: '1px solid var(--color-border, rgba(35, 139, 69, 0.15))',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: 'var(--color-text-primary, #0F172A)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Scale size={15} color="var(--color-primary, #238B45)" />
+                    Timbang Bago Ibenta (kg) <span style={{ color: 'var(--color-danger, #EF4444)' }}>*</span>
+                  </label>
+                  <span
+                    style={{
+                      fontSize: '10.5px',
+                      fontWeight: 800,
+                      color: 'var(--color-primary, #238B45)',
+                      background: 'var(--color-primary-soft, #EAF6ED)',
+                      padding: '2px 7px',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    REQUIRED
+                  </span>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    placeholder="Halimbawa: 45.5"
+                    value={soldWeight}
+                    onChange={(e) => setSoldWeight(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      padding: '0 40px 0 12px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                      background: 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                      color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: 'var(--color-text-muted, #64748B)',
+                    }}
+                  >
+                    kg
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--color-text-secondary, #475569)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Info size={13} color="var(--color-primary, #238B45)" style={{ flexShrink: 0 }} />
+                  Kailangang timbangin muna ang hayop bago ito maibenta.
+                </p>
+              </div>
+
+              {/* Field 3: Selling Price (MANDATORY) */}
+              <div
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'var(--color-surface, #FFFFFF)',
+                  border: '1px solid var(--color-border, rgba(35, 139, 69, 0.15))',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: 'var(--color-text-primary, #0F172A)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <DollarSign size={15} color="var(--color-primary, #238B45)" />
+                    Presyo ng Pagbebenta (₱) <span style={{ color: 'var(--color-danger, #EF4444)' }}>*</span>
+                  </label>
+                  <span
+                    style={{
+                      fontSize: '10.5px',
+                      fontWeight: 800,
+                      color: 'var(--color-primary, #238B45)',
+                      background: 'var(--color-primary-soft, #EAF6ED)',
+                      padding: '2px 7px',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    REQUIRED
+                  </span>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '14px',
+                      fontWeight: 800,
+                      color: 'var(--color-text-muted, #64748B)',
+                    }}
+                  >
+                    ₱
+                  </span>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    placeholder="Halimbawa: 6500"
+                    value={sellingPrice}
+                    onChange={(e) => {
+                      setSellingPrice(e.target.value);
+                      if (paymentStatus === 'Bayad na') {
+                        setAmountReceived(e.target.value);
+                      }
+                    }}
+                    required
+                    style={{
+                      width: '100%',
+                      height: '42px',
+                      padding: '0 12px 0 30px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                      background: 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                      color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                {/* Auto Calculated Reference Price per KG */}
+                {calculatedPricePerKg !== null && (
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'var(--color-primary-soft, #EAF6ED)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Reference kalkulasyon:</span>
+                    <strong style={{ color: 'var(--color-primary, #238B45)' }}>
+                      ₱{calculatedPricePerKg.toFixed(2)} bawat kilo
+                    </strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Field 4: Buyer Info (Optional) */}
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: 'var(--color-text-primary, #0F172A)',
+                    marginBottom: 8,
+                  }}
+                >
+                  Impormasyon ng Bumibili (Opsyonal)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', color: 'var(--color-text-secondary, #475569)', marginBottom: 4 }}>
+                      Pangalan ng Bumibili
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <User size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted, #64748B)' }} />
+                      <input
+                        type="text"
+                        placeholder="Hal. Juan Dela Cruz"
+                        value={buyerName}
+                        onChange={(e) => setBuyerName(e.target.value)}
+                        style={{
+                          width: '100%',
+                          height: '38px',
+                          padding: '0 10px 0 32px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                          background: 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                          color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                          fontSize: '13px',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-gray-600 mt-2 pt-2 border-t border-gray-50">
-                    <div className="truncate max-w-[180px]">
-                      {sale.buyer_name ? `Bumibili: ${sale.buyer_name}` : 'Bumibili: Hindi tinukoy'}
-                    </div>
-                    <div>
-                      {sale.payment_status === 'Bayad na' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-800">
-                          Bayad na
-                        </span>
-                      )}
-                      {sale.payment_status === 'May Kulang' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-800">
-                          Kulang: ₱{sale.remaining_balance.toLocaleString()}
-                        </span>
-                      )}
-                      {sale.payment_status === 'Pending' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-100 text-rose-800">
-                          Pending
-                        </span>
-                      )}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11.5px', color: 'var(--color-text-secondary, #475569)', marginBottom: 4 }}>
+                      Contact Number
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Phone size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted, #64748B)' }} />
+                      <input
+                        type="text"
+                        placeholder="0917-xxx-xxxx"
+                        value={buyerContact}
+                        onChange={(e) => setBuyerContact(e.target.value)}
+                        style={{
+                          width: '100%',
+                          height: '38px',
+                          padding: '0 10px 0 32px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                          background: 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                          color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                          fontSize: '13px',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── SELLING MODAL (+ Magbenta ng Hayop) ── */}
-      {isSellModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-emerald-800 text-white">
-              <div className="flex items-center gap-2">
-                <DollarSign size={20} />
-                <h3 className="font-semibold text-base">
-                  {formStep === 'input' ? 'Magbenta ng Hayop' : 'Kumpirmahin ang Pagbebenta'}
-                </h3>
               </div>
-              <button
-                onClick={handleCloseModal}
-                disabled={submitting}
-                className="text-white/80 hover:text-white p-1 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
 
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-4">
-              {formStep === 'input' ? (
-                <form id="sellForm" onSubmit={handleProceedToConfirm} className="space-y-4">
-                  {/* Step 1: Select Animal */}
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
-                      Pumili ng Hayop na Ibebenta <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={selectedAnimalId}
-                      onChange={(e) => {
-                        setSelectedAnimalId(e.target.value);
-                        const a = availableAnimals.find((x) => x.id === e.target.value);
-                        if (a && a.weight_kg) {
-                          setSoldWeight(String(a.weight_kg));
-                        } else {
-                          setSoldWeight('');
+              {/* Field 5: Payment Status & Tracking */}
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: 'var(--color-text-primary, #0F172A)',
+                    marginBottom: 8,
+                  }}
+                >
+                  Katayuan ng Bayad
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  {(['Bayad na', 'May Kulang', 'Pending'] as PaymentStatus[]).map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => {
+                        setPaymentStatus(st);
+                        if (st === 'Bayad na') {
+                          setAmountReceived(sellingPrice);
+                        } else if (st === 'Pending') {
+                          setAmountReceived('0');
                         }
                       }}
-                      required
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      style={{
+                        padding: '9px 6px',
+                        fontSize: '12px',
+                        fontWeight: paymentStatus === st ? 800 : 600,
+                        borderRadius: '10px',
+                        border: paymentStatus === st ? '2px solid var(--color-primary, #238B45)' : '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                        background: paymentStatus === st ? 'var(--color-primary-soft, #EAF6ED)' : 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                        color: paymentStatus === st ? 'var(--color-primary, #238B45)' : 'var(--color-text-secondary, #475569)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
                     >
-                      <option value="">-- Pumili sa aktibong mga hayop --</option>
-                      {availableAnimals.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.tag_id} — {a.name || 'Walang pangalan'} ({a.species === 'Goat' ? 'Kambing' : 'Tupa'})
-                          {a.weight_kg ? ` [Dating timbang: ${a.weight_kg}kg]` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    {availableAnimals.length === 0 && (
-                      <p className="text-xs text-amber-600 mt-1">
-                        Walang aktibong hayop na magagamit para ibenta sa kasalukuyan.
-                      </p>
-                    )}
-                  </div>
+                      {st}
+                    </button>
+                  ))}
+                </div>
 
-                  {/* Animal Preview Card */}
-                  {selectedAnimal && (
-                    <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-xl p-3 text-xs text-emerald-950 space-y-1">
-                      <div className="font-semibold text-emerald-900 text-sm">
-                        {selectedAnimal.tag_id} ({selectedAnimal.name || 'Hayop'})
+                {paymentStatus === 'May Kulang' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', color: 'var(--color-text-secondary, #475569)', marginBottom: 4 }}>
+                        Natanggap na Halaga (₱)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Hal. 3000"
+                        value={amountReceived}
+                        onChange={(e) => setAmountReceived(e.target.value)}
+                        style={{
+                          width: '100%',
+                          height: '38px',
+                          padding: '0 10px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                          background: 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                          color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', color: 'var(--color-text-secondary, #475569)', marginBottom: 4 }}>
+                        Natitirang Balanse
+                      </label>
+                      <div
+                        style={{
+                          height: '38px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '0 10px',
+                          borderRadius: '8px',
+                          background: 'rgba(245, 158, 11, 0.12)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          color: '#B45309',
+                          fontSize: '13px',
+                          fontWeight: 800,
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        ₱{remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-gray-600 pt-1">
-                        <div>Uri: <span className="font-medium text-gray-800">{selectedAnimal.species}</span></div>
-                        <div>Kasarian: <span className="font-medium text-gray-800">{selectedAnimal.sex}</span></div>
-                        <div>Breed: <span className="font-medium text-gray-800">{selectedAnimal.breed || 'N/A'}</span></div>
-                        <div>Huling Timbang: <span className="font-medium text-gray-800">{selectedAnimal.weight_kg ? `${selectedAnimal.weight_kg} kg` : 'Wala pa'}</span></div>
-                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Field 6: Sale Date & Notes */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: 'var(--color-text-primary, #0F172A)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Petsa ng Pagbebenta
+                  </label>
+                  <input
+                    type="date"
+                    value={saleDate}
+                    onChange={(e) => setSaleDate(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '38px',
+                      padding: '0 10px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                      background: 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                      color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                      fontSize: '13px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      color: 'var(--color-text-primary, #0F172A)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Karagdagang Tala (Opsyonal)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Mga tala ukol sa benta..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '38px',
+                      padding: '0 10px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--color-border, rgba(35, 139, 69, 0.20))',
+                      background: 'var(--input-bg, rgba(255, 255, 255, 0.90))',
+                      color: 'var(--input-text, var(--color-text-primary, #0F172A))',
+                      fontSize: '13px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+            </form>
+          ) : (
+            /* Confirmation Step */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: '14px',
+                  background: 'var(--color-primary-soft, #EAF6ED)',
+                  border: '1px solid rgba(35, 139, 69, 0.25)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <Receipt size={18} color="var(--color-primary, #238B45)" />
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-primary, #238B45)' }}>
+                    Buod ng Pagbebenta
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '13px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Hayop:</span>
+                    <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>
+                      {selectedAnimal?.tag_id} ({selectedAnimal?.name || 'Walang pangalan'})
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Uri:</span>
+                    <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>
+                      {selectedAnimal?.species === 'Goat' ? 'Kambing' : 'Tupa'}
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Timbang Bago Ibenta:</span>
+                    <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{soldWeight} kg</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Presyo ng Pagbebenta:</span>
+                    <strong style={{ color: 'var(--color-primary, #238B45)', fontSize: '15px' }}>
+                      ₱{parseFloat(sellingPrice || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </strong>
+                  </div>
+                  {calculatedPricePerKg !== null && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
+                      <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Presyo bawat Kilo:</span>
+                      <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>₱{calculatedPricePerKg.toFixed(2)}/kg</strong>
                     </div>
                   )}
-
-                  {/* Step 2: Weight Before Sale (MANDATORY) */}
-                  <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <Scale size={15} className="text-emerald-700" />
-                        Timbang Bago Ibenta (kg) <span className="text-red-500">*</span>
-                      </label>
-                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                        REQUIRED
-                      </span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        placeholder="Halimbawa: 45.5"
-                        value={soldWeight}
-                        onChange={(e) => setSoldWeight(e.target.value)}
-                        required
-                        className="w-full pl-3 pr-10 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-500">
-                        kg
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-600 flex items-center gap-1">
-                      <Info size={12} className="text-emerald-700 shrink-0" />
-                      Kailangang timbangin muna ang hayop bago ito maibenta.
-                    </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Katayuan ng Bayad:</span>
+                    <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{paymentStatus}</strong>
                   </div>
-
-                  {/* Step 3: Selling Price (MANDATORY) */}
-                  <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <DollarSign size={15} className="text-emerald-700" />
-                        Presyo ng Pagbebenta (₱) <span className="text-red-500">*</span>
-                      </label>
-                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                        REQUIRED
-                      </span>
+                  {paymentStatus === 'May Kulang' && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
+                      <span style={{ color: '#B45309', fontWeight: 700 }}>Natitirang Kulang:</span>
+                      <strong style={{ color: '#B45309' }}>₱{remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
                     </div>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-500">
-                        ₱
-                      </span>
-                      <input
-                        type="number"
-                        step="1"
-                        min="1"
-                        placeholder="Halimbawa: 6500"
-                        value={sellingPrice}
-                        onChange={(e) => {
-                          setSellingPrice(e.target.value);
-                          if (paymentStatus === 'Bayad na') {
-                            setAmountReceived(e.target.value);
-                          }
-                        }}
-                        required
-                        className="w-full pl-8 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    {/* Step 4: Auto Reference Price per KG */}
-                    {calculatedPricePerKg !== null && (
-                      <div className="bg-emerald-50 text-emerald-900 p-2.5 rounded-lg text-xs flex items-center justify-between">
-                        <span className="text-gray-600 font-medium">Reference kalkulasyon:</span>
-                        <span className="font-bold text-emerald-800">
-                          ₱{calculatedPricePerKg.toFixed(2)} bawat kilo
-                        </span>
-                      </div>
-                    )}
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Bumibili:</span>
+                    <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>
+                      {buyerName ? `${buyerName} ${buyerContact ? `(${buyerContact})` : ''}` : 'Hindi tinukoy'}
+                    </strong>
                   </div>
-
-                  {/* Step 5: Buyer Details (Optional) */}
-                  <div className="space-y-3 pt-1">
-                    <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Impormasyon ng Bumibili (Opsyonal)
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Pangalan ng Bumibili</label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
-                          <input
-                            type="text"
-                            placeholder="Hal. Juan Dela Cruz"
-                            value={buyerName}
-                            onChange={(e) => setBuyerName(e.target.value)}
-                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Contact Number</label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
-                          <input
-                            type="text"
-                            placeholder="0917-xxx-xxxx"
-                            value={buyerContact}
-                            onChange={(e) => setBuyerContact(e.target.value)}
-                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Step 6: Payment Status & Tracking */}
-                  <div className="space-y-3 pt-1 border-t border-gray-100">
-                    <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Katayuan ng Bayad
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['Bayad na', 'May Kulang', 'Pending'] as PaymentStatus[]).map((st) => (
-                        <button
-                          key={st}
-                          type="button"
-                          onClick={() => {
-                            setPaymentStatus(st);
-                            if (st === 'Bayad na') {
-                              setAmountReceived(sellingPrice);
-                            } else if (st === 'Pending') {
-                              setAmountReceived('0');
-                            }
-                          }}
-                          className={`py-2 px-3 text-xs font-medium rounded-lg border text-center transition-all ${
-                            paymentStatus === st
-                              ? 'border-emerald-600 bg-emerald-50 text-emerald-800 font-bold'
-                              : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          {st}
-                        </button>
-                      ))}
-                    </div>
-
-                    {paymentStatus === 'May Kulang' && (
-                      <div className="grid grid-cols-2 gap-3 pt-1">
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">Natanggap na Halaga (₱)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="Hal. 3000"
-                            value={amountReceived}
-                            onChange={(e) => setAmountReceived(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">Natitirang Balanse</label>
-                          <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs font-bold text-amber-800">
-                            ₱{remainingBalance.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Sale Date & Notes */}
-                  <div className="space-y-2 pt-1 border-t border-gray-100">
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Petsa ng Pagbebenta</label>
-                      <input
-                        type="date"
-                        value={saleDate}
-                        onChange={(e) => setSaleDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Karagdagang Tala (Opsyonal)</label>
-                      <textarea
-                        rows={2}
-                        placeholder="Mga tala ukol sa benta..."
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                  </div>
-                </form>
-              ) : (
-                /* Confirmation Screen (Step 7) */
-                <div className="space-y-4">
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-950">
-                    <h4 className="font-bold text-sm text-emerald-900 mb-3 flex items-center gap-2">
-                      <Receipt size={18} />
-                      Detalye ng Pagbebenta
-                    </h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between py-1 border-b border-emerald-100">
-                        <span className="text-gray-600">Hayop:</span>
-                        <span className="font-bold text-gray-900">
-                          {selectedAnimal?.tag_id} ({selectedAnimal?.name || 'Walang pangalan'})
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-emerald-100">
-                        <span className="text-gray-600">Uri:</span>
-                        <span className="font-semibold text-gray-900">
-                          {selectedAnimal?.species === 'Goat' ? 'Kambing' : 'Tupa'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-emerald-100">
-                        <span className="text-gray-600">Timbang Bago Ibenta:</span>
-                        <span className="font-bold text-gray-900">{soldWeight} kg</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-emerald-100">
-                        <span className="text-gray-600">Presyo ng Pagbebenta:</span>
-                        <span className="font-bold text-emerald-800 text-sm">
-                          ₱{parseFloat(sellingPrice || '0').toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      {calculatedPricePerKg !== null && (
-                        <div className="flex justify-between py-1 border-b border-emerald-100">
-                          <span className="text-gray-600">Presyo bawat Kilo:</span>
-                          <span className="font-semibold text-gray-900">
-                            ₱{calculatedPricePerKg.toFixed(2)}/kg
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between py-1 border-b border-emerald-100">
-                        <span className="text-gray-600">Bumibili:</span>
-                        <span className="font-semibold text-gray-900">
-                          {buyerName ? `${buyerName} ${buyerContact ? `(${buyerContact})` : ''}` : 'Hindi tinukoy'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-emerald-100">
-                        <span className="text-gray-600">Katayuan ng Bayad:</span>
-                        <span className="font-bold text-gray-900">{paymentStatus}</span>
-                      </div>
-                      {paymentStatus === 'May Kulang' && (
-                        <div className="flex justify-between py-1 border-b border-emerald-100 text-amber-800 font-bold">
-                          <span>Natitirang Kulang:</span>
-                          <span>₱{remainingBalance.toLocaleString()}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between py-1">
-                        <span className="text-gray-600">Petsa:</span>
-                        <span className="font-medium text-gray-900">{saleDate}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 space-y-1">
-                    <div className="font-semibold flex items-center gap-1.5">
-                      <Info size={14} className="text-blue-700" />
-                      Ano ang mangyayari pagkatapos kumpirmahin:
-                    </div>
-                    <ul className="list-disc list-inside space-y-0.5 text-blue-800 pl-1 text-[11px]">
-                      <li>Awtomatikong mamarkahan ang hayop bilang <strong>'Nabenta'</strong>.</li>
-                      <li>Aalisin ito sa aktibong bilang ng mga alaga sa bukid.</li>
-                      <li>Itatabi ang timbang na ito sa kasaysayan ng timbang ng hayop.</li>
-                      <li>Ligtas na mananatili ang lahat ng medikal at breeding records nito.</li>
-                    </ul>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Petsa ng Benta:</span>
+                    <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{saleDate}</strong>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Modal Footer Actions */}
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50">
-              {formStep === 'input' ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleCloseModal}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    Kanselahin
-                  </button>
-                  <button
-                    type="submit"
-                    form="sellForm"
-                    disabled={!selectedAnimalId || availableAnimals.length === 0}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Ipatuloy sa Kumpirmasyon
-                    <ArrowRight size={14} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => setFormStep('input')}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    Bumalik
-                  </button>
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={handleConfirmSale}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
-                  >
-                    {submitting ? 'Itinatala...' : 'Kumpirmahin at I-save ang Benta'}
-                    <Check size={14} />
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── SALE DETAIL MODAL (Receipt view) ── */}
-      {selectedSaleDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-emerald-800 text-white">
-              <div className="flex items-center gap-2">
-                <Receipt size={18} />
-                <h3 className="font-semibold text-sm">Resibo ng Pagbebenta</h3>
               </div>
-              <button
-                onClick={() => setSelectedSaleDetail(null)}
-                className="text-white/80 hover:text-white p-1 rounded-lg"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            <div className="p-6 space-y-4">
-              <div className="text-center pb-3 border-b border-gray-100">
-                <div className="text-xs uppercase tracking-wider text-gray-500">Halaga ng Benta</div>
-                <div className="text-3xl font-extrabold text-emerald-800 mt-1">
+              {/* Informative explanation */}
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  fontSize: '12px',
+                  color: '#1E40AF',
+                }}
+              >
+                <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Info size={14} color="#2563EB" />
+                  Ano ang mangyayari pagkatapos kumpirmahin:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.5 }}>
+                  <li>Awtomatikong mamarkahan ang hayop bilang <strong>'Nabenta'</strong>.</li>
+                  <li>Aalisin ito sa aktibong bilang ng mga alaga sa bukid.</li>
+                  <li>Itatabi ang timbang na ito sa kasaysayan ng timbang ng bukid.</li>
+                  <li>Ligtas na mananatili ang lahat ng medikal at breeding records nito.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          {formStep === 'input' ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, width: '100%' }}>
+              <Button
+                variant="secondary"
+                onClick={handleCloseModal}
+              >
+                Kanselahin
+              </Button>
+              <Button
+                variant="primary"
+                type="submit"
+                form="sellForm"
+                disabled={!selectedAnimalId || availableAnimals.length === 0}
+                rightIcon={<ArrowRight size={15} />}
+              >
+                Ipatuloy sa Kumpirmasyon
+              </Button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, width: '100%' }}>
+              <Button
+                variant="secondary"
+                disabled={submitting}
+                onClick={() => setFormStep('input')}
+                leftIcon={<ArrowLeft size={15} />}
+              >
+                Bumalik
+              </Button>
+              <Button
+                variant="primary"
+                disabled={submitting}
+                loading={submitting}
+                onClick={handleConfirmSale}
+                rightIcon={<Check size={15} />}
+              >
+                Kumpirmahin at I-save ang Benta
+              </Button>
+            </div>
+          )}
+        </ModalFooter>
+      </Modal>
+
+      {/* ── 10. SALE DETAIL / RECEIPT MODAL ── */}
+      {selectedSaleDetail && (
+        <Modal
+          open={!!selectedSaleDetail}
+          onClose={() => setSelectedSaleDetail(null)}
+          size="md"
+        >
+          <ModalHeader
+            title="Resibo ng Pagbebenta"
+            subtitle={`Talaan ng transaksyon para sa ${selectedSaleDetail.animal_tag_id}`}
+            icon={<Receipt size={20} />}
+            onClose={() => setSelectedSaleDetail(null)}
+          />
+          <ModalBody>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Financial Highlight */}
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '16px',
+                  borderRadius: '14px',
+                  background: 'var(--color-primary-soft, #EAF6ED)',
+                  border: '1px solid rgba(35, 139, 69, 0.20)',
+                }}
+              >
+                <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-secondary, #475569)' }}>
+                  Halaga ng Benta
+                </div>
+                <div style={{ fontSize: '28px', fontWeight: 900, color: 'var(--color-primary, #238B45)', marginTop: 2 }}>
                   ₱{selectedSaleDetail.selling_price.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </div>
-                <div className="inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                  {selectedSaleDetail.payment_status}
+                <div style={{ marginTop: 6 }}>
+                  {selectedSaleDetail.payment_status === 'Bayad na' && (
+                    <span className="sale-badge-paid">
+                      <CheckCircle2 size={12} />
+                      Bayad na
+                    </span>
+                  )}
+                  {selectedSaleDetail.payment_status === 'May Kulang' && (
+                    <span className="sale-badge-partial">
+                      <Clock size={12} />
+                      Kulang: ₱{selectedSaleDetail.remaining_balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
+                  )}
+                  {selectedSaleDetail.payment_status === 'Pending' && (
+                    <span className="sale-badge-pending">
+                      <AlertCircle size={12} />
+                      Pending
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div className="space-y-2.5 text-xs text-gray-700">
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-500">Tag ID:</span>
-                  <span className="font-bold text-gray-900">{selectedSaleDetail.animal_tag_id}</span>
+              {/* Detail Items */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  fontSize: '13px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Tag ID:</span>
+                  <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{selectedSaleDetail.animal_tag_id}</strong>
                 </div>
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-500">Pangalan ng Hayop:</span>
-                  <span className="font-semibold text-gray-900">{selectedSaleDetail.animal_name}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Pangalan ng Hayop:</span>
+                  <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{selectedSaleDetail.animal_name}</strong>
                 </div>
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-500">Uri:</span>
-                  <span className="font-medium text-gray-900">
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Uri:</span>
+                  <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>
                     {selectedSaleDetail.species === 'Goat' ? 'Kambing' : 'Tupa'}
-                  </span>
+                  </strong>
                 </div>
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-500">Timbang Bago Ibenta:</span>
-                  <span className="font-bold text-gray-900">{selectedSaleDetail.sold_weight} kg</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Timbang Bago Ibenta:</span>
+                  <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{selectedSaleDetail.sold_weight} kg</strong>
                 </div>
                 {selectedSaleDetail.price_per_kg && (
-                  <div className="flex justify-between py-1 border-b border-gray-100">
-                    <span className="text-gray-500">Presyo bawat Kilo:</span>
-                    <span className="font-semibold text-gray-900">₱{selectedSaleDetail.price_per_kg.toFixed(2)}/kg</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Presyo bawat Kilo:</span>
+                    <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>₱{selectedSaleDetail.price_per_kg.toFixed(2)}/kg</strong>
                   </div>
                 )}
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-500">Bumibili:</span>
-                  <span className="font-semibold text-gray-900">
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Bumibili:</span>
+                  <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>
                     {selectedSaleDetail.buyer_name || 'Hindi tinukoy'}
-                  </span>
+                  </strong>
                 </div>
                 {selectedSaleDetail.buyer_contact && (
-                  <div className="flex justify-between py-1 border-b border-gray-100">
-                    <span className="text-gray-500">Contact Number:</span>
-                    <span className="font-medium text-gray-900">{selectedSaleDetail.buyer_contact}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Contact Number:</span>
+                    <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{selectedSaleDetail.buyer_contact}</strong>
                   </div>
                 )}
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-500">Halagang Natanggap:</span>
-                  <span className="font-bold text-emerald-800">
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Halagang Natanggap:</span>
+                  <strong style={{ color: 'var(--color-primary, #238B45)' }}>
                     ₱{selectedSaleDetail.amount_received.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </span>
+                  </strong>
                 </div>
                 {selectedSaleDetail.remaining_balance > 0 && (
-                  <div className="flex justify-between py-1 border-b border-gray-100 text-amber-800 font-bold">
-                    <span>Natitirang Balanse:</span>
-                    <span>₱{selectedSaleDetail.remaining_balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                    <span style={{ color: '#B45309', fontWeight: 700 }}>Natitirang Balanse:</span>
+                    <strong style={{ color: '#B45309' }}>
+                      ₱{selectedSaleDetail.remaining_balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </strong>
                   </div>
                 )}
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-500">Petsa ng Benta:</span>
-                  <span className="font-medium text-gray-900">{selectedSaleDetail.sale_date}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
+                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Petsa ng Benta:</span>
+                  <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{selectedSaleDetail.sale_date}</strong>
                 </div>
                 {selectedSaleDetail.notes && (
-                  <div className="pt-1">
-                    <span className="text-gray-500 block mb-0.5">Mga Tala:</span>
-                    <div className="bg-gray-50 p-2 rounded text-gray-800 text-[11px] whitespace-pre-wrap">
+                  <div style={{ paddingTop: 4 }}>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)', display: 'block', marginBottom: 2 }}>Mga Tala:</span>
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: 'var(--input-bg, rgba(255, 255, 255, 0.85))',
+                        border: '1px solid var(--color-border, rgba(35, 139, 69, 0.15))',
+                        fontSize: '12px',
+                        color: 'var(--color-text-primary, #0F172A)',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
                       {selectedSaleDetail.notes}
                     </div>
                   </div>
                 )}
               </div>
             </div>
-
-            <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex justify-end">
-              <button
+          </ModalBody>
+          <ModalFooter>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+              <Button
+                variant="secondary"
                 onClick={() => setSelectedSaleDetail(null)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-xs font-semibold transition-colors"
               >
                 Isara
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </ModalFooter>
+        </Modal>
       )}
     </div>
   );
 }
+
 export default SalesPage;
