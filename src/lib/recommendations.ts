@@ -132,7 +132,7 @@ export function generateDailyAlerts(
         description: `Mahigit isang buwan nang hindi natitimbang si ${animal.name}. Timbangin upang matiyak na tama ang dagdag-timbang at maayos ang sustansya ng pakain.`,
         priority: 'Normal',
         dueLabel: 'Ngayong Linggo',
-        link: '/weights',
+        link: `/animals/${animal.id}`,
       });
     }
 
@@ -390,7 +390,7 @@ export function generateRecommendations(
       description: 'Magtala ng bagong timbang upang masubaybayan ang paglaki at dami ng pakain.',
       priority: 'Normal',
       severity_color: 'blue',
-      link: '/weights',
+      link: '/animals',
     });
     priorities.push({
       id: 'weight-routine',
@@ -398,7 +398,7 @@ export function generateRecommendations(
       icon: 'Scale',
       title: `${animalsNoRecentWeight.length} hayop ang dapat nang timbangin`,
       description: 'Mahigit 30 araw nang walang bagong timbang',
-      link: '/weights',
+      link: '/animals',
     });
   }
 

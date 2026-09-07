@@ -21,6 +21,7 @@ import {
   ShieldAlert, Clock, Stethoscope, ArrowRight, DollarSign, Camera, Pill, Bandage,
 } from 'lucide-react';
 import { isFeedCategory } from '../lib/inventoryOperations';
+import { calculateSalesMetrics } from '../lib/sales';
 import { useMLInsights } from '../lib/mlHooks';
 import { Line, Doughnut } from 'react-chartjs-2';
 import {
@@ -56,10 +57,14 @@ export function Dashboard() {
   const farmData = useFarmData();
   const { screenings: cameraScreenings } = useAllScreenings();
   const navigate = useNavigate();
-  const { animals, healthRecords, weightRecords, vaccinations, inventory, breedingRecords, settings } = farmData;
+  const { animals, healthRecords, weightRecords, vaccinations, inventory, breedingRecords, settings, sales } = farmData;
   const mlInsights = useMLInsights();
 
   const activeAnimals = useMemo(() => animals.filter((a) => !a.archived), [animals]);
+
+  const salesStats = useMemo(() => {
+    return calculateSalesMetrics(sales || []);
+  }, [sales]);
 
   // ── Interactive Species Filter State: 'All' | 'Goat' | 'Sheep' ──────────────
   const [speciesFilter, setSpeciesFilter] = useState<'All' | 'Goat' | 'Sheep'>('All');
@@ -438,7 +443,7 @@ export function Dashboard() {
           { label: 'Magdagdag ng Hayop', to: '/animals', icon: <Plus size={14} className="qa-plus-icon" /> },
           { label: 'Suriin ang Kalusugan', to: '/health', icon: <Stethoscope size={14} className="qa-plus-icon" /> },
           { label: 'Magpakain sa Bukid', to: '/feed', icon: <Package size={14} className="qa-plus-icon" /> },
-          { label: 'Magtala ng Timbang', to: '/weights', icon: <Scale size={14} className="qa-plus-icon" /> },
+          { label: 'Magbenta ng Hayop', to: '/sales?action=add', icon: <DollarSign size={14} className="qa-plus-icon" /> },
           { label: 'Pagpaparami', to: '/breeding', icon: <Baby size={14} className="qa-plus-icon" /> },
           { label: 'Magpagamot', to: '/health', icon: <Bandage size={14} className="qa-plus-icon" /> },
           { label: 'Magtala ng Bakuna', to: '/vaccinations', icon: <Syringe size={14} className="qa-plus-icon" /> },
@@ -446,7 +451,7 @@ export function Dashboard() {
         ]}
       />
 
-      {/* ── ROW OF 5 QUICK ALERT CARDS (MATCHING REFERENCE DESIGN SYSTEM) ── */}
+      {/* ── ROW OF QUICK ALERT & SUMMARY CARDS ── */}
       <div className="quick-alert-row">
         {/* 1. May Alert sa Kalusugan */}
         <div
@@ -540,6 +545,25 @@ export function Dashboard() {
           </div>
           <span className="alert-action">
             Tingnan ngayon <ArrowRight size={13} />
+          </span>
+        </div>
+
+        {/* 6. Natanggap sa Benta */}
+        <div
+          className="quick-alert-card"
+          onClick={() => navigate('/sales')}
+          role="button"
+          tabIndex={0}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span className="alert-label">Natanggap sa Benta</span>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#238B45' }} />
+          </div>
+          <div className="alert-value" style={{ color: '#238B45' }}>
+            ₱{(salesStats.totalReceived || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <span className="alert-action">
+            {salesStats.totalSold} naibenta <ArrowRight size={13} />
           </span>
         </div>
       </div>

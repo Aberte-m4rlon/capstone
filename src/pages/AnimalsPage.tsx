@@ -54,12 +54,25 @@ export function AnimalsPage() {
   const [fSpecies, setFSpecies] = useState('All');
   const [fSex, setFSex] = useState('All');
   const [fHealth, setFHealth] = useState('All');
-  const [fArchived, setFArchived] = useState(false);
+  const [fStatus, setFStatus] = useState<'Active' | 'Sold' | 'All'>('Active');
   const [search, setSearch] = useState('');
+
+  const soldAnimalIds = useMemo(() => {
+    return new Set((farmData.sales || []).map((s) => s.animal_id));
+  }, [farmData.sales]);
 
   const filtered = useMemo(() => {
     return farmData.animals
-      .filter((a) => (fArchived ? a.archived : !a.archived))
+      .filter((a) => {
+        const isSold = soldAnimalIds.has(a.id) || a.status === 'Sold' || a.is_sold;
+        if (fStatus === 'Active') {
+          return !a.archived && !isSold;
+        }
+        if (fStatus === 'Sold') {
+          return isSold;
+        }
+        return true; // 'All'
+      })
       .filter((a) => fSpecies === 'All' || a.species === fSpecies)
       .filter((a) => fSex === 'All' || a.sex === fSex)
       .filter((a) => fHealth === 'All' || a.health_status === fHealth)
@@ -70,7 +83,7 @@ export function AnimalsPage() {
           a.tag_id.toLowerCase().includes(search.toLowerCase()) ||
           (a.breed ?? '').toLowerCase().includes(search.toLowerCase())
       );
-  }, [farmData.animals, fSpecies, fSex, fHealth, fArchived, search]);
+  }, [farmData.animals, soldAnimalIds, fStatus, fSpecies, fSex, fHealth, search]);
 
   const animalStats = useMemo(() => {
     const active = farmData.animals.filter((a) => !a.archived);
@@ -326,7 +339,7 @@ export function AnimalsPage() {
             Mga Hayop
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
-            {filtered.length} {filtered.length === 1 ? 'hayop' : 'mga hayop'} {fArchived ? 'na naka-archive' : 'na kasalukuyan sa bukid'}
+            {filtered.length} {filtered.length === 1 ? 'hayop' : 'mga hayop'} {fStatus === 'Sold' ? 'na naibenta' : fStatus === 'All' ? 'kabuuang rekord' : 'na aktibo sa bukid'}
           </p>
         </div>
         <Button variant="primary" onClick={openAdd} leftIcon={<Plus size={16} />}>
@@ -535,11 +548,15 @@ export function AnimalsPage() {
           ]}
           ariaLabel="Salain ang Kalusugan"
         />
-        <FilterToggle
-          active={fArchived}
-          onToggle={setFArchived}
-          label="Ipakita ang Naka-archive"
-          activeLabel="Naka-archive ang Ipinapakita"
+        <FilterSelect
+          value={fStatus}
+          onChange={(val) => setFStatus(val as 'Active' | 'Sold' | 'All')}
+          options={[
+            { value: 'Active', label: 'Aktibo lamang' },
+            { value: 'Sold', label: 'Mga Nabenta' },
+            { value: 'All', label: 'Lahat ng Hayop' },
+          ]}
+          ariaLabel="Salain ayon sa Katayuan"
         />
       </FilterToolbar>
 
@@ -550,10 +567,10 @@ export function AnimalsPage() {
             <div style={{ padding: 32 }}>
               <EmptyState
                 icon={<Icons.PawPrint size={36} />}
-                title={fArchived ? 'Walang naka-archive na hayop' : 'Wala pang animal records.'}
-                description={fArchived ? 'Dito lalabas ang mga naka-archive na rekord ng hayop.' : 'Magdagdag ng unang hayop para masimulan ang pag-monitor sa bukid.'}
-                actionLabel={fArchived ? undefined : 'Magdagdag ng Hayop'}
-                onAction={fArchived ? undefined : openAdd}
+                title={fStatus === 'Sold' ? 'Walang naitalang nabentang hayop' : 'Wala pang animal records.'}
+                description={fStatus === 'Sold' ? 'Dito lalabas ang mga alagang naibenta na.' : 'Magdagdag ng unang hayop para masimulan ang pag-monitor sa bukid.'}
+                actionLabel={fStatus === 'Sold' ? undefined : 'Magdagdag ng Hayop'}
+                onAction={fStatus === 'Sold' ? undefined : openAdd}
               />
             </div>
           ) : (
@@ -583,7 +600,24 @@ export function AnimalsPage() {
                         }}
                         onClick={() => navigate(`/animals/${a.id}`)}
                       >
-                        {a.name}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>{a.name}</span>
+                          {(soldAnimalIds.has(a.id) || a.status === 'Sold' || a.is_sold) && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '2px 8px',
+                              borderRadius: '9999px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              backgroundColor: '#EAF6ED',
+                              color: '#238B45',
+                              border: '1px solid #C7E9C0',
+                            }}>
+                              Nabenta
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ color: 'var(--color-primary, #238B45)', fontWeight: 600 }}>{a.tag_id}</td>
                       <td style={{ color: 'var(--color-text-secondary, #475569)' }}>{a.species === 'Goat' ? 'Kambing' : 'Tupa'}</td>

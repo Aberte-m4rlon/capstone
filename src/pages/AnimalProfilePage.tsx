@@ -17,7 +17,7 @@ import {
 } from '../lib/analytics';
 import { assessBreedingReadiness } from '../lib/analytics';
 import { Line } from 'react-chartjs-2';
-import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera, Sparkles, Tag, CheckCircle2, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera, Sparkles, Tag, CheckCircle2, Package, DollarSign } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex, TreatmentStatus, TreatmentUsageType } from '../types';
 import { isMedicineCategory, isDewormerCategory, isSupplementCategory, consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
@@ -166,6 +166,10 @@ export function AnimalProfilePage() {
   const animalVaccinations = useMemo(() => farmData.vaccinations.filter((r) => r.animal_id === id), [farmData.vaccinations, id]);
   const animalFeed = useMemo(() => farmData.feedRecords.filter((r) => r.animal_id === id), [farmData.feedRecords, id]);
   const animalMilk = useMemo(() => farmData.milkRecords.filter((r) => r.animal_id === id), [farmData.milkRecords, id]);
+  const animalSale = useMemo(() => {
+    return (farmData.sales || []).find((s) => s.animal_id === id) ?? null;
+  }, [farmData.sales, id]);
+  const isSold = Boolean(animalSale || animal?.status === 'Sold' || animal?.is_sold);
 
   const growth = useMemo(() => calculateGrowth(animalWeights, farmData.settings?.target_weight_kg ?? 40), [animalWeights, farmData.settings]);
   const breedingAssessment = useMemo(() => {
@@ -577,11 +581,31 @@ export function AnimalProfilePage() {
                   color={healthBadgeColor(animal.health_status)}
                   bg={healthBadgeBg(animal.health_status)}
                 />
+                {isSold && (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '4px 12px',
+                    borderRadius: '9999px',
+                    background: '#EAF6ED',
+                    color: '#238B45',
+                    border: '1px solid #C7E9C0',
+                    fontWeight: 700,
+                    fontSize: 13,
+                  }}>
+                    <CheckCircle2 size={14} /> Nabenta
+                  </span>
+                )}
                 {/* Action buttons */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setQrOpen(true)} variant="neutral" />
-                  <ActionBtn icon={<Camera size={14} />} label="AI Health Scan" onClick={() => navigate(`/camera-screening?animalId=${animal.id}`)} variant="orange" />
-                  <ActionBtn icon={<Pencil size={14} />} label="I-edit" onClick={() => setEditOpen(true)} variant="orange" />
+                  {!isSold && (
+                    <ActionBtn icon={<Camera size={14} />} label="AI Health Scan" onClick={() => navigate(`/camera-screening?animalId=${animal.id}`)} variant="orange" />
+                  )}
+                  {!isSold && (
+                    <ActionBtn icon={<Pencil size={14} />} label="I-edit" onClick={() => setEditOpen(true)} variant="orange" />
+                  )}
                   <ActionBtn icon={<Trash2 size={14} />} label="Burahin" onClick={() => setConfirmDelete(true)} variant="red" />
                 </div>
               </div>
@@ -641,6 +665,81 @@ export function AnimalProfilePage() {
             gap: 18,
             width: '100%', minWidth: 0,
           }} className="ap-grid">
+
+            {/* Sales Details Card if Sold */}
+            {isSold && (
+              <GlassCard gridSpan={3} style={{ border: '1px solid #C7E9C0', background: 'linear-gradient(180deg, #F0FDF4 0%, #FFFFFF 100%)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <CardTitle icon={DollarSign} title="Detalye ng Pagbebenta (Sale Details)" />
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 12px',
+                    borderRadius: '9999px',
+                    backgroundColor: '#EAF6ED',
+                    color: '#238B45',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}>
+                    <CheckCircle2 size={14} /> Nabenta na ang hayop na ito
+                  </span>
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 16,
+                  paddingTop: 8,
+                }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Timbang Bago Ibenta</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#1F2937', marginTop: 2 }}>
+                      {animalSale?.sold_weight || animal.weight_kg || '—'} kg
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Presyo ng Pagbebenta</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#238B45', marginTop: 2 }}>
+                      ₱{(animalSale?.selling_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Presyo bawat Kilo</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#374151', marginTop: 2 }}>
+                      {animalSale?.price_per_kg ? `₱${animalSale.price_per_kg.toFixed(2)}/kg` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Bumibili</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginTop: 2 }}>
+                      {animalSale?.buyer_name || 'Hindi tinukoy'}
+                      {animalSale?.buyer_contact && (
+                        <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)' }}>
+                          {animalSale.buyer_contact}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Katayuan ng Bayad</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginTop: 2 }}>
+                      {animalSale?.payment_status || 'Bayad na'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Petsa ng Pagbebenta</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginTop: 2 }}>
+                      {animalSale?.sale_date ? formatDate(animalSale.sale_date) : '—'}
+                    </div>
+                  </div>
+                </div>
+                {animalSale?.notes && (
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #E5E7EB', fontSize: 12, color: '#4B5563' }}>
+                    <strong>Mga Tala sa Benta:</strong> {animalSale.notes}
+                  </div>
+                )}
+              </GlassCard>
+            )}
 
             {/* Health Risk Card */}
             <GlassCard>
@@ -1015,8 +1114,10 @@ export function AnimalProfilePage() {
         {tab === 'weight' && (
           <GlassCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={Scale} title="Weight History" />
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/weights')}><Plus size={15} /> Add Weight</button>
+              <CardTitle icon={Scale} title="Kasaysayan ng Timbang (Weight History)" />
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                {animalWeights.length} talaan ng timbang
+              </span>
             </div>
             {animalWeights.length === 0 ? (
               <div className="empty-state"><div className="es-icon"><Icons.Scale size={24} /></div><h4>No weight records</h4><p>Add a weigh-in to start tracking growth.</p></div>

@@ -10,6 +10,7 @@ import { AnimalProfilePage } from './pages/AnimalProfilePage';
 import { HealthPage } from './pages/HealthPage';
 import { BreedingPage } from './pages/BreedingPage';
 import { WeightsPage } from './pages/WeightsPage';
+import { SalesPage } from './pages/SalesPage';
 import { VaccinationsPage } from './pages/VaccinationsPage';
 import { FeedPage } from './pages/FeedPage';
 import { InventoryPage } from './pages/InventoryPage';
@@ -156,7 +157,8 @@ function AppRoutes() {
         <Route path="/animals/:id" element={<RequireRole allowed={ALL_FARM_ROLES}><AnimalProfilePage /></RequireRole>} />
         <Route path="/health" element={<RequireRole allowed={ALL_FARM_ROLES}><HealthPage /></RequireRole>} />
         <Route path="/breeding" element={<RequireRole allowed={ALL_FARM_ROLES}><BreedingPage /></RequireRole>} />
-        <Route path="/weights" element={<RequireRole allowed={ALL_FARM_ROLES}><WeightsPage /></RequireRole>} />
+        <Route path="/sales" element={<RequireRole allowed={ALL_FARM_ROLES}><SalesPage /></RequireRole>} />
+        <Route path="/weights" element={<Navigate to="/sales" replace />} />
         <Route path="/vaccinations" element={<RequireRole allowed={ALL_FARM_ROLES}><VaccinationsPage /></RequireRole>} />
         <Route path="/feed" element={<RequireRole allowed={ALL_FARM_ROLES}><FeedPage /></RequireRole>} />
         <Route path="/inventory" element={<RequireRole allowed={ALL_FARM_ROLES}><InventoryPage /></RequireRole>} />

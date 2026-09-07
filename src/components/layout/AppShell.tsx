@@ -14,7 +14,7 @@ export const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = 
   '/animals':          { title: 'Mga Hayop',            subtitle: 'Pamamahala ng mga alagang kambing at tupa' },
   '/health':           { title: 'Health Monitoring',    subtitle: 'Subaybayan ang kalagayan ng bawat kambing at tupa.' },
   '/breeding':         { title: 'Breeding',             subtitle: 'Pagpaparami, pagbubuntis, at panganganak' },
-  '/weights':          { title: 'Timbang at Paglaki',   subtitle: 'Subaybayan ang timbang at paglaki ng mga alaga' },
+  '/sales':            { title: 'Benta ng Hayop',        subtitle: 'Pamamahala sa pagbebenta ng mga alagang hayop at kita' },
   '/vaccinations':     { title: 'Mga Bakuna',           subtitle: 'Iskedyul ng bakuna at mga paalala' },
   '/feed':             { title: 'Pamamahala ng Pakain', subtitle: 'Talaan ng konsumo at nutrisyon sa pakain' },
   '/inventory':        { title: 'Farm Inventory',       subtitle: 'Buod ng lahat ng mayroon sa bukid.' },

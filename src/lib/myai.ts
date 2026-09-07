@@ -180,6 +180,7 @@ export function buildFarmContext(
     milkRecords: any[];
     settings: any | null;
     cameraScreenings?: any[]; // optional — camera ML screening results
+    sales?: any[]; // animal sales records
   },
   question: string,
 ): string {
@@ -253,6 +254,29 @@ export function buildFarmContext(
     farmData.weightRecords.slice(0, 20).forEach((r: any) => {
       const gain = r.daily_gain_kg ? ` | gain:${r.daily_gain_kg}kg/day` : '';
       lines.push(`  ${nm[r.animal_id] ?? '?'} | ${r.record_date} | ${r.weight_kg}kg${gain}`);
+    });
+  }
+
+  // Animal Sales
+  const sales = farmData.sales ?? [];
+  if (
+    /sale|sold|benta|nabenta|kita|tubo|buyer|bumili|presyo|halaga|income|revenue|bayad|utang|balance/.test(q) ||
+    sales.length > 0
+  ) {
+    const totalSold = sales.length;
+    const totalRevenue = sales.reduce((s: number, r: any) => s + Number(r.selling_price || 0), 0);
+    const totalReceived = sales.reduce((s: number, r: any) => s + Number(r.amount_received || 0), 0);
+    const totalBalance = sales.reduce((s: number, r: any) => s + Number(r.remaining_balance || 0), 0);
+
+    lines.push(
+      `\n[ANIMAL SALES] ${totalSold} animals sold | Total Sold: ₱${totalRevenue.toFixed(2)} | Received: ₱${totalReceived.toFixed(2)} | Remaining Balance: ₱${totalBalance.toFixed(2)}:`,
+    );
+
+    sales.slice(0, 15).forEach((s: any) => {
+      const aname = nm[s.animal_id] ?? 'Animal';
+      lines.push(
+        `  ${aname} | Sold: ${s.sale_date} | Weight: ${s.sold_weight}kg | Price: ₱${s.selling_price} (₱${s.price_per_kg || 0}/kg) | Buyer: ${s.buyer_name || 'N/A'} | Status: ${s.payment_status} | Received: ₱${s.amount_received} | Bal: ₱${s.remaining_balance}`,
+      );
     });
   }
 

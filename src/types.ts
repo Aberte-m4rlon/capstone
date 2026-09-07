@@ -70,6 +70,8 @@ export interface Animal {
   next_vaccine_date: string | null;
   vaccination_status: VaccinationStatus;
   archived: boolean;
+  status?: 'Active' | 'Sold' | 'Deceased' | 'Transferred' | string;
+  is_sold?: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -278,6 +280,30 @@ export interface Settings {
   vaccine_due_days: number;
   breeding_min_age_months: number;
   breeding_min_weight_kg: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PaymentStatus = 'Bayad na' | 'May Kulang' | 'Pending';
+
+export interface AnimalSale {
+  id: string;
+  user_id: string;
+  animal_id: string;
+  animal_tag_id: string;
+  animal_name: string;
+  species: Species | string;
+  sold_weight: number;
+  selling_price: number;
+  price_per_kg: number | null;
+  buyer_name: string | null;
+  buyer_contact: string | null;
+  payment_status: PaymentStatus;
+  amount_received: number;
+  remaining_balance: number;
+  sale_date: string;
+  notes: string | null;
+  sold_by: string | null;
   created_at: string;
   updated_at: string;
 }

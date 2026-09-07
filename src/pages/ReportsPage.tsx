@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useFarmData } from '../lib/useFarmData';
 import { FilterToolbar, FilterSelect, FilterSearch, FilterDateRange } from '../components/FilterToolbar';
 import { inventoryStatus } from '../lib/analytics';
-import { Printer, FileBarChart, Download, PawPrint, HeartPulse, Package } from 'lucide-react';
+import { Printer, FileBarChart, Download, PawPrint, HeartPulse, Package, DollarSign } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -12,7 +12,7 @@ type ReportType =
   | 'health'
   | 'treatment'
   | 'breeding'
-  | 'weight'
+  | 'sales'
   | 'vaccination'
   | 'feed'
   | 'inventory'
@@ -25,11 +25,11 @@ const REPORT_LABELS: Record<ReportType, string> = {
   health: 'Ulat sa Kalusugan',
   treatment: 'Ulat sa Gamot at Deworming',
   breeding: 'Ulat sa Pagpapalahi (Breeding)',
+  sales: 'Ulat ng Pagbebenta (Animal Sales)',
   vaccination: 'Ulat sa Pagbabakuna',
   feed: 'Ulat sa Pakain',
   inventory: 'Ulat sa Imbentaryo (Balance)',
   ledger: 'Talaan ng Paggalaw ng Imbentaryo (Ledger)',
-  weight: 'Ulat sa Timbang at Paglaki',
   milk: 'Ulat sa Produksyon ng Gatas',
   performance: 'Pangkalahatang Buod ng Bukid',
 };
@@ -96,11 +96,32 @@ export function ReportsPage() {
           .filter((r) => inDateRange(r.mating_date))
           .filter((r) => !search || animalName(r.animal_id).toLowerCase().includes(search.toLowerCase()))
           .map((r) => ({ date: r.mating_date, animal: animalName(r.animal_id), expected: r.expected_kidding_date, status: r.status, notes: r.notes }));
-      case 'weight':
-        return farmData.weightRecords
-          .filter((r) => inDateRange(r.record_date))
-          .filter((r) => !search || animalName(r.animal_id).toLowerCase().includes(search.toLowerCase()))
-          .map((r) => ({ date: r.record_date, animal: animalName(r.animal_id), weight: r.weight_kg, change: r.weight_change_kg, gain: r.daily_gain_kg }));
+      case 'sales':
+        return (farmData.sales || [])
+          .filter((s) => inDateRange(s.sale_date))
+          .filter(
+            (s) =>
+              !search ||
+              animalName(s.animal_id).toLowerCase().includes(search.toLowerCase()) ||
+              (s.buyer_name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+              (s.notes ?? '').toLowerCase().includes(search.toLowerCase())
+          )
+          .map((s) => {
+            const an = farmData.animals.find((a) => a.id === s.animal_id);
+            return {
+              date: s.sale_date,
+              tag_id: an?.tag_id || '—',
+              animal: an?.name || 'Walang Pangalan',
+              species: an?.species === 'Goat' ? 'Kambing' : an?.species === 'Sheep' ? 'Tupa' : '—',
+              sold_weight: `${s.sold_weight} kg`,
+              selling_price: `₱${s.selling_price.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+              price_per_kg: s.price_per_kg ? `₱${s.price_per_kg.toFixed(2)}/kg` : '—',
+              buyer: s.buyer_name || 'Hindi tinukoy',
+              status: s.payment_status,
+              amount_received: `₱${(s.amount_received || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+              remaining_balance: `₱${(s.remaining_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+            };
+          });
       case 'vaccination':
         return farmData.vaccinations
           .filter((r) => inDateRange(r.date_given))
@@ -324,6 +345,33 @@ export function ReportsPage() {
             </div>
           </div>
         </div>
+
+        {/* Sales */}
+        <div
+          onClick={() => setReportType('sales')}
+          className="stat-card"
+          style={{
+            cursor: 'pointer',
+            border: reportType === 'sales' ? '2px solid #238B45' : undefined,
+          }}
+        >
+          <div className="alpas-stat-header">
+            <span className="stat-card-label" style={{ fontWeight: 700 }}>
+              Benta ng Hayop
+            </span>
+            <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <DollarSign size={15} />
+            </div>
+          </div>
+          <div>
+            <div className="stat-card-value">
+              {(farmData.sales || []).length}
+            </div>
+            <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
+              Naibentang hayop
+            </div>
+          </div>
+        </div>
       </div>
 
       <FilterToolbar>
@@ -409,6 +457,12 @@ export function ReportsPage() {
                       total_consumed: 'Kabuuang Nagamit',
                       cost_per_unit: 'Presyo bawat Yunit',
                       reason: 'Dahilan',
+                      sold_weight: 'Timbang Bago Ibenta',
+                      selling_price: 'Presyo ng Benta',
+                      price_per_kg: 'Presyo / kg',
+                      buyer: 'Bumibili',
+                      amount_received: 'Halagang Natanggap',
+                      remaining_balance: 'Natitirang Balanse',
                     };
                     const colName = colMap[h] || (h.charAt(0).toUpperCase() + h.slice(1));
                     return (

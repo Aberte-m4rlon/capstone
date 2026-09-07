@@ -22,7 +22,9 @@ import type {
   Notification,
   Recommendation,
   Settings,
+  AnimalSale,
 } from '../types';
+import { fetchUserSales } from './sales';
 
 export interface FarmData {
   animals: Animal[];
@@ -36,6 +38,7 @@ export interface FarmData {
   milkRecords: MilkRecord[];
   notifications: Notification[];
   recommendations: Recommendation[];
+  sales: AnimalSale[];
   settings: Settings | null;
   loading: boolean;
   refresh: () => Promise<void>;
@@ -53,6 +56,7 @@ const EMPTY: FarmData = {
   milkRecords: [],
   notifications: [],
   recommendations: [],
+  sales: [],
   settings: null,
   loading: true,
   refresh: async () => {},
@@ -116,6 +120,7 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
         notifRes,
         recRes,
         settingsRes,
+        salesRes,
       ] = await Promise.all([
         animalsQ,
         healthQ,
@@ -129,6 +134,7 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
         notifQ,
         recQ,
         settingsQ.maybeSingle(),
+        fetchUserSales(user.id, isSuperAdmin),
       ]);
 
       const fallbackSettings: Settings = {
@@ -147,6 +153,8 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
         updated_at: new Date().toISOString(),
       };
 
+      const salesData = (salesRes as AnimalSale[]) ?? [];
+
       setData({
         animals: (animalsRes.data as Animal[]) ?? [],
         healthRecords: (healthRes.data as HealthRecord[]) ?? [],
@@ -159,6 +167,7 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
         milkRecords: (milkRes.data as MilkRecord[]) ?? [],
         notifications: (notifRes.data as Notification[]) ?? [],
         recommendations: (recRes.data as Recommendation[]) ?? [],
+        sales: salesData,
         settings: (settingsRes.data as Settings) ?? fallbackSettings,
         loading: false,
         refresh,
@@ -200,6 +209,7 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'feed_records', filter }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'milk_records', filter }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_health_screenings', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'animal_sales', filter }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings', filter }, debouncedRefresh)
       .subscribe();
 

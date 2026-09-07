@@ -12,6 +12,7 @@ import {
   Settings as SettingsIcon,
   Users,
   Bot,
+  DollarSign,
 } from 'lucide-react';
 import { GoatIcon } from './GoatIcon';
 
@@ -60,9 +61,9 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
         roles: ['super_admin'],
       },
       {
-        to: '/weights',
-        label: 'Timbang',
-        icon: <Scale size={20} strokeWidth={2.2} />,
+        to: '/sales',
+        label: 'Benta ng Hayop',
+        icon: <DollarSign size={20} strokeWidth={2.2} />,
         roles: ['super_admin'],
       },
       {
@@ -146,9 +147,9 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
         roles: ['system_admin'],
       },
       {
-        to: '/weights',
-        label: 'Timbang',
-        icon: <Scale size={20} strokeWidth={2.2} />,
+        to: '/sales',
+        label: 'Benta ng Hayop',
+        icon: <DollarSign size={20} strokeWidth={2.2} />,
         roles: ['system_admin'],
       },
       {
@@ -169,7 +170,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
         to: '/notifications',
         label: 'Mga Paalala',
         icon: <Bell size={20} strokeWidth={2.2} />,
-        badgeKey: 'alerts',
+        badgeKey: 'notifications',
         roles: ['system_admin'],
       },
       {
@@ -185,20 +186,14 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
         roles: ['system_admin'],
       },
       {
-        to: '/myai',
-        label: 'AI Farm Assistant',
-        icon: <Bot size={20} strokeWidth={2.2} />,
-        roles: ['system_admin'],
-      },
-      {
-        to: '/admin',
-        label: 'Mga User',
+        to: '/users',
+        label: 'User Management',
         icon: <Users size={20} strokeWidth={2.2} />,
         roles: ['system_admin'],
       },
       {
         to: '/settings',
-        label: 'Mga Setting',
+        label: 'Settings',
         icon: <SettingsIcon size={20} strokeWidth={2.2} />,
         roles: ['system_admin'],
       },
@@ -232,9 +227,9 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
       roles: ['farm_manager'],
     },
     {
-      to: '/weights',
-      label: 'Timbang',
-      icon: <Scale size={20} strokeWidth={2.2} />,
+      to: '/sales',
+      label: 'Benta ng Hayop',
+      icon: <DollarSign size={20} strokeWidth={2.2} />,
       roles: ['farm_manager'],
     },
     {

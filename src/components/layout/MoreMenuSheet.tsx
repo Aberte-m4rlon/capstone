@@ -5,6 +5,7 @@ import {
   HeartPulse,
   Heart,
   Scale,
+  DollarSign,
   Syringe,
   Package,
   Camera,
@@ -178,10 +179,10 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
         badge: getBadge('/inventory'),
       },
       {
-        to: '/weights',
-        label: 'Timbang at Paglaki',
-        description: 'Subaybayan ang timbang at paglaki ng mga alaga',
-        icon: <Scale size={20} color="#238B45" />,
+        to: '/sales',
+        label: 'Benta ng Hayop',
+        description: 'Pamamahala sa pagbebenta ng hayop at kita',
+        icon: <DollarSign size={20} color="#238B45" />,
       },
       {
         to: '/feed',
