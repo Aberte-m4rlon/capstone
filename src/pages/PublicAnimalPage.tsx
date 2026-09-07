@@ -310,6 +310,9 @@ export function PublicAnimalPage() {
         const row = rows[0];
         let farmName = 'AlpasFarm';
         let ownerName: string | null = null;
+        let ownerEmail: string | null = null;
+        let ownerPhone: string | null = null;
+        let farmLocation: string | null = null;
         let prevWeight: number | null = null;
         let weightChange: number | null = null;
         let lastWeightDate: string | null = null;
@@ -350,7 +353,7 @@ export function PublicAnimalPage() {
         if (row.user_id) {
           try {
             const [pRes, sRes] = await Promise.all([
-              fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${row.user_id}&select=full_name`, {
+              fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${row.user_id}&select=full_name,email`, {
                 headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
               }),
               fetch(`${SUPABASE_URL}/rest/v1/settings?user_id=eq.${row.user_id}&select=farm_name`, {
@@ -360,6 +363,7 @@ export function PublicAnimalPage() {
             if (pRes.ok) {
               const pData = await pRes.json();
               if (pData?.[0]?.full_name) ownerName = pData[0].full_name;
+              if (pData?.[0]?.email) ownerEmail = pData[0].email;
             }
             if (sRes.ok) {
               const sData = await sRes.json();
@@ -367,6 +371,16 @@ export function PublicAnimalPage() {
             }
           } catch {
             // Non-fatal
+          }
+        }
+
+        // If the viewer is the logged-in owner testing their own QR code, populate from session
+        if (user && user.id === row.user_id) {
+          if (!ownerName && user.user_metadata?.full_name) ownerName = user.user_metadata.full_name;
+          if (!ownerEmail && user.email) ownerEmail = user.email;
+          if (user.user_metadata?.phone) ownerPhone = user.user_metadata.phone;
+          if (user.user_metadata?.location || user.user_metadata?.farm_location) {
+            farmLocation = user.user_metadata.location || user.user_metadata.farm_location;
           }
         }
 
@@ -394,9 +408,9 @@ export function PublicAnimalPage() {
           next_vaccine_date: row.next_vaccine_date,
           farm_name: farmName,
           owner_name: ownerName,
-          owner_email: null,
-          owner_phone: null,
-          farm_location: null,
+          owner_email: ownerEmail,
+          owner_phone: ownerPhone,
+          farm_location: farmLocation,
           registered_on: row.created_at,
           verified: true,
         });
@@ -408,7 +422,7 @@ export function PublicAnimalPage() {
       }
     };
 
-    // Try API endpoint first, fallback automatically to client queries on any non-200 or error
+    // 1. Try relative API endpoint first (/api/public-animal)
     fetch(`/api/public-animal?id=${encodeURIComponent(cleanId)}`)
       .then(async (res) => {
         if (!res.ok) {
@@ -422,9 +436,23 @@ export function PublicAnimalPage() {
         setLoading(false);
       })
       .catch(() => {
-        runClientFallback();
+        // 2. Try production Vercel endpoint as secondary fallback
+        fetch(`https://capstone-delta-jet.vercel.app/api/public-animal?id=${encodeURIComponent(cleanId)}`)
+          .then(async (res2) => {
+            if (!res2.ok) throw new Error('Remote API failed');
+            return res2.json();
+          })
+          .then((data2: PublicAnimalData) => {
+            setAnimal(data2);
+            setError(null);
+            setLoading(false);
+          })
+          .catch(() => {
+            // 3. Fallback to client Supabase queries
+            runClientFallback();
+          });
       });
-  }, [id]);
+  }, [id, user]);
 
   // Generate QR Code data URL for download and canvas
   useEffect(() => {
@@ -1076,216 +1104,418 @@ export function PublicAnimalPage() {
           </div>
         </section>
 
-        {/* ── 5. Owner Contact & Farm Information (Connected to Account) ──── */}
+        {/* ── 5. Owner Information Section ("Impormasyon ng May-ari") ────────── */}
         <section
           style={{
             background: 'var(--color-surface, #ffffff)',
             borderRadius: 18,
             border: '1px solid var(--color-border, #e2e8f0)',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.02)',
-            padding: 18,
+            boxShadow: '0 4px 18px rgba(0, 0, 0, 0.03)',
+            padding: 20,
             marginBottom: 16,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <div
+          {/* Section Header */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+              borderBottom: '1px solid var(--color-border, #e2e8f0)',
+              paddingBottom: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'rgba(35, 139, 69, 0.12)',
+                  color: 'var(--color-primary, #238B45)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <User size={18} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: 'var(--color-text-primary, #0f172a)' }}>
+                  Impormasyon ng May-ari
+                </h2>
+                <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748b)', marginTop: 2 }}>
+                  Opisyal na may-ari at contact details ng bukid
+                </div>
+              </div>
+            </div>
+
+            <span
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: 'rgba(35, 139, 69, 0.10)',
-                color: 'var(--color-primary, #238B45)',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                gap: 4,
+                padding: '3px 9px',
+                borderRadius: 9999,
+                background: 'rgba(35, 139, 69, 0.08)',
+                color: '#16A34A',
+                fontSize: 11,
+                fontWeight: 700,
               }}
             >
-              <PhoneCall size={16} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary, #0f172a)' }}>
-                Impormasyon sa Pakikipag-ugnayan
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748b)' }}>
-                May-ari at detalye ng bukid
-              </div>
-            </div>
+              <ShieldCheck size={12} />
+              Beripikado
+            </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Owner Name */}
+          {/* Owner Details List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* 1. May-ari (Owner Name) - PROMINENT */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
-                padding: '10px 14px',
-                borderRadius: 12,
+                gap: 14,
+                padding: '12px 14px',
+                borderRadius: 14,
                 background: 'var(--color-background, #f8fafc)',
+                border: '1px solid var(--color-border, #e2e8f0)',
               }}
             >
-              <User size={16} color="var(--color-primary, #238B45)" style={{ flexShrink: 0 }} />
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: 'var(--color-surface, #ffffff)',
+                  border: '1px solid var(--color-border, #e2e8f0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-primary, #238B45)',
+                  flexShrink: 0,
+                }}
+              >
+                <User size={18} />
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748b)' }}>May-ari (Owner)</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0f172a)' }}>
-                  {animal.owner_name || 'AlpasFarm Registered Farmer'}
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  May-ari
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--color-text-primary, #0f172a)', marginTop: 1, wordBreak: 'break-word' }}>
+                  {animal.owner_name || 'ALPASFARM Registered Owner'}
                 </div>
               </div>
             </div>
 
-            {/* Farm Name */}
+            {/* 2. Bukid (Farm Name) */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
-                padding: '10px 14px',
-                borderRadius: 12,
+                gap: 14,
+                padding: '12px 14px',
+                borderRadius: 14,
                 background: 'var(--color-background, #f8fafc)',
+                border: '1px solid var(--color-border, #e2e8f0)',
               }}
             >
-              <Building2 size={16} color="var(--color-primary, #238B45)" style={{ flexShrink: 0 }} />
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: 'var(--color-surface, #ffffff)',
+                  border: '1px solid var(--color-border, #e2e8f0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-primary, #238B45)',
+                  flexShrink: 0,
+                }}
+              >
+                <Building2 size={18} />
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748b)' }}>Pangalan ng Bukid (Farm)</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0f172a)' }}>
-                  {animal.farm_name || 'AlpasFarm'}
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Bukid
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary, #0f172a)', marginTop: 1, wordBreak: 'break-word' }}>
+                  {animal.farm_name || 'ALPASFARM Farm'}
                 </div>
               </div>
             </div>
 
-            {/* Farm Location (if public) */}
+            {/* 3. Lokasyon (Farm Location) */}
             {animal.farm_location && (
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 14px',
-                  borderRadius: 12,
+                  gap: 14,
+                  padding: '12px 14px',
+                  borderRadius: 14,
                   background: 'var(--color-background, #f8fafc)',
+                  border: '1px solid var(--color-border, #e2e8f0)',
                 }}
               >
-                <MapPin size={16} color="var(--color-primary, #238B45)" style={{ flexShrink: 0 }} />
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: 'var(--color-surface, #ffffff)',
+                    border: '1px solid var(--color-border, #e2e8f0)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-primary, #238B45)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <MapPin size={18} />
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748b)' }}>Lokasyon ng Bukid (Location)</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0f172a)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Lokasyon
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary, #0f172a)', marginTop: 1, wordBreak: 'break-word' }}>
                     {animal.farm_location}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Contact Number (if public) */}
+            {/* 4. Telepono / Mobile */}
             {animal.owner_phone && (
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 14px',
-                  borderRadius: 12,
+                  gap: 14,
+                  padding: '12px 14px',
+                  borderRadius: 14,
                   background: 'var(--color-background, #f8fafc)',
+                  border: '1px solid var(--color-border, #e2e8f0)',
                 }}
               >
-                <Phone size={16} color="var(--color-primary, #238B45)" style={{ flexShrink: 0 }} />
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: 'var(--color-surface, #ffffff)',
+                    border: '1px solid var(--color-border, #e2e8f0)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-primary, #238B45)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Phone size={18} />
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748b)' }}>Numero ng Telepono (Phone)</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0f172a)' }}>
-                    {animal.owner_phone}
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Telepono / Mobile
                   </div>
+                  <a
+                    href={`tel:${animal.owner_phone}`}
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: 'var(--color-primary, #238B45)',
+                      marginTop: 1,
+                      display: 'inline-block',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    {animal.owner_phone}
+                  </a>
                 </div>
               </div>
             )}
 
-            {/* Email Address (if public) */}
+            {/* 5. Email */}
             {animal.owner_email && (
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 14px',
-                  borderRadius: 12,
-                  background: 'var(--color-background, #f8fafc)',
-                }}
-              >
-                <Mail size={16} color="var(--color-primary, #238B45)" style={{ flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748b)' }}>Email Address</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary, #0f172a)' }}>
-                    {animal.owner_email}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Fallback if owner has no public contact methods enabled */}
-            {!hasPublicContact && (
-              <div
-                style={{
+                  gap: 14,
                   padding: '12px 14px',
-                  borderRadius: 12,
+                  borderRadius: 14,
                   background: 'var(--color-background, #f8fafc)',
-                  border: '1px dashed var(--color-border, #e2e8f0)',
-                  fontSize: 12,
-                  color: 'var(--color-text-secondary, #64748b)',
-                  textAlign: 'center',
+                  border: '1px solid var(--color-border, #e2e8f0)',
                 }}
               >
-                Walang public contact information na available.
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: 'var(--color-surface, #ffffff)',
+                    border: '1px solid var(--color-border, #e2e8f0)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-primary, #238B45)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Mail size={18} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary, #64748b)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Email
+                  </div>
+                  <a
+                    href={`mailto:${animal.owner_email}`}
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: 'var(--color-text-primary, #0f172a)',
+                      marginTop: 1,
+                      display: 'inline-block',
+                      textDecoration: 'none',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {animal.owner_email}
+                  </a>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Contact Action Buttons (Call / Email) */}
+          {/* Action Buttons: [ Call Owner ] and [ Email Owner ] */}
           {(animal.owner_phone || animal.owner_email) && (
-            <div style={{ display: 'grid', gridTemplateColumns: animal.owner_phone && animal.owner_email ? 'repeat(2, 1fr)' : '1fr', gap: 10, marginTop: 14 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: animal.owner_phone && animal.owner_email ? 'repeat(auto-fit, minmax(200px, 1fr))' : '1fr',
+                gap: 12,
+                marginTop: 16,
+              }}
+            >
               {animal.owner_phone && (
                 <a
                   href={`tel:${animal.owner_phone}`}
                   style={{
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 8,
-                    padding: '11px 16px',
-                    borderRadius: 9999,
+                    padding: '13px 20px',
+                    borderRadius: 12,
                     background: 'var(--color-primary, #238B45)',
                     color: '#ffffff',
                     fontWeight: 700,
-                    fontSize: 13,
+                    fontSize: 14,
                     textDecoration: 'none',
-                    minHeight: 44,
-                    boxShadow: '0 2px 8px rgba(35, 139, 69, 0.25)',
+                    minHeight: 48,
+                    boxShadow: '0 4px 14px rgba(35, 139, 69, 0.30)',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <Phone size={15} />
-                  Tawagan ang May-ari
+                  <Phone size={17} />
+                  Call Owner
                 </a>
               )}
               {animal.owner_email && (
                 <a
                   href={`mailto:${animal.owner_email}`}
                   style={{
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 8,
-                    padding: '11px 16px',
-                    borderRadius: 9999,
+                    padding: '13px 20px',
+                    borderRadius: 12,
                     background: 'var(--color-surface, #ffffff)',
                     border: '1px solid var(--color-border, #e2e8f0)',
                     color: 'var(--color-text-primary, #0f172a)',
                     fontWeight: 700,
-                    fontSize: 13,
+                    fontSize: 14,
                     textDecoration: 'none',
-                    minHeight: 44,
+                    minHeight: 48,
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <Mail size={15} color="var(--color-primary, #238B45)" />
-                  Mag-email
+                  <Mail size={17} color="var(--color-primary, #238B45)" />
+                  Email Owner
                 </a>
               )}
+            </div>
+          )}
+        </section>
+
+        {/* ── 6. Lost / Found Animal Section ("May Nakakita ba sa Hayop na Ito?") ── */}
+        <section
+          style={{
+            background: 'rgba(35, 139, 69, 0.05)',
+            borderRadius: 18,
+            border: '1.5px dashed rgba(35, 139, 69, 0.35)',
+            padding: 18,
+            marginBottom: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: 'rgba(35, 139, 69, 0.12)',
+                color: 'var(--color-primary, #238B45)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                marginTop: 2,
+              }}
+            >
+              <AlertCircle size={18} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: 'var(--color-text-primary, #0f172a)' }}>
+                May Nakakita ba sa Hayop na Ito?
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)', lineHeight: 1.5, margin: '6px 0 0' }}>
+                Kung nakita mo ang hayop na ito at hindi mo alam kung saan ito ibabalik, maaari mong kontakin ang may-ari gamit ang contact information sa ibaba.
+              </p>
+            </div>
+          </div>
+
+          {animal.owner_phone && (
+            <div style={{ marginTop: 2 }}>
+              <a
+                href={`tel:${animal.owner_phone}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  width: '100%',
+                  padding: '13px 20px',
+                  borderRadius: 12,
+                  background: '#16A34A',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  textDecoration: 'none',
+                  minHeight: 48,
+                  boxShadow: '0 3px 12px rgba(22, 163, 74, 0.25)',
+                }}
+              >
+                <Phone size={16} />
+                Tawagan Agad ang May-ari ({animal.owner_phone})
+              </a>
             </div>
           )}
         </section>

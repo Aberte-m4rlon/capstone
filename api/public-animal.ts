@@ -25,17 +25,36 @@ function resolveCredentials(): { url: string; key: string } {
   const urlMatch = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/);
   const targetRef = urlMatch ? urlMatch[1] : KNOWN_PROJECT_REF;
 
-  const candidates = [
-    process.env.VITE_SUPABASE_SERVICE_KEY,
+  // 1. MUST prioritize valid service_role keys to bypass RLS and enable auth.admin
+  const serviceRoleCandidates = [
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
     process.env.SUPABASE_SERVICE_KEY,
+    process.env.VITE_SUPABASE_SERVICE_KEY,
+    KNOWN_SERVICE_KEY,
+  ].filter(Boolean) as string[];
+
+  for (const candidate of serviceRoleCandidates) {
+    try {
+      const parts = candidate.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.ref === targetRef && payload.role === 'service_role') {
+          return { url, key: candidate };
+        }
+      }
+    } catch {
+      // Continue search
+    }
+  }
+
+  // 2. Fallback to anon candidates
+  const anonCandidates = [
     process.env.VITE_SUPABASE_ANON_KEY,
     process.env.SUPABASE_ANON_KEY,
-    KNOWN_SERVICE_KEY,
     KNOWN_ANON_KEY,
   ].filter(Boolean) as string[];
 
-  // Choose the first key whose JWT payload matches targetRef
-  for (const candidate of candidates) {
+  for (const candidate of anonCandidates) {
     try {
       const parts = candidate.split('.');
       if (parts.length === 3) {
@@ -236,32 +255,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         // Non-fatal
       }
 
-      // User metadata & privacy controls via Admin API
+      // User metadata & contact info via Admin API
       try {
         const { data: userData } = await supabase.auth.admin.getUserById(userId);
         if (userData?.user) {
           const meta = userData.user.user_metadata || {};
           const metaEmail = userData.user.email || meta.email;
-          const metaPhone = userData.user.phone || meta.phone;
+          const metaPhone = userData.user.phone || meta.phone || meta.contact_number;
           const metaLocation = meta.location || meta.farm_location;
 
-          // Privacy settings (default to true if data is provided and not explicitly set to false)
-          const allowPhone = meta.show_contact_number !== false && meta.show_phone !== false;
-          const allowEmail = meta.show_email !== false;
-          const allowLocation = meta.show_farm_location !== false && meta.show_location !== false;
-
-          ownerPhone = allowPhone && metaPhone ? String(metaPhone) : null;
-          ownerEmail = allowEmail && metaEmail ? String(metaEmail) : null;
-          farmLocation = allowLocation && metaLocation ? String(metaLocation) : null;
-
+          // For lost animal recovery: owner name & phone are public by default if registered
+          if (metaPhone && meta.show_contact_number !== false) {
+            ownerPhone = String(metaPhone);
+          }
+          if (metaLocation && meta.show_farm_location !== false) {
+            farmLocation = String(metaLocation);
+          }
+          if ((metaEmail || ownerEmail) && meta.show_email !== false) {
+            ownerEmail = String(metaEmail || ownerEmail);
+          }
           if (!ownerName && meta.full_name) {
             ownerName = meta.full_name;
+          }
+          if ((!farmName || farmName === 'AlpasFarm') && meta.farm_name) {
+            farmName = meta.farm_name;
           }
         }
       } catch {
         // Non-fatal
       }
     }
+
+    if (!farmName) farmName = 'ALPASFARM Farm';
+    if (!ownerName) ownerName = 'ALPASFARM Registered Owner';
 
     // 4. Return clean, secure public payload (NO internal IDs, NO private health logs)
     res.status(200).json({
