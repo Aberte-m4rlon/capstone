@@ -247,113 +247,183 @@ export function PublicAnimalPage() {
   // Fetch verified animal profile
   useEffect(() => {
     if (!id) return;
+    const cleanId = id.trim();
     setLoading(true);
     setError(null);
 
-    // Call the dedicated public API endpoint first
-    fetch(`/api/public-animal?id=${encodeURIComponent(id)}`)
+    const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://hhhagfydxhetspmudyrl.supabase.co';
+    const SUPABASE_ANON_KEY =
+      (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaGFnZnlkeGhldHNwbXVkeXJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjQ2NzcsImV4cCI6MjEwMTUwMDY3N30.bD2aDdQ9g_ePgcCNSw008uuGR1_nl9n4IlNiPUZc_3E';
+
+    const fields = [
+      'id', 'tag_id', 'name', 'species', 'breed', 'sex', 'date_of_birth',
+      'color_markings', 'photo_url', 'weight_kg', 'health_status',
+      'health_risk_score', 'current_temperature', 'current_heart_rate',
+      'breeding_status', 'vaccination_status', 'last_vaccine_date',
+      'next_vaccine_date', 'notes', 'archived', 'created_at', 'user_id',
+    ].join(',');
+
+    // Fallback direct Supabase anon query
+    const runClientFallback = async () => {
+      try {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+        let rows: any[] = [];
+
+        if (isUUID) {
+          const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/animals?id=eq.${encodeURIComponent(cleanId)}&select=${fields}&archived=eq.false&limit=1`,
+            {
+              headers: {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                Accept: 'application/json',
+              },
+            },
+          );
+          if (res.ok) {
+            rows = await res.json();
+          }
+        }
+
+        // If not UUID or UUID returned nothing, search by tag_id
+        if (!rows || rows.length === 0) {
+          const tagRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/animals?tag_id=ilike.${encodeURIComponent(cleanId)}&select=${fields}&archived=eq.false&limit=1`,
+            {
+              headers: {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                Accept: 'application/json',
+              },
+            },
+          );
+          if (tagRes.ok) {
+            rows = await tagRes.json();
+          }
+        }
+
+        if (!rows || rows.length === 0) {
+          throw new Error('Hindi makita ang animal profile. Maaaring mali o expired ang QR/profile link, o tinanggal na ang tala ng hayop na ito sa ALPASFARM.');
+        }
+
+        const row = rows[0];
+        let farmName = 'AlpasFarm';
+        let ownerName: string | null = null;
+        let prevWeight: number | null = null;
+        let weightChange: number | null = null;
+        let lastWeightDate: string | null = null;
+
+        // Fetch weight history
+        try {
+          const wrRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/weight_records?animal_id=eq.${row.id}&select=weight_kg,previous_weight_kg,weight_change_kg,record_date&order=record_date.desc,created_at.desc&limit=2`,
+            {
+              headers: {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+                Accept: 'application/json',
+              },
+            },
+          );
+          if (wrRes.ok) {
+            const wRecords = await wrRes.json();
+            if (wRecords && wRecords.length > 0) {
+              const latest = wRecords[0];
+              lastWeightDate = latest.record_date;
+              if (wRecords.length > 1 && wRecords[1].weight_kg != null) {
+                prevWeight = wRecords[1].weight_kg;
+                weightChange = Number(((row.weight_kg ?? latest.weight_kg) - wRecords[1].weight_kg).toFixed(2));
+              } else if (latest.previous_weight_kg != null) {
+                prevWeight = latest.previous_weight_kg;
+                weightChange = latest.weight_change_kg != null
+                  ? Number(latest.weight_change_kg)
+                  : Number(((row.weight_kg ?? latest.weight_kg) - latest.previous_weight_kg).toFixed(2));
+              }
+            }
+          }
+        } catch {
+          // Non-fatal
+        }
+
+        // Fetch owner and farm info
+        if (row.user_id) {
+          try {
+            const [pRes, sRes] = await Promise.all([
+              fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${row.user_id}&select=full_name`, {
+                headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+              }),
+              fetch(`${SUPABASE_URL}/rest/v1/settings?user_id=eq.${row.user_id}&select=farm_name`, {
+                headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+              }),
+            ]);
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              if (pData?.[0]?.full_name) ownerName = pData[0].full_name;
+            }
+            if (sRes.ok) {
+              const sData = await sRes.json();
+              if (sData?.[0]?.farm_name) farmName = sData[0].farm_name;
+            }
+          } catch {
+            // Non-fatal
+          }
+        }
+
+        setAnimal({
+          id: row.id,
+          tag_id: row.tag_id,
+          name: row.name,
+          species: row.species,
+          breed: row.breed,
+          sex: row.sex,
+          date_of_birth: row.date_of_birth,
+          color_markings: row.color_markings,
+          photo_url: row.photo_url,
+          weight_kg: row.weight_kg,
+          previous_weight_kg: prevWeight,
+          weight_change_kg: weightChange,
+          last_weight_date: lastWeightDate,
+          health_status: row.health_status,
+          health_risk_score: row.health_risk_score || 0,
+          current_temperature: row.current_temperature,
+          current_heart_rate: row.current_heart_rate,
+          breeding_status: row.breeding_status,
+          vaccination_status: row.vaccination_status,
+          last_vaccine_date: row.last_vaccine_date,
+          next_vaccine_date: row.next_vaccine_date,
+          farm_name: farmName,
+          owner_name: ownerName,
+          owner_email: null,
+          owner_phone: null,
+          farm_location: null,
+          registered_on: row.created_at,
+          verified: true,
+        });
+        setError(null);
+      } catch (err: any) {
+        setError(err.message || 'Hindi makita ang animal profile.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Try API endpoint first, fallback automatically to client queries on any non-200 or error
+    fetch(`/api/public-animal?id=${encodeURIComponent(cleanId)}`)
       .then(async (res) => {
-        if (res.ok) {
-          return res.json();
+        if (!res.ok) {
+          throw new Error('API request not ok');
         }
-        // If 404
-        if (res.status === 404) {
-          throw new Error('Hindi makita ang animal profile. Maaaring mali o expired ang QR/profile link.');
-        }
-        throw new Error('Fallback required');
+        return res.json();
       })
       .then((data: PublicAnimalData) => {
         setAnimal(data);
         setError(null);
+        setLoading(false);
       })
-      .catch((apiErr) => {
-        if (apiErr.message.includes('Hindi makita')) {
-          setError(apiErr.message);
-          return;
-        }
-
-        // Direct client fallback via Supabase anon key
-        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-        const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-        const fields = [
-          'id', 'tag_id', 'name', 'species', 'breed', 'sex', 'date_of_birth',
-          'color_markings', 'photo_url', 'weight_kg', 'health_status',
-          'health_risk_score', 'current_temperature', 'current_heart_rate',
-          'breeding_status', 'vaccination_status', 'last_vaccine_date',
-          'next_vaccine_date', 'notes', 'archived', 'created_at', 'user_id',
-        ].join(',');
-
-        fetch(
-          `${SUPABASE_URL}/rest/v1/animals?id=eq.${id}&select=${fields}&archived=eq.false`,
-          {
-            headers: {
-              apikey: SUPABASE_ANON_KEY,
-              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-              Accept: 'application/json',
-            },
-          },
-        )
-          .then(async (res) => {
-            if (!res.ok) throw new Error('Hindi makita ang animal profile.');
-            return res.json();
-          })
-          .then(async (rows: any[]) => {
-            if (!rows || rows.length === 0) {
-              throw new Error('Hindi makita ang animal profile. Maaaring mali o expired ang QR/profile link.');
-            }
-            const row = rows[0];
-            let farmName = 'AlpasFarm';
-            let ownerName = null;
-
-            if (row.user_id) {
-              try {
-                const sr = await fetch(
-                  `${SUPABASE_URL}/rest/v1/settings?user_id=eq.${row.user_id}&select=farm_name`,
-                  { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } },
-                );
-                const sdata = await sr.json();
-                if (sdata?.[0]?.farm_name) farmName = sdata[0].farm_name;
-              } catch {
-                // Non-fatal
-              }
-            }
-
-            setAnimal({
-              id: row.id,
-              tag_id: row.tag_id,
-              name: row.name,
-              species: row.species,
-              breed: row.breed,
-              sex: row.sex,
-              date_of_birth: row.date_of_birth,
-              color_markings: row.color_markings,
-              photo_url: row.photo_url,
-              weight_kg: row.weight_kg,
-              previous_weight_kg: null,
-              weight_change_kg: null,
-              last_weight_date: null,
-              health_status: row.health_status,
-              health_risk_score: row.health_risk_score || 0,
-              current_temperature: row.current_temperature,
-              current_heart_rate: row.current_heart_rate,
-              breeding_status: row.breeding_status,
-              vaccination_status: row.vaccination_status,
-              last_vaccine_date: row.last_vaccine_date,
-              next_vaccine_date: row.next_vaccine_date,
-              farm_name: farmName,
-              owner_name: ownerName,
-              owner_email: null,
-              owner_phone: null,
-              farm_location: null,
-              registered_on: row.created_at,
-              verified: true,
-            });
-            setError(null);
-          })
-          .catch((err) => setError(err.message));
-      })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        runClientFallback();
+      });
   }, [id]);
 
   // Generate QR Code data URL for download and canvas

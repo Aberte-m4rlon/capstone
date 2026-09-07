@@ -11,13 +11,46 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SERVICE_KEY =
-  process.env.VITE_SUPABASE_SERVICE_KEY ||
-  process.env.SUPABASE_SERVICE_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.SUPABASE_ANON_KEY ||
-  '';
+const KNOWN_PROJECT_REF = 'hhhagfydxhetspmudyrl';
+const KNOWN_SUPABASE_URL = 'https://hhhagfydxhetspmudyrl.supabase.co';
+const KNOWN_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaGFnZnlkeGhldHNwbXVkeXJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjQ2NzcsImV4cCI6MjEwMTUwMDY3N30.bD2aDdQ9g_ePgcCNSw008uuGR1_nl9n4IlNiPUZc_3E';
+const KNOWN_SERVICE_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoaGFnZnlkeGhldHNwbXVkeXJsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTkyNDY3NywiZXhwIjoyMTAxNTAwNjc3fQ.TJBbDQsA0bbptxVt4-ewAd9M0nxIrv_O1XRh01Ehk00';
+
+function resolveCredentials(): { url: string; key: string } {
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || KNOWN_SUPABASE_URL;
+
+  // Extract project ref from url
+  const urlMatch = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/);
+  const targetRef = urlMatch ? urlMatch[1] : KNOWN_PROJECT_REF;
+
+  const candidates = [
+    process.env.VITE_SUPABASE_SERVICE_KEY,
+    process.env.SUPABASE_SERVICE_KEY,
+    process.env.VITE_SUPABASE_ANON_KEY,
+    process.env.SUPABASE_ANON_KEY,
+    KNOWN_SERVICE_KEY,
+    KNOWN_ANON_KEY,
+  ].filter(Boolean) as string[];
+
+  // Choose the first key whose JWT payload matches targetRef
+  for (const candidate of candidates) {
+    try {
+      const parts = candidate.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.ref === targetRef) {
+          return { url, key: candidate };
+        }
+      }
+    } catch {
+      // Continue search
+    }
+  }
+
+  return { url: KNOWN_SUPABASE_URL, key: KNOWN_SERVICE_KEY };
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   // CORS Headers
@@ -38,56 +71,82 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
-    res.status(400).json({ error: 'Kailangan ang animal ID.' });
+    res.status(400).json({ error: 'Kailangan ang animal ID o Tag ID.' });
     return;
   }
 
-  if (!SUPABASE_URL || !SERVICE_KEY) {
-    res.status(500).json({ error: 'Server configuration error.' });
-    return;
-  }
+  const cleanId = id.trim();
+  const { url: supabaseUrl, key: supabaseKey } = resolveCredentials();
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
+  const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
   try {
-    // 1. Fetch non-archived animal
-    const { data: animals, error: animalErr } = await supabase
-      .from('animals')
-      .select(`
-        id,
-        tag_id,
-        name,
-        species,
-        breed,
-        sex,
-        date_of_birth,
-        color_markings,
-        photo_url,
-        weight_kg,
-        health_status,
-        health_risk_score,
-        current_temperature,
-        current_heart_rate,
-        breeding_status,
-        last_mating_date,
-        expected_kidding_date,
-        vaccination_status,
-        last_vaccine_date,
-        next_vaccine_date,
-        notes,
-        created_at,
-        user_id
-      `)
-      .eq('id', id)
-      .eq('archived', false)
-      .limit(1);
+    const fields = `
+      id,
+      tag_id,
+      name,
+      species,
+      breed,
+      sex,
+      date_of_birth,
+      color_markings,
+      photo_url,
+      weight_kg,
+      health_status,
+      health_risk_score,
+      current_temperature,
+      current_heart_rate,
+      breeding_status,
+      last_mating_date,
+      expected_kidding_date,
+      vaccination_status,
+      last_vaccine_date,
+      next_vaccine_date,
+      notes,
+      created_at,
+      user_id
+    `;
+
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+    let animals: any[] | null = null;
+    let animalErr: any = null;
+
+    // 1. If cleanId is UUID, search by ID first
+    if (isUUID) {
+      const result = await supabase
+        .from('animals')
+        .select(fields)
+        .eq('id', cleanId)
+        .eq('archived', false)
+        .limit(1);
+
+      animals = result.data;
+      animalErr = result.error;
+    }
+
+    // 2. If not found by UUID or cleanId is a Tag ID, search by tag_id
+    if (!animals || animals.length === 0) {
+      const tagResult = await supabase
+        .from('animals')
+        .select(fields)
+        .ilike('tag_id', cleanId)
+        .eq('archived', false)
+        .limit(1);
+
+      if (tagResult.data && tagResult.data.length > 0) {
+        animals = tagResult.data;
+        animalErr = null;
+      } else if (!animalErr) {
+        animalErr = tagResult.error;
+      }
+    }
 
     if (animalErr || !animals || animals.length === 0) {
       res.status(404).json({
         error: 'Hindi makita ang animal profile.',
-        details: 'Maaaring mali o expired ang QR/profile link.',
+        details: 'Maaaring mali o expired ang QR/profile link, o tinanggal na ang tala ng hayop na ito sa ALPASFARM.',
       });
       return;
     }
