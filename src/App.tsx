@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth, type UserRole } from './lib/auth';
 import { ToastProvider, ErrorBoundary } from './components/ui';
 import { AppShell } from './components/AppShell';
@@ -113,12 +113,22 @@ const ALL_FARM_ROLES: UserRole[] = ['farm_manager', 'super_admin', 'system_admin
 
 function AppRoutes() {
   const { user, role, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
       <div className="loading-center">
         <div className="spinner" />
       </div>
+    );
+  }
+
+  // Standalone public animal passport view (e.g. scanned via ear tag QR code)
+  if (location.pathname.startsWith('/public/')) {
+    return (
+      <Routes>
+        <Route path="/public/:id" element={<PublicAnimalPage />} />
+      </Routes>
     );
   }
 
@@ -130,7 +140,6 @@ function AppRoutes() {
         <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage />} />
         <Route path="/forgot-password" element={<AuthPage />} />
-        <Route path="/public/:id" element={<PublicAnimalPage />} />
         {/* Redirect unauthenticated requests to login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
@@ -167,9 +176,6 @@ function AppRoutes() {
 
         {/* ── Super Admin routes ── */}
         <Route path="/super-admin" element={<RequireRole allowed={['super_admin']}><SuperAdminPage /></RequireRole>} />
-
-        {/* ── Public (authenticated or not) ── */}
-        <Route path="/public/:id" element={<PublicAnimalPage />} />
 
         {/* ── Root redirect based on role ── */}
         <Route
