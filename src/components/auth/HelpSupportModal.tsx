@@ -9,7 +9,7 @@ export interface HelpSupportModalProps {
   open: boolean;
   onClose: () => void;
   onSelectForgotPassword: () => void;
-  onSelectVerifyHelp: () => void;
+  onSelectVerifyHelp?: () => void;
   adminEmail?: string;
   adminPhone?: string;
 }
@@ -70,11 +70,10 @@ export function HelpSupportModal({
       question: 'Paano mag-sign in?',
       answer: (
         <div>
-          <p style={{ margin: '0 0 6px' }}>May tatlong mabilis na paraan upang makapasok sa ALPASFARM:</p>
+          <p style={{ margin: '0 0 6px' }}>May dalawang mabilis na paraan upang makapasok sa ALPASFARM:</p>
           <ol style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
             <li><strong>Email at Password:</strong> I-type ang iyong rehistradong email at password sa sign-in form.</li>
-            <li><strong>6-Digit Email Code:</strong> Mag-sign in gamit ang pansamantalang authentication code na ipinapadala sa iyong email inbox nang walang password.</li>
-            <li><strong>Google Sign-In:</strong> Pindutin ang <em>"Magpatuloy gamit ang Google"</em> para sa mabilis at ligtas na one-click login.</li>
+            <li><strong>Google Sign-In:</strong> Pindutin ang <em>"Magpatuloy gamit ang Google"</em> para sa mabilis at ligtas na one-click login gamit ang iyong Gmail account.</li>
           </ol>
         </div>
       ),
@@ -95,7 +94,7 @@ export function HelpSupportModal({
             marginBottom: 10,
             fontSize: 12.5,
           }}>
-            Pindutin ang <strong>"Problema sa Password"</strong> sa itaas o ang <em>"Nakalimutan ang Password?"</em> link sa ilalim ng password box, ilagay ang iyong email, at magpapadala kami ng secure password reset link.
+            Pindutin ang <strong>"Problema sa Password"</strong> sa ibaba o ang <em>"Nakalimutan ang Password?"</em> link sa ilalim ng password box, ilagay ang iyong email, at magpapadala kami ng secure password reset link.
           </div>
           <button
             type="button"
@@ -123,38 +122,16 @@ export function HelpSupportModal({
       ),
     },
     {
-      id: 'faq-verification',
-      question: 'Hindi ko natanggap ang verification code.',
+      id: 'faq-reset-link',
+      question: 'Hindi ko natatanggap ang password reset link.',
       answer: (
         <div>
-          <p style={{ margin: '0 0 6px' }}>Kung hindi agad dumarating ang 6-digit code sa iyong email o SMS:</p>
+          <p style={{ margin: '0 0 6px' }}>Kung hindi agad dumarating ang password reset email sa iyong inbox:</p>
           <ul style={{ margin: '0 0 10px', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <li><strong>Spam / Junk folder:</strong> Para sa email, siguraduhing tingnan ang Spam o Promotions folder.</li>
-            <li><strong>Maling Email o Phone:</strong> Tiyaking tama ang baybay ng email o 11-digit mobile number (+639...).</li>
-            <li><strong>Cooldown Period:</strong> Maghintay ng 60 segundo bago pumindot ng <em>"Ipadala muli ang Code"</em> upang maiwasan ang rate limits.</li>
+            <li><strong>Spam / Junk folder:</strong> Siguraduhing tingnan ang Spam, Promotions, o Updates folder sa iyong email.</li>
+            <li><strong>Maling Email:</strong> Tiyaking tama ang baybay ng iyong rehistradong email address sa ALPASFARM.</li>
+            <li><strong>Muling Paghiling:</strong> Maghintay ng ilang sandali bago muling magsumite ng kahilingan sa pag-reset.</li>
           </ul>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onSelectVerifyHelp();
-            }}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 9999,
-              background: '#EAF6ED',
-              color: '#176B35',
-              border: '1px solid rgba(35, 139, 69, 0.25)',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <RefreshCw size={13} /> Pumunta sa Verification Screen
-          </button>
         </div>
       ),
     },
@@ -187,10 +164,9 @@ export function HelpSupportModal({
 
   const systemServices = [
     { title: 'Account Registration', desc: 'Humingi ng tulong kung hindi makapag-register ng account.', icon: UserPlus },
-    { title: 'Sign In', desc: 'Tulong sa pag-log in gamit ang email, phone, o Google.', icon: LogIn },
+    { title: 'Sign In', desc: 'Tulong sa pag-log in gamit ang email at password.', icon: LogIn },
+    { title: 'Google Sign-In', desc: 'Mabilis na one-click sign in gamit ang Gmail.', icon: ShieldCheck },
     { title: 'Password Reset', desc: 'I-reset ang password kung nakalimutan mo ito.', icon: KeyRound },
-    { title: 'Email Verification', desc: 'Humingi ng tulong kung hindi natatanggap ang verification code.', icon: Mail },
-    { title: 'Mobile SMS OTP', desc: 'Para sa problema sa OTP o mobile verification.', icon: Phone },
     { title: 'Account Access', desc: 'Tulong kung naka-lock o may limitasyon ang account.', icon: ShieldCheck },
     { title: 'Farm Data Access', desc: 'Makipag-ugnayan sa admin kung may problema sa access ng farm records.', icon: Layers },
   ];
@@ -556,13 +532,10 @@ export function HelpSupportModal({
                 </span>
               </button>
 
-              {/* Option 2: Hindi natanggap ang verification code */}
+              {/* Option 2: Hindi natanggap ang reset link */}
               <button
                 type="button"
-                onClick={() => {
-                  onClose();
-                  onSelectVerifyHelp();
-                }}
+                onClick={() => toggleFaq('faq-reset-link')}
                 style={{
                   textAlign: 'left',
                   padding: '12px 14px',
@@ -586,12 +559,12 @@ export function HelpSupportModal({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#174B2A' }}>
-                    ✉️ Hindi Natanggap ang Code
+                    ✉️ Walang Natanggap na Link
                   </span>
-                  <ExternalLink size={13} color="#238B45" />
+                  <ChevronDown size={14} color="#238B45" />
                 </div>
                 <span style={{ fontSize: 11.5, color: '#50645A', lineHeight: 1.35 }}>
-                  Tulong para sa 6-digit email code o mobile SMS verification.
+                  Tulong kung hindi natatanggap ang email link sa pag-reset ng password.
                 </span>
               </button>
 

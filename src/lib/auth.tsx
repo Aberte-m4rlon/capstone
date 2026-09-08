@@ -84,8 +84,8 @@ export interface SignUpOptions {
   email: string;
   password: string;
   fullName: string;
-  farmName: string;
-  farmLocation: string;
+  farmName?: string;
+  farmLocation?: string;
 }
 
 export interface PhoneSignUpOptions {
@@ -314,10 +314,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const email = opts.email.trim().toLowerCase();
     const password = opts.password.trim();
     const fullName = opts.fullName.trim();
-    const farmName = opts.farmName.trim();
+    const farmName = opts.farmName?.trim() || (fullName ? `${fullName}'s Farm` : 'My Farm');
     const farmLocation = opts.farmLocation?.trim() || '';
 
-    if (!email || !password || !fullName || !farmName) {
+    if (!email || !password || !fullName) {
       return { error: 'Pakilagay ang lahat ng kinakailangang impormasyon.', needsConfirmation: false };
     }
 

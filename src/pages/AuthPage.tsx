@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, defaultRouteForRole, SUPER_ADMIN_EMAILS_FALLBACK } from '../lib/auth';
-import { formatPhoneNumber } from '../lib/sms';
 import { useToast } from '../components/ui/Toast';
 import { AlpasFarmLogo } from '../components/common/AlpasFarmLogo';
 import { HelpSupportModal } from '../components/auth/HelpSupportModal';
 import { PrivacyTermsModal } from '../components/auth/PrivacyTermsModal';
 import {
   Eye, EyeOff, User, Lock, ArrowRight, AlertCircle,
-  Mail, Building2, MapPin, CheckCircle2, UserPlus, LogIn,
-  KeyRound, RefreshCw, Edit2, ShieldCheck, Smartphone,
-  Phone, Sparkles, ArrowLeft
+  Mail, CheckCircle2, UserPlus, LogIn, ArrowLeft
 } from 'lucide-react';
 
 // ─── Password Strength Evaluator ──────────────────────────────────────────────
@@ -34,7 +31,7 @@ function inputStyle(hasError?: boolean): React.CSSProperties {
     width: '100%',
     padding: '13px 14px 13px 44px',
     background: 'var(--input-bg, #FFFFFF)',
-    border: `1px solid ${hasError ? '#EF4444' : 'var(--input-border, rgba(35, 139, 69, 0.18))'}`,
+    border: `1px solid ${hasError ? '#EF4444' : 'var(--input-border, rgba(35, 139, 69, 0.20))'}`,
     borderRadius: '15px',
     color: 'var(--input-text, #174B2A)',
     fontSize: '14px',
@@ -97,21 +94,13 @@ function Field({
   );
 }
 
-type View = 'signin' | 'signup' | 'verify' | 'forgot';
-type AuthMethod = 'email' | 'phone';
+type View = 'signin' | 'signup' | 'forgot';
 
 export function AuthPage() {
   const {
     signIn,
-    signInWithEmailOtp,
     signUp,
-    verifyEmailOtp,
-    resendVerificationCode,
     resetPassword,
-    signInWithPhoneOtp,
-    signUpWithPhoneOtp,
-    verifyPhoneOtp,
-    resendPhoneOtp,
     signInWithGoogle,
     role,
   } = useAuth();
@@ -128,20 +117,8 @@ export function AuthPage() {
       : 'signin';
 
   const [view, setView] = useState<View>(initialView);
-  const [method, setMethod] = useState<AuthMethod>('email');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [targetDestination, setTargetDestination] = useState('');
-  const [activeVerifyType, setActiveVerifyType] = useState<'phone' | 'email'>('email');
-
-  // Verification state
-  const [verificationCode, setVerificationCode] = useState('');
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
-  const [verifySuccess, setVerifySuccess] = useState(false);
-
-  // Phone state
-  const [phoneInput, setPhoneInput] = useState('');
 
   // Sign-in Email state
   const [siEmail, setSiEmail] = useState('');
@@ -155,11 +132,8 @@ export function AuthPage() {
   // Sign-up state
   const [suFullName, setSuFullName] = useState('');
   const [suEmail, setSuEmail] = useState('');
-  const [suPhone, setSuPhone] = useState('');
   const [suPassword, setSuPassword] = useState('');
   const [suConfirmPw, setSuConfirmPw] = useState('');
-  const [suFarmName, setSuFarmName] = useState('');
-  const [suFarmLocation, setSuFarmLocation] = useState('');
   const [suShowPw, setSuShowPw] = useState(false);
   const [suShowConfirmPw, setSuShowConfirmPw] = useState(false);
   const [suTerms, setSuTerms] = useState(false);
@@ -172,24 +146,14 @@ export function AuthPage() {
       setView('signup');
     } else if (location.pathname === '/forgot-password' && view !== 'forgot') {
       setView('forgot');
-    } else if (location.pathname === '/login' && view !== 'signin' && view !== 'verify') {
+    } else if (location.pathname === '/login' && view !== 'signin') {
       setView('signin');
     }
   }, [location.pathname]);
 
-  // Cooldown countdown timer for resend code
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const timer = setInterval(() => {
-      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [resendCooldown]);
-
   const switchView = (v: View) => {
     setView(v);
     setError(null);
-    setResendSuccess(null);
     if (v === 'signup') {
       window.history.replaceState(null, '', '/register');
     } else if (v === 'forgot') {
@@ -222,13 +186,6 @@ export function AuthPage() {
           setError(null);
           switchView('forgot');
         }}
-        onSelectVerifyHelp={() => {
-          setError(null);
-          const fallbackDest = method === 'phone' ? phoneInput : siEmail;
-          if (fallbackDest.trim()) setTargetDestination(fallbackDest.trim());
-          setActiveVerifyType(method === 'phone' ? 'phone' : 'email');
-          switchView('verify');
-        }}
         adminEmail={configuredAdminEmail}
         adminPhone={configuredAdminPhone}
       />
@@ -240,34 +197,6 @@ export function AuthPage() {
       />
     </>
   );
-
-  // ── Phone Sign In ───────────────────────────────────────────────────────────
-  const handlePhoneSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    const formatted = formatPhoneNumber(phoneInput);
-    if (!formatted.valid) {
-      setError('Pakilagay ang wastong mobile number sa Pilipinas (hal., 0917 123 4567).');
-      return;
-    }
-
-    setError(null);
-    setLoading(true);
-    const res = await signInWithPhoneOtp(formatted.e164);
-    setLoading(false);
-
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-
-    setTargetDestination(formatted.display);
-    setActiveVerifyType('phone');
-    setView('verify');
-    setResendCooldown(60);
-    setVerificationCode('');
-    setResendSuccess(res.message || 'Naipadala na ang SMS verification code sa iyong telepono.');
-  };
 
   // ── Email Sign In ───────────────────────────────────────────────────────────
   const handleEmailSignIn = async (e: React.FormEvent) => {
@@ -289,18 +218,10 @@ export function AuthPage() {
     setLoading(false);
 
     if (err) {
-      if (err.toLowerCase().includes('verify') || err.toLowerCase().includes('kumpirma')) {
-        setTargetDestination(email);
-        setActiveVerifyType('email');
-        setView('verify');
-        setError('Pakikumpirma muna ang verification code na ipinadala sa iyong email bago magpatuloy.');
-        return;
-      }
       setError(err);
       return;
     }
 
-    // Success notification and redirect
     toast.success('Magandang araw! Naka-sign in ka na.');
     navigate(defaultRouteForRole(role), { replace: true });
   };
@@ -318,40 +239,6 @@ export function AuthPage() {
     }
     toast.success('Magandang araw! Matagumpay na nag-sign in gamit ang Google.');
     navigate(defaultRouteForRole(role || 'farm_manager'), { replace: true });
-  };
-
-  // ── Send Email OTP Code for Sign In ───────────────────────────────────────
-  const handleEmailSendOtp = async () => {
-    if (loading) return;
-    const email = siEmail.trim();
-    if (!email) {
-      setError('Pakilagay ang iyong email address upang makatanggap ng verification code.');
-      return;
-    }
-    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRe.test(email)) {
-      setError('Pakilagay ang wastong email address.');
-      return;
-    }
-
-    setError(null);
-    setResendSuccess(null);
-    setLoading(true);
-
-    const res = await signInWithEmailOtp(email);
-    setLoading(false);
-
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-
-    setTargetDestination(email);
-    setActiveVerifyType('email');
-    setView('verify');
-    setResendCooldown(60);
-    setVerificationCode('');
-    setResendSuccess(res.message || 'Naipadala na ang 6-digit verification code sa iyong email.');
   };
 
   // ── Forgot Password Request ─────────────────────────────────────────────────
@@ -383,164 +270,61 @@ export function AuthPage() {
     toast.success('Ipinadala na ang link sa pag-reset ng password sa iyong email.');
   };
 
-  // ── Phone Sign Up ───────────────────────────────────────────────────────────
-  const handlePhoneSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    setError(null);
-    setResendSuccess(null);
-
-    const formatted = formatPhoneNumber(suPhone);
-    if (!suFullName.trim()) { setError('Pakilagay ang iyong buong pangalan.'); return; }
-    if (!formatted.valid) { setError('Pakilagay ang wastong mobile number sa Pilipinas (hal., 0917 123 4567).'); return; }
-    if (!suFarmName.trim()) { setError('Pakilagay ang pangalan ng iyong bukid.'); return; }
-    if (!suTerms) { setError('Dapat sumang-ayon sa Mga Tuntunin at Patakaran sa Privacy upang magpatuloy.'); return; }
-
-    setLoading(true);
-    const res = await signUpWithPhoneOtp({
-      phone: formatted.e164,
-      fullName: suFullName.trim(),
-      farmName: suFarmName.trim(),
-      farmLocation: suFarmLocation.trim(),
-    });
-    setLoading(false);
-
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-
-    setTargetDestination(formatted.display);
-    setActiveVerifyType('phone');
-    setView('verify');
-    setResendCooldown(60);
-    setVerificationCode('');
-    setResendSuccess(res.message || 'Naipadala na ang SMS verification code.');
-  };
-
   // ── Email Sign Up ───────────────────────────────────────────────────────────
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setError(null);
-    setResendSuccess(null);
 
-    if (!suFullName.trim()) { setError('Pakilagay ang iyong buong pangalan.'); return; }
+    const name = suFullName.trim();
+    const email = suEmail.trim();
+
+    if (!name) { setError('Pakilagay ang iyong buong pangalan.'); return; }
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRe.test(suEmail.trim())) { setError('Pakilagay ang wastong email address.'); return; }
+    if (!emailRe.test(email)) { setError('Pakilagay ang wastong email address.'); return; }
     if (suPassword.length < 8) { setError('Ang password ay dapat may hindi bababa sa 8 karakter.'); return; }
     if (suPassword !== suConfirmPw) { setError('Hindi magkatugma ang kumpirmasyon ng password.'); return; }
-    if (!suFarmName.trim()) { setError('Pakilagay ang pangalan ng iyong bukid.'); return; }
     if (!suTerms) { setError('Dapat sumang-ayon sa Mga Tuntunin at Patakaran sa Privacy upang gumawa ng account.'); return; }
 
     setLoading(true);
-    const { error: err, needsConfirmation } = await signUp({
-      email: suEmail.trim(),
+    const { error: err } = await signUp({
+      email,
       password: suPassword,
-      fullName: suFullName.trim(),
-      farmName: suFarmName.trim(),
-      farmLocation: suFarmLocation.trim(),
+      fullName: name,
     });
     setLoading(false);
 
-    if (err) { setError(err); return; }
-
-    if (needsConfirmation) {
-      setTargetDestination(suEmail.trim());
-      setActiveVerifyType('email');
-      setView('verify');
-      setResendCooldown(60);
-      setVerificationCode('');
-      setResendSuccess('Naipadala na ang verification code o link sa iyong email. Pakitingnan ang iyong inbox.');
-    } else {
-      toast.success('Matagumpay na nagawa ang iyong account!');
-      navigate(defaultRouteForRole(role), { replace: true });
-    }
-  };
-
-  // ── Verify OTP Code (SMS or Email) ──────────────────────────────────────────
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loading || verifySuccess) return;
-    const code = verificationCode.trim();
-    if (!code) {
-      setError('Pakilagay ang 6-digit verification code.');
+    if (err) {
+      setError(err);
       return;
     }
-    setError(null);
-    setResendSuccess(null);
+
+    // Attempt automatic immediate sign-in with newly created credentials
     setLoading(true);
+    const signInRes = await signIn(email, suPassword);
+    setLoading(false);
 
-    if (activeVerifyType === 'phone') {
-      const { error: err } = await verifyPhoneOtp(targetDestination, code, {
-        fullName: suFullName.trim(),
-        farmName: suFarmName.trim(),
-        farmLocation: suFarmLocation.trim(),
-      });
-      setLoading(false);
-
-      if (err) {
-        setError(err);
-        return;
-      }
-    } else {
-      const { error: err } = await verifyEmailOtp(targetDestination, code, {
-        fullName: suFullName.trim(),
-        farmName: suFarmName.trim(),
-      });
-      setLoading(false);
-
-      if (err) {
-        setError(err);
-        return;
-      }
-    }
-
-    setVerifySuccess(true);
-    toast.success('Magandang araw! Matagumpay na na-verify ang iyong account.');
-    setTimeout(() => {
+    if (!signInRes.error) {
+      toast.success('Maligayang pagdating sa ALPASFARM! Matagumpay na nagawa ang iyong account.');
       navigate(defaultRouteForRole(role || 'farm_manager'), { replace: true });
-    }, 1000);
-  };
-
-  // ── Resend Code ─────────────────────────────────────────────────────────────
-  const handleResend = async () => {
-    if (resendCooldown > 0 || loading) return;
-    setError(null);
-    setResendSuccess(null);
-    setLoading(true);
-
-    if (activeVerifyType === 'phone') {
-      const res = await resendPhoneOtp(targetDestination);
-      setLoading(false);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      setResendCooldown(60);
-      setResendSuccess(res.message || 'Muling naipadala ang SMS verification code.');
     } else {
-      const { error: err } = await resendVerificationCode(targetDestination);
-      setLoading(false);
-      if (err) {
-        setError(err);
-        return;
-      }
-      setResendCooldown(60);
-      setResendSuccess('Muling naipadala ang verification code sa iyong email.');
+      toast.success('Matagumpay na nagawa ang iyong account! Mangyaring mag-sign in gamit ang iyong email at password.');
+      setSiEmail(email);
+      setSiPassword('');
+      switchView('signin');
     }
   };
 
-  // ── Nature Themed Background Ambient Glows ──────────────────────────────────
+  // ── Ambient Background Glows ────────────────────────────────────────────────
   const bg = (
     <>
       <div
         style={{
           position: 'fixed',
-          width: '540px',
-          height: '540px',
+          width: '560px',
+          height: '560px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(35, 139, 69, 0.05) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(35, 139, 69, 0.08) 0%, transparent 70%)',
           top: '-120px',
           right: '-100px',
           zIndex: 0,
@@ -553,7 +337,7 @@ export function AuthPage() {
           width: '480px',
           height: '480px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(23, 107, 53, 0.04) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(23, 107, 53, 0.06) 0%, transparent 70%)',
           bottom: '-100px',
           left: '-80px',
           zIndex: 0,
@@ -563,387 +347,22 @@ export function AuthPage() {
     </>
   );
 
-  // ── Crisp Modern Glass Card Style (High Contrast, Never Washed Out) ─────────
+  // ── Crisp Modern Glass Card Style ───────────────────────────────────────────
   const cardStyle: React.CSSProperties = {
-    background: 'var(--surface, rgba(255, 255, 255, 0.94))',
+    background: 'var(--surface, rgba(255, 255, 255, 0.95))',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    border: '1px solid var(--border, rgba(35, 139, 69, 0.14))',
+    border: '1px solid var(--border, rgba(35, 139, 69, 0.16))',
     borderRadius: '24px',
     boxShadow: 'var(--shadow-lg, 0 20px 60px rgba(23, 107, 53, 0.10))',
     width: '100%',
-    maxWidth: view === 'signup' ? '540px' : '460px',
+    maxWidth: view === 'signup' ? '490px' : '450px',
     padding: 'clamp(24px, 5vw, 36px)',
     position: 'relative',
     zIndex: 1,
     boxSizing: 'border-box',
     transition: 'max-width 0.3s ease',
   };
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // ── VIEW: VERIFY OTP ────────────────────────────────────────────────────────
-  // ════════════════════════════════════════════════════════════════════════════
-  if (view === 'verify') {
-    return (
-      <div style={{
-        minHeight: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg, #F7FAF6)',
-        padding: '20px',
-        position: 'relative',
-      }}>
-        {bg}
-        <div style={cardStyle} className="auth-card">
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              width: 72,
-              height: 72,
-              borderRadius: '9999px',
-              background: verifySuccess
-                ? 'linear-gradient(135deg, #238B45 0%, #176B35 100%)'
-                : 'linear-gradient(135deg, #EAF6ED 0%, #C8E6C9 100%)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 16,
-              boxShadow: verifySuccess
-                ? '0 12px 30px rgba(23, 107, 53, 0.30)'
-                : '0 8px 24px rgba(35, 139, 69, 0.15)',
-              transition: 'all 0.3s ease',
-            }}>
-              {verifySuccess ? (
-                <CheckCircle2 size={36} color="#FFFFFF" />
-              ) : activeVerifyType === 'phone' ? (
-                <Smartphone size={34} color="#176B35" />
-              ) : (
-                <ShieldCheck size={34} color="#176B35" />
-              )}
-            </div>
-
-            <h2 style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: 'var(--text, #174B2A)',
-              marginBottom: 8,
-              letterSpacing: '-0.3px',
-            }}>
-              {verifySuccess ? 'Matagumpay na Na-verify!' : 'Ilagay ang 6-Digit Code'}
-            </h2>
-
-            <p style={{ fontSize: 13, color: 'var(--text-secondary, #4B6F57)', lineHeight: 1.5, marginBottom: 14 }}>
-              {activeVerifyType === 'phone'
-                ? 'Nagpadala kami ng 6-digit SMS verification code sa iyong mobile number:'
-                : 'Nagpadala kami ng 6-digit verification code sa iyong email address:'}
-            </p>
-
-            {/* Destination Pill with Edit Action */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 18px',
-              borderRadius: 9999,
-              background: '#EAF6ED',
-              border: '1px solid rgba(35, 139, 69, 0.20)',
-              marginBottom: 20,
-              maxWidth: '100%',
-            }}>
-              {activeVerifyType === 'phone' ? (
-                <Phone size={14} color="#176B35" />
-              ) : (
-                <Mail size={14} color="#176B35" />
-              )}
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#176B35', wordBreak: 'break-all' }}>
-                {targetDestination || 'iyong rehistradong contact'}
-              </span>
-              <button
-                type="button"
-                onClick={() => switchView('signin')}
-                title="Palitan ang contact"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#238B45', display: 'flex', padding: 2 }}
-                aria-label="Palitan ang contact information"
-              >
-                <Edit2 size={13} />
-              </button>
-            </div>
-
-            {/* Resend Success Message */}
-            {resendSuccess && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '11px 14px',
-                marginBottom: 16,
-                borderRadius: 14,
-                background: '#EAF6ED',
-                border: '1px solid rgba(35, 139, 69, 0.25)',
-                color: '#176B35',
-                fontSize: 13,
-                fontWeight: 600,
-                textAlign: 'left',
-              }}>
-                <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-                <span>{resendSuccess}</span>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {error && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                padding: '11px 14px',
-                marginBottom: 16,
-                borderRadius: 14,
-                background: '#FEF2F2',
-                border: '1px solid #FECACA',
-                color: '#DC2626',
-                fontSize: 13,
-                fontWeight: 600,
-                textAlign: 'left',
-                lineHeight: 1.4,
-              }}>
-                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>{error}</span>
-              </div>
-            )}
-
-            {/* Verification Form */}
-            <form onSubmit={handleVerifyOtp} noValidate>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--text, #174B2A)',
-                  marginBottom: 8,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}>
-                  6-Digit Verification Code
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <KeyRound
-                    size={18}
-                    style={{
-                      position: 'absolute',
-                      left: 16,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--text-secondary, #4B6F57)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    autoFocus
-                    value={verificationCode}
-                    onChange={(e) => {
-                      setVerificationCode(e.target.value.replace(/[^0-9]/g, ''));
-                      setError(null);
-                    }}
-                    placeholder="------"
-                    disabled={loading || verifySuccess}
-                    style={{
-                      ...inputStyle(!!error),
-                      padding: '14px 14px 14px 44px',
-                      fontSize: '22px',
-                      fontWeight: 800,
-                      letterSpacing: '8px',
-                      textAlign: 'center',
-                      fontFamily: 'monospace',
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#238B45';
-                      e.target.style.boxShadow = '0 0 0 4px rgba(35, 139, 69, 0.14)';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                      e.target.style.boxShadow = 'none';
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Pill Submit Button */}
-              <button
-                type="submit"
-                disabled={loading || verifySuccess || !verificationCode.trim()}
-                style={{
-                  width: '100%',
-                  height: 52,
-                  padding: '0 20px',
-                  background: verifySuccess
-                    ? '#238B45'
-                    : loading || !verificationCode.trim()
-                      ? 'rgba(35, 139, 69, 0.45)'
-                      : '#238B45',
-                  border: 'none',
-                  borderRadius: 9999,
-                  color: '#FFFFFF',
-                  fontSize: 15,
-                  fontWeight: 700,
-                  boxShadow: (loading || !verificationCode.trim())
-                    ? 'none'
-                    : '0 6px 20px rgba(35, 139, 69, 0.25)',
-                  cursor: (loading || !verificationCode.trim()) ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  boxSizing: 'border-box',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading && !verifySuccess && verificationCode.trim()) e.currentTarget.style.background = '#176B35';
-                }}
-                onMouseLeave={(e) => {
-                  if (!loading && !verifySuccess && verificationCode.trim()) e.currentTarget.style.background = '#238B45';
-                }}
-              >
-                {loading ? (
-                  <>
-                    <div style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: '50%',
-                      border: '2px solid rgba(255,255,255,0.35)',
-                      borderTopColor: '#FFFFFF',
-                      animation: 'spin 0.7s linear infinite',
-                    }} />
-                    Sinusuri ang code…
-                  </>
-                ) : verifySuccess ? (
-                  <>
-                    <CheckCircle2 size={18} /> Na-verify na! Pumapasok sa ALPASFARM…
-                  </>
-                ) : (
-                  <>
-                    Kumpirmahin at Magpatuloy <ArrowRight size={17} />
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Resend actions */}
-            <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resendCooldown > 0 || loading}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: resendCooldown > 0 ? 'default' : 'pointer',
-                  color: resendCooldown > 0 ? 'var(--text-secondary, #667085)' : '#176B35',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  opacity: resendCooldown > 0 ? 0.65 : 1,
-                  padding: '6px 12px',
-                  borderRadius: 9999,
-                }}
-              >
-                <RefreshCw size={14} className={loading ? 'spin' : ''} />
-                {resendCooldown > 0 ? `Ipadala muli ang code sa loob ng ${resendCooldown}s` : 'Ipadala Muli ang Verification Code'}
-              </button>
-
-              <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
-                <button
-                  type="button"
-                  onClick={() => switchView('signin')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary, #4B6F57)',
-                    fontWeight: 600,
-                    padding: 0,
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Bumalik sa Mag-sign In
-                </button>
-                <span style={{ color: 'rgba(35, 139, 69, 0.3)' }}>•</span>
-                <button
-                  type="button"
-                  onClick={() => switchView('signup')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary, #4B6F57)',
-                    fontWeight: 600,
-                    padding: 0,
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Baguhin ang Pag-sign Up
-                </button>
-              </div>
-
-              {/* Help and Privacy Links */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: 16,
-                marginTop: 18,
-                paddingTop: 14,
-                borderTop: '1px solid rgba(35, 139, 69, 0.10)',
-                fontSize: 12.5,
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setShowHelpModal(true)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary, #4B6F57)',
-                    fontWeight: 600,
-                    textDecoration: 'underline',
-                    fontSize: 12.5,
-                    padding: 0,
-                  }}
-                >
-                  Kailangan ng Tulong?
-                </button>
-                <span style={{ color: 'rgba(35, 139, 69, 0.3)' }}>•</span>
-                <button
-                  type="button"
-                  onClick={() => openLegalModal('privacy')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#607067',
-                    fontWeight: 600,
-                    textDecoration: 'underline',
-                    fontSize: 12.5,
-                    padding: 0,
-                  }}
-                >
-                  Privacy & Terms
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        {authModals}
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}} .spin{animation:spin 0.8s linear infinite;}`}</style>
-      </div>
-    );
-  }
 
   // ════════════════════════════════════════════════════════════════════════════
   // ── VIEW: FORGOT PASSWORD ───────────────────────────────────────────────────
@@ -980,13 +399,13 @@ export function AuthPage() {
             <h1 style={{
               fontSize: 'clamp(20px, 4vw, 24px)',
               fontWeight: 800,
-              color: '#174B2A',
+              color: 'var(--text-primary, #174B2A)',
               letterSpacing: '-0.4px',
               margin: '0 0 6px',
             }}>
               I-reset ang Password
             </h1>
-            <p style={{ fontSize: 13, color: '#607067', margin: 0 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary, #607067)', margin: 0 }}>
               Ilagay ang iyong rehistradong email upang makatanggap ng secure reset link.
             </p>
           </div>
@@ -1020,6 +439,7 @@ export function AuthPage() {
                   fontWeight: 700,
                   fontSize: 14,
                   cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(23, 107, 53, 0.20)',
                 }}
               >
                 Bumalik sa Mag-sign In
@@ -1213,18 +633,18 @@ export function AuthPage() {
         <AlpasFarmLogo size="login" />
       </div>
       <h1 style={{
-        fontSize: 'clamp(20px, 3.8vw, 24px)',
+        fontSize: 'clamp(20px, 4vw, 24px)',
         fontWeight: 800,
-        color: '#174B2A',
+        color: 'var(--text-primary, #174B2A)',
         letterSpacing: '-0.5px',
         margin: '0 0 6px',
         lineHeight: 1.2,
       }}>
         {view === 'signup' ? 'Gumawa ng Account' : 'Magandang araw!'}
       </h1>
-      <p style={{ fontSize: '13.5px', color: '#607067', margin: 0, fontWeight: 500 }}>
+      <p style={{ fontSize: '13.5px', color: 'var(--text-secondary, #607067)', margin: 0, fontWeight: 500 }}>
         {view === 'signup'
-          ? 'Mag-register para makapagsimula sa ALPASFARM.'
+          ? 'Magsimula sa ALPASFARM'
           : 'Mag-sign in sa iyong account'}
       </p>
     </div>
@@ -1236,12 +656,12 @@ export function AuthPage() {
   const tabBar = (
     <div style={{
       display: 'flex',
-      background: 'rgba(35, 139, 69, 0.06)',
+      background: 'rgba(35, 139, 69, 0.08)',
       borderRadius: 9999,
       padding: 4,
-      marginBottom: 18,
+      marginBottom: 20,
       gap: 4,
-      border: '1px solid rgba(35, 139, 69, 0.10)',
+      border: '1px solid rgba(35, 139, 69, 0.12)',
     }}>
       {([
         ['signin', <LogIn size={15} />, 'Mag-sign In'] as const,
@@ -1255,7 +675,7 @@ export function AuthPage() {
             onClick={() => switchView(v as View)}
             style={{
               flex: 1,
-              padding: '9px 12px',
+              padding: '10px 14px',
               borderRadius: 9999,
               fontSize: 13,
               fontWeight: isActive ? 700 : 600,
@@ -1267,7 +687,7 @@ export function AuthPage() {
               gap: 6,
               transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               background: isActive ? '#FFFFFF' : 'transparent',
-              color: isActive ? '#176B35' : '#527060',
+              color: isActive ? '#176B35' : 'var(--text-secondary, #527060)',
               boxShadow: isActive ? '0 4px 12px rgba(23, 107, 53, 0.10)' : 'none',
             }}
           >
@@ -1276,68 +696,6 @@ export function AuthPage() {
           </button>
         );
       })}
-    </div>
-  );
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // ── PILL METHOD SWITCHER (Email vs SMS OTP) ─────────────────────────────────
-  // ════════════════════════════════════════════════════════════════════════════
-  const methodSwitcher = (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      gap: 8,
-      marginBottom: 18,
-    }}>
-      <button
-        type="button"
-        onClick={() => { setMethod('email'); setError(null); }}
-        style={{
-          flex: 1,
-          padding: '8px 12px',
-          borderRadius: 9999,
-          fontSize: 12,
-          fontWeight: method === 'email' ? 700 : 600,
-          border: method === 'email' ? '1.5px solid #238B45' : '1px solid rgba(35, 139, 69, 0.18)',
-          background: method === 'email' ? '#EAF6ED' : '#FFFFFF',
-          color: method === 'email' ? '#176B35' : '#607067',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          boxShadow: method === 'email' ? '0 2px 6px rgba(35, 139, 69, 0.08)' : 'none',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        <Mail size={14} color={method === 'email' ? '#176B35' : '#607067'} />
-        Email at Password
-      </button>
-
-      <button
-        type="button"
-        onClick={() => { setMethod('phone'); setError(null); }}
-        style={{
-          flex: 1,
-          padding: '8px 12px',
-          borderRadius: 9999,
-          fontSize: 12,
-          fontWeight: method === 'phone' ? 700 : 600,
-          border: method === 'phone' ? '1.5px solid #238B45' : '1px solid rgba(35, 139, 69, 0.18)',
-          background: method === 'phone' ? '#EAF6ED' : '#FFFFFF',
-          color: method === 'phone' ? '#176B35' : '#607067',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          boxShadow: method === 'phone' ? '0 2px 6px rgba(35, 139, 69, 0.08)' : 'none',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        <Smartphone size={14} color={method === 'phone' ? '#176B35' : '#607067'} />
-        Mobile SMS OTP
-      </button>
     </div>
   );
 
@@ -1357,10 +715,6 @@ export function AuthPage() {
         <div style={{ position: 'relative' }}>
           {logoBlock}
           {tabBar}
-          {methodSwitcher}
-
-          {/* Firebase Phone Auth Invisible reCAPTCHA Anchor */}
-          <div id="recaptcha-container"></div>
 
           {/* Friendly Error Banner */}
           {error && (
@@ -1384,374 +738,225 @@ export function AuthPage() {
           )}
 
           {/* ══════════════════════════════════════════════════════════════════ */}
-          {/* ── SIGN IN VIEW ────────────────────────────────────────────────── */}
+          {/* ── SIGN IN VIEW (Email + Password) ─────────────────────────────── */}
           {/* ══════════════════════════════════════════════════════════════════ */}
           {view === 'signin' && (
-            <>
-              {method === 'email' ? (
-                /* Email & Password Sign In */
-                <form onSubmit={handleEmailSignIn} noValidate>
-                  <Field label="Email" icon={Mail}>
-                    <input
-                      type="email"
-                      value={siEmail}
-                      onChange={(e) => {
-                        setSiEmail(e.target.value);
-                        setError(null);
-                      }}
-                      placeholder="halimbawa@alpasfarm.ph"
-                      autoComplete="username"
-                      disabled={loading}
-                      style={inputStyle(!!error)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
+            <form onSubmit={handleEmailSignIn} noValidate>
+              <Field label="Email" icon={Mail}>
+                <input
+                  type="email"
+                  value={siEmail}
+                  onChange={(e) => {
+                    setSiEmail(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="halimbawa@alpasfarm.ph"
+                  autoComplete="username"
+                  disabled={loading}
+                  style={inputStyle(!!error)}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#238B45';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </Field>
 
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <label style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: '#174B2A',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.4px',
-                      }}>
-                        Password
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => switchView('forgot')}
-                        disabled={loading}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#238B45',
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          padding: 0,
-                          textDecoration: 'underline',
-                        }}
-                      >
-                        Nakalimutan ang Password?
-                      </button>
-                    </div>
-
-                    <div style={{ position: 'relative' }}>
-                      <Lock
-                        size={17}
-                        style={{
-                          position: 'absolute',
-                          left: 14,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          color: '#607067',
-                          pointerEvents: 'none',
-                        }}
-                      />
-                      <input
-                        type={siShowPw ? 'text' : 'password'}
-                        value={siPassword}
-                        onChange={(e) => {
-                          setSiPassword(e.target.value);
-                          setError(null);
-                        }}
-                        placeholder="Ilagay ang iyong password"
-                        autoComplete="current-password"
-                        disabled={loading}
-                        style={{
-                          ...inputStyle(!!error),
-                          padding: '13px 44px 13px 44px',
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = '#238B45';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setSiShowPw((v) => !v)}
-                        disabled={loading}
-                        aria-label="Ipakita o itago ang password"
-                        style={{
-                          position: 'absolute',
-                          right: 12,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#6A8173',
-                          display: 'flex',
-                          padding: 6,
-                          borderRadius: 8,
-                        }}
-                      >
-                        {siShowPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {/* Primary Pill Button */}
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      style={{
-                        width: '100%',
-                        height: 52,
-                        padding: '0 20px',
-                        background: loading
-                          ? 'rgba(35, 139, 69, 0.6)'
-                          : '#238B45',
-                        border: 'none',
-                        borderRadius: 9999,
-                        color: '#FFFFFF',
-                        fontSize: 15,
-                        fontWeight: 700,
-                        boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        boxSizing: 'border-box',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!loading) e.currentTarget.style.background = '#176B35';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!loading) e.currentTarget.style.background = '#238B45';
-                      }}
-                    >
-                      {loading ? (
-                        <>
-                          <div style={{
-                            width: 16,
-                            height: 16,
-                            borderRadius: '50%',
-                            border: '2px solid rgba(255,255,255,0.35)',
-                            borderTopColor: '#FFFFFF',
-                            animation: 'spin 0.7s linear infinite',
-                          }} />
-                          Pumapasok na…
-                        </>
-                      ) : (
-                        <>
-                          Mag-sign In <ArrowRight size={17} />
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleEmailSendOtp}
-                      disabled={loading}
-                      style={{
-                        width: '100%',
-                        height: 44,
-                        padding: '0 16px',
-                        background: 'transparent',
-                        border: '1px solid rgba(35, 139, 69, 0.30)',
-                        borderRadius: 9999,
-                        color: '#176B35',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 6,
-                        boxSizing: 'border-box',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!loading) e.currentTarget.style.background = 'rgba(35, 139, 69, 0.05)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!loading) e.currentTarget.style.background = 'transparent';
-                      }}
-                    >
-                      <Sparkles size={14} color="#176B35" />
-                      Mag-sign In gamit ang 6-Digit Email Code
-                    </button>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 8px' }}>
-                      <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
-                      <span style={{ fontSize: 11, color: 'var(--text-secondary, #4B6F57)', fontWeight: 600 }}>o mag-sign in gamit ang Gmail</span>
-                      <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleGoogleSignIn}
-                      disabled={loading}
-                      style={{
-                        width: '100%',
-                        height: 44,
-                        padding: '0 16px',
-                        background: '#FFFFFF',
-                        border: '1px solid rgba(35, 139, 69, 0.25)',
-                        borderRadius: 9999,
-                        color: '#174B2A',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 10,
-                        boxSizing: 'border-box',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
-                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                      </svg>
-                      Magpatuloy gamit ang Google
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                /* Phone Sign In */
-                <form onSubmit={handlePhoneSignIn} noValidate>
-                  <Field
-                    label="Mobile Number (Pilipinas)"
-                    icon={Phone}
-                    badge={
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35', background: '#EAF6ED', padding: '2px 8px', borderRadius: 9999 }}>
-                        +63 (PH)
-                      </span>
-                    }
-                  >
-                    <input
-                      type="tel"
-                      value={phoneInput}
-                      onChange={(e) => {
-                        setPhoneInput(e.target.value);
-                        setError(null);
-                      }}
-                      placeholder="0917 123 4567"
-                      autoComplete="tel"
-                      disabled={loading}
-                      style={inputStyle(!!error)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
-
-                  <div style={{
-                    padding: '10px 14px',
-                    borderRadius: 14,
-                    background: '#EAF6ED',
-                    border: '1px solid rgba(35, 139, 69, 0.18)',
-                    marginBottom: 18,
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{
                     fontSize: 12,
-                    color: 'var(--text-secondary, #4B6F57)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
+                    fontWeight: 600,
+                    color: 'var(--text-primary, #174B2A)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
                   }}>
-                    <Sparkles size={15} color="#238B45" style={{ flexShrink: 0 }} />
-                    <span>Magpapadala ng 6-digit SMS verification code sa iyong mobile phone.</span>
-                  </div>
-
+                    Password
+                  </label>
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={() => switchView('forgot')}
                     disabled={loading}
                     style={{
-                      width: '100%',
-                      height: 50,
-                      padding: '0 20px',
-                      background: loading
-                        ? 'rgba(35, 139, 69, 0.5)'
-                        : 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
+                      background: 'none',
                       border: 'none',
-                      borderRadius: 9999,
-                      color: '#FFFFFF',
-                      fontSize: 15,
-                      fontWeight: 800,
-                      boxShadow: loading ? 'none' : '0 8px 24px rgba(23, 107, 53, 0.28)',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      boxSizing: 'border-box',
-                      transition: 'all 0.2s ease',
+                      cursor: 'pointer',
+                      color: '#238B45',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      padding: 0,
+                      textDecoration: 'underline',
                     }}
                   >
-                    {loading ? (
-                      <>
-                        <div style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
-                          border: '2px solid rgba(255,255,255,0.35)',
-                          borderTopColor: '#FFFFFF',
-                          animation: 'spin 0.7s linear infinite',
-                        }} />
-                        Ipinapadala ang SMS Code…
-                      </>
-                    ) : (
-                      <>
-                        Ipadala ang SMS Code <ArrowRight size={17} />
-                      </>
-                    )}
+                    Nakalimutan ang Password?
                   </button>
-                </form>
-              )}
+                </div>
 
-              {/* Bottom Quick Help Links */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: 18,
-                fontSize: 13,
-              }}>
+                <div style={{ position: 'relative' }}>
+                  <Lock
+                    size={17}
+                    style={{
+                      position: 'absolute',
+                      left: 14,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-secondary, #607067)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <input
+                    type={siShowPw ? 'text' : 'password'}
+                    value={siPassword}
+                    onChange={(e) => {
+                      setSiPassword(e.target.value);
+                      setError(null);
+                    }}
+                    placeholder="Ilagay ang iyong password"
+                    autoComplete="current-password"
+                    disabled={loading}
+                    style={{
+                      ...inputStyle(!!error),
+                      padding: '13px 44px 13px 44px',
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#238B45';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSiShowPw((v) => !v)}
+                    disabled={loading}
+                    aria-label="Ipakita o itago ang password"
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#6A8173',
+                      display: 'flex',
+                      padding: 6,
+                      borderRadius: 8,
+                    }}
+                  >
+                    {siShowPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Primary Pill Button */}
                 <button
-                  type="button"
-                  onClick={() => {
-                    const fallbackDest = method === 'phone' ? phoneInput : siEmail;
-                    if (fallbackDest.trim()) setTargetDestination(fallbackDest.trim());
-                    setActiveVerifyType(method === 'phone' ? 'phone' : 'email');
-                    switchView('verify');
-                  }}
+                  type="submit"
+                  disabled={loading}
                   style={{
-                    background: 'none',
+                    width: '100%',
+                    height: 52,
+                    padding: '0 20px',
+                    background: loading
+                      ? 'rgba(35, 139, 69, 0.6)'
+                      : '#238B45',
                     border: 'none',
-                    cursor: 'pointer',
-                    color: '#238B45',
-                    fontSize: 13,
+                    borderRadius: 9999,
+                    color: '#FFFFFF',
+                    fontSize: 15,
                     fontWeight: 700,
-                    padding: 0,
+                    boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) e.currentTarget.style.background = '#176B35';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!loading) e.currentTarget.style.background = '#238B45';
                   }}
                 >
-                  Mayroon nang Code? Ilagay dito
+                  {loading ? (
+                    <>
+                      <div style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: '50%',
+                        border: '2px solid rgba(255,255,255,0.35)',
+                        borderTopColor: '#FFFFFF',
+                        animation: 'spin 0.7s linear infinite',
+                      }} />
+                      Pumapasok na…
+                    </>
+                  ) : (
+                    <>
+                      Mag-sign In <ArrowRight size={17} />
+                    </>
+                  )}
                 </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0 2px' }}>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
+                  <span style={{ fontSize: 11, color: 'var(--text-secondary, #4B6F57)', fontWeight: 600 }}>o mag-sign in gamit ang Gmail</span>
+                  <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    height: 44,
+                    padding: '0 16px',
+                    background: 'var(--surface-elevated, #FFFFFF)',
+                    border: '1px solid rgba(35, 139, 69, 0.25)',
+                    borderRadius: 9999,
+                    color: 'var(--text-primary, #174B2A)',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    boxSizing: 'border-box',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                  </svg>
+                  Magpatuloy gamit ang Google
+                </button>
+              </div>
+
+              {/* Bottom Quick Help & Legal Links */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 16,
+                marginTop: 20,
+                paddingTop: 16,
+                borderTop: '1px solid rgba(35, 139, 69, 0.10)',
+                fontSize: 12.5,
+              }}>
                 <button
                   type="button"
                   onClick={() => setShowHelpModal(true)}
@@ -1760,10 +965,10 @@ export function AuthPage() {
                     border: 'none',
                     cursor: 'pointer',
                     color: 'var(--text-secondary, #4B6F57)',
-                    fontSize: 13,
                     fontWeight: 600,
-                    padding: 0,
                     textDecoration: 'underline',
+                    fontSize: 12.5,
+                    padding: 0,
                     transition: 'color 0.15s ease',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#176B35')}
@@ -1771,15 +976,7 @@ export function AuthPage() {
                 >
                   Kailangan ng Tulong?
                 </button>
-              </div>
-
-              {/* Privacy & Terms Link */}
-              <div style={{
-                textAlign: 'center',
-                marginTop: 16,
-                paddingTop: 14,
-                borderTop: '1px solid rgba(35, 139, 69, 0.10)',
-              }}>
+                <span style={{ color: 'rgba(35, 139, 69, 0.3)' }}>•</span>
                 <button
                   type="button"
                   onClick={() => openLegalModal('privacy')}
@@ -1787,685 +984,433 @@ export function AuthPage() {
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
-                    color: '#607067',
-                    fontSize: 12.5,
+                    color: 'var(--text-secondary, #607067)',
                     fontWeight: 600,
                     textDecoration: 'underline',
-                    padding: '4px 10px',
-                    borderRadius: 8,
-                    transition: 'all 0.15s ease',
+                    fontSize: 12.5,
+                    padding: 0,
+                    transition: 'color 0.15s ease',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#176B35')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#607067')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary, #607067)')}
                 >
                   Privacy & Terms
                 </button>
               </div>
-            </>
+            </form>
           )}
 
           {/* ══════════════════════════════════════════════════════════════════ */}
-          {/* ── SIGN UP VIEW ────────────────────────────────────────────────── */}
+          {/* ── SIGN UP VIEW (Pangalan, Email, Password, Kumpirma, Checkbox) ── */}
           {/* ══════════════════════════════════════════════════════════════════ */}
           {view === 'signup' && (
-            <>
-              {method === 'email' ? (
-                /* Email Sign Up */
-                <form onSubmit={handleEmailSignUp} noValidate>
-                  <Field label="Buong Pangalan *" icon={User}>
-                    <input
-                      type="text"
-                      value={suFullName}
-                      onChange={(e) => {
-                        setSuFullName(e.target.value);
-                        setError(null);
-                      }}
-                      placeholder="Juan dela Cruz"
-                      autoComplete="name"
-                      disabled={loading}
-                      style={inputStyle(!!error)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
+            <form onSubmit={handleEmailSignUp} noValidate>
+              <Field label="Pangalan *" icon={User}>
+                <input
+                  type="text"
+                  value={suFullName}
+                  onChange={(e) => {
+                    setSuFullName(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="Juan dela Cruz"
+                  autoComplete="name"
+                  disabled={loading}
+                  style={inputStyle(!!error)}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#238B45';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </Field>
 
-                  <Field label="Email Address *" icon={Mail}>
-                    <input
-                      type="email"
-                      value={suEmail}
-                      onChange={(e) => {
-                        setSuEmail(e.target.value);
-                        setError(null);
-                      }}
-                      placeholder="halimbawa@alpasfarm.ph"
-                      autoComplete="email"
-                      disabled={loading}
-                      style={inputStyle(!!error)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
+              <Field label="Email *" icon={Mail}>
+                <input
+                  type="email"
+                  value={suEmail}
+                  onChange={(e) => {
+                    setSuEmail(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="halimbawa@alpasfarm.ph"
+                  autoComplete="email"
+                  disabled={loading}
+                  style={inputStyle(!!error)}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#238B45';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </Field>
 
-                  {/* Password with strength indicator */}
-                  <div style={{ marginBottom: 14 }}>
-                    <label style={{
-                      display: 'block',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: '#174B2A',
-                      marginBottom: 6,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.4px',
-                    }}>
-                      Password *
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Lock
-                        size={17}
-                        style={{
-                          position: 'absolute',
-                          left: 14,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          color: '#607067',
-                          pointerEvents: 'none',
-                        }}
-                      />
-                      <input
-                        type={suShowPw ? 'text' : 'password'}
-                        value={suPassword}
-                        onChange={(e) => {
-                          setSuPassword(e.target.value);
-                          setError(null);
-                        }}
-                        placeholder="Hindi bababa sa 8 karakter"
-                        autoComplete="new-password"
-                        disabled={loading}
-                        style={{ ...inputStyle(!!error), padding: '13px 44px 13px 44px' }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = '#238B45';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setSuShowPw((v) => !v)}
-                        aria-label="Ipakita o itago ang password"
-                        style={{
-                          position: 'absolute',
-                          right: 12,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#6A8173',
-                          display: 'flex',
-                          padding: 6,
-                        }}
-                      >
-                        {suShowPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-
-                    {suPassword && (
-                      <div style={{ marginTop: 8 }}>
-                        <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <div
-                              key={i}
-                              style={{
-                                flex: 1,
-                                height: 4,
-                                borderRadius: 2,
-                                background: i <= pwStr.score ? pwStr.color : '#EAF6ED',
-                                transition: 'background 0.2s',
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#607067' }}>
-                          <span>Lakas ng Password: <strong style={{ color: pwStr.color }}>{pwStr.label}</strong></span>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            {[['8+ karakter', pwStr.checks.length], ['Malaking titik', pwStr.checks.upper], ['Numero', pwStr.checks.number]].map(([l, ok]) => (
-                              <span key={l as string} style={{ color: ok ? '#238B45' : '#607067', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                                {ok ? <CheckCircle2 size={12} color="#238B45" /> : <span style={{ opacity: 0.5 }}>-</span>} {l}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Confirm Password */}
-                  <div style={{ marginBottom: 14 }}>
-                    <label style={{
-                      display: 'block',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: '#174B2A',
-                      marginBottom: 6,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.4px',
-                    }}>
-                      Kumpirmahin ang Password *
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Lock
-                        size={17}
-                        style={{
-                          position: 'absolute',
-                          left: 14,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          color: '#607067',
-                          pointerEvents: 'none',
-                        }}
-                      />
-                      <input
-                        type={suShowConfirmPw ? 'text' : 'password'}
-                        value={suConfirmPw}
-                        onChange={(e) => {
-                          setSuConfirmPw(e.target.value);
-                          setError(null);
-                        }}
-                        placeholder="I-type muli ang password"
-                        autoComplete="new-password"
-                        disabled={loading}
-                        style={{
-                          ...inputStyle(!!error || (!!suConfirmPw && suPassword !== suConfirmPw)),
-                          padding: '13px 44px 13px 44px',
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = '#238B45';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = (suConfirmPw && suPassword !== suConfirmPw) ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setSuShowConfirmPw((v) => !v)}
-                        aria-label="Ipakita o itago ang kumpirmasyon ng password"
-                        style={{
-                          position: 'absolute',
-                          right: 12,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#6A8173',
-                          display: 'flex',
-                          padding: 6,
-                        }}
-                      >
-                        {suShowConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    {suConfirmPw && suPassword !== suConfirmPw && (
-                      <p style={{ fontSize: 11, color: '#EF4444', marginTop: 5 }}>Hindi magkatugma ang kumpirmasyon ng password.</p>
-                    )}
-                  </div>
-
-                  {/* Farm Details Divider */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0 14px' }}>
-                    <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #4B6F57)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Impormasyon ng Bukid
-                    </span>
-                    <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
-                  </div>
-
-                  <Field label="Pangalan ng Bukid *" icon={Building2}>
-                    <input
-                      type="text"
-                      value={suFarmName}
-                      onChange={(e) => {
-                        setSuFarmName(e.target.value);
-                        setError(null);
-                      }}
-                      placeholder="hal. Aberte Family Goat & Sheep Farm"
-                      disabled={loading}
-                      style={inputStyle(!!error)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
-
-                  <Field label="Lokasyon ng Bukid (Opsiyonal)" icon={MapPin}>
-                    <input
-                      type="text"
-                      value={suFarmLocation}
-                      onChange={(e) => setSuFarmLocation(e.target.value)}
-                      placeholder="hal. Silang, Cavite, Philippines"
-                      disabled={loading}
-                      style={inputStyle()}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
-
-                  {/* Terms */}
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 18, cursor: 'pointer', userSelect: 'none' }}>
-                    <div
-                      onClick={() => setSuTerms((v) => !v)}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 6,
-                        flexShrink: 0,
-                        marginTop: 1,
-                        background: suTerms ? 'linear-gradient(135deg, #238B45 0%, #176B35 100%)' : '#FFFFFF',
-                        border: `1.5px solid ${suTerms ? '#176B35' : 'rgba(35, 139, 69, 0.25)'}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      {suTerms && <CheckCircle2 size={13} color="#FFFFFF" />}
-                    </div>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary, #4B6F57)', lineHeight: 1.5 }}>
-                      Sumasang-ayon ako sa ALPASFARM{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openLegalModal('terms');
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#176B35',
-                          fontWeight: 700,
-                          padding: 0,
-                          textDecoration: 'underline',
-                          fontSize: 'inherit',
-                          fontFamily: 'inherit',
-                        }}
-                      >
-                        Mga Tuntunin ng Serbisyo
-                      </button>
-                      {' '}at{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openLegalModal('privacy');
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#176B35',
-                          fontWeight: 700,
-                          padding: 0,
-                          textDecoration: 'underline',
-                          fontSize: 'inherit',
-                          fontFamily: 'inherit',
-                        }}
-                      >
-                        Patakaran sa Privacy
-                      </button>.
-                    </span>
-                  </label>
-
-                  {/* Pill Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={loading}
+              {/* Password with strength indicator */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--text-primary, #174B2A)',
+                  marginBottom: 6,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}>
+                  Password *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock
+                    size={17}
                     style={{
-                      width: '100%',
-                      height: 52,
-                      padding: '0 20px',
-                      background: loading
-                        ? 'rgba(35, 139, 69, 0.6)'
-                        : '#238B45',
-                      border: 'none',
-                      borderRadius: 9999,
-                      color: '#FFFFFF',
-                      fontSize: 15,
-                      fontWeight: 700,
-                      boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      boxSizing: 'border-box',
-                      transition: 'all 0.2s ease',
+                      position: 'absolute',
+                      left: 14,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-secondary, #607067)',
+                      pointerEvents: 'none',
                     }}
-                    onMouseEnter={(e) => {
-                      if (!loading) e.currentTarget.style.background = '#176B35';
+                  />
+                  <input
+                    type={suShowPw ? 'text' : 'password'}
+                    value={suPassword}
+                    onChange={(e) => {
+                      setSuPassword(e.target.value);
+                      setError(null);
                     }}
-                    onMouseLeave={(e) => {
-                      if (!loading) e.currentTarget.style.background = '#238B45';
+                    placeholder="Hindi bababa sa 8 karakter"
+                    autoComplete="new-password"
+                    disabled={loading}
+                    style={{ ...inputStyle(!!error), padding: '13px 44px 13px 44px' }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#238B45';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
                     }}
-                  >
-                    {loading ? (
-                      <>
-                        <div style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
-                          border: '2px solid rgba(255,255,255,0.35)',
-                          borderTopColor: '#FFFFFF',
-                          animation: 'spin 0.7s linear infinite',
-                        }} />
-                        Ginagawa ang account…
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus size={16} /> Mag-sign Up
-                      </>
-                    )}
-                  </button>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 8px' }}>
-                    <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #4B6F57)', fontWeight: 600 }}>o magrehistro gamit ang Gmail</span>
-                    <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
-                  </div>
-
+                    onBlur={(e) => {
+                      e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
                   <button
                     type="button"
-                    onClick={handleGoogleSignIn}
-                    disabled={loading}
+                    onClick={() => setSuShowPw((v) => !v)}
+                    aria-label="Ipakita o itago ang password"
                     style={{
-                      width: '100%',
-                      height: 44,
-                      padding: '0 16px',
-                      background: '#FFFFFF',
-                      border: '1px solid rgba(35, 139, 69, 0.25)',
-                      borderRadius: 9999,
-                      color: '#174B2A',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 10,
-                      boxSizing: 'border-box',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
-                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-                      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                    </svg>
-                    Magrehistro gamit ang Google
-                  </button>
-                </form>
-              ) : (
-                /* Phone Sign Up */
-                <form onSubmit={handlePhoneSignUp} noValidate>
-                  <Field label="Buong Pangalan *" icon={User}>
-                    <input
-                      type="text"
-                      value={suFullName}
-                      onChange={(e) => {
-                        setSuFullName(e.target.value);
-                        setError(null);
-                      }}
-                      placeholder="Juan dela Cruz"
-                      autoComplete="name"
-                      disabled={loading}
-                      style={inputStyle(!!error)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
-
-                  <Field
-                    label="Mobile Phone Number *"
-                    icon={Phone}
-                    badge={
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#176B35', background: '#EAF6ED', padding: '2px 8px', borderRadius: 9999 }}>
-                        +63 (PH)
-                      </span>
-                    }
-                  >
-                    <input
-                      type="tel"
-                      value={suPhone}
-                      onChange={(e) => {
-                        setSuPhone(e.target.value);
-                        setError(null);
-                      }}
-                      placeholder="0917 123 4567"
-                      autoComplete="tel"
-                      disabled={loading}
-                      style={inputStyle(!!error)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0 14px' }}>
-                    <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary, #4B6F57)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Impormasyon ng Bukid
-                    </span>
-                    <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
-                  </div>
-
-                  <Field label="Pangalan ng Bukid *" icon={Building2}>
-                    <input
-                      type="text"
-                      value={suFarmName}
-                      onChange={(e) => {
-                        setSuFarmName(e.target.value);
-                        setError(null);
-                      }}
-                      placeholder="hal. Aberte Family Goat & Sheep Farm"
-                      disabled={loading}
-                      style={inputStyle(!!error)}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = error ? '#EF4444' : 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
-
-                  <Field label="Lokasyon ng Bukid (Opsiyonal)" icon={MapPin}>
-                    <input
-                      type="text"
-                      value={suFarmLocation}
-                      onChange={(e) => setSuFarmLocation(e.target.value)}
-                      placeholder="hal. Silang, Cavite, Philippines"
-                      disabled={loading}
-                      style={inputStyle()}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#238B45';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.12)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = 'rgba(35, 139, 69, 0.20)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </Field>
-
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 18, cursor: 'pointer', userSelect: 'none' }}>
-                    <div
-                      onClick={() => setSuTerms((v) => !v)}
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 6,
-                        flexShrink: 0,
-                        marginTop: 1,
-                        background: suTerms ? 'linear-gradient(135deg, #238B45 0%, #176B35 100%)' : '#FFFFFF',
-                        border: `1.5px solid ${suTerms ? '#176B35' : 'rgba(35, 139, 69, 0.25)'}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      {suTerms && <CheckCircle2 size={13} color="#FFFFFF" />}
-                    </div>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary, #4B6F57)', lineHeight: 1.5 }}>
-                      Sumasang-ayon ako sa ALPASFARM{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openLegalModal('terms');
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#176B35',
-                          fontWeight: 700,
-                          padding: 0,
-                          textDecoration: 'underline',
-                          fontSize: 'inherit',
-                          fontFamily: 'inherit',
-                        }}
-                      >
-                        Mga Tuntunin ng Serbisyo
-                      </button>
-                      {' '}at{' '}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openLegalModal('privacy');
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          color: '#176B35',
-                          fontWeight: 700,
-                          padding: 0,
-                          textDecoration: 'underline',
-                          fontSize: 'inherit',
-                          fontFamily: 'inherit',
-                        }}
-                      >
-                        Patakaran sa Privacy
-                      </button>.
-                    </span>
-                  </label>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    style={{
-                      width: '100%',
-                      height: 52,
-                      padding: '0 20px',
-                      background: loading
-                        ? 'rgba(35, 139, 69, 0.6)'
-                        : '#238B45',
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
                       border: 'none',
-                      borderRadius: 9999,
-                      color: '#FFFFFF',
-                      fontSize: 15,
-                      fontWeight: 700,
-                      boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
-                      cursor: loading ? 'not-allowed' : 'pointer',
+                      cursor: 'pointer',
+                      color: '#6A8173',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      boxSizing: 'border-box',
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!loading) e.currentTarget.style.background = '#176B35';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!loading) e.currentTarget.style.background = '#238B45';
+                      padding: 6,
                     }}
                   >
-                    {loading ? (
-                      <>
-                        <div style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
-                          border: '2px solid rgba(255,255,255,0.35)',
-                          borderTopColor: '#FFFFFF',
-                          animation: 'spin 0.7s linear infinite',
-                        }} />
-                        Nirerehistro ang account…
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus size={16} /> Mag-sign Up gamit ang SMS Code
-                      </>
-                    )}
+                    {suShowPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
-                </form>
-              )}
+                </div>
+
+                {suPassword && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div
+                          key={i}
+                          style={{
+                            flex: 1,
+                            height: 4,
+                            borderRadius: 2,
+                            background: i <= pwStr.score ? pwStr.color : '#EAF6ED',
+                            transition: 'background 0.2s',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#607067' }}>
+                      <span>Lakas ng Password: <strong style={{ color: pwStr.color }}>{pwStr.label}</strong></span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {[['8+ karakter', pwStr.checks.length], ['Malaking titik', pwStr.checks.upper], ['Numero', pwStr.checks.number]].map(([l, ok]) => (
+                          <span key={l as string} style={{ color: ok ? '#238B45' : '#607067', display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                            {ok ? <CheckCircle2 size={12} color="#238B45" /> : <span style={{ opacity: 0.5 }}>-</span>} {l}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Confirm Password */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--text-primary, #174B2A)',
+                  marginBottom: 6,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}>
+                  Kumpirmahin ang Password *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock
+                    size={17}
+                    style={{
+                      position: 'absolute',
+                      left: 14,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-secondary, #607067)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <input
+                    type={suShowConfirmPw ? 'text' : 'password'}
+                    value={suConfirmPw}
+                    onChange={(e) => {
+                      setSuConfirmPw(e.target.value);
+                      setError(null);
+                    }}
+                    placeholder="I-type muli ang password"
+                    autoComplete="new-password"
+                    disabled={loading}
+                    style={{
+                      ...inputStyle(!!error || (!!suConfirmPw && suPassword !== suConfirmPw)),
+                      padding: '13px 44px 13px 44px',
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#238B45';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(35, 139, 69, 0.10)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = (suConfirmPw && suPassword !== suConfirmPw) ? '#EF4444' : 'rgba(35, 139, 69, 0.18)';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSuShowConfirmPw((v) => !v)}
+                    aria-label="Ipakita o itago ang kumpirmasyon ng password"
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#6A8173',
+                      display: 'flex',
+                      padding: 6,
+                    }}
+                  >
+                    {suShowConfirmPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {suConfirmPw && suPassword !== suConfirmPw && (
+                  <p style={{ fontSize: 11, color: '#EF4444', marginTop: 5 }}>Hindi magkatugma ang kumpirmasyon ng password.</p>
+                )}
+              </div>
+
+              {/* Required Terms/Privacy Checkbox */}
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 18, cursor: 'pointer', userSelect: 'none' }}>
+                <div
+                  onClick={() => setSuTerms((v) => !v)}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 6,
+                    flexShrink: 0,
+                    marginTop: 1,
+                    background: suTerms ? 'linear-gradient(135deg, #238B45 0%, #176B35 100%)' : '#FFFFFF',
+                    border: `1.5px solid ${suTerms ? '#176B35' : 'rgba(35, 139, 69, 0.25)'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {suTerms && <CheckCircle2 size={13} color="#FFFFFF" />}
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary, #4B6F57)', lineHeight: 1.5 }}>
+                  Sumasang-ayon ako sa{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openLegalModal('privacy');
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#176B35',
+                      fontWeight: 700,
+                      padding: 0,
+                      textDecoration: 'underline',
+                      fontSize: 'inherit',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Privacy Policy
+                  </button>
+                  {' '}at{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openLegalModal('terms');
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#176B35',
+                      fontWeight: 700,
+                      padding: 0,
+                      textDecoration: 'underline',
+                      fontSize: 'inherit',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Terms
+                  </button>.
+                </span>
+              </label>
+
+              {/* Pill Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  height: 52,
+                  padding: '0 20px',
+                  background: loading
+                    ? 'rgba(35, 139, 69, 0.6)'
+                    : '#238B45',
+                  border: 'none',
+                  borderRadius: 9999,
+                  color: '#FFFFFF',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  boxShadow: loading ? 'none' : '0 6px 20px rgba(35, 139, 69, 0.25)',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxSizing: 'border-box',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading) e.currentTarget.style.background = '#176B35';
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) e.currentTarget.style.background = '#238B45';
+                }}
+              >
+                {loading ? (
+                  <>
+                    <div style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      border: '2px solid rgba(255,255,255,0.35)',
+                      borderTopColor: '#FFFFFF',
+                      animation: 'spin 0.7s linear infinite',
+                    }} />
+                    Ginagawa ang account…
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={16} /> Mag-sign Up
+                  </>
+                )}
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 8px' }}>
+                <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
+                <span style={{ fontSize: 11, color: 'var(--text-secondary, #4B6F57)', fontWeight: 600 }}>o magrehistro gamit ang Gmail</span>
+                <div style={{ flex: 1, height: 1, background: 'rgba(35, 139, 69, 0.15)' }} />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  height: 44,
+                  padding: '0 16px',
+                  background: 'var(--surface-elevated, #FFFFFF)',
+                  border: '1px solid rgba(35, 139, 69, 0.25)',
+                  borderRadius: 9999,
+                  color: 'var(--text-primary, #174B2A)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  boxSizing: 'border-box',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                </svg>
+                Magrehistro gamit ang Google
+              </button>
+
+              {/* Already have an account switcher */}
+              <div style={{
+                textAlign: 'center',
+                marginTop: 16,
+                fontSize: 13,
+                color: 'var(--text-secondary, #607067)',
+              }}>
+                May account na?{' '}
+                <button
+                  type="button"
+                  onClick={() => switchView('signin')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#238B45',
+                    fontWeight: 700,
+                    textDecoration: 'underline',
+                    fontSize: 13,
+                    padding: 0,
+                  }}
+                >
+                  Mag-sign In
+                </button>
+              </div>
+
               {/* Bottom Quick Help Links for Signup */}
               <div style={{
                 display: 'flex',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
                 alignItems: 'center',
+                gap: 16,
                 marginTop: 18,
                 paddingTop: 14,
                 borderTop: '1px solid rgba(35, 139, 69, 0.10)',
@@ -2487,6 +1432,7 @@ export function AuthPage() {
                 >
                   Kailangan ng Tulong?
                 </button>
+                <span style={{ color: 'rgba(35, 139, 69, 0.3)' }}>•</span>
                 <button
                   type="button"
                   onClick={() => openLegalModal('privacy')}
@@ -2504,7 +1450,7 @@ export function AuthPage() {
                   Privacy & Terms
                 </button>
               </div>
-            </>
+            </form>
           )}
         </div>
       </div>
