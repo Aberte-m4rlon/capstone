@@ -172,10 +172,9 @@ export function getRecordRiskMeta(r: HealthRecord) {
   const score = r.risk_score ?? 0;
   const level = (r.risk_level || '').toLowerCase();
   const notes = (r.notes || '').toLowerCase();
-  const diagnosis = (r.diagnosis || '').toLowerCase();
-  const med = (r.medication || '').toLowerCase();
+  const conditions = (r.detected_conditions || '').toLowerCase();
 
-  const needsMed = score >= 80 || level === 'critical' || med.length > 0 || diagnosis.includes('gamot') || notes.includes('gamot') || notes.includes('wound') || notes.includes('pneumonia');
+  const needsMed = score >= 80 || level === 'critical' || conditions.includes('gamot') || notes.includes('gamot') || notes.includes('wound') || notes.includes('pneumonia');
 
   if (needsMed) {
     return {

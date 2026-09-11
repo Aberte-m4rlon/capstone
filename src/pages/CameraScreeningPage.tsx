@@ -14,7 +14,7 @@
  * Zero manual typing required.
  * Strict 0 Emojis rule: 100% Lucide-React SVG Icons with farmer-friendly labels.
  */
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Camera, AlertTriangle, CheckCircle, RefreshCw,
@@ -2423,7 +2423,7 @@ function ScanResultCard({
             MGA NAPANSING KONDISYON:
           </div>
           <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {observationsList.map((item, idx) => (
+            {observationsList.map((item: string, idx: number) => (
               <div key={idx} style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--text-primary, #374151)', lineHeight: 1.5 }}>
                 <span style={{ color: farmerStatus.badgeColor, fontWeight: 800 }}>•</span>
                 <span>{item}</span>
@@ -2483,7 +2483,7 @@ function ScanResultCard({
                   }}
                 >
                   <option value="">-- Pumili ng Gamot ({availableMedicines.length} may stock) --</option>
-                  {availableMedicines.map(m => (
+                  {availableMedicines.map((m: any) => (
                     <option key={m.id} value={m.id}>
                       {m.name} ({m.quantity} {m.unit} natitira)
                     </option>
