@@ -6,10 +6,9 @@
  *   2. Prominent Early Illness Prediction Hero Banner
  *   3. 4 Responsive Summary Metric Cards (Total Animals, High Risk, Moderate Risk, Low Risk)
  *   4. Priority Health Alerts ("Animals Requiring Immediate Attention") with vitals and review action
- *   5. Health Risk Trends Chart (7d / 30d / 90d filterable)
- *   6. Quick Actions Grid (AI Health Scanner, Record Health Check, Health History, Health Reports)
- *   7. Complete Health History Logs & Clinical Search
- *   8. Mobile-First Early Illness Prediction Modal with Computer Vision Camera ML
+ *   5. Quick Actions Grid (AI Health Scanner, Record Health Check, Health History, Health Reports)
+ *   6. Complete Health History Logs & Clinical Search
+ *   7. Mobile-First Early Illness Prediction Modal with Computer Vision Camera ML
  */
 
 import { useState, useMemo, useRef, useEffect } from 'react';
@@ -39,7 +38,6 @@ import {
   ChevronRight,
   Brain,
   HelpCircle,
-  TrendingUp,
   Thermometer,
   Calendar,
   ArrowUpRight,
@@ -241,7 +239,6 @@ export function HealthPage() {
   const [fRisk, setFRisk] = useState<string>('All');
   const [fAnimal, setFAnimal] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [trendRange, setTrendRange] = useState<'7' | '30' | '90'>('30');
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
   const [selectedRecordForDetail, setSelectedRecordForDetail] = useState<HealthRecord | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -393,41 +390,6 @@ export function HealthPage() {
     // Sort highest risk first
     return list.sort((a, b) => b.riskScore - a.riskScore);
   }, [activeAnimals, farmData.healthRecords]);
-
-  // Health Risk Trends over Time (7d / 30d / 90d)
-  const trendData = useMemo(() => {
-    const now = new Date();
-    const days = Number(trendRange);
-    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-
-    const rangeRecords = farmData.healthRecords.filter(
-      (r) => new Date(r.record_date).getTime() >= cutoff.getTime()
-    );
-
-    let highCount = 0;
-    let modCount = 0;
-    let lowCount = 0;
-    let totalScore = 0;
-
-    rangeRecords.forEach((r) => {
-      const score = r.risk_score ?? 0;
-      totalScore += score;
-      if (score >= 65 || r.risk_level === 'High') highCount++;
-      else if (score >= 35 || r.risk_level === 'Moderate') modCount++;
-      else lowCount++;
-    });
-
-    const avgScore = rangeRecords.length > 0 ? Math.round(totalScore / rangeRecords.length) : 0;
-
-    return {
-      totalRecords: rangeRecords.length,
-      highCount,
-      modCount,
-      lowCount,
-      avgScore,
-      records: rangeRecords,
-    };
-  }, [farmData.healthRecords, trendRange]);
 
   // Filtered health records for history table
   const filteredRecords = useMemo(() => {
@@ -1014,98 +976,7 @@ export function HealthPage() {
         )}
       </div>
 
-      {/* ── 5. HEALTH RISK TRENDS CHART ── */}
-      <div className="health-trends-section">
-        <div className="section-header">
-          <div className="section-title-group">
-            <TrendingUp size={20} color="#238B45" />
-            <h2 className="section-title">Health Risk Trends</h2>
-          </div>
-
-          <div className="trend-range-tabs">
-            {(['7', '30', '90'] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                className={`trend-tab ${trendRange === r ? 'trend-tab-active' : ''}`}
-                onClick={() => setTrendRange(r)}
-              >
-                {r} Days
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {trendData.totalRecords === 0 ? (
-          <div className="trends-empty-state">
-            <TrendingUp size={36} color="var(--border)" />
-            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginTop: 8 }}>
-              No historical health data available yet for this period.
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Run regular Early Illness Predictions or record health assessments to build trend analytics.
-            </div>
-          </div>
-        ) : (
-          <div className="trends-metrics-container">
-            <div className="trend-stat-row">
-              <div className="trend-stat-box">
-                <span className="trend-box-label">Assessments in Window</span>
-                <span className="trend-box-val">{trendData.totalRecords}</span>
-              </div>
-              <div className="trend-stat-box">
-                <span className="trend-box-label">Average Risk Score</span>
-                <span className="trend-box-val" style={{ color: trendData.avgScore >= 65 ? '#EF4444' : trendData.avgScore >= 35 ? '#F59E0B' : '#16A34A' }}>
-                  {trendData.avgScore}%
-                </span>
-              </div>
-              <div className="trend-stat-box">
-                <span className="trend-box-label">High Risk Logs</span>
-                <span className="trend-box-val" style={{ color: '#EF4444' }}>{trendData.highCount}</span>
-              </div>
-              <div className="trend-stat-box">
-                <span className="trend-box-label">Low Risk Logs</span>
-                <span className="trend-box-val" style={{ color: '#16A34A' }}>{trendData.lowCount}</span>
-              </div>
-            </div>
-
-            {/* Visual Risk Distribution Bar */}
-            <div className="trend-bar-wrapper">
-              <div className="trend-bar-title">Risk Level Distribution ({trendRange} Days):</div>
-              <div className="trend-bar-track">
-                {trendData.highCount > 0 && (
-                  <div
-                    className="trend-bar-segment segment-high"
-                    style={{ width: `${(trendData.highCount / trendData.totalRecords) * 100}%` }}
-                    title={`High Risk: ${trendData.highCount}`}
-                  />
-                )}
-                {trendData.modCount > 0 && (
-                  <div
-                    className="trend-bar-segment segment-mod"
-                    style={{ width: `${(trendData.modCount / trendData.totalRecords) * 100}%` }}
-                    title={`Moderate Risk: ${trendData.modCount}`}
-                  />
-                )}
-                {trendData.lowCount > 0 && (
-                  <div
-                    className="trend-bar-segment segment-low"
-                    style={{ width: `${(trendData.lowCount / trendData.totalRecords) * 100}%` }}
-                    title={`Low Risk: ${trendData.lowCount}`}
-                  />
-                )}
-              </div>
-              <div className="trend-bar-legend">
-                <span className="legend-item"><span className="legend-dot dot-high" /> High ({trendData.highCount})</span>
-                <span className="legend-item"><span className="legend-dot dot-mod" /> Moderate ({trendData.modCount})</span>
-                <span className="legend-item"><span className="legend-dot dot-low" /> Low ({trendData.lowCount})</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── 6. QUICK ACTIONS SECTION ── */}
+      {/* ── 5. QUICK ACTIONS SECTION ── */}
       <div className="quick-actions-section">
         <h2 className="section-title" style={{ marginBottom: 14 }}>Mabilis na Aksyon</h2>
         <div className="quick-actions-grid">
