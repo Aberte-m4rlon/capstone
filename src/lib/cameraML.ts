@@ -1351,16 +1351,20 @@ export async function runHealthScan(
         angleClinicalFocus: angleResult.detected ? angleResult.clinicalFocus : 'General veterinary screening',
         angleGuidance: angleResult.detected ? angleResult.guidance : 'Panatilihing steady ang camera sa hayop.',
         angleConfidence: angleResult.detected ? angleResult.confidence : 0.88,
-        // Thermal & Temperature Findings (Google Gemini Vision AI)
+        // Thermal & Temperature Findings (Real sensor or null if not measured)
         estimatedTemperature: serverResult.estimatedTemperature !== undefined && serverResult.estimatedTemperature !== null
           ? Number(serverResult.estimatedTemperature)
-          : (riskScore >= 50 ? 40.8 : 39.1),
-        temperatureStatus: serverResult.temperatureStatus || (
-          (serverResult.estimatedTemperature ?? (riskScore >= 50 ? 40.8 : 39.1)) >= 40.5 ? 'fever' :
-          (serverResult.estimatedTemperature ?? (riskScore >= 50 ? 40.8 : 39.1)) >= 39.8 ? 'mild_elevation' :
-          (serverResult.estimatedTemperature ?? (riskScore >= 50 ? 40.8 : 39.1)) < 38.0 ? 'hypothermia' : 'normal'
-        ),
-        temperatureConfidence: serverResult.temperatureConfidence || 0.88,
+          : null,
+        temperatureStatus: serverResult.estimatedTemperature !== undefined && serverResult.estimatedTemperature !== null
+          ? (serverResult.temperatureStatus || (
+              Number(serverResult.estimatedTemperature) >= 40.5 ? 'fever' :
+              Number(serverResult.estimatedTemperature) >= 39.8 ? 'mild_elevation' :
+              Number(serverResult.estimatedTemperature) < 38.0 ? 'hypothermia' : 'normal'
+            ))
+          : null,
+        temperatureConfidence: (serverResult.estimatedTemperature !== undefined && serverResult.estimatedTemperature !== null)
+          ? (serverResult.temperatureConfidence || 0.88)
+          : 0,
         thermalIndicators: serverResult.thermalIndicators || [
           'Normal na moisture sa nguso at respiratory pattern',
           'Alerto ang postura ng ulo at tainga',
@@ -1506,9 +1510,9 @@ export async function runHealthScan(
     angleClinicalFocus: angleResult.detected ? angleResult.clinicalFocus : 'General veterinary screening',
     angleGuidance: angleResult.detected ? angleResult.guidance : 'Panatilihing steady ang camera sa hayop.',
     angleConfidence: angleResult.detected ? angleResult.confidence : 0.85,
-    estimatedTemperature: riskScore >= 50 ? 40.7 : 39.1,
-    temperatureStatus: riskScore >= 50 ? 'fever' : 'normal',
-    temperatureConfidence: 0.85,
+    estimatedTemperature: null,
+    temperatureStatus: null,
+    temperatureConfidence: 0,
     thermalIndicators: [
       'Normal na superficial body temperature pattern',
       'Normal na alertness sa mata at postura',

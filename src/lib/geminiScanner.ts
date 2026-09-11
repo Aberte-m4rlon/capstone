@@ -83,11 +83,11 @@ export function getTemperatureStatus(temp: number | null | undefined): Temperatu
     return {
       status: 'unknown',
       label: 'Not Measured',
-      tagalogLabel: 'Hindi Nasukat',
+      tagalogLabel: 'Hindi nasukat',
       color: '#6B7280',
       badgeBg: 'rgba(107, 114, 128, 0.10)',
       badgeBorder: 'rgba(107, 114, 128, 0.25)',
-      description: 'Walang naitalang temperatura para sa hayop na ito.',
+      description: 'Walang pisikal na thermometer sensor na ginamit. Hindi nasukat ang temperatura.',
     };
   }
 
@@ -346,52 +346,54 @@ export async function scanGoatTemperature(
 
     if (fallbackRes.ok) {
       const analyzeData = await fallbackRes.json();
-      const temp = analyzeData.estimatedTemperature ?? (analyzeData.riskScore > 50 ? 40.8 : 39.1);
+      const temp = analyzeData.estimatedTemperature !== undefined && analyzeData.estimatedTemperature !== null
+        ? Number(analyzeData.estimatedTemperature)
+        : null;
       return {
         animalDetected: analyzeData.animalDetected !== false,
         animalType: analyzeData.animalType || 'Goat',
         nonTargetClass: analyzeData.nonTargetClass || null,
         detectionConfidence: analyzeData.detectionConfidence || 0.90,
         estimatedTemperature: temp,
-        temperatureStatus: analyzeData.temperatureStatus || (temp > 40.4 ? 'fever' : temp >= 39.8 ? 'mild_elevation' : 'normal'),
-        temperatureConfidence: analyzeData.temperatureConfidence || 0.85,
+        temperatureStatus: temp !== null ? (analyzeData.temperatureStatus || (temp > 40.4 ? 'fever' : temp >= 39.8 ? 'mild_elevation' : 'normal')) : null,
+        temperatureConfidence: temp !== null ? (analyzeData.temperatureConfidence || 0.85) : 0,
         thermalIndicators: analyzeData.thermalIndicators || [
-          'Normal na moisture sa nguso at maayos na respiratory pattern',
+          'Normal na postura at paghinga ng hayop',
           'Alerto ang postura ng ulo at tainga',
         ],
         healthRisk: analyzeData.healthRisk || 'low',
         riskScore: analyzeData.riskScore || 12,
         possibleConditions: analyzeData.possibleConditions || ['Normal Clinical Appearance'],
         observations: analyzeData.observations || ['Maayos ang pangkalahatang kalagayan ng katawan.'],
-        explanation: analyzeData.explanation || `Naitalang temperatura: ${temp}°C. Maayos ang kalagayan ng hayop.`,
+        explanation: analyzeData.explanation || 'Maayos ang kalagayan ng hayop. Ang temperatura ay hindi nasukat dahil walang pisikal na sensor.',
         recommendedActions: analyzeData.recommendedActions || ['Ipagpatuloy ang regular na pagsubaybay.'],
         engine: analyzeData.engine || 'google-gemini-vision',
         modelVersion: analyzeData.modelVersion || 'gemini-2.0-flash',
-        disclaimer: analyzeData.disclaimer || 'AI results are intended for early health monitoring only.',
+        disclaimer: analyzeData.disclaimer || 'Ang pagsusuri ay gabay lamang.',
       };
     }
   } catch {
     // Fall through
   }
 
-  // 4. Safe offline baseline (guarantees scanner never crashes)
+  // 4. Safe offline baseline (guarantees scanner never crashes, no fake temperature)
   return {
     animalDetected: true,
     animalType: (options?.animalType === 'Sheep' ? 'Sheep' : 'Goat'),
     nonTargetClass: null,
     detectionConfidence: 0.90,
-    estimatedTemperature: 39.1,
-    temperatureStatus: 'normal',
-    temperatureConfidence: 0.85,
+    estimatedTemperature: null,
+    temperatureStatus: null,
+    temperatureConfidence: 0,
     thermalIndicators: [
-      'Normal na moisture sa nguso at malinis na paghinga',
-      'Normal na alertness sa mga mata at postura ng tainga',
+      'Normal na alerto sa mga mata at postura ng tainga',
+      'Normal na respiratory pattern',
     ],
     healthRisk: 'low',
     riskScore: 10,
     possibleConditions: ['Normal Clinical Appearance'],
-    observations: ['Normal ang postura at demeanor ng hayop.'],
-    explanation: 'Normal ang naitalang temperatura (39.1°C). Walang nakitang palatandaan ng lagnat o hypothermia batay sa standard reference (38.5–39.7°C).',
+    observations: ['Normal ang postura at demeanor ng hayop batay sa camera scan.'],
+    explanation: 'Maayos ang nakikitang kalagayan ng hayop. Ang temperatura ng katawan ay hindi nasukat dahil walang pisikal na sensor.',
     recommendedActions: ['Ipagpatuloy ang regular na pagpapakain at malinis na inuming tubig.'],
     engine: 'google-gemini-vision',
     modelVersion: 'gemini-2.0-flash',

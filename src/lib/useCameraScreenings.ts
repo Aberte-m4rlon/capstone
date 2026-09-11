@@ -146,14 +146,17 @@ async function syncScreeningToAnimalHealth(
   let notificationMsg = '';
   const rawRisk = (result.riskLevel || '').toLowerCase();
 
+  let notificationTitle = '';
   if (scoreVal >= 50 || rawRisk.includes('high') || rawRisk.includes('crit')) {
     mappedStatus = 'Needs Attention';
     notificationPriority = scoreVal >= 75 || rawRisk.includes('crit') ? 'Critical' : 'Warning';
-    notificationMsg = 'Animal requires health attention. Perform a manual health examination. Veterinary assessment recommended.';
+    notificationTitle = 'Kailangan ng Atensyon';
+    notificationMsg = 'May napansing kondisyon na dapat bantayan. Obserbahan ang hayop at magsagawa ng manual health check.';
   } else if (scoreVal >= 25 || rawRisk.includes('mod')) {
     mappedStatus = 'Monitor';
     notificationPriority = 'Warning';
-    notificationMsg = 'Animal requires monitoring.';
+    notificationTitle = 'Bantayan';
+    notificationMsg = 'May kaunting pagbabago sa kalagayan ng hayop na kailangang patuloy na obserbahan.';
   }
 
   try {
@@ -175,11 +178,13 @@ async function syncScreeningToAnimalHealth(
     // 2. Insert clinical record into health_records
     const conditionLabels = (result.indicators || []).map((i) => i.label).filter(Boolean);
     const clinicalNotes = [
-      `Gemini AI Health & Temperature Screening (${mappedStatus} - Risk Score: ${scoreVal}/100).`,
-      result.estimatedTemperature ? `Scanned Temperature: ${result.estimatedTemperature}°C (${result.temperatureStatus || 'Normal'}).` : null,
-      conditionLabels.length > 0 ? `Visual findings: ${conditionLabels.join(', ')}.` : null,
-      result.recommendation ? `Recommendation: ${result.recommendation}` : null,
-      notes ? `Notes: ${notes}` : null,
+      `Camera Health Screening (${mappedStatus === 'Needs Attention' ? 'Kailangan ng Atensyon' : mappedStatus === 'Monitor' ? 'Bantayan' : 'Maayos'}).`,
+      result.estimatedTemperature !== null && result.estimatedTemperature !== undefined
+        ? `Temperatura: ${result.estimatedTemperature}°C.`
+        : 'Temperatura: Hindi nasukat.',
+      conditionLabels.length > 0 ? `Mga napansin: ${conditionLabels.join(', ')}.` : null,
+      result.recommendation ? `Susunod na gagawin: ${result.recommendation}` : null,
+      notes ? `Tala: ${notes}` : null,
     ].filter(Boolean).join(' ');
 
     await supabase.from('health_records').insert({
@@ -187,23 +192,35 @@ async function syncScreeningToAnimalHealth(
       animal_id: animalId,
       record_date: new Date().toISOString().split('T')[0],
       temperature: result.estimatedTemperature ?? null,
-      reasons: conditionLabels.length > 0 ? conditionLabels : ['Gemini AI Health Screening'],
+      reasons: conditionLabels.length > 0 ? conditionLabels : ['Camera Health Screening'],
       notes: clinicalNotes,
       risk_level: mappedStatus === 'Needs Attention' ? 'High' : mappedStatus === 'Monitor' ? 'Moderate' : 'Low',
       risk_score: scoreVal,
       detected_conditions: conditionLabels.join(', ') || null,
     });
 
-    // 3. Automatic alert creation based on risk tier
-    if (notificationPriority && notificationMsg) {
-      await createNotification(
-        userId,
-        'Health',
-        `AI Health Monitoring: ${mappedStatus}`,
-        notificationMsg,
-        notificationPriority,
-        `/animals/${animalId}`,
-      );
+    // 3. Automatic alert creation based on risk tier (prevent duplicate spam within 24 hours)
+    if (notificationPriority && notificationMsg && notificationTitle) {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: existingAlerts } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('link', `/animals/${animalId}`)
+        .eq('title', notificationTitle)
+        .gte('created_at', oneDayAgo)
+        .limit(1);
+
+      if (!existingAlerts || existingAlerts.length === 0) {
+        await createNotification(
+          userId,
+          'Health',
+          notificationTitle,
+          notificationMsg,
+          notificationPriority,
+          `/animals/${animalId}`,
+        );
+      }
     }
   } catch (syncErr) {
     console.warn('Failed to sync screening to animal record:', syncErr);

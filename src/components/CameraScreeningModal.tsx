@@ -7,7 +7,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Camera, Upload, RefreshCw, Zap, AlertTriangle, CheckCircle,
   XCircle, Info, Loader2, X, ImageIcon, Video, RotateCcw,
-  Heart, Activity, Eye, Layers, Thermometer,
+  Heart, Activity, Eye, Layers, Thermometer, Pill,
 } from 'lucide-react';
 import {
   runHealthScan, analyzeVideoFrames, captureVideoFrame, fileToCanvas,
@@ -444,6 +444,8 @@ export function CameraScreeningModal({
 
 // ── Result Card ────────────────────────────────────────────────────────────────
 
+// ── Farmer-Friendly Result Card ──────────────────────────────────────────────
+
 function ScanResultCard({
   result, capturedUrl, notes, saving, onNotesChange, onSave, onRetake, animalName,
 }: {
@@ -467,10 +469,10 @@ function ScanResultCard({
             <XCircle size={48} color="#EF4444" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#EF4444', marginBottom: 6 }}>
-            Hindi ito kambing o tupa.
+            Parang hindi kambing o tupa ang nasa camera.
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
-            Ang AI Health Screening ay para lamang sa mga alagang kambing at tupa. Pakiharap ang camera o mag-upload ng litrato ng kambing o tupa.
+            Iposisyon nang maayos ang hayop sa gitna ng camera bago mag-scan.
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 11, color: '#EF4444', fontWeight: 700 }}>
             <AlertTriangle size={14} /> Hindi maaaring i-save ang screening dahil hindi ito kambing o tupa.
@@ -484,206 +486,161 @@ function ScanResultCard({
     );
   }
 
-  const finalScore = result.combinedRiskScore ?? result.riskScore;
-  const displayRiskLabel =
-    result.riskLevel === 'CRITICAL' ? 'Mataas ang Risk / High Risk' :
-    result.riskLevel === 'HIGH' ? 'Nangangailangan ng Atensyon / Needs Attention' :
-    result.riskLevel === 'MODERATE' ? 'Bantayan / Under Observation' :
-    'Maayos / Healthy';
+  // 4 Farmer Statuses
+  const riskLvl = (result.riskLevel || '').toUpperCase();
+  const score = result.combinedRiskScore ?? result.riskScore ?? 0;
+  const hasMedNeed = riskLvl === 'CRITICAL' || score >= 80 || (result.possibleConditions && result.possibleConditions.some(c => 
+    c.toLowerCase().includes('wound') || c.toLowerCase().includes('severe') || c.toLowerCase().includes('pneumonia') || c.toLowerCase().includes('lagnat')
+  ));
+
+  const farmerStatus = hasMedNeed ? {
+    label: 'Kailangan ng Gamot',
+    badgeBg: 'rgba(220, 38, 38, 0.1)',
+    badgeBorder: '#DC2626',
+    badgeColor: '#DC2626',
+    Icon: Pill,
+    recommendation: 'May napansing kondisyon na nangangailangan ng paggamot. Tiyakin ang tamang gamot mula sa stock at kumonsulta sa beterinaryo kung kinakailangan.',
+  } : (riskLvl === 'HIGH' || score >= 55) ? {
+    label: 'Kailangan ng Atensyon',
+    badgeBg: 'rgba(234, 88, 12, 0.1)',
+    badgeBorder: '#EA580C',
+    badgeColor: '#EA580C',
+    Icon: AlertTriangle,
+    recommendation: 'May napansing kondisyon na dapat bantayan. Obserbahan ang hayop at magsagawa ng manual health check kung kinakailangan.',
+  } : (riskLvl === 'MODERATE' || score >= 25) ? {
+    label: 'Bantayan',
+    badgeBg: 'rgba(217, 119, 6, 0.1)',
+    badgeBorder: '#D97706',
+    badgeColor: '#D97706',
+    Icon: Eye,
+    recommendation: 'Obserbahan ang hayop sa susunod na 24–48 oras. Suriin kung may pagbabago sa gana kumain o sigla.',
+  } : {
+    label: 'Maayos',
+    badgeBg: 'rgba(22, 163, 74, 0.1)',
+    badgeBorder: '#16A34A',
+    badgeColor: '#16A34A',
+    Icon: Heart,
+    recommendation: 'Normal at malusog ang kalagayan ng hayop. Panatilihin ang maayos na pagkain at malinis na inumin.',
+  };
+
+  const StatusIcon = farmerStatus.Icon;
+  const temp = result.estimatedTemperature ?? null;
+  const tempDisplay = temp !== null && temp !== undefined ? `${temp.toFixed(1)}°C` : 'Temperatura: Hindi nasukat';
 
   return (
     <div>
-      {/* Thumbnail with Bounding Box Overlay */}
+      {/* Captured Image Preview */}
       {capturedUrl && (
-        <div style={{ position: 'relative', width: '100%', maxHeight: 220, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: '#000', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img src={capturedUrl} alt="Scanned" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', display: 'block' }} />
-          
-          {/* YOLO Bounding Boxes */}
-          {result.boundingBoxes && result.boundingBoxes.map((b, idx) => {
-            const [x1, y1, x2, y2] = b.box;
-            const isTargetGoat = b.class_name === 'goat' || b.class_name === 'sheep';
-            const color = isTargetGoat ? '#22C55E' : '#EF4444';
-            const labelText = isTargetGoat ? (b.class_name === 'sheep' ? 'Tupa' : 'Kambing') : b.class_name.replace('_', ' ');
-
-            return (
-              <div
-                key={idx}
-                style={{
-                  position: 'absolute',
-                  left: `${x1 * 100}%`,
-                  top: `${y1 * 100}%`,
-                  width: `${(x2 - x1) * 100}%`,
-                  height: `${(y2 - y1) * 100}%`,
-                  border: `2px solid ${color}`,
-                  background: isTargetGoat ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.18)',
-                  borderRadius: 4,
-                  pointerEvents: 'none',
-                }}
-              >
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: -20,
-                    left: 0,
-                    background: color,
-                    color: '#fff',
-                    fontSize: 10,
-                    fontWeight: 800,
-                    padding: '2px 6px',
-                    borderRadius: 3,
-                    whiteSpace: 'nowrap',
-                    textTransform: 'capitalize',
-                  }}
-                >
-                  {labelText}
-                </span>
-              </div>
-            );
-          })}
+        <div style={{ position: 'relative', width: '100%', maxHeight: 200, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: '#000', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={capturedUrl} alt="Scanned" style={{ width: '100%', maxHeight: 200, objectFit: 'contain', display: 'block' }} />
         </div>
       )}
 
-      {result.multipleAnimals && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#D97706' }}>
-          <AlertTriangle size={15} style={{ flexShrink: 0 }} /> Maraming hayop ang nakita. Maaaring mabawasan ang accuracy.
-        </div>
-      )}
-
-      {/* Main result */}
-      <div style={{ background: `${result.riskLevelColor}10`, border: `1px solid ${result.riskLevelColor}35`, borderRadius: 14, padding: '16px', marginBottom: 12 }}>
-
+      {/* Main result card */}
+      <div style={{ background: farmerStatus.badgeBg, border: `1.5px solid ${farmerStatus.badgeBorder}`, borderRadius: 14, padding: '16px', marginBottom: 12 }}>
         {/* Status header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 12, background: `${result.riskLevelColor}20`, border: `1px solid ${result.riskLevelColor}40`, flexShrink: 0 }}>
-            <Activity size={24} color={result.riskLevelColor} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 12, background: '#FFFFFF', boxShadow: '0 2px 6px rgba(0,0,0,0.06)', flexShrink: 0 }}>
+            <StatusIcon size={24} color={farmerStatus.badgeColor} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 16, fontWeight: 900, color: result.riskLevelColor }}>{displayRiskLabel}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(34,197,94,0.15)', color: '#16A34A', border: '1px solid rgba(34,197,94,0.3)' }}>
-                Visual Scan
-              </span>
+            <div style={{ fontSize: 11, fontWeight: 800, color: farmerStatus.badgeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              RESULTA NG HEALTH CHECK
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Pagsusuri sa Kalusugan — {animalName}</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 26, fontWeight: 900, color: result.riskLevelColor, lineHeight: 1 }}>{finalScore}%</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Score ng Kalusugan</div>
-          </div>
-        </div>
-
-        {/* Risk bar */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ height: 6, borderRadius: 999, background: 'var(--surface)', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${finalScore}%`, borderRadius: 999, background: `linear-gradient(90deg,${result.riskLevelColor}80,${result.riskLevelColor})`, transition: 'width 0.8s ease' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10, color: 'var(--text-secondary)' }}>
-            <span>0 — Maayos</span><span>21 — Bantayan</span><span>51 — Mataas ang Risk</span><span>76 — Kritikal</span>
-          </div>
-        </div>
-
-        {/* Gemini AI Body Temperature Reading */}
-        {(() => {
-          const temp = result.estimatedTemperature ?? null;
-          const tempMeta = getTemperatureStatus(temp);
-          return (
-            <div style={{ background: tempMeta.badgeBg, border: `1px solid ${tempMeta.badgeBorder}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Thermometer size={22} color={tempMeta.color} />
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: tempMeta.color, textTransform: 'uppercase' }}>
-                    Temperatura (Gemini AI Vision)
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
-                    {tempMeta.tagalogLabel}
-                  </div>
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 20, fontWeight: 900, color: tempMeta.color }}>
-                  {temp !== null ? `${temp.toFixed(1)}°C` : 'N/A'}
-                </div>
-                <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Normal: 38.5–39.7°C</div>
-              </div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: farmerStatus.badgeColor, marginTop: 1 }}>
+              {farmerStatus.label}
             </div>
-          );
-        })()}
-
-        {/* Confidence vs risk explanation */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>{result.confidencePercent}%</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Katiyakan</div>
-          </div>
-          <div style={{ background: 'var(--surface)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>{result.qualityReport.score}/100</div>
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>Kalidad ng Litrato</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+              Pagsusuri sa Kalusugan — <strong>{animalName}</strong>
+            </div>
           </div>
         </div>
-        <div style={{ fontSize: 10, color: 'var(--text-secondary)', background: 'var(--surface)', borderRadius: 6, padding: '6px 10px', marginBottom: 12, lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Info size={13} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-          <span>Ipinapakita ng <strong>Katiyakan ng Pagsusuri</strong> kung gaano kaklaro ang mga katangian — hindi ito tiyak na diagnosis ng sakit.</span>
+
+        {/* Temperature Reading */}
+        <div style={{ background: '#FFFFFF', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Thermometer size={18} color={temp !== null ? '#16A34A' : '#6B7280'} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text, #1F2937)' }}>
+              {tempDisplay}
+            </span>
+          </div>
+          {temp === null && (
+            <span style={{ fontSize: 11, color: 'var(--text-secondary, #6B7280)' }}>
+              Walang thermometer sensor
+            </span>
+          )}
         </div>
 
         {/* Detected indicators */}
         <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>Mga Nakitang Indikasyon</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>Mga Napansing Kondisyon</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {result.indicators.map((ind, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: ind.indicator === 'NORMAL' ? 'rgba(22,163,74,0.08)' : 'rgba(239,68,68,0.07)', border: `1px solid ${ind.indicator === 'NORMAL' ? 'rgba(22,163,74,0.2)' : 'rgba(239,68,68,0.15)'}` }}>
-                {ind.indicator === 'NORMAL'
-                  ? <CheckCircle size={14} color="#16A34A" />
-                  : <AlertTriangle size={14} color="#EF4444" />}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{simplifyHealthObservation(ind.label)}</div>
-                  {ind.indicator !== 'NORMAL' && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{simplifyHealthObservation(ind.description)}</div>}
+            {result.indicators && result.indicators.length > 0 ? (
+              result.indicators.map((ind, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, background: '#FFFFFF', border: '1px solid var(--border, #E5EDE6)' }}>
+                  <span style={{ color: ind.indicator === 'NORMAL' ? '#16A34A' : '#EA580C', fontWeight: 800 }}>•</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{simplifyHealthObservation(ind.label)}</div>
+                    {ind.indicator !== 'NORMAL' && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{simplifyHealthObservation(ind.description)}</div>}
+                  </div>
                 </div>
-                {ind.indicator !== 'NORMAL' && (
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#EF4444', flexShrink: 0 }}>+{ind.riskPoints} pts</div>
-                )}
+              ))
+            ) : (
+              <div style={{ padding: '8px 10px', background: '#FFFFFF', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+                Walang nakitang problema sa hitsura ng hayop.
               </div>
-            ))}
+            )}
           </div>
         </div>
 
-        {/* Combined factors */}
-        {result.combinedFactors.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Kasama ang Datos ng Bukid</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {result.combinedFactors.map((f, i) => (
-                <div key={i} style={{ fontSize: 11, color: 'var(--text)', padding: '5px 8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <AlertTriangle size={12} color="#D97706" style={{ flexShrink: 0 }} />
-                  <span>{f}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Recommendation (Mandate 13 Non-diagnostic) */}
-        <div style={{ background: 'var(--surface)', borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
+        {/* Recommendation */}
+        <div style={{ background: '#FFFFFF', borderRadius: 10, padding: '10px 12px', marginBottom: 6, border: '1px solid var(--border, #E5EDE6)' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
-            {result.riskLevel !== 'LOW' ? 'POSIBLENG PROBLEMA SA KALUSUGAN AT GABAY' : 'GABAY SA PAG-AALAGA'}
+            SUSUNOD NA GAGAWIN
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>{simplifyHealthObservation(result.recommendation)}</div>
+          <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>{farmerStatus.recommendation}</div>
         </div>
+      </div>
 
-        {/* Actions */}
-        {result.recommendedActions.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {result.recommendedActions.map((a, i) => (
-              <div key={i} style={{ fontSize: 11, color: 'var(--text-secondary)', paddingLeft: 8 }}>· {simplifyHealthObservation(a)}</div>
-            ))}
+      {/* Collapsible Detalye ng Pagsusuri */}
+      <details
+        style={{
+          marginBottom: 14,
+          background: 'var(--surface, #F9FAFB)',
+          border: '1px solid var(--border, #E5EDE6)',
+          borderRadius: 10,
+          padding: '10px 14px',
+        }}
+      >
+        <summary
+          style={{
+            cursor: 'pointer',
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'var(--text-secondary, #6B7280)',
+            outline: 'none',
+          }}
+        >
+          Detalye ng Pagsusuri
+        </summary>
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text-secondary, #4B5563)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Katiyakan (Confidence):</span>
+            <span style={{ fontWeight: 600, color: 'var(--text, #1F2937)' }}>{result.confidencePercent}%</span>
           </div>
-        )}
-      </div>
-
-      {/* Disclaimer */}
-      <div style={{ background: 'rgba(35,139,69,0.07)', border: '1px solid rgba(35,139,69,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 11, color: '#176B35', lineHeight: 1.6, display: 'flex', gap: 8 }}>
-        <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-        <span>{result.disclaimer}</span>
-      </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Internal Risk Score:</span>
+            <span style={{ fontWeight: 600, color: 'var(--text, #1F2937)' }}>{score} / 100</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Kalidad ng Litrato:</span>
+            <span style={{ fontWeight: 600, color: 'var(--text, #1F2937)' }}>{result.qualityReport?.score ?? 0} / 100</span>
+          </div>
+          <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 6, background: 'rgba(35, 139, 69, 0.08)', fontSize: 11, color: '#176B35', lineHeight: 1.4 }}>
+            <strong>Paunawa:</strong> Ang visual screening na ito ay gabay lamang para sa maagang pagmamasid at hindi opisyal na medical diagnosis.
+          </div>
+        </div>
+      </details>
 
       {/* Notes */}
       <textarea value={notes} onChange={(e) => onNotesChange(e.target.value)} placeholder="Magdagdag ng tala (opsyonal)…" rows={2} style={{ width: '100%', resize: 'vertical', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontFamily: 'inherit', marginBottom: 14, boxSizing: 'border-box' }} />
@@ -691,7 +648,7 @@ function ScanResultCard({
       {/* Buttons */}
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={onRetake} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          <RefreshCw size={14} /> I-scan Ulit
+          <RefreshCw size={14} /> Muling Mag-scan
         </button>
         <button onClick={onSave} disabled={saving} style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: saving ? 'var(--surface)' : 'linear-gradient(135deg,#238B45,#176B35)', color: saving ? 'var(--text-secondary)' : '#fff', fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 6px 20px rgba(35,139,69,0.35)', transition: 'all 0.2s' }}>
           {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Inililigtas…</> : <><CheckCircle size={15} /> I-save ang Screening</>}

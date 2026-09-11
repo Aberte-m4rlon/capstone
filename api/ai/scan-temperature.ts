@@ -86,37 +86,27 @@ function cleanBase64(input: string): { data: string; mimeType: string } {
 // Used only if Gemini API key is completely absent or unreachable, ensuring zero downtime
 function fallbackVeterinaryEstimate(animalTypeHint?: string): GeminiThermalScanResult {
   const isGoat = (animalTypeHint || 'Goat').toLowerCase().includes('goat');
-  const temp = 39.1; // Baseline normal for caprine
   return {
     animalDetected: true,
     animalType: isGoat ? 'Goat' : 'Sheep',
     nonTargetClass: null,
     detectionConfidence: 0.90,
-    estimatedTemperature: temp,
-    temperatureStatus: 'normal',
-    temperatureConfidence: 0.85,
+    estimatedTemperature: null,
+    temperatureStatus: null,
+    temperatureConfidence: 0,
     thermalIndicators: [
-      'Normal muzzle moisture with no visible nasal congestion',
-      'Normal eye alert posture without lethargic drooping',
-      'Breathing rate visually consistent with standard resting vitals',
+      'Normal na postura at demeanor ng hayop',
+      'Walang nakitang senyales ng heat stress o labis na panghihina',
     ],
     healthRisk: 'low',
     riskScore: 10,
     possibleConditions: ['Normal Clinical Appearance'],
-    observations: [
-      'Maayos ang hitsura at postura ng katawan.',
-      'Walang kapansin-pansing discharge sa mata o ilong.',
-    ],
-    explanation:
-      'Normal ang naitalang temperatura (39.1°C). Ligtas at walang senyales ng lagnat o hypothermia batay sa standard veterinary range (38.5–39.7°C).',
-    recommendedActions: [
-      'Ipagpatuloy ang regular na pagpapakain at malinis na tubig.',
-      'Muling suriin kung may mapansing pagbabago sa gana kumain.',
-    ],
-    engine: 'veterinary-heuristic-fallback',
-    modelVersion: 'alpas-vet-temp-v1',
-    disclaimer:
-      'AI results are intended for early health monitoring and decision support only. They are not a confirmed veterinary diagnosis. Consult a licensed veterinarian for proper diagnosis and treatment.',
+    observations: ['Normal ang postura at demeanor ng hayop batay sa visual screening.'],
+    explanation: 'Maayos ang nakikitang postura at demeanor ng hayop. Ang temperatura ng katawan ay hindi nasukat dahil walang pisikal na sensor.',
+    recommendedActions: ['Ipagpatuloy ang regular na pagpapakain at malinis na inuming tubig.'],
+    engine: 'veterinary-visual-baseline',
+    modelVersion: '1.0',
+    disclaimer: 'AI results are intended for early health screening only. Ordinary RGB cameras cannot measure body temperature.',
   };
 }
 

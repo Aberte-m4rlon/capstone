@@ -50,6 +50,8 @@ import {
   Pill,
   Package,
   Loader2,
+  Heart,
+  Eye,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input, Select, FormField } from '../components/ui/Input';
@@ -160,55 +162,73 @@ export function formatHealthReasons(
 
 /**
  * Returns metadata for consistent, non-wrapping risk badges & styling (ZERO emojis, Lucide icons only).
+ * 4 Farmer Statuses:
+ * - Maayos (Heart icon, green)
+ * - Bantayan (Eye icon, amber)
+ * - Kailangan ng Atensyon (AlertTriangle icon, orange)
+ * - Kailangan ng Gamot (Pill icon, red)
  */
 export function getRecordRiskMeta(r: HealthRecord) {
   const score = r.risk_score ?? 0;
   const level = (r.risk_level || '').toLowerCase();
+  const notes = (r.notes || '').toLowerCase();
+  const diagnosis = (r.diagnosis || '').toLowerCase();
+  const med = (r.medication || '').toLowerCase();
 
-  if (score >= 85 || level === 'critical') {
+  const needsMed = score >= 80 || level === 'critical' || med.length > 0 || diagnosis.includes('gamot') || notes.includes('gamot') || notes.includes('wound') || notes.includes('pneumonia');
+
+  if (needsMed) {
     return {
       key: 'critical',
-      label: 'Mataas ang Risk / High Risk',
+      label: 'Kailangan ng Gamot',
       score,
       badgeClass: 'risk-badge-critical',
       cardClass: 'record-card-critical',
-      Icon: ShieldAlert,
-      color: '#EF4444',
+      Icon: Pill,
+      color: '#DC2626',
+      badgeBg: 'rgba(220, 38, 38, 0.1)',
+      badgeBorder: '#DC2626',
       nextCheck: 'Agad-agad / Sa loob ng 12 oras',
     };
   }
-  if (score >= 60 || level === 'high') {
+  if (score >= 55 || level === 'high') {
     return {
       key: 'high',
-      label: 'Nangangailangan ng Atensyon / Needs Attention',
+      label: 'Kailangan ng Atensyon',
       score,
       badgeClass: 'risk-badge-high',
       cardClass: 'record-card-high',
       Icon: AlertTriangle,
-      color: '#F97316',
+      color: '#EA580C',
+      badgeBg: 'rgba(234, 88, 12, 0.1)',
+      badgeBorder: '#EA580C',
       nextCheck: 'Sa loob ng 24 oras',
     };
   }
-  if (score >= 35 || level === 'moderate' || level === 'medium') {
+  if (score >= 25 || level === 'moderate' || level === 'medium') {
     return {
       key: 'moderate',
-      label: 'Bantayan / Under Observation',
+      label: 'Bantayan',
       score,
       badgeClass: 'risk-badge-mod',
       cardClass: 'record-card-mod',
-      Icon: AlertTriangle,
-      color: '#F59E0B',
+      Icon: Eye,
+      color: '#D97706',
+      badgeBg: 'rgba(217, 119, 6, 0.1)',
+      badgeBorder: '#D97706',
       nextCheck: 'Sa loob ng 48 oras',
     };
   }
   return {
     key: 'low',
-    label: 'Maayos / Healthy',
+    label: 'Maayos',
     score,
     badgeClass: 'risk-badge-low',
     cardClass: 'record-card-low',
-    Icon: CheckCircle2,
+    Icon: Heart,
     color: '#16A34A',
+    badgeBg: 'rgba(22, 163, 74, 0.1)',
+    badgeBorder: '#16A34A',
     nextCheck: 'Sa loob ng 7 araw',
   };
 }
@@ -234,6 +254,7 @@ export function HealthPage() {
   const [obsActivity, setObsActivity] = useState<'Normal' | 'Low' | 'Lethargic' | null>(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [notes, setNotes] = useState<string>('');
+  const [manualMedId, setManualMedId] = useState<string>('');
 
   // Filters & UI State
   const [fRisk, setFRisk] = useState<string>('All');
@@ -300,6 +321,68 @@ export function HealthPage() {
     farmData.weightRecords,
     farmData.vaccinations,
   ]);
+
+  // Available medicines from inventory for treatment / manual check
+  const availableMedicines = useMemo(() => {
+    return farmData.inventory.filter((item) => {
+      const isMed = isMedicineCategory(item.category) || isDewormerCategory(item.category) || isSupplementCategory(item.category);
+      return isMed && (item.quantity ?? 0) > 0 && !isItemExpired(item.expiry_date);
+    });
+  }, [farmData.inventory]);
+
+  // Farmer Status for Manual Health Check Modal
+  const manualFarmerStatus = useMemo(() => {
+    const predScore = currentPrediction?.riskScore ?? 0;
+    const hasCriticalSymptoms = selectedSymptoms.includes('diarrhea') || selectedSymptoms.includes('cough') || obsAppetite === 'None' || obsActivity === 'Lethargic';
+    const hasModerateSymptoms = selectedSymptoms.includes('nasal_discharge') || selectedSymptoms.includes('lameness') || selectedSymptoms.includes('bloat') || selectedSymptoms.includes('pale_membrane') || obsAppetite === 'Reduced' || obsActivity === 'Low';
+
+    if (hasCriticalSymptoms || predScore >= 75) {
+      return {
+        key: 'gamot',
+        label: 'Kailangan ng Gamot',
+        score: Math.max(predScore, 80),
+        badgeBg: 'rgba(220, 38, 38, 0.1)',
+        badgeBorder: '#DC2626',
+        badgeColor: '#DC2626',
+        Icon: Pill,
+        recommendation: 'Nangangailangan ng gamutan o lunas. Pumili ng gamot mula sa stock o kumonsulta sa beterinaryo kung kinakailangan.',
+      };
+    }
+    if (hasModerateSymptoms || predScore >= 50) {
+      return {
+        key: 'atensyon',
+        label: 'Kailangan ng Atensyon',
+        score: Math.max(predScore, 55),
+        badgeBg: 'rgba(234, 88, 12, 0.1)',
+        badgeBorder: '#EA580C',
+        badgeColor: '#EA580C',
+        Icon: AlertTriangle,
+        recommendation: 'May mga senyales na nangangailangan ng agarang pagsusuri at masusing pagbabantay.',
+      };
+    }
+    if (selectedSymptoms.length > 0 || predScore >= 25) {
+      return {
+        key: 'bantayan',
+        label: 'Bantayan',
+        score: Math.max(predScore, 30),
+        badgeBg: 'rgba(217, 119, 6, 0.1)',
+        badgeBorder: '#D97706',
+        badgeColor: '#D97706',
+        Icon: Eye,
+        recommendation: 'Obserbahan ang hayop sa susunod na 24–48 oras. Bantayan ang gana kumain at sigla.',
+      };
+    }
+    return {
+      key: 'maayos',
+      label: 'Maayos',
+      score: 5,
+      badgeBg: 'rgba(22, 163, 74, 0.1)',
+      badgeBorder: '#16A34A',
+      badgeColor: '#16A34A',
+      Icon: Heart,
+      recommendation: 'Normal at malusog ang kalagayan ng hayop. Panatilihin ang maayos na pagkain at malinis na inumin.',
+    };
+  }, [currentPrediction, selectedSymptoms, obsAppetite, obsActivity]);
 
   // 4 Health Summary Statistics (Priority Order: Gamot -> Atensyon -> Bantayan -> Maayos)
   const stats = useMemo(() => {
@@ -424,6 +507,7 @@ export function HealthPage() {
     setObsActivity(null);
     setSelectedSymptoms([]);
     setNotes('');
+    setManualMedId('');
     setScannedConfirmation(null);
     setModalOpen(true);
   };
@@ -450,6 +534,7 @@ export function HealthPage() {
     setObsActivity(null);
     setSelectedSymptoms([]);
     setNotes('');
+    setManualMedId('');
     setCameraScanModalOpen(false);
     toast(`Nahanap: ${animal.name || animal.tag_id} (${animal.tag_id})`, 'success');
   };
@@ -499,15 +584,10 @@ export function HealthPage() {
 
   // Save Prediction to Database
   const handleSavePrediction = async () => {
-    if (!selectedAnimal || !currentPrediction || !user) return;
+    if (!selectedAnimal || !user) return;
 
     if (selectedAnimal.user_id !== user.id && !isSuperAdmin) {
       toast('Walang pahintulot na magtala para sa hayop na ito.', 'error');
-      return;
-    }
-
-    if (currentPrediction.status === 'INSUFFICIENT_EVIDENCE') {
-      toast('Kulang ang impormasyon. Maglagay ng kahit isang obserbasyon bago i-save.', 'warning');
       return;
     }
 
@@ -532,14 +612,58 @@ export function HealthPage() {
         body_condition: selectedSymptoms.includes('rough_coat') ? ('Fair' as const) : ('Good' as const),
       };
 
-      const reasonsList = currentPrediction.detectedIndicators.map((i) => `[${i.category}] ${i.name}`).join('; ');
-      const detectedConditionsStr = currentPrediction.possibleConcerns.map((c) => c.condition).join('; ');
-      const recommendationStr = currentPrediction.recommendations.join('\n');
+      // Handle medication inventory deduction if selected
+      let medName: string | null = null;
+      if (manualMedId) {
+        const chosenMed = farmData.inventory.find((i) => i.id === manualMedId);
+        if (!chosenMed || (chosenMed.quantity ?? 0) <= 0) {
+          toast('Ang gamot na ito ay wala o kulang sa iyong stock.', 'error');
+          setSaving(false);
+          return;
+        }
+        medName = chosenMed.name;
+        const consumeRes = await consumeInventoryStock({
+          userId: user.id,
+          isSuperAdmin,
+          item: chosenMed,
+          quantity: 1,
+          usageType: 'medication',
+          animalId: selectedAnimal.id,
+          animalTag: selectedAnimal.tag_id,
+          animalName: selectedAnimal.name,
+          referenceType: 'animal',
+          referenceId: selectedAnimal.id,
+          reason: `Paggamot: ${chosenMed.name}`,
+          notes: `Ibinigay mula sa Health Check kay ${selectedAnimal.name} (${selectedAnimal.tag_id}).`,
+        });
+
+        if (!consumeRes.success) {
+          toast(consumeRes.error || 'Ang gamot na ito ay wala o kulang sa iyong stock.', 'error');
+          setSaving(false);
+          return;
+        }
+      }
+
+      const reasonsList = currentPrediction?.detectedIndicators?.length
+        ? currentPrediction.detectedIndicators.map((i) => `[${i.category}] ${i.name}`).join('; ')
+        : selectedSymptoms.length > 0
+        ? selectedSymptoms.map((s) => AVAILABLE_SYMPTOMS.find((sym) => sym.id === s)?.label || s).join('; ')
+        : 'Normal na kalagayan • Walang napansing problema';
+
+      const detectedConditionsStr = currentPrediction?.possibleConcerns?.length
+        ? currentPrediction.possibleConcerns.map((c) => c.condition).join('; ')
+        : selectedSymptoms.join('; ') || null;
+
+      const recommendationStr = currentPrediction?.recommendations?.length
+        ? currentPrediction.recommendations.join('\n')
+        : manualFarmerStatus.recommendation;
 
       const mappedRiskLevel =
-        currentPrediction.riskLevel === 'High Risk'
+        manualFarmerStatus.key === 'gamot'
+          ? 'Critical'
+          : manualFarmerStatus.key === 'atensyon'
           ? 'High'
-          : currentPrediction.riskLevel === 'Moderate Risk'
+          : manualFarmerStatus.key === 'bantayan'
           ? 'Moderate'
           : 'Low';
 
@@ -562,31 +686,37 @@ export function HealthPage() {
         nasal_discharge: riskInput.nasal_discharge,
         eye_condition: riskInput.eye_condition,
         body_condition: riskInput.body_condition,
-        risk_score: currentPrediction.riskScore,
+        risk_score: manualFarmerStatus.score,
         risk_level: mappedRiskLevel,
         reasons: reasonsList || null,
         recommendation: recommendationStr,
         detected_conditions: detectedConditionsStr || null,
+        medication: medName,
         notes: notes.trim()
-          ? `${notes.trim()}\n\n[Version: ${EARLY_ILLNESS_MODEL_VERSION} | Vet Attention: ${currentPrediction.veterinaryAttention}]`
-          : `[Version: ${EARLY_ILLNESS_MODEL_VERSION} | Vet Attention: ${currentPrediction.veterinaryAttention}]`,
+          ? `${notes.trim()}${medName ? ` | Gamot: ${medName}` : ''}`
+          : (medName ? `Gamot: ${medName}` : ''),
       };
 
       const { error: insertError } = await supabase.from('health_records').insert(healthPayload);
       if (insertError) throw insertError;
 
       // Update animal's main profile status
-      let newHealthStatus = 'Healthy';
-      if (currentPrediction.riskScore >= 65) newHealthStatus = 'At Risk';
-      else if (currentPrediction.riskScore >= 35) newHealthStatus = 'Monitor';
+      let newHealthStatus: HealthStatus = 'Healthy';
+      if (manualFarmerStatus.key === 'gamot') newHealthStatus = 'Critical';
+      else if (manualFarmerStatus.key === 'atensyon') newHealthStatus = 'At Risk';
+      else if (manualFarmerStatus.key === 'bantayan') newHealthStatus = 'Monitor';
+
+      const animalUpdatePayload: Record<string, any> = {
+        health_status: newHealthStatus,
+        health_risk_score: manualFarmerStatus.score,
+      };
+      if (riskInput.temperature !== null) {
+        animalUpdatePayload.current_temperature = riskInput.temperature;
+      }
 
       let animalUpdate = supabase
         .from('animals')
-        .update({
-          health_status: newHealthStatus,
-          health_risk_score: currentPrediction.riskScore,
-          current_temperature: riskInput.temperature,
-        })
+        .update(animalUpdatePayload)
         .eq('id', selectedAnimal.id);
 
       if (!isSuperAdmin) {
@@ -594,35 +724,44 @@ export function HealthPage() {
       }
       await animalUpdate;
 
-      // Trigger automatic alert if significant risk increase or high risk
-      if (currentPrediction.isSignificantIncrease || currentPrediction.riskScore >= 65) {
+      // Trigger automatic alert if significant risk increase or high risk (deduplicated to 24h)
+      if (manualFarmerStatus.key === 'gamot' || manualFarmerStatus.key === 'atensyon') {
         if (user) {
-          const alertTitle = currentPrediction.isSignificantIncrease
-            ? `Risk Jump Alert (${selectedAnimal.name}): +${currentPrediction.riskDelta ?? 0}% risk increase`
-            : `${selectedAnimal.name}: High Health Risk (${currentPrediction.riskScore}%)`;
+          const { data: existingNotifs } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('link', `/animals/${selectedAnimal.id}`)
+            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+            .limit(1);
 
-          const alertDesc = currentPrediction.possibleConcerns.length > 0
-            ? currentPrediction.possibleConcerns.map((c) => c.condition).join(', ')
-            : currentPrediction.detectedIndicators.map((i) => i.name).slice(0, 3).join(', ');
+          if (!existingNotifs || existingNotifs.length === 0) {
+            const alertTitle = `${selectedAnimal.name}: May Napansing Alalahanin sa Kalusugan (${manualFarmerStatus.label})`;
+            const alertDesc = reasonsList;
 
-          await createNotification(
-            user.id,
-            'Health',
-            alertTitle,
-            alertDesc,
-            currentPrediction.riskScore >= 65 ? 'Critical' : 'Warning',
-            `/animals/${selectedAnimal.id}`
-          );
+            await createNotification(
+              user.id,
+              'Health',
+              alertTitle,
+              alertDesc,
+              manualFarmerStatus.key === 'gamot' ? 'Critical' : 'Warning',
+              `/animals/${selectedAnimal.id}`
+            );
+          }
         }
       }
 
-      toast('Early Illness Prediction saved successfully!', 'success');
+      toast(
+        medName
+          ? `Nai-save ang health record at nabawasan ang ${medName} sa imbentaryo.`
+          : 'Nai-save ang health check ng hayop!',
+        'success'
+      );
       setModalOpen(false);
       farmData.refresh();
     } catch (err: any) {
       toast(err.message || 'Unable to save record.', 'error');
     } finally {
-      setSaving(false);
     }
   };
 
@@ -784,85 +923,74 @@ export function HealthPage() {
         </div>
       </div>
 
-      {/* ── 2. PRIMARY AI HEALTH SCANNER CTA ── */}
-      <div className="health-primary-cta-container">
+      {/* ── 2. PRIMARY ACTIONS ── */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
         <button
           type="button"
           className="health-primary-scanner-btn"
           onClick={() => navigate('/camera-screening')}
+          style={{ flex: '1 1 240px', maxWidth: 360 }}
         >
           <Camera size={18} />
           <span>Buksan ang Camera</span>
           <ArrowRight size={16} className="scanner-arrow-icon" />
         </button>
+
+        <button
+          type="button"
+          onClick={() => openPredictionModal()}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '12px 20px',
+            borderRadius: 12,
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          }}
+        >
+          <Heart size={16} color="#16A34A" />
+          <span>Manual Health Check</span>
+        </button>
       </div>
 
-      {/* ── 3. AI HEALTH MONITORING FEATURE CARD ── */}
-      <div className="prediction-hero-banner">
-        <div className="hero-banner-content">
-          <div className="hero-badge">
-            <Camera size={13} color="#238B45" />
-            <span>Camera Health Screening</span>
-          </div>
-          <h2 className="hero-banner-title">Automatic Health Monitoring</h2>
-          <p className="hero-banner-desc">
-            Itutok ang camera sa kambing o tupa. Awtomatikong kikilalanin ng system ang hayop at susuriin ang mga nakikitang senyales para makatulong sa health monitoring at magpaalala kung may posibleng alalahanin sa kalusugan.
-          </p>
-          <div className="hero-banner-actions">
-            <button
-              type="button"
-              className="health-secondary-btn"
-              onClick={() => openPredictionModal()}
-            >
-              <HeartPulse size={16} />
-              <span>Manual Health Check (Opsyonal)</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 3. 4 HEALTH SUMMARY METRIC CARDS (PRIORITY ORDER) ── */}
+      {/* ── 3. 4 HEALTH SUMMARY METRIC CARDS (FARMER ORDER) ── */}
       <div className="health-summary-grid">
-        {/* 1. Mga Hayop na Kailangan ng Gamot (🔴 Priority 1) */}
+        {/* 1. Mga Hayop na Maayos */}
         <div
-          className={`health-stat-card med-needed-card ${fRisk === 'critical' ? 'stat-card-active' : ''}`}
-          onClick={() => setFRisk(fRisk === 'critical' ? 'All' : 'critical')}
+          className={`health-stat-card low-risk-card ${fRisk === 'low' ? 'stat-card-active' : ''}`}
+          onClick={() => setFRisk(fRisk === 'low' ? 'All' : 'low')}
           style={{ cursor: 'pointer' }}
         >
           <div className="stat-card-header">
-            <span className="stat-label med-needed-label">🔴 Kailangan ng Gamot</span>
-            <AlertOctagon size={18} color="#EF4444" />
+            <span className="stat-label low-risk-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Heart size={16} color="#16A34A" />
+              <span>Maayos</span>
+            </span>
+            <CheckCircle2 size={18} color="#16A34A" />
           </div>
-          <div className="stat-value med-needed-value">
-            {stats.needsMedication}
+          <div className="stat-value low-risk-value">
+            {stats.lowRisk}
           </div>
-          <div className="stat-subtext med-needed-subtext">Agad na bigyan ng lunas</div>
+          <div className="stat-subtext low-risk-subtext">Malusog ang kawan</div>
         </div>
 
-        {/* 2. Mga Hayop na Kailangan ng Atensyon (🟠 Priority 2) */}
-        <div
-          className={`health-stat-card high-risk-card ${fRisk === 'high' ? 'stat-card-active' : ''}`}
-          onClick={() => setFRisk(fRisk === 'high' ? 'All' : 'high')}
-          style={{ cursor: 'pointer' }}
-        >
-          <div className="stat-card-header">
-            <span className="stat-label high-risk-label">🟠 Kailangan ng Atensyon</span>
-            <ShieldAlert size={18} color="#EA580C" />
-          </div>
-          <div className="stat-value high-risk-value">
-            {stats.needsAttention}
-          </div>
-          <div className="stat-subtext high-risk-subtext">Agarang suriin</div>
-        </div>
-
-        {/* 3. Mga Hayop na Bantayan (🟡 Priority 3) */}
+        {/* 2. Mga Hayop na Bantayan */}
         <div
           className={`health-stat-card mod-risk-card ${fRisk === 'moderate' ? 'stat-card-active' : ''}`}
           onClick={() => setFRisk(fRisk === 'moderate' ? 'All' : 'moderate')}
           style={{ cursor: 'pointer' }}
         >
           <div className="stat-card-header">
-            <span className="stat-label mod-risk-label">🟡 Bantayan</span>
+            <span className="stat-label mod-risk-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Eye size={16} color="#D97706" />
+              <span>Bantayan</span>
+            </span>
             <AlertTriangle size={18} color="#D97706" />
           </div>
           <div className="stat-value mod-risk-value">
@@ -871,20 +999,42 @@ export function HealthPage() {
           <div className="stat-subtext mod-risk-subtext">Obserbahan ang sigla</div>
         </div>
 
-        {/* 4. Mga Hayop na Maayos (🟢 Priority 4) */}
+        {/* 3. Mga Hayop na Kailangan ng Atensyon */}
         <div
-          className={`health-stat-card low-risk-card ${fRisk === 'low' ? 'stat-card-active' : ''}`}
-          onClick={() => setFRisk(fRisk === 'low' ? 'All' : 'low')}
+          className={`health-stat-card high-risk-card ${fRisk === 'high' ? 'stat-card-active' : ''}`}
+          onClick={() => setFRisk(fRisk === 'high' ? 'All' : 'high')}
           style={{ cursor: 'pointer' }}
         >
           <div className="stat-card-header">
-            <span className="stat-label low-risk-label">🟢 Maayos</span>
-            <CheckCircle2 size={18} color="#16A34A" />
+            <span className="stat-label high-risk-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AlertTriangle size={16} color="#EA580C" />
+              <span>Kailangan ng Atensyon</span>
+            </span>
+            <ShieldAlert size={18} color="#EA580C" />
           </div>
-          <div className="stat-value low-risk-value">
-            {stats.lowRisk}
+          <div className="stat-value high-risk-value">
+            {stats.needsAttention}
           </div>
-          <div className="stat-subtext low-risk-subtext">Malusog ang kawan</div>
+          <div className="stat-subtext high-risk-subtext">Agarang suriin</div>
+        </div>
+
+        {/* 4. Mga Hayop na Kailangan ng Gamot */}
+        <div
+          className={`health-stat-card med-needed-card ${fRisk === 'critical' ? 'stat-card-active' : ''}`}
+          onClick={() => setFRisk(fRisk === 'critical' ? 'All' : 'critical')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="stat-card-header">
+            <span className="stat-label med-needed-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Pill size={16} color="#DC2626" />
+              <span>Kailangan ng Gamot</span>
+            </span>
+            <AlertOctagon size={18} color="#EF4444" />
+          </div>
+          <div className="stat-value med-needed-value">
+            {stats.needsMedication}
+          </div>
+          <div className="stat-subtext med-needed-subtext">Agad na bigyan ng lunas</div>
         </div>
       </div>
 
@@ -930,7 +1080,7 @@ export function HealthPage() {
 
                     <div className="risk-badge-group">
                       <span className={`risk-pill ${isHigh ? 'risk-pill-high' : 'risk-pill-mod'}`}>
-                        {item.riskLevel === 'High' ? 'Mataas ang Risk' : 'Bantayan'} ({item.riskScore}%)
+                        {isHigh ? 'Kailangan ng Atensyon' : 'Bantayan'}
                       </span>
                       {item.delta >= 20 && (
                         <span className="jump-badge">+{item.delta}% Pagtaas</span>
@@ -942,11 +1092,11 @@ export function HealthPage() {
                   <div className="vitals-row">
                     <div className="vital-item">
                       <Thermometer size={13} color="var(--text-secondary)" />
-                      <span>Temp: <strong>{item.temperature ? `${item.temperature}°C` : 'Hindi sinukat'}</strong></span>
+                      <span>Temp: <strong>{item.temperature ? `${item.temperature}°C` : 'Hindi nasukat'}</strong></span>
                     </div>
                     <div className="vital-item">
                       <Activity size={13} color="var(--text-secondary)" />
-                      <span>Heart: <strong>{item.heartRate ? `${item.heartRate} bpm` : 'Hindi sinukat'}</strong></span>
+                      <span>Heart: <strong>{item.heartRate ? `${item.heartRate} bpm` : 'Hindi nasukat'}</strong></span>
                     </div>
                     <div className="vital-item">
                       <PawPrint size={13} color="var(--text-secondary)" />
@@ -1146,7 +1296,7 @@ export function HealthPage() {
                   <div className="health-log-badge-box">
                     <span className={`health-risk-badge ${riskMeta.badgeClass}`}>
                       <riskMeta.Icon size={13} strokeWidth={2.5} />
-                      <span>{riskMeta.label} ({riskMeta.score}%)</span>
+                      <span>{riskMeta.label}</span>
                     </span>
                   </div>
 
@@ -1177,7 +1327,7 @@ export function HealthPage() {
                     <div className="health-log-mobile-footer">
                       <span className={`health-risk-badge ${riskMeta.badgeClass}`}>
                         <riskMeta.Icon size={12} strokeWidth={2.5} />
-                        <span>{riskMeta.label} ({riskMeta.score}%)</span>
+                        <span>{riskMeta.label}</span>
                       </span>
                       <div className="health-log-arrow-box">
                         <ChevronRight size={16} />
@@ -1198,12 +1348,12 @@ export function HealthPage() {
         size="lg"
       >
         <ModalHeader
-          title="Manual Health Check (Para sa Beterinaryo o Farm Staff)"
+          title="Manual Health Check"
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
         <div className="modal-inner-flow">
-          {/* Professional Vet Note */}
+          {/* Quick Notice */}
           <div style={{
             display: 'flex',
             gap: 10,
@@ -1214,20 +1364,22 @@ export function HealthPage() {
             fontSize: 12,
             color: '#174B2A',
             lineHeight: 1.5,
-            marginBottom: 14,
+            marginBottom: 16,
           }}>
             <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
-              <strong>Manual Health Check:</strong> Gamitin ang camera para i-scan ang animal QR o Tag ID, o piliin ang hayop mula sa listahan upang awtomatikong makuha ang mga tala nito mula sa database.
+              <strong>Manual Health Check:</strong> Piliin ang hayop mula sa listahan o gamitin ang camera para kilalanin ang hayop at itala ang napansing kalagayan.
             </div>
           </div>
-          {/* STEP 1: Animal Selector or Camera Scan */}
-          <div>
-            <label className="modal-step-label" htmlFor="manual-health-animal-select">
-              1. Pumili ng Hayop *
-            </label>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+          {/* ── SEKSYON 1: IMPORMASYON NG HAYOP ── */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <PawPrint size={16} color="#16A34A" />
+              <span>1. Impormasyon ng Hayop</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
               <button
                 type="button"
                 onClick={() => setCameraScanModalOpen(true)}
@@ -1255,7 +1407,7 @@ export function HealthPage() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>o kaya</span>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>o kaya pumili mula sa listahan</span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               </div>
 
@@ -1292,151 +1444,121 @@ export function HealthPage() {
               </div>
             </div>
 
-            {/* Confirmation Card: Hayop na Nakilala mula sa Camera */}
-            {scannedConfirmation && (
+            {/* Animal Card Details when selected */}
+            {selectedAnimal && (
               <div
                 style={{
-                  background: '#ECFDF5',
-                  border: '1px solid #A7F3D0',
+                  background: 'var(--surface-sunken)',
+                  border: '1px solid var(--border)',
                   borderRadius: 12,
                   padding: '12px 14px',
-                  marginBottom: 14,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 4,
+                  gap: 6,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckCircle2 size={18} color="#059669" />
-                    <span style={{ fontWeight: 800, fontSize: 13, color: '#065F46' }}>
-                      Hayop na Nakilala
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      background: '#D1FAE5',
-                      color: '#047857',
-                      padding: '2px 8px',
-                      borderRadius: 6,
-                    }}
-                  >
-                    {scannedConfirmation.tag_id}
+                  <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)' }}>
+                    {selectedAnimal.name || selectedAnimal.tag_id}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, background: 'rgba(22, 163, 74, 0.1)', color: '#16A34A', padding: '2px 8px', borderRadius: 6 }}>
+                    Tag: {selectedAnimal.tag_id}
                   </span>
                 </div>
-
-                <div style={{ fontSize: 13, color: '#064E3B', fontWeight: 600, paddingLeft: 26 }}>
-                  {scannedConfirmation.species === 'Sheep' ? 'Tupa' : 'Kambing'}
-                  {scannedConfirmation.name && scannedConfirmation.name !== scannedConfirmation.tag_id
-                    ? ` • ${scannedConfirmation.name}`
-                    : ''}
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  Uri: <strong>{selectedAnimal.species === 'Sheep' ? 'Tupa' : 'Kambing'}</strong>
+                  {selectedAnimal.breed ? ` • Lahi: ${selectedAnimal.breed}` : ''}
+                  {selectedAnimal.weight_kg ? ` • Timbang: ${selectedAnimal.weight_kg} kg` : ''}
+                  {currentPrediction?.contextSummary?.ageMonths ? ` • Edad: ${currentPrediction.contextSummary.ageMonths} buwan` : ''}
                 </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 12,
-                    color: '#047857',
-                    paddingLeft: 26,
-                    marginTop: 2,
-                  }}
-                >
-                  <CheckCircle2 size={14} />
-                  <span>Na-fill na ang impormasyon mula sa database.</span>
-                </div>
-              </div>
-            )}
-
-            {/* Empty state alert when user has no active animals */}
-            {activeAnimals.length === 0 && (
-              <div className="modal-no-animals-notice">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                  <span>Wala pang hayop na nakarehistro.</span>
-                </div>
-                <button
-                  type="button"
-                  className="modal-add-animal-link-btn"
-                  onClick={() => {
-                    setModalOpen(false);
-                    navigate('/animals?action=add');
-                  }}
-                >
-                  Magdagdag muna ng hayop sa Mga Hayop &rarr;
-                </button>
               </div>
             )}
           </div>
 
-          {/* STEP 2: Automated Database Context */}
-          {currentPrediction && (
-            <div className="modal-context-card">
-              <div className="context-card-title">
-                <Brain size={15} />
-                <span>Impormasyon Mula sa Database:</span>
-              </div>
-              <div className="context-grid">
-                <div>Edad: <strong>{currentPrediction.contextSummary.ageMonths} buwan</strong></div>
-                <div>Timbang: <strong>{selectedAnimal?.weight_kg ? `${selectedAnimal.weight_kg} kg` : 'Hindi nakatala'}</strong> ({currentPrediction.contextSummary.weightTrend})</div>
-                <div>Bakuna: <strong>{currentPrediction.contextSummary.vaccinationStatus}</strong></div>
-                <div>Nakaraang Risk: <strong>{currentPrediction.previousRiskScore !== null ? `${currentPrediction.previousRiskScore}%` : 'Bagong tala'}</strong></div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: Farmer Observations */}
-          <div className="modal-observations-card">
-            <div className="modal-step-label" style={{ marginBottom: 12 }}>
-              2. Obserbasyon sa Kalusugan (Opsyonal):
+          {/* ── SEKSYON 2: NAPANSING KALAGAYAN ── */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Eye size={16} color="#D97706" />
+              <span>2. Napansing Kalagayan</span>
             </div>
 
-            {/* Temperature with quick presets and Gemini AI scan button */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            {/* Gana sa Pagkain */}
+            <div style={{ marginBottom: 14 }}>
+              <label className="obs-field-label">Gana sa Pagkain:</label>
+              <div className="chip-buttons-row">
+                {(['Normal', 'Reduced', 'None'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className="btn btn-sm"
+                    style={{
+                      borderRadius: 10,
+                      background:
+                        obsAppetite === mode
+                          ? mode === 'Normal'
+                            ? '#16A34A'
+                            : mode === 'Reduced'
+                            ? '#D97706'
+                            : '#DC2626'
+                          : 'var(--surface)',
+                      color: obsAppetite === mode ? '#FFF' : 'var(--text)',
+                      fontWeight: 700,
+                      border: '1px solid var(--border)',
+                    }}
+                    onClick={() => setObsAppetite(obsAppetite === mode ? null : mode)}
+                  >
+                    {mode === 'Normal' ? 'Normal / Magana' : mode === 'Reduced' ? 'Mahina ang Gana' : 'Walang Gana / Ayaw Kumain'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Lebel ng Sigla */}
+            <div style={{ marginBottom: 14 }}>
+              <label className="obs-field-label">Lebel ng Sigla at Galaw:</label>
+              <div className="chip-buttons-row">
+                {(['Normal', 'Low', 'Lethargic'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className="btn btn-sm"
+                    style={{
+                      borderRadius: 10,
+                      background:
+                        obsActivity === mode
+                          ? mode === 'Normal'
+                            ? '#16A34A'
+                            : mode === 'Low'
+                            ? '#D97706'
+                            : '#DC2626'
+                          : 'var(--surface)',
+                      color: obsActivity === mode ? '#FFF' : 'var(--text)',
+                      fontWeight: 700,
+                      border: '1px solid var(--border)',
+                    }}
+                    onClick={() => setObsActivity(obsActivity === mode ? null : mode)}
+                  >
+                    {mode === 'Normal' ? 'Aktibo / Normal' : mode === 'Low' ? 'Matamlay / Mababa' : 'Lethargic / Nakabukod'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Temperatura */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <label className="obs-field-label" style={{ margin: 0 }}>
                   Temperatura ng Katawan (°C):
                 </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  ref={geminiScanInputRef}
-                  style={{ display: 'none' }}
-                  onChange={handleGeminiTempScan}
-                />
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '4px 10px',
-                    borderRadius: 8,
-                    background: 'rgba(34, 197, 94, 0.12)',
-                    color: '#16A34A',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    cursor: isScanningTemp ? 'not-allowed' : 'pointer',
-                  }}
-                  onClick={() => geminiScanInputRef.current?.click()}
-                  disabled={isScanningTemp}
-                  title="I-scan ang temperatura ng kambing gamit ang Google Gemini AI Vision"
-                >
-                  {isScanningTemp ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Thermometer size={13} />}
-                  <span>{isScanningTemp ? 'Sini-scan...' : 'I-scan gamit ang Gemini AI'}</span>
-                </button>
+                <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  (Iwanang blangko kung walang thermometer)
+                </span>
               </div>
               <div className="temp-presets-row">
                 <input
                   type="number"
                   step="0.1"
-                  placeholder="hal. 39.2"
+                  placeholder="Hindi nasukat"
                   className="input temp-input"
                   value={obsTemp}
                   onChange={(e) => setObsTemp(e.target.value)}
@@ -1468,77 +1590,9 @@ export function HealthPage() {
               </div>
             </div>
 
-            {/* Appetite Buttons */}
-            <div style={{ marginBottom: 16 }}>
-              <label className="obs-field-label">
-                Gana sa Pagkain (Appetite):
-              </label>
-              <div className="chip-buttons-row">
-                {(['Normal', 'Reduced', 'None'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className="btn btn-sm"
-                    style={{
-                      borderRadius: 10,
-                      background:
-                        obsAppetite === mode
-                          ? mode === 'Normal'
-                            ? '#16A34A'
-                            : mode === 'Reduced'
-                            ? '#D97706'
-                            : '#DC2626'
-                          : 'var(--surface)',
-                      color: obsAppetite === mode ? '#FFF' : 'var(--text)',
-                      fontWeight: 700,
-                      border: '1px solid var(--border)',
-                    }}
-                    onClick={() => setObsAppetite(obsAppetite === mode ? null : mode)}
-                  >
-                    {mode === 'Normal' ? 'Normal / Magana' : mode === 'Reduced' ? 'Mahina ang Gana' : 'Walang Gana / Ayaw Kumain'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Activity Level Buttons */}
-            <div style={{ marginBottom: 16 }}>
-              <label className="obs-field-label">
-                Lebel ng Sigla (Activity):
-              </label>
-              <div className="chip-buttons-row">
-                {(['Normal', 'Low', 'Lethargic'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className="btn btn-sm"
-                    style={{
-                      borderRadius: 10,
-                      background:
-                        obsActivity === mode
-                          ? mode === 'Normal'
-                            ? '#16A34A'
-                            : mode === 'Low'
-                            ? '#D97706'
-                            : '#DC2626'
-                          : 'var(--surface)',
-                      color: obsActivity === mode ? '#FFF' : 'var(--text)',
-                      fontWeight: 700,
-                      border: '1px solid var(--border)',
-                    }}
-                    onClick={() => setObsActivity(obsActivity === mode ? null : mode)}
-                  >
-                    {mode === 'Normal' ? 'Aktibo / Normal' : mode === 'Low' ? 'Matamlay / Mababa' : 'Lethargic / Nakabukod'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Visible Symptoms Chips */}
+            {/* Checklist ng mga Sintomas */}
             <div>
-              <label className="obs-field-label">
-                Mga Nakikitang Sintomas (Pindutin para piliin):
-              </label>
+              <label className="obs-field-label">Checklist ng mga Sintomas / Napapansin:</label>
               <div className="symptoms-chips-wrap">
                 {AVAILABLE_SYMPTOMS.map((s) => {
                   const active = selectedSymptoms.includes(s.id);
@@ -1558,97 +1612,129 @@ export function HealthPage() {
             </div>
           </div>
 
-          {/* Instant Real-Time Prediction Output */}
-          {currentPrediction && (
-            <div>
-              {currentPrediction.status === 'INSUFFICIENT_EVIDENCE' ? (
-                <div className="prediction-insufficient-card">
-                  <HelpCircle size={24} color="#D97706" style={{ flexShrink: 0 }} />
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#92400E' }}>
-                      Kulang ang Datos — Maglagay ng obserbasyon sa kalusugan
-                    </h4>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#78350F' }}>
-                      Mangyaring maglagay ng kahit isang clinical parameter (temperatura, gana, o sigla).
-                    </p>
-                  </div>
+          {/* ── SEKSYON 3: RESULTA NG PAGSUSURI ── */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Activity size={16} color="#2563EB" />
+              <span>3. Resulta ng Pagsusuri</span>
+            </div>
+
+            <div
+              style={{
+                borderRadius: 12,
+                border: `1px solid ${manualFarmerStatus.badgeBorder}`,
+                background: manualFarmerStatus.badgeBg,
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <manualFarmerStatus.Icon size={20} color={manualFarmerStatus.badgeColor} />
+                  <span style={{ fontSize: 16, fontWeight: 800, color: manualFarmerStatus.badgeColor }}>
+                    {manualFarmerStatus.label}
+                  </span>
                 </div>
-              ) : (
-                <div className={`prediction-result-card result-${currentPrediction.riskLevel.toLowerCase().replace(' ', '-')}`}>
-                  <div className="result-header-row">
-                    <div>
-                      <span className="result-header-label">
-                        Pagsusuri sa Kalusugan
-                      </span>
-                      <div className="result-score-line">
-                        <span className={`result-score-text score-${currentPrediction.riskLevel.toLowerCase().replace(' ', '-')}`}>
-                          {currentPrediction.riskLevel}
-                        </span>
-                      </div>
-                    </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                  {obsTemp ? `Temperatura: ${obsTemp}°C` : 'Temperatura: Hindi nasukat'}
+                </div>
+              </div>
 
-                    <div className="result-vet-badge">
-                      {currentPrediction.veterinaryAttention}
-                    </div>
-                  </div>
+              {/* Napansing senyales */}
+              <div style={{ fontSize: 13, color: 'var(--text)' }}>
+                <strong>Napansing senyales:</strong>{' '}
+                {selectedSymptoms.length > 0 || obsAppetite || obsActivity
+                  ? [
+                      obsAppetite ? `Gana: ${obsAppetite === 'Normal' ? 'Normal' : obsAppetite === 'Reduced' ? 'Mahina' : 'Walang Gana'}` : null,
+                      obsActivity ? `Sigla: ${obsActivity === 'Normal' ? 'Aktibo' : obsActivity === 'Low' ? 'Matamlay' : 'Lethargic'}` : null,
+                      ...selectedSymptoms.map((s) => AVAILABLE_SYMPTOMS.find((sym) => sym.id === s)?.label || s),
+                    ]
+                      .filter(Boolean)
+                      .join(' • ')
+                  : 'Walang anumang masamang senyales na naitala.'}
+              </div>
 
-                  {/* Possible Health Concerns */}
-                  {currentPrediction.possibleConcerns.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                        Posibleng Health Concern:
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {currentPrediction.possibleConcerns.map((c, i) => (
-                          <div key={i} className="concern-item">
-                            <span style={{ fontWeight: 800, color: c.severity === 'Critical' ? '#EF4444' : '#F59E0B' }}>
-                              {c.condition}:
-                            </span>{' '}
-                            <span style={{ color: 'var(--text)' }}>{c.description}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                Paalala: Ang pagsusuring ito ay gabay sa maagang pagmamasid at hindi pamalit sa payo ng lisensyadong beterinaryo.
+              </div>
+            </div>
+          </div>
 
-                  {/* Detected Indicators */}
-                  {currentPrediction.detectedIndicators.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
-                        Mga Nakitang Indikasyon:
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {currentPrediction.detectedIndicators.map((ind, i) => (
-                          <span
-                            key={i}
-                            className={`indicator-badge ind-${ind.severity}`}
-                          >
-                            [{ind.category}] {ind.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+          {/* ── SEKSYON 4: GAGAWIN AT GAMUTAN ── */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Pill size={16} color="#DC2626" />
+              <span>4. Gagawin at Gamutan</span>
+            </div>
 
-                  {/* Recommendations */}
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
-                      Rekomendasyon / Susunod na Hakbang:
+            <div style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label className="obs-field-label">Rekomendasyon:</label>
+                <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>
+                  {manualFarmerStatus.recommendation}
+                </div>
+              </div>
+
+              {/* Medication Selector when Kailangan ng Gamot */}
+              {manualFarmerStatus.key === 'gamot' && (
+                <div>
+                  <label className="obs-field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Pill size={13} color="#DC2626" />
+                    <span>Pumili ng Gamot mula sa Imbentaryo (Opsyonal):</span>
+                  </label>
+
+                  {availableMedicines.length === 0 ? (
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        background: '#FEF2F2',
+                        border: '1px solid #FCA5A5',
+                        color: '#DC2626',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <AlertTriangle size={16} />
+                      <span>Ang gamot na ito ay wala o kulang sa iyong stock.</span>
                     </div>
-                    <ul className="rec-list">
-                      {currentPrediction.recommendations.map((rec, i) => (
-                        <li key={i}>{rec}</li>
+                  ) : (
+                    <select
+                      value={manualMedId}
+                      onChange={(e) => setManualMedId(e.target.value)}
+                      className="input"
+                      style={{ width: '100%', borderRadius: 8 }}
+                    >
+                      <option value="">-- Pumili ng gamot mula sa stock --</option>
+                      {availableMedicines.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.quantity} {m.unit} natitira)
+                        </option>
                       ))}
-                    </ul>
-                  </div>
-
-                  <div className="disclaimer-text">
-                    Paunawa: Ang resulta ng AI ay para lamang sa maagang pag-monitor at decision support, hindi kumpirmadong diagnosis ng lisensyadong beterinaryo.
-                  </div>
+                    </select>
+                  )}
                 </div>
               )}
+
+              {/* Notes */}
+              <div>
+                <label className="obs-field-label">Karagdagang Tala / Obserbasyon (Opsyonal):</label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  placeholder="hal. Nakita kaninang umaga, ibinukod muna sa kural..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  style={{ width: '100%', borderRadius: 8, resize: 'vertical' }}
+                />
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Modal Action Buttons */}
           <div className="modal-actions-footer">
@@ -1664,9 +1750,9 @@ export function HealthPage() {
               className="btn btn-primary"
               style={{ padding: '10px 22px', fontWeight: 700, borderRadius: 10 }}
               onClick={handleSavePrediction}
-              disabled={saving || !currentPrediction || currentPrediction.status === 'INSUFFICIENT_EVIDENCE'}
+              disabled={saving || !selectedAnimal}
             >
-              {saving ? 'Inililigtas...' : 'I-save ang Record sa Health History'}
+              {saving ? 'Inililigtas...' : 'I-save ang Health Check'}
             </button>
           </div>
         </div>

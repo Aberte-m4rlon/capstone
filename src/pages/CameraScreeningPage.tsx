@@ -22,7 +22,7 @@ import {
   Zap, ShieldAlert, Activity, Check,
   Bot, SwitchCamera, X, Play,
   ArrowLeft, Settings, Image, Thermometer, Compass,
-  ChevronDown, ChevronUp, Eye, HeartPulse
+  ChevronDown, ChevronUp, Eye, HeartPulse, Heart, Pill, Stethoscope
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -40,6 +40,7 @@ import {
 } from '../lib/ruleBasedScreening';
 import { FARM_LABELS, simplifyHealthObservation } from '../lib/farmerTerminology';
 import { getTemperatureStatus } from '../lib/geminiScanner';
+import { consumeInventoryStock, isMedicineCategory, isDewormerCategory, isSupplementCategory } from '../lib/inventoryOperations';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CameraPermission = 'pending' | 'granted' | 'denied' | 'unavailable' | 'https_required';
@@ -447,10 +448,10 @@ export function CameraScreeningPage() {
   }, [autoScan, toast]);
 
   // ── Save Assessment Manually ──────────────────────────────────────────────
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (medicationId?: string) => {
     if (!autoScan.result || !user) return;
     if (!autoScan.result.goatDetected) {
-      toast('Cannot save screening because animal is not a goat or sheep.', 'error');
+      toast('Hindi mai-save ang pagsusuri dahil hindi ito kambing o tupa.', 'error');
       return;
     }
     setSaving(true);
@@ -461,11 +462,34 @@ export function CameraScreeningPage() {
       );
       if (error) throw new Error(error);
       setSavedId(data?.id ?? null);
-      toast('Veterinary assessment saved to farm health records.', 'success');
+
+      // If medication was chosen and animal is linked, deduct inventory stock & log treatment
+      if (medicationId && animalId !== 'unlinked') {
+        const item = farmData.inventory.find(i => i.id === medicationId);
+        const animal = farmData.animals.find(a => a.id === animalId);
+        if (item && animal && item.quantity > 0) {
+          await consumeInventoryStock({
+            userId: user.id,
+            isSuperAdmin: false,
+            item,
+            quantity: 1,
+            usageType: 'medication',
+            animalId: animal.id,
+            animalTag: animal.tag_id,
+            animalName: animal.name,
+            referenceType: 'animal',
+            referenceId: animal.id,
+            reason: `Gamot mula sa AI Health Check: ${item.name}`,
+            notes: `Ibinigay pagkatapos ng Camera Screening. Gamot: ${item.name} (1 ${item.unit}).`,
+          });
+        }
+      }
+
+      toast('Nai-save ang health check sa talaan ng bukid.', 'success');
       refresh();
       farmData.refresh();
     } catch (err: any) {
-      toast(`Could not save: ${err?.message}`, 'error');
+      toast(`Hindi mai-save: ${err?.message}`, 'error');
     } finally { setSaving(false); }
   }, [autoScan.result, autoScan.capturedCanvas, user, selectedAnimalId, toast, refresh, farmData]);
 
@@ -1007,8 +1031,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
           </div>
         )}
 
-        {/* ── MANDATE 12: THERMAL CAMERA STATUS PILL ── */}
-        {permission === 'granted' && (
+        {/* ── SELECTED ANIMAL HUD PILL ── */}
+        {permission === 'granted' && selectedAnimal && (
           <div
             style={{
               position: 'absolute',
@@ -1032,10 +1056,10 @@ What are the recommended early livestock interventions, supportive veterinary ca
               boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
             }}
           >
-            <Thermometer size={13} color="#22C55E" />
-            <span style={{ color: '#86EFAC' }}>Gemini AI Thermal Scanner: Aktibo</span>
+            <Activity size={13} color="#22C55E" />
+            <span style={{ color: '#86EFAC' }}>{selectedAnimal.tag_id}</span>
             <span style={{ opacity: 0.4 }}>•</span>
-            <span style={{ color: '#E2E8F0' }}>Surface Temp: {selectedAnimal?.current_temperature ? `${selectedAnimal.current_temperature}°C` : 'Handa nang i-scan'}</span>
+            <span style={{ color: '#E2E8F0' }}>{selectedAnimal.name}</span>
           </div>
         )}
 
@@ -1125,7 +1149,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 12 }}>
               <span style={{ fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CheckCircle size={16} color="#A7F3D0" />
-                {speciesLabel === 'Sheep' ? 'Tupa ang nakita.' : 'Kambing ang nakita.'}
+                {speciesLabel === 'Sheep' ? 'Tupa detected' : 'Kambing detected'}
               </span>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#A7F3D0' }}>
                 {autoScan.stabilityRemainingSeconds.toFixed(1)}s
@@ -1170,7 +1194,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <ShieldAlert size={20} color="#FFFFFF" />
             <span style={{ fontSize: 13, fontWeight: 800 }}>
-              Hindi ito kambing o tupa.
+              Parang hindi kambing o tupa ang nasa camera. Iposisyon nang maayos ang hayop sa gitna ng camera.
             </span>
           </div>
         )}
@@ -1232,7 +1256,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 12 }}>
               <span style={{ fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CheckCircle size={16} color="#A7F3D0" />
-                {speciesLabel === 'Sheep' ? 'Tupa ang nakita.' : 'Kambing ang nakita.'} ({Math.round(det.confidence * 100)}%)
+                {speciesLabel === 'Sheep' ? 'Tupa detected' : 'Kambing detected'}
               </span>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#A7F3D0' }}>
                 {autoScan.stabilityRemainingSeconds.toFixed(1)}s
@@ -1291,13 +1315,13 @@ What are the recommended early livestock interventions, supportive veterinary ca
               boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
             }}
           >
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>📷 Ilapit nang kaunti</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>Ilapit nang kaunti</span>
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>💡 Siguraduhing maliwanag</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>Siguraduhing maliwanag</span>
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>👁️ Itutok sa mata</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>Itutok sa hayop</span>
             <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>🐐 Kita ang hayop</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#F1F5F9' }}>Kita ang buong katawan</span>
           </div>
         )}
       </div>
@@ -1459,6 +1483,9 @@ What are the recommended early livestock interventions, supportive veterinary ca
               animal={selectedAnimal}
               animalName={selectedAnimal?.name}
               animalTag={selectedAnimal?.tag_id}
+              animals={farmData.animals}
+              inventory={farmData.inventory}
+              onSelectAnimal={(id) => setSelectedAnimalId(id)}
               saving={saving}
               savedId={savedId}
               onSave={handleSave}
@@ -2043,7 +2070,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
   );
 }
 
-// ── Scan Result Card Component (Dual ML + Rule-Based Screening) ───────────────
+// ── Scan Result Card Component (Simplified Farmer-Friendly UI) ───────────────
 function ScanResultCard({
   result,
   ruleResult,
@@ -2053,6 +2080,9 @@ function ScanResultCard({
   animal,
   animalName,
   animalTag,
+  animals,
+  inventory,
+  onSelectAnimal,
   saving,
   savedId,
   onSave,
@@ -2069,17 +2099,23 @@ function ScanResultCard({
   animal?: any;
   animalName?: string;
   animalTag?: string;
+  animals?: any[];
+  inventory?: any[];
+  onSelectAnimal?: (animalId: string) => void;
   saving: boolean;
   savedId: string | null;
-  onSave: () => void;
+  onSave: (medicationId?: string) => void;
   onManualCheck?: () => void;
   onAskAICloud: () => void;
   onRescan: () => void;
   onViewHistory?: () => void;
 }) {
-  const [showDetails, setShowDetails] = useState(false);
+  const [selectedMedId, setSelectedMedId] = useState('');
+  const targetAnimal = animal;
+  const targetName = animalName || targetAnimal?.name;
+  const targetTag = animalTag || targetAnimal?.tag_id;
 
-  // Non-target fallback (Mandate 16)
+  // Non-target fallback
   if (!result.goatDetected) {
     return (
       <div style={{ background: 'var(--surface, #FFFFFF)', border: '2px solid #DC2626', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 30px rgba(220, 38, 38, 0.2)' }}>
@@ -2091,10 +2127,10 @@ function ScanResultCard({
             <ShieldAlert size={44} color="#DC2626" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
-            Hindi kambing o tupa ang nakita.
+            Parang hindi kambing o tupa ang nasa camera.
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary, #4B5563)', lineHeight: 1.6, marginBottom: 20 }}>
-            Pakisigurong kambing o tupa ang nasa camera bago mag-scan.
+            Iposisyon nang maayos ang hayop sa gitna ng camera bago mag-scan.
           </div>
           <button
             onClick={onRescan}
@@ -2120,39 +2156,105 @@ function ScanResultCard({
     );
   }
 
-  // Combined assessment engine
+  // Combine ML and rule-based screening behind the scenes
   const finalCombined = combined || combineScreeningAssessments(result, ruleResult || null);
 
-  const targetAnimal = animal;
-  const targetName = animalName || targetAnimal?.name;
-  const targetTag = animalTag || targetAnimal?.tag_id;
+  // Available medicines in farm inventory with quantity > 0
+  const availableMedicines = useMemo(() => {
+    return (inventory || []).filter(item => {
+      const isMed = isMedicineCategory(item.category) || isDewormerCategory(item.category) || isSupplementCategory(item.category) || item.category === 'Medicine' || item.category === 'Supplies';
+      return isMed && Number(item.quantity) > 0;
+    });
+  }, [inventory]);
 
-  // Age string calculation
-  const ageDisplay = (() => {
-    if (!targetAnimal?.date_of_birth) return 'Hindi nakatala';
-    const dob = new Date(targetAnimal.date_of_birth);
-    const diffMonths = Math.floor((new Date().getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 30.4375));
-    if (diffMonths < 1) return 'Wala pang 1 buwan';
-    if (diffMonths < 12) return `${diffMonths} buwan`;
-    const yrs = Math.floor(diffMonths / 12);
-    const mos = diffMonths % 12;
-    return mos > 0 ? `${yrs} taon ${mos} buwan` : `${yrs} taon`;
-  })();
+  // 4 Standard Farmer Health Statuses
+  const farmerStatus = useMemo(() => {
+    const riskLvl = (result.riskLevel || '').toUpperCase();
+    const score = result.riskScore ?? 0;
+    
+    // Check if medication is required: Critical risk or indicators pointing to illness
+    const hasMedNeed = riskLvl === 'CRITICAL' || score >= 80 || (result.possibleConditions && result.possibleConditions.some(c => 
+      c.toLowerCase().includes('wound') || c.toLowerCase().includes('severe') || c.toLowerCase().includes('pneumonia') || c.toLowerCase().includes('lagnat')
+    ));
 
-  const speciesEmoji = species === 'sheep' ? '🐑' : '🐐';
-  const speciesLabel = species === 'sheep' ? 'Tupa' : 'Kambing';
-
-  // Finding status badge helpers
-  const getFindingStatusBadge = (status: string) => {
-    switch (status) {
-      case 'concern':
-        return { text: 'May Sign', color: '#D97706', bg: 'rgba(217, 119, 6, 0.12)' };
-      case 'insufficient_info':
-        return { text: 'Hindi Masuri', color: '#6B7280', bg: 'rgba(107, 114, 128, 0.12)' };
-      default:
-        return { text: 'Normal', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.12)' };
+    if (hasMedNeed) {
+      return {
+        key: 'gamot',
+        label: 'Kailangan ng Gamot',
+        badgeBg: 'rgba(220, 38, 38, 0.1)',
+        badgeBorder: '#DC2626',
+        badgeColor: '#DC2626',
+        Icon: Pill,
+        recommendation: 'May napansing kondisyon na nangangailangan ng paggamot. Tiyakin ang tamang gamot mula sa stock at kumonsulta sa beterinaryo kung kinakailangan.',
+      };
     }
-  };
+
+    if (riskLvl === 'HIGH' || score >= 55) {
+      return {
+        key: 'atensyon',
+        label: 'Kailangan ng Atensyon',
+        badgeBg: 'rgba(234, 88, 12, 0.1)',
+        badgeBorder: '#EA580C',
+        badgeColor: '#EA580C',
+        Icon: AlertTriangle,
+        recommendation: 'May napansing kondisyon na dapat bantayan. Obserbahan ang hayop at magsagawa ng manual health check kung kinakailangan.',
+      };
+    }
+
+    if (riskLvl === 'MODERATE' || score >= 25) {
+      return {
+        key: 'bantayan',
+        label: 'Bantayan',
+        badgeBg: 'rgba(217, 119, 6, 0.1)',
+        badgeBorder: '#D97706',
+        badgeColor: '#D97706',
+        Icon: Eye,
+        recommendation: 'Obserbahan ang hayop sa susunod na 24–48 oras. Suriin kung may pagbabago sa gana kumain o sigla.',
+      };
+    }
+
+    return {
+      key: 'maayos',
+      label: 'Maayos',
+      badgeBg: 'rgba(22, 163, 74, 0.1)',
+      badgeBorder: '#16A34A',
+      badgeColor: '#16A34A',
+      Icon: Heart,
+      recommendation: 'Normal at malusog ang kalagayan ng hayop. Panatilihin ang maayos na pagkain at malinis na inumin.',
+    };
+  }, [result]);
+
+  const StatusIcon = farmerStatus.Icon;
+
+  // Temperature display (Only if physical sensor measurement exists)
+  const temp = result.estimatedTemperature ?? (targetAnimal?.current_temperature ?? null);
+  const tempDisplay = temp !== null && temp !== undefined ? `${temp.toFixed(1)}°C` : 'Temperatura: Hindi nasukat';
+
+  // Simplified bulleted observations
+  const observationsList = useMemo(() => {
+    const list: string[] = [];
+    if (result.observations && result.observations.length > 0) {
+      result.observations.forEach(o => {
+        const clean = simplifyHealthObservation(o);
+        if (clean && !list.includes(clean)) list.push(clean);
+      });
+    }
+    if (result.primaryIndicators && result.primaryIndicators.length > 0) {
+      result.primaryIndicators.forEach(i => {
+        const clean = simplifyHealthObservation(i);
+        if (clean && !list.includes(clean)) list.push(clean);
+      });
+    }
+    if (list.length === 0) {
+      if (farmerStatus.key === 'maayos') {
+        list.push('Normal ang galaw at tindig');
+        list.push('Walang nakitang malinaw na problema sa balahibo o katawan');
+      } else {
+        list.push('May napansing bahagyang pagbabago sa hitsura o kilos ng hayop');
+      }
+    }
+    return list;
+  }, [result, farmerStatus.key]);
 
   return (
     <div
@@ -2164,7 +2266,7 @@ function ScanResultCard({
         boxShadow: 'var(--shadow-lg, 0 12px 36px rgba(0,0,0,0.25))',
       }}
     >
-      {/* ── LIVE CAPTURE PREVIEW ── */}
+      {/* Live capture preview */}
       {capturedUrl && (
         <div style={{ position: 'relative', width: '100%', maxHeight: 200, overflow: 'hidden' }}>
           <img src={capturedUrl} alt="Captured scan" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
@@ -2185,323 +2287,247 @@ function ScanResultCard({
               gap: 4,
             }}
           >
-            <Camera size={12} /> Live Capture
+            <Camera size={12} /> Litrato ng Hayop
           </div>
         </div>
       )}
 
       <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* ── HEADER: TITLE & SPECIES/ANIMAL IDENTIFICATION (Section 18) ── */}
+        {/* Header: HEALTH CHECK */}
         <div style={{ borderBottom: '1px solid var(--border-subtle, #F3F4F6)', paddingBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, color: '#238B45', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Activity size={14} color="#238B45" /> VISUAL HEALTH SCREENING
+          <div style={{ fontSize: 11, fontWeight: 900, color: '#238B45', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Activity size={14} color="#238B45" /> HEALTH CHECK
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #6B7280)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                ANIMAL DETECTED
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary, #1F2937)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <span>{speciesEmoji} {speciesLabel}</span>
-                {targetTag && (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#238B45', background: 'rgba(35, 139, 69, 0.1)', padding: '2px 8px', borderRadius: 6 }}>
-                    {targetTag}
-                  </span>
-                )}
-              </div>
-              {targetName && (
-                <div style={{ fontSize: 12, color: 'var(--text-secondary, #4B5563)', marginTop: 2 }}>
-                  Pangalan: <strong>{targetName}</strong>
+
+          {targetAnimal ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary, #1F2937)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>{targetName || (species === 'sheep' ? 'Tupa' : 'Kambing')}</span>
+                  {targetTag && (
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#238B45', background: 'rgba(35, 139, 69, 0.1)', padding: '2px 8px', borderRadius: 6 }}>
+                      {targetTag}
+                    </span>
+                  )}
                 </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary, #4B5563)', marginTop: 2 }}>
+                  Uri: <strong>{species === 'sheep' ? 'Tupa' : 'Kambing'}</strong>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#16A34A', background: 'rgba(22, 163, 74, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
+                  Camera Screening
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#92400E' }}>
+              <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={15} color="#D97706" />
+                <span>Hayop na nakita, pero hindi matukoy kung alin sa iyong mga hayop.</span>
+              </div>
+              <div style={{ fontSize: 12, marginBottom: 8, color: '#78350F' }}>
+                Piliin ang hayop mula sa iyong listahan upang mai-ugnay ang health check na ito:
+              </div>
+              {animals && animals.length > 0 && (
+                <select
+                  onChange={(e) => onSelectAnimal?.(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #D97706',
+                    background: '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>-- Piliin ang hayop sa iyong bukid --</option>
+                  {animals.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.tag_id} – {a.species === 'Sheep' ? 'Tupa' : 'Kambing'}{a.name ? ` (${a.name})` : ''}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#16A34A', background: 'rgba(22, 163, 74, 0.08)', padding: '4px 10px', borderRadius: 8 }}>
-                Camera Scan
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* ── DUAL ASSESSMENT INDEPENDENT STATUS ROWS (Section 18) ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          {/* ML Assessment Box */}
-          <div
-            style={{
-              background: 'var(--bg-secondary, #F9FAFB)',
-              border: '1px solid var(--border, #E5EDE6)',
-              borderRadius: 12,
-              padding: '12px 14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #6B7280)', textTransform: 'uppercase' }}>
-              Gemini AI Scan
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  background: finalCombined.mlAssessment.status === 'concern' ? '#D97706' : '#16A34A',
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary, #1F2937)' }}>
-                {finalCombined.mlAssessment.status === 'concern' ? 'Posibleng alalahanin' : 'Walang alalahanin'}
-              </span>
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted, #9CA3AF)' }}>
-              Google Gemini Vision AI
-            </div>
-          </div>
-
-          {/* Visual Screening Box */}
-          <div
-            style={{
-              background: 'var(--bg-secondary, #F9FAFB)',
-              border: '1px solid var(--border, #E5EDE6)',
-              borderRadius: 12,
-              padding: '12px 14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #6B7280)', textTransform: 'uppercase' }}>
-              Visual Screening
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  background:
-                    finalCombined.ruleAssessment.status === 'concern'
-                      ? '#D97706'
-                      : finalCombined.ruleAssessment.status === 'normal'
-                      ? '#16A34A'
-                      : '#9CA3AF',
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary, #1F2937)' }}>
-                {finalCombined.ruleAssessment.status === 'concern'
-                  ? 'May visual sign'
-                  : finalCombined.ruleAssessment.status === 'normal'
-                  ? 'Normal ang hitsura'
-                  : 'Hindi sapat'}
-              </span>
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted, #9CA3AF)' }}>
-              Color & ROI Pixel Analysis
-            </div>
-          </div>
-        </div>
-
-        {/* ── COMBINED OVERALL HEALTH STATUS BANNER (Section 18) ── */}
+        {/* Farmer Health Status Badge (1 of 4: Maayos | Bantayan | Kailangan ng Atensyon | Kailangan ng Gamot) */}
         <div
           style={{
-            background: finalCombined.overallBadgeBg,
-            border: `1px solid ${finalCombined.overallBadgeBorder}`,
+            background: farmerStatus.badgeBg,
+            border: `1.5px solid ${farmerStatus.badgeBorder}`,
             borderRadius: 14,
             padding: '14px 18px',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 10,
+            gap: 12,
           }}
         >
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: finalCombined.overallBadgeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              OVERALL STATUS
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: finalCombined.overallBadgeColor, marginTop: 2 }}>
-              {finalCombined.overallLabel}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-primary, #1F2937)', marginTop: 4, lineHeight: 1.4, maxWidth: 360 }}>
-              {finalCombined.summaryMessage}
-            </div>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              flexShrink: 0,
+            }}
+          >
+            <StatusIcon size={24} color={farmerStatus.badgeColor} />
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: finalCombined.overallBadgeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Screening Score
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: farmerStatus.badgeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              RESULTA NG HEALTH CHECK
             </div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: finalCombined.overallBadgeColor, marginTop: 2 }}>
-              {finalCombined.overallScore} / 100
+            <div style={{ fontSize: 19, fontWeight: 900, color: farmerStatus.badgeColor, marginTop: 1 }}>
+              {farmerStatus.label}
             </div>
           </div>
         </div>
 
-        {/* ── GEMINI AI SCANNED TEMPERATURE CARD ── */}
-        {(() => {
-          const temp = result.estimatedTemperature ?? (targetAnimal?.current_temperature ?? null);
-          const tempMeta = getTemperatureStatus(temp);
-          return (
-            <div
-              style={{
-                background: tempMeta.badgeBg,
-                border: `1px solid ${tempMeta.badgeBorder}`,
-                borderRadius: 14,
-                padding: '14px 18px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 10,
-                      background: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                    }}
-                  >
-                    <Thermometer size={20} color={tempMeta.color} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: tempMeta.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Temperatura ng Katawan (Gemini AI Vision)
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary, #1F2937)' }}>
-                      {tempMeta.tagalogLabel}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: tempMeta.color }}>
-                    {temp !== null ? `${temp.toFixed(1)}°C` : 'N/A'}
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted, #6B7280)' }}>
-                    Standard: 38.5°C - 39.7°C
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ fontSize: 12, color: 'var(--text-primary, #374151)', lineHeight: 1.5, background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '8px 12px' }}>
-                {tempMeta.description}
-              </div>
-
-              {result.thermalIndicators && result.thermalIndicators.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary, #4B5563)', textTransform: 'uppercase' }}>
-                    Thermal Observations:
-                  </div>
-                  {result.thermalIndicators.map((ti, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 6, fontSize: 11, color: 'var(--text-primary, #1F2937)' }}>
-                      <span style={{ color: tempMeta.color, fontWeight: 800 }}>•</span>
-                      <span>{ti}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* ── KEY OBSERVATIONS (Section 18) ── */}
-        {finalCombined.observations.length > 0 && (
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-              MGA NAPANSING KATANGIAN:
-            </div>
-            <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {finalCombined.observations.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 7, fontSize: 12, color: 'var(--text-primary, #374151)', lineHeight: 1.5 }}>
-                  <span style={{ color: '#238B45', fontWeight: 800 }}>•</span>
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
+        {/* Body Temperature (Sensor Only or Hindi Nasukat) */}
+        <div
+          style={{
+            background: 'var(--bg-secondary, #F9FAFB)',
+            border: '1px solid var(--border, #E5EDE6)',
+            borderRadius: 12,
+            padding: '12px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Thermometer size={18} color={temp !== null ? '#16A34A' : '#6B7280'} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary, #1F2937)' }}>
+              {tempDisplay}
+            </span>
           </div>
-        )}
+          {temp === null && (
+            <span style={{ fontSize: 11, color: 'var(--text-secondary, #6B7280)' }}>
+              Walang thermometer sensor
+            </span>
+          )}
+        </div>
 
-        {/* ── RECOMMENDATION (MANDATE 3 & 18 — NON-DIAGNOSTIC) ── */}
+        {/* Napansing Kondisyon (Clean Bulleted List) */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
-            REKOMENDASYON:
+            MGA NAPANSING KONDISYON:
+          </div>
+          <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {observationsList.map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--text-primary, #374151)', lineHeight: 1.5 }}>
+                <span style={{ color: farmerStatus.badgeColor, fontWeight: 800 }}>•</span>
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Rekomendasyon (Non-diagnostic guidance) */}
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary, #374151)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+            SUSUNOD NA GAGAWIN:
           </div>
           <div
             style={{
-              background: finalCombined.overallBadgeBg,
-              border: `1px solid ${finalCombined.overallBadgeBorder}`,
+              background: farmerStatus.badgeBg,
+              border: `1px solid ${farmerStatus.badgeBorder}`,
               borderRadius: 10,
               padding: '12px 14px',
-              fontSize: 12,
+              fontSize: 13,
               color: 'var(--text-primary, #1F2937)',
               lineHeight: 1.5,
               fontWeight: 500,
             }}
           >
-            {finalCombined.recommendationMessage}
+            {farmerStatus.recommendation}
           </div>
         </div>
 
-        {/* ── ACTION BUTTONS (Section 18 & 21) ── */}
+        {/* Medication Selector (Only shown if Kailangan ng Gamot) */}
+        {farmerStatus.key === 'gamot' && (
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '14px' }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <Pill size={16} color="#DC2626" />
+              <span>Paggamot at Imbentaryo</span>
+            </div>
+            <div style={{ fontSize: 12, color: '#7F1D1D', marginBottom: 10 }}>
+              Dahilan: May napansing kondisyon na nangangailangan ng agarang gamot o suporta.
+            </div>
+
+            {availableMedicines.length > 0 ? (
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>
+                  Pumili ng Gamot mula sa Stock:
+                </label>
+                <select
+                  value={selectedMedId}
+                  onChange={(e) => setSelectedMedId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #D1D5DB',
+                    background: '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  <option value="">-- Pumili ng Gamot ({availableMedicines.length} may stock) --</option>
+                  {availableMedicines.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.quantity} {m.unit} natitira)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div style={{ background: '#FFF1F2', border: '1px solid #FDA4AF', borderRadius: 8, padding: '10px 12px', color: '#9F1239', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertTriangle size={16} color="#DC2626" style={{ flexShrink: 0 }} />
+                <span>Ang gamot na ito ay wala o kulang sa iyong stock.</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Main Action Buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-          {/* Primary Action Button: Manual Health Check */}
-          {onManualCheck && (
-            <button
-              onClick={onManualCheck}
-              style={{
-                width: '100%',
-                padding: '13px',
-                borderRadius: 12,
-                border: 'none',
-                background: 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
-                color: '#FFFFFF',
-                fontSize: 14,
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                boxShadow: '0 4px 14px rgba(35, 139, 69, 0.3)',
-                transition: 'opacity 0.15s ease',
-              }}
-            >
-              <HeartPulse size={18} /> Mag-record ng Manual Health Check
-            </button>
-          )}
+          {/* Primary Save Button */}
+          <button
+            onClick={() => onSave(selectedMedId || undefined)}
+            disabled={saving}
+            style={{
+              width: '100%',
+              padding: '13px',
+              borderRadius: 12,
+              border: 'none',
+              background: savedId ? '#15803D' : 'linear-gradient(135deg, #238B45 0%, #176B35 100%)',
+              color: '#FFFFFF',
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              boxShadow: '0 4px 14px rgba(35, 139, 69, 0.3)',
+            }}
+          >
+            <Check size={18} />
+            <span>{savedId ? 'Nai-save Na sa Talaan' : saving ? 'Sini-save...' : 'I-save ang Health Check'}</span>
+          </button>
 
-          {/* Secondary Actions Row */}
+          {/* Secondary Actions */}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={onSave}
-              disabled={saving}
-              style={{
-                flex: 1,
-                padding: '10px',
-                borderRadius: 10,
-                background: savedId ? '#E8F5E9' : '#F9FAFB',
-                border: savedId ? '1px solid #C8E6C9' : '1px solid var(--border, #E5EDE6)',
-                color: savedId ? '#2E7D32' : 'var(--text-primary, #1F2937)',
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: saving ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 5,
-              }}
-            >
-              <Check size={14} />
-              <span>{savedId ? 'Awtomatikong Na-save' : saving ? 'Sini-save...' : 'I-save ang Resulta'}</span>
-            </button>
-
             <button
               onClick={onRescan}
               style={{
@@ -2520,11 +2546,33 @@ function ScanResultCard({
                 gap: 5,
               }}
             >
-              <RefreshCw size={13} /> I-scan Ulit
+              <RefreshCw size={13} /> Muling Mag-scan
             </button>
+
+            {onManualCheck && (
+              <button
+                onClick={onManualCheck}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: 10,
+                  border: '1px solid var(--border, #E5EDE6)',
+                  background: 'var(--bg-secondary, #F9FAFB)',
+                  color: 'var(--text-primary, #1F2937)',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                }}
+              >
+                <HeartPulse size={13} /> Manual Check
+              </button>
+            )}
           </div>
 
-          {/* View Animal Health History Button */}
           {onViewHistory && (
             <button
               onClick={onViewHistory}
@@ -2544,181 +2592,56 @@ function ScanResultCard({
                 gap: 6,
               }}
             >
-              <History size={14} /> Tingnan ang Health History ng Hayop
+              <History size={14} /> Tingnan ang Talaan ng Hayop
             </button>
           )}
-
-          {/* Ask AI Farm Assistant */}
-          <button
-            onClick={onAskAICloud}
-            style={{
-              width: '100%',
-              padding: '10px',
-              borderRadius: 10,
-              border: '1px solid rgba(35, 139, 69, 0.25)',
-              background: 'rgba(35, 139, 69, 0.05)',
-              color: '#238B45',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-            }}
-          >
-            <Bot size={14} /> Itanong sa AI Farm Assistant
-          </button>
         </div>
 
-        {/* ── COLLAPSIBLE ADVANCED DETAILS (Section 20) ── */}
-        <div style={{ borderTop: '1px solid var(--border-subtle, #F3F4F6)', paddingTop: 10 }}>
-          <button
-            onClick={() => setShowDetails(!showDetails)}
+        {/* Collapsible Detalye ng Pagsusuri (Hidden by default) */}
+        <details
+          style={{
+            marginTop: 6,
+            background: 'var(--bg-secondary, #F9FAFB)',
+            border: '1px solid var(--border, #E5EDE6)',
+            borderRadius: 10,
+            padding: '10px 14px',
+          }}
+        >
+          <summary
             style={{
-              width: '100%',
-              background: 'none',
-              border: 'none',
-              padding: '8px 0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
               cursor: 'pointer',
-              color: 'var(--text-secondary, #4B5563)',
               fontSize: 12,
               fontWeight: 700,
+              color: 'var(--text-secondary, #6B7280)',
+              outline: 'none',
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Eye size={14} color="#238B45" />
-              <span>{showDetails ? 'Itago ang Detalye ng Assessment' : 'Detalye ng Assessment'}</span>
-            </span>
-            {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-
-          {showDetails && (
-            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 12, animation: 'fadeIn 0.2s ease-out' }}>
-              {/* ML Model Scores */}
-              <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
-                <div style={{ fontWeight: 800, color: 'var(--text-primary, #1F2937)', marginBottom: 6, textTransform: 'uppercase', fontSize: 11 }}>
-                  ML Model Breakdown
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Engine:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.detectionEngine || 'Google Gemini Vision AI'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Model Confidence:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.confidencePercent}%</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>ML Risk Score:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.riskScore} / 100</span>
-                </div>
-              </div>
-
-              {/* Anatomical Visual Screenings (Mandates 4-8) */}
-              <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
-                <div style={{ fontWeight: 800, color: 'var(--text-primary, #1F2937)', marginBottom: 8, textTransform: 'uppercase', fontSize: 11 }}>
-                  Visual Screening Breakdown
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {(finalCombined.ruleAssessment.findings.length > 0
-                    ? finalCombined.ruleAssessment.findings
-                    : [
-                        { targetLabel: 'Mata / Talukap', status: 'normal', label: 'Normal ang hitsura', description: 'Walang nakitang pamumutla o paninilaw.' },
-                        { targetLabel: 'Ilong / Nguso', status: 'normal', label: 'Walang discharge', description: 'Malinis ang paligid ng nguso.' },
-                        { targetLabel: 'Bibig / Labi', status: 'normal', label: 'Normal', description: 'Walang kapansin-pansing pamamaga.' },
-                        { targetLabel: 'Balahibo / Katawan', status: 'normal', label: 'Pantay ang balahibo', description: 'Walang nakitang patches.' },
-                        { targetLabel: 'Tindig / Posture', status: 'normal', label: 'Maayos ang tindig', description: 'Normal ang postura.' },
-                      ]
-                  ).map((finding, idx) => {
-                    const badge = getFindingStatusBadge(finding.status);
-                    return (
-                      <div key={idx} style={{ borderBottom: idx < 4 ? '1px dashed var(--border, #E5EDE6)' : 'none', paddingBottom: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-primary, #1F2937)' }}>{finding.targetLabel}</span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: badge.color, background: badge.bg, padding: '2px 7px', borderRadius: 6 }}>
-                            {badge.text}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary, #4B5563)', marginTop: 2 }}>
-                          {finding.description}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Image Quality Breakdown (Mandate 9) */}
-              <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
-                <div style={{ fontWeight: 800, color: 'var(--text-primary, #1F2937)', marginBottom: 6, textTransform: 'uppercase', fontSize: 11 }}>
-                  Kalidad ng Larawan (Image Quality)
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Quality Score:</span>
-                  <span style={{ fontWeight: 600, color: '#238B45' }}>{finalCombined.technicalDetails.imageQualityScore} / 100</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Liwanag (Brightness):</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{finalCombined.technicalDetails.brightness}%</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Contrast:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{finalCombined.technicalDetails.contrast}%</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Kalinawan (Sharpness):</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{finalCombined.technicalDetails.blurScore}</span>
-                </div>
-              </div>
-
-              {/* Farm Context Information */}
-              <div style={{ background: 'var(--bg-secondary, #F9FAFB)', border: '1px solid var(--border, #E5EDE6)', borderRadius: 10, padding: '10px 14px', fontSize: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <div style={{ fontWeight: 800, color: 'var(--text-primary, #1F2937)', marginBottom: 4, textTransform: 'uppercase', fontSize: 11 }}>
-                  Impormasyon sa Bukid
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Edad:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{ageDisplay}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Timbang:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.weight_kg ? `${targetAnimal.weight_kg} kg` : 'Hindi nakatala'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Bakuna:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.vaccination_status || 'Up to date'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Nakaraang Health Status:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{targetAnimal?.health_risk_score !== undefined ? `${targetAnimal.health_status || 'Normal'} (${targetAnimal.health_risk_score})` : 'Low (0)'}</span>
-                </div>
-              </div>
-
-              {/* Mandatory Non-Diagnostic Disclaimer (Mandate 3 & 22) */}
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  background: 'rgba(35, 139, 69, 0.08)',
-                  border: '1px solid rgba(35, 139, 69, 0.2)',
-                  fontSize: 11,
-                  color: 'var(--text-primary, #174B2A)',
-                  lineHeight: 1.5,
-                }}
-              >
-                <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                <div>
-                  <strong>Paunawa:</strong> Ang visual screening na ito ay gabay lamang para sa maagang pagmamasid at decision support. <strong>HINDI ito pamalit</strong> sa opisyal na diagnosis ng lisensyadong beterinaryo. Hindi ito awtomatikong nagrereseta ng gamot o nagbabawas ng imbentaryo.
-                </div>
-              </div>
+            Detalye ng Pagsusuri
+          </summary>
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, color: 'var(--text-secondary, #4B5563)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Teknolohiya / Engine:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.detectionEngine || 'Google Gemini Vision AI'}</span>
             </div>
-          )}
-        </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Confidence:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.confidencePercent}%</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Internal Risk Score:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.riskScore} / 100</span>
+            </div>
+            {finalCombined.technicalDetails && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Kalidad ng Larawan:</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{finalCombined.technicalDetails.imageQualityScore} / 100</span>
+              </div>
+            )}
+            <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 6, background: 'rgba(35, 139, 69, 0.08)', fontSize: 11, color: '#174B2A', lineHeight: 1.4 }}>
+              <strong>Paunawa:</strong> Ang visual screening na ito ay gabay lamang para sa maagang pagmamasid at hindi pamalit sa opisyal na diagnosis ng lisensyadong beterinaryo.
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   );
