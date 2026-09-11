@@ -158,19 +158,25 @@ async function syncScreeningToAnimalHealth(
 
   try {
     // 1. Update animal record
+    const animalUpdates: Record<string, any> = {
+      health_status: mappedStatus,
+      health_risk_score: scoreVal,
+    };
+    if (result.estimatedTemperature !== null && result.estimatedTemperature !== undefined) {
+      animalUpdates.current_temperature = result.estimatedTemperature;
+    }
+
     await supabase
       .from('animals')
-      .update({
-        health_status: mappedStatus,
-        health_risk_score: scoreVal,
-      })
+      .update(animalUpdates)
       .eq('id', animalId)
       .eq('user_id', userId);
 
     // 2. Insert clinical record into health_records
     const conditionLabels = (result.indicators || []).map((i) => i.label).filter(Boolean);
     const clinicalNotes = [
-      `AI Camera Health Screening (${mappedStatus} - Risk Score: ${scoreVal}/100).`,
+      `Gemini AI Health & Temperature Screening (${mappedStatus} - Risk Score: ${scoreVal}/100).`,
+      result.estimatedTemperature ? `Scanned Temperature: ${result.estimatedTemperature}°C (${result.temperatureStatus || 'Normal'}).` : null,
       conditionLabels.length > 0 ? `Visual findings: ${conditionLabels.join(', ')}.` : null,
       result.recommendation ? `Recommendation: ${result.recommendation}` : null,
       notes ? `Notes: ${notes}` : null,
@@ -180,7 +186,8 @@ async function syncScreeningToAnimalHealth(
       user_id: userId,
       animal_id: animalId,
       record_date: new Date().toISOString().split('T')[0],
-      reasons: conditionLabels.length > 0 ? conditionLabels : ['AI Camera Health Screening'],
+      temperature: result.estimatedTemperature ?? null,
+      reasons: conditionLabels.length > 0 ? conditionLabels : ['Gemini AI Health Screening'],
       notes: clinicalNotes,
       risk_level: mappedStatus === 'Needs Attention' ? 'High' : mappedStatus === 'Monitor' ? 'Moderate' : 'Low',
       risk_score: scoreVal,

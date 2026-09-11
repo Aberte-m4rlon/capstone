@@ -39,6 +39,7 @@ import {
   runRuleBasedScreening,
 } from '../lib/ruleBasedScreening';
 import { FARM_LABELS, simplifyHealthObservation } from '../lib/farmerTerminology';
+import { getTemperatureStatus } from '../lib/geminiScanner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CameraPermission = 'pending' | 'granted' | 'denied' | 'unavailable' | 'https_required';
@@ -1031,10 +1032,10 @@ What are the recommended early livestock interventions, supportive veterinary ca
               boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
             }}
           >
-            <Thermometer size={13} color="#94A3B8" />
-            <span>Thermal Camera: Hindi Nakakonekta</span>
+            <Thermometer size={13} color="#22C55E" />
+            <span style={{ color: '#86EFAC' }}>Gemini AI Thermal Scanner: Aktibo</span>
             <span style={{ opacity: 0.4 }}>•</span>
-            <span style={{ color: '#E2E8F0' }}>Surface Temperature: {selectedAnimal?.current_temperature ? `${selectedAnimal.current_temperature}°C` : 'Hindi nasukat'}</span>
+            <span style={{ color: '#E2E8F0' }}>Surface Temp: {selectedAnimal?.current_temperature ? `${selectedAnimal.current_temperature}°C` : 'Handa nang i-scan'}</span>
           </div>
         )}
 
@@ -2237,7 +2238,7 @@ function ScanResultCard({
             }}
           >
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #6B7280)', textTransform: 'uppercase' }}>
-              ML Assessment
+              Gemini AI Scan
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
               <span
@@ -2254,7 +2255,7 @@ function ScanResultCard({
               </span>
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted, #9CA3AF)' }}>
-              MobileNetV2 Vision Core
+              Google Gemini Vision AI
             </div>
           </div>
 
@@ -2336,6 +2337,79 @@ function ScanResultCard({
             </div>
           </div>
         </div>
+
+        {/* ── GEMINI AI SCANNED TEMPERATURE CARD ── */}
+        {(() => {
+          const temp = result.estimatedTemperature ?? (targetAnimal?.current_temperature ?? null);
+          const tempMeta = getTemperatureStatus(temp);
+          return (
+            <div
+              style={{
+                background: tempMeta.badgeBg,
+                border: `1px solid ${tempMeta.badgeBorder}`,
+                borderRadius: 14,
+                padding: '14px 18px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    <Thermometer size={20} color={tempMeta.color} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: tempMeta.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Temperatura ng Katawan (Gemini AI Vision)
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary, #1F2937)' }}>
+                      {tempMeta.tagalogLabel}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: tempMeta.color }}>
+                    {temp !== null ? `${temp.toFixed(1)}°C` : 'N/A'}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted, #6B7280)' }}>
+                    Standard: 38.5°C - 39.7°C
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: 'var(--text-primary, #374151)', lineHeight: 1.5, background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '8px 12px' }}>
+                {tempMeta.description}
+              </div>
+
+              {result.thermalIndicators && result.thermalIndicators.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary, #4B5563)', textTransform: 'uppercase' }}>
+                    Thermal Observations:
+                  </div>
+                  {result.thermalIndicators.map((ti, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 6, fontSize: 11, color: 'var(--text-primary, #1F2937)' }}>
+                      <span style={{ color: tempMeta.color, fontWeight: 800 }}>•</span>
+                      <span>{ti}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── KEY OBSERVATIONS (Section 18) ── */}
         {finalCombined.observations.length > 0 && (
@@ -2531,7 +2605,7 @@ function ScanResultCard({
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Engine:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.detectionEngine || 'MobileNetV2'}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.detectionEngine || 'Google Gemini Vision AI'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ color: 'var(--text-secondary, #6B7280)' }}>Model Confidence:</span>

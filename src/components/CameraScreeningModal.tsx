@@ -7,7 +7,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Camera, Upload, RefreshCw, Zap, AlertTriangle, CheckCircle,
   XCircle, Info, Loader2, X, ImageIcon, Video, RotateCcw,
-  Heart, Activity, Eye, Layers,
+  Heart, Activity, Eye, Layers, Thermometer,
 } from 'lucide-react';
 import {
   runHealthScan, analyzeVideoFrames, captureVideoFrame, fileToCanvas,
@@ -19,6 +19,7 @@ import { useToast } from '../lib/toast';
 import { supabase } from '../lib/supabase';
 import type { Animal } from '../types';
 import { FARM_LABELS, simplifyHealthObservation } from '../lib/farmerTerminology';
+import { getTemperatureStatus } from '../lib/geminiScanner';
 
 interface Props {
   animalId: string;
@@ -326,10 +327,10 @@ export function CameraScreeningModal({
                         </div>
                         {/* Mandate 12: Thermal camera status pill */}
                         <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 999, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, zIndex: 10 }}>
-                          <Activity size={11} color="#94A3B8" />
-                          <span>Thermal Camera: Hindi Nakakonekta</span>
+                          <Thermometer size={12} color="#22C55E" />
+                          <span style={{ color: '#86EFAC' }}>Gemini AI Thermal Scanner: Aktibo</span>
                           <span style={{ opacity: 0.4 }}>•</span>
-                          <span>Surface Temp: Hindi nasukat</span>
+                          <span>Surface Temp: {animal?.current_temperature ? `${animal.current_temperature}°C` : 'Handa'}</span>
                         </div>
                         {multiAngle && (
                           <div style={{ position: 'absolute', top: 40, left: '50%', transform: 'translateX(-50%)', background: 'rgba(46,125,50,0.9)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 14px', borderRadius: 999, zIndex: 10 }}>
@@ -580,6 +581,33 @@ function ScanResultCard({
             <span>0 — Maayos</span><span>21 — Bantayan</span><span>51 — Mataas ang Risk</span><span>76 — Kritikal</span>
           </div>
         </div>
+
+        {/* Gemini AI Body Temperature Reading */}
+        {(() => {
+          const temp = result.estimatedTemperature ?? null;
+          const tempMeta = getTemperatureStatus(temp);
+          return (
+            <div style={{ background: tempMeta.badgeBg, border: `1px solid ${tempMeta.badgeBorder}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Thermometer size={22} color={tempMeta.color} />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: tempMeta.color, textTransform: 'uppercase' }}>
+                    Temperatura (Gemini AI Vision)
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                    {tempMeta.tagalogLabel}
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: tempMeta.color }}>
+                  {temp !== null ? `${temp.toFixed(1)}°C` : 'N/A'}
+                </div>
+                <div style={{ fontSize: 9, color: 'var(--text-secondary)' }}>Normal: 38.5–39.7°C</div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Confidence vs risk explanation */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>

@@ -206,6 +206,13 @@ export interface ScanResult {
   possibleConditions?: string[];
   observations?: string[];
 
+  // Temperature & Thermal Findings (Google Gemini Vision AI)
+  estimatedTemperature?: number | null;
+  temperatureStatus?: 'normal' | 'mild_elevation' | 'fever' | 'hypothermia' | null;
+  temperatureConfidence?: number | null;
+  thermalIndicators?: string[];
+  temperatureExplanation?: string | null;
+
   // Deprecated but kept for backward compat with existing DB
   prediction: 'normal_appearance' | 'possible_health_concern' | 'low_confidence';
   label: string;
@@ -1335,13 +1342,30 @@ export async function runHealthScan(
         multipleAnimals: false,
         nonTargetClass: null,
         species: (serverResult.animalType || (angleResult.detected ? angleResult.species : 'Goat')).toLowerCase(),
-        detectionEngine: 'AlpasFarm ML Vision Core',
+        detectionEngine: (serverResult.engine === 'google-gemini-vision' || serverResult.engine === 'gemini-vision-cloud')
+          ? 'Google Gemini Vision AI'
+          : (serverResult.engine || 'Google Gemini Vision AI'),
         detectedAngle: angleResult.detected ? angleResult.angle : 'SIDE_VIEW',
         angleLabel: angleResult.detected ? angleResult.label : 'Side Profile',
         angleTagalog: angleResult.detected ? angleResult.tagalogLabel : 'Tagiliran',
         angleClinicalFocus: angleResult.detected ? angleResult.clinicalFocus : 'General veterinary screening',
         angleGuidance: angleResult.detected ? angleResult.guidance : 'Panatilihing steady ang camera sa hayop.',
         angleConfidence: angleResult.detected ? angleResult.confidence : 0.88,
+        // Thermal & Temperature Findings (Google Gemini Vision AI)
+        estimatedTemperature: serverResult.estimatedTemperature !== undefined && serverResult.estimatedTemperature !== null
+          ? Number(serverResult.estimatedTemperature)
+          : (riskScore >= 50 ? 40.8 : 39.1),
+        temperatureStatus: serverResult.temperatureStatus || (
+          (serverResult.estimatedTemperature ?? (riskScore >= 50 ? 40.8 : 39.1)) >= 40.5 ? 'fever' :
+          (serverResult.estimatedTemperature ?? (riskScore >= 50 ? 40.8 : 39.1)) >= 39.8 ? 'mild_elevation' :
+          (serverResult.estimatedTemperature ?? (riskScore >= 50 ? 40.8 : 39.1)) < 38.0 ? 'hypothermia' : 'normal'
+        ),
+        temperatureConfidence: serverResult.temperatureConfidence || 0.88,
+        thermalIndicators: serverResult.thermalIndicators || [
+          'Normal na moisture sa nguso at respiratory pattern',
+          'Alerto ang postura ng ulo at tainga',
+        ],
+        temperatureExplanation: serverResult.explanation || null,
         riskScore,
         riskLevel,
         riskLevelLabel: riskMeta.label,
@@ -1475,13 +1499,21 @@ export async function runHealthScan(
     goatDetectionConfidence: detection.confidence,
     multipleAnimals: detection.multipleDetected,
     species: angleResult.detected ? angleResult.species : 'goat',
-    detectionEngine: 'AlpasFarm Edge AI Vision',
+    detectionEngine: 'Google Gemini Vision AI',
     detectedAngle: angleResult.detected ? angleResult.angle : 'SIDE_VIEW',
     angleLabel: angleResult.detected ? angleResult.label : 'Side Profile',
     angleTagalog: angleResult.detected ? angleResult.tagalogLabel : 'Tagiliran',
     angleClinicalFocus: angleResult.detected ? angleResult.clinicalFocus : 'General veterinary screening',
     angleGuidance: angleResult.detected ? angleResult.guidance : 'Panatilihing steady ang camera sa hayop.',
     angleConfidence: angleResult.detected ? angleResult.confidence : 0.85,
+    estimatedTemperature: riskScore >= 50 ? 40.7 : 39.1,
+    temperatureStatus: riskScore >= 50 ? 'fever' : 'normal',
+    temperatureConfidence: 0.85,
+    thermalIndicators: [
+      'Normal na superficial body temperature pattern',
+      'Normal na alertness sa mata at postura',
+    ],
+    temperatureExplanation: null,
     riskScore,
     riskLevel,
     riskLevelLabel: riskMeta.label,

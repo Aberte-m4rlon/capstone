@@ -51,6 +51,7 @@ import {
   Syringe,
   Pill,
   Package,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input, Select, FormField } from '../components/ui/Input';
@@ -66,6 +67,8 @@ import { simplifyHealthObservation } from '../lib/farmerTerminology';
 import type { HealthRecord, Animal, TreatmentStatus, TreatmentUsageType, HealthStatus } from '../types';
 import { isMedicineCategory, isDewormerCategory, isSupplementCategory, consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
 import { AnimalCameraScanModal } from '../components/domain/health';
+import { fileToCanvas } from '../lib/cameraML';
+import { scanGoatTemperature, getTemperatureStatus } from '../lib/geminiScanner';
 
 // Symptom Chip Definition
 interface SymptomChip {
@@ -463,21 +466,57 @@ export function HealthPage() {
     setModalOpen(true);
   };
 
-  const handleAnimalScannedFromCamera = (animal: Animal) => {
+  const [isScanningTemp, setIsScanningTemp] = useState(false);
+  const geminiScanInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAnimalScannedFromCamera = (animal: Animal, scannedTemp?: number | null) => {
     setSelectedAnimalId(animal.id);
     setScannedConfirmation({
       tag_id: animal.tag_id,
       species: animal.species,
       name: animal.name || animal.tag_id,
     });
-    // Fresh observation fields as required by specification
-    setObsTemp('');
+    // Auto-fill scanned temperature if present, otherwise fallback to recorded temperature or empty
+    if (scannedTemp) {
+      setObsTemp(String(scannedTemp));
+    } else if (animal.current_temperature) {
+      setObsTemp(String(animal.current_temperature));
+    } else {
+      setObsTemp('');
+    }
     setObsAppetite(null);
     setObsActivity(null);
     setSelectedSymptoms([]);
     setNotes('');
     setCameraScanModalOpen(false);
     toast(`Nahanap: ${animal.name || animal.tag_id} (${animal.tag_id})`, 'success');
+  };
+
+  const handleGeminiTempScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsScanningTemp(true);
+      toast('Sini-scan ang temperatura gamit ang Gemini AI...', 'info');
+      const canvas = await fileToCanvas(file);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const targetSpecies = selectedAnimal?.species?.toLowerCase() === 'sheep' ? 'Sheep' : 'Goat';
+      const res = await scanGoatTemperature(dataUrl, {
+        animalType: targetSpecies,
+      });
+      if (res.estimatedTemperature !== null && res.estimatedTemperature !== undefined) {
+        setObsTemp(String(res.estimatedTemperature));
+        const tempMeta = getTemperatureStatus(res.estimatedTemperature);
+        toast(`Gemini AI Temp: ${res.estimatedTemperature}°C (${tempMeta.tagalogLabel})`, 'success');
+      } else {
+        toast(res.explanation || 'Hindi nakita ang kambing o tupa sa litrato.', 'warning');
+      }
+    } catch (err: any) {
+      toast('Hindi nagtagumpay ang Gemini scan: ' + (err?.message || 'Error'), 'error');
+    } finally {
+      setIsScanningTemp(false);
+      if (geminiScanInputRef.current) geminiScanInputRef.current.value = '';
+    }
   };
 
   const location = useLocation();
@@ -1484,11 +1523,44 @@ export function HealthPage() {
               2. Obserbasyon sa Kalusugan (Opsyonal):
             </div>
 
-            {/* Temperature with quick presets */}
+            {/* Temperature with quick presets and Gemini AI scan button */}
             <div style={{ marginBottom: 16 }}>
-              <label className="obs-field-label">
-                Temperatura ng Katawan (°C):
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="obs-field-label" style={{ margin: 0 }}>
+                  Temperatura ng Katawan (°C):
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  ref={geminiScanInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleGeminiTempScan}
+                />
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    background: 'rgba(34, 197, 94, 0.12)',
+                    color: '#16A34A',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    fontWeight: 700,
+                    fontSize: 12,
+                    cursor: isScanningTemp ? 'not-allowed' : 'pointer',
+                  }}
+                  onClick={() => geminiScanInputRef.current?.click()}
+                  disabled={isScanningTemp}
+                  title="I-scan ang temperatura ng kambing gamit ang Google Gemini AI Vision"
+                >
+                  {isScanningTemp ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Thermometer size={13} />}
+                  <span>{isScanningTemp ? 'Sini-scan...' : 'I-scan gamit ang Gemini AI'}</span>
+                </button>
+              </div>
               <div className="temp-presets-row">
                 <input
                   type="number"
