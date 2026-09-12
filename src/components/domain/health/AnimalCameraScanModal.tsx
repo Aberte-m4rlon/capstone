@@ -58,7 +58,18 @@ export function AnimalCameraScanModal({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isMountedRef = useRef(true);
   const isStoppingRef = useRef(false);
+  const isStartingRef = useRef(false);
+  const scanStateRef = useRef<'starting' | 'scanning' | 'error' | 'success'>('starting');
   const mlIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Keep refs for callbacks so startScanner and runLiveMLCheck don't cause infinite re-render cycles
+  const handleDecodedRef = useRef<(text: string) => void>(() => {});
+  const runLiveMLCheckRef = useRef<() => void>(() => {});
+
+  // Sync scanStateRef with scanState
+  useEffect(() => {
+    scanStateRef.current = scanState;
+  }, [scanState]);
 
   // ── Stop Scanner safely ───────────────────────────────────────────────────
   const stopScanner = useCallback(async () => {
@@ -72,16 +83,22 @@ export function AnimalCameraScanModal({
 
     if (scannerRef.current) {
       try {
-        const state = scannerRef.current.getState();
+        const s = scannerRef.current;
+        scannerRef.current = null;
+        const state = s.getState();
         // State 2 = SCANNING, State 3 = PAUSED
         if (state === 2 || state === 3) {
-          await scannerRef.current.stop();
+          await s.stop();
         }
-        scannerRef.current.clear();
+        s.clear();
       } catch {
         // Safe ignore
       }
-      scannerRef.current = null;
+    }
+
+    const container = document.getElementById(CONTAINER_ID);
+    if (container) {
+      container.innerHTML = '';
     }
 
     isStoppingRef.current = false;
@@ -147,6 +164,7 @@ export function AnimalCameraScanModal({
 
       if (matchedAnimal) {
         // SUCCESS: Animal belongs to current user's farm
+        scanStateRef.current = 'success';
         setScanState('success');
         await stopScanner();
         onAnimalFound(matchedAnimal);
@@ -173,6 +191,7 @@ export function AnimalCameraScanModal({
           // If super admin or matching animal not yet refreshed in local state
           const refreshedMatch = farmAnimals.find((a) => a.id === foreignAnimal.id);
           if (refreshedMatch) {
+            scanStateRef.current = 'success';
             setScanState('success');
             await stopScanner();
             onAnimalFound(refreshedMatch);
@@ -192,9 +211,11 @@ export function AnimalCameraScanModal({
     [farmAnimals, currentUserId, isSuperAdmin, onAnimalFound, stopScanner]
   );
 
+  handleDecodedRef.current = handleDecoded;
+
   // ── Run periodic ML species identification on video frame ────────────────
   const runLiveMLCheck = useCallback(async () => {
-    if (!open || scanState !== 'scanning') return;
+    if (!open || scanStateRef.current !== 'scanning') return;
     const container = document.getElementById(CONTAINER_ID);
     if (!container) return;
 
@@ -232,96 +253,164 @@ export function AnimalCameraScanModal({
     } catch {
       // Safe ignore ML frame evaluation errors
     }
-  }, [open, scanState]);
+  }, [open]);
+
+  runLiveMLCheckRef.current = runLiveMLCheck;
 
   // ── Start Camera Scanner ──────────────────────────────────────────────────
   const startScanner = useCallback(async () => {
+    if (isStartingRef.current) return;
+    isStartingRef.current = true;
+
     setErrorMessage(null);
     setPermissionError(false);
+    scanStateRef.current = 'starting';
     setScanState('starting');
     setMlDetection(null);
     setVisualConcernNotice(null);
     setAmbiguousNotice(false);
 
+    // Stop and clear previous instance if exists
+    if (scannerRef.current) {
+      try {
+        const s = scannerRef.current;
+        scannerRef.current = null;
+        const st = s.getState();
+        if (st === 2 || st === 3) await s.stop();
+        s.clear();
+      } catch {}
+    }
+
     // Wait for modal DOM transition
-    await new Promise((r) => setTimeout(r, 150));
-    if (!isMountedRef.current) return;
+    await new Promise((r) => setTimeout(r, 120));
+    if (!isMountedRef.current) {
+      isStartingRef.current = false;
+      return;
+    }
 
     const container = document.getElementById(CONTAINER_ID);
     if (!container) {
       setErrorMessage('Hindi mai-load ang camera viewfinder.');
+      scanStateRef.current = 'error';
       setScanState('error');
+      isStartingRef.current = false;
       return;
     }
 
+    container.innerHTML = '';
+    container.style.width = '100%';
+    container.style.minHeight = '280px';
+
     try {
-      // Discover available camera devices
-      try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length > 0) {
-          setCameras(devices);
+      // Progressive camera configs: mobile ideal facingMode -> exact -> desktop fallback -> any video track
+      const cameraConfigs = selectedCameraId
+        ? [{ deviceId: { exact: selectedCameraId } }]
+        : [
+            { facingMode: { ideal: facingMode } },
+            { facingMode: facingMode },
+            { facingMode: { ideal: facingMode === 'environment' ? 'user' : 'environment' } },
+            { facingMode: facingMode === 'environment' ? 'user' : 'environment' },
+            {},
+          ];
+
+      let started = false;
+      let lastError: any = null;
+
+      for (const cameraConfig of cameraConfigs) {
+        if (!isMountedRef.current) break;
+        try {
+          const scanner = new Html5Qrcode(CONTAINER_ID, {
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+            verbose: false,
+          });
+          scannerRef.current = scanner;
+
+          // Per-candidate 4s timeout to prevent hanging on unsupported constraints
+          await Promise.race([
+            scanner.start(
+              cameraConfig,
+              {
+                fps: 15,
+                qrbox: { width: 250, height: 250 },
+                disableFlip: false,
+              },
+              (decoded) => handleDecodedRef.current(decoded),
+              () => {
+                // scanning frame callback
+              }
+            ),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Camera init timeout')), 4000)
+            ),
+          ]);
+
+          started = true;
+          break;
+        } catch (err: any) {
+          lastError = err;
+          if (scannerRef.current) {
+            try {
+              scannerRef.current.clear();
+            } catch {}
+            scannerRef.current = null;
+          }
+          if (container) container.innerHTML = '';
         }
-      } catch {
-        // getCameras may throw if permission not yet granted
       }
 
-      const scanner = new Html5Qrcode(CONTAINER_ID, {
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        verbose: false,
-      });
-      scannerRef.current = scanner;
-
-      // Camera config: rear camera preferred on mobile, webcam on desktop
-      const cameraConfig = selectedCameraId
-        ? { deviceId: { exact: selectedCameraId } }
-        : { facingMode };
-
-      await scanner.start(
-        cameraConfig,
-        {
-          fps: 15,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-          disableFlip: false,
-        },
-        (decoded) => handleDecoded(decoded),
-        () => {
-          // scanning frame callback
-        }
-      );
+      if (!started) {
+        throw lastError || new Error('Hindi mabuksan ang camera.');
+      }
 
       if (isMountedRef.current) {
+        scanStateRef.current = 'scanning';
         setScanState('scanning');
+
+        // Asynchronously discover available cameras without blocking initial video render
+        try {
+          Html5Qrcode.getCameras()
+            .then((devices) => {
+              if (isMountedRef.current && devices && devices.length > 0) {
+                setCameras(devices);
+              }
+            })
+            .catch(() => {});
+        } catch {}
 
         // Start live ML frame checks every 1.5 seconds
         if (mlIntervalRef.current) clearInterval(mlIntervalRef.current);
         mlIntervalRef.current = setInterval(() => {
-          runLiveMLCheck();
+          runLiveMLCheckRef.current();
         }, 1500);
       }
     } catch (err: any) {
       if (!isMountedRef.current) return;
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error ? err.message : String(err || '');
       const lower = msg.toLowerCase();
 
-      if (lower.includes('permission') || lower.includes('notallowed')) {
+      if (lower.includes('permission') || lower.includes('notallowed') || err?.name === 'NotAllowedError') {
         setPermissionError(true);
-        setErrorMessage('Hindi ma-access ang camera. Pwede mong piliin ang hayop manually.');
+        setErrorMessage('Naka-block ang camera access sa browser. Pindutin ang camera o lock icon sa address bar para i-allow, o piliin na lang ang hayop sa listahan.');
       } else if (lower.includes('notfound') || lower.includes('device')) {
-        setErrorMessage('Walang available na camera.');
+        setErrorMessage('Walang nakitang camera sa device na ito. Pwede mong piliin ang hayop sa listahan.');
       } else if (
         lower.includes('notreadable') ||
         lower.includes('already in use') ||
         lower.includes('could not start')
       ) {
-        setErrorMessage('Ginagamit pa ng ibang application o tab ang camera. Pwede mong piliin ang hayop manually.');
+        setErrorMessage('Ginagamit pa ng ibang application o tab ang camera. Pwede mong piliin ang hayop sa listahan.');
+      } else if (lower.includes('timeout')) {
+        setErrorMessage('Masyadong matagal magbukas ang camera sa browser. Pwede mong piliin ang hayop sa listahan o subukan ulit.');
       } else {
-        setErrorMessage(`Hindi ma-access ang camera: ${msg}. Pwede mong piliin ang hayop manually.`);
+        setErrorMessage('Hindi mabuksan ang camera sa device na ito. Pwede mong piliin ang hayop sa listahan.');
       }
+      scanStateRef.current = 'error';
       setScanState('error');
       scannerRef.current = null;
+    } finally {
+      isStartingRef.current = false;
     }
-  }, [facingMode, selectedCameraId, handleDecoded, runLiveMLCheck]);
+  }, [facingMode, selectedCameraId]);
 
   // Switch facing mode (environment <-> user)
   const toggleFacingMode = async () => {
@@ -554,13 +643,39 @@ export function AnimalCameraScanModal({
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 10,
+                  gap: 12,
                   color: '#94A3B8',
                   fontSize: 13,
+                  padding: 20,
+                  textAlign: 'center',
+                  zIndex: 5,
                 }}
               >
-                <ScanLine size={32} color="#22C55E" />
+                <ScanLine size={32} color="#22C55E" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
                 <span>Binubuksan ang camera...</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onManualSelectRequest();
+                  }}
+                  style={{
+                    marginTop: 6,
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.16)',
+                    color: '#E2E8F0',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: '7px 14px',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span>Matagal magbukas? Pumili sa listahan</span>
+                </button>
               </div>
             )}
 
@@ -578,13 +693,14 @@ export function AnimalCameraScanModal({
                   padding: 20,
                   textAlign: 'center',
                   gap: 12,
+                  zIndex: 6,
                 }}
               >
                 <AlertCircle size={36} color="#EF4444" />
-                <p style={{ margin: 0, fontSize: 13, color: '#FCA5A5', lineHeight: 1.4 }}>
-                  {errorMessage || 'Hindi ma-access ang camera.'}
+                <p style={{ margin: 0, fontSize: 13, color: '#FCA5A5', lineHeight: 1.4, maxWidth: 280 }}>
+                  {errorMessage || 'Hindi ma-access ang camera sa device na ito.'}
                 </p>
-                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -600,9 +716,9 @@ export function AnimalCameraScanModal({
                       onClose();
                       onManualSelectRequest();
                     }}
-                    style={{ background: '#16A34A' }}
+                    style={{ background: '#16A34A', color: '#FFFFFF' }}
                   >
-                    Pumili ng Hayop Manually
+                    Pumili sa Listahan
                   </Button>
                 </div>
               </div>
