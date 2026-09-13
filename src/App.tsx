@@ -210,23 +210,29 @@ function AppRoutes() {
 import { NotificationProvider } from './context/NotificationContext';
 import { FarmDataProvider } from './lib/useFarmData';
 import { ThemeProvider } from './context/ThemeContext';
+import { PwaProvider } from './context/PwaContext';
+import { OfflineIndicator, UpdatePrompt } from './components/pwa';
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <NotificationProvider>
-              <FarmDataProvider>
-                <BrowserRouter>
-                  <AppRoutes />
-                </BrowserRouter>
-              </FarmDataProvider>
-            </NotificationProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <PwaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <NotificationProvider>
+                <FarmDataProvider>
+                  <BrowserRouter>
+                    <OfflineIndicator />
+                    <UpdatePrompt />
+                    <AppRoutes />
+                  </BrowserRouter>
+                </FarmDataProvider>
+              </NotificationProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </PwaProvider>
     </ErrorBoundary>
   );
 }

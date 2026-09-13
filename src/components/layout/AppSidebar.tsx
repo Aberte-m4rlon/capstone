@@ -6,6 +6,7 @@ import { AlpasFarmLogo } from '../common/AlpasFarmLogo';
 import { SidebarItem } from './SidebarItem';
 import { AICloudLauncher } from './AICloudLauncher';
 import { getNavItemsForRole } from './navigationConfig';
+import { InstallButton } from '../pwa';
 
 export interface AppSidebarProps {
   role: string | null;
@@ -197,7 +198,7 @@ export function AppSidebar({
           </nav>
         </div>
 
-        {/* Bottom: Mobile Role Badge & AI Cloud Launcher */}
+        {/* Bottom: Mobile Role Badge, Install Button & AI Cloud Launcher */}
         <div className="alpas-sidebar-footer">
           <div className="sidebar-role-pill">
             <div className="sidebar-role-icon-wrap">
@@ -205,6 +206,7 @@ export function AppSidebar({
             </div>
             <span className="sidebar-role-label">{displayRoleLabel}</span>
           </div>
+          <InstallButton variant="button" onSuccess={onClose} />
           <AICloudLauncher onClick={onOpenAICloud} />
         </div>
       </div>

@@ -8,6 +8,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, FormField } from '../components/ui/Input';
 import { getStoredGeminiApiKey, saveGeminiApiKey } from '../lib/geminiScanner';
+import { InstallButton } from '../components/pwa';
 
 export function SettingsPage() {
   const farmData = useFarmData();
@@ -163,6 +164,10 @@ export function SettingsPage() {
 
   const handleSave = async () => {
     if (!user) return;
+    if (!navigator.onLine) {
+      toast('Walang internet connection. Kailangan ng internet para ma-save ang pagbabagong ito.', 'danger');
+      return;
+    }
     setSaving(true);
     try {
       if (farmData.settings && !farmData.settings.id.startsWith('default-settings-')) {
@@ -220,6 +225,9 @@ export function SettingsPage() {
           Isaayos ang iyong profile at mga kagustuhan sa bukid.
         </p>
       </div>
+
+      {/* ── PWA App Installation Card ── */}
+      <InstallButton variant="card" />
 
       {/* ── Profile Section ── */}
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>

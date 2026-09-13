@@ -20,6 +20,7 @@ import {
 import { useNotifications } from '../../context/NotificationContext';
 import { useTheme } from '../../context/ThemeContext';
 import { AlpasFarmLogo } from '../common/AlpasFarmLogo';
+import { InstallButton } from '../pwa';
 import type { Animal, InventoryItem, Vaccination, BreedingRecord, Notification } from '../../types';
 
 export interface SearchResult {
@@ -501,6 +502,7 @@ export function AppHeader({
                 <Settings size={16} />
                 <span>Mga Setting</span>
               </button>
+              <InstallButton variant="menuitem" onSuccess={() => setProfileOpen(false)} />
               <button type="button" className="pd-item text-danger" onClick={handleSignOut}>
                 <LogOut size={16} />
                 <span>Mag-logout</span>

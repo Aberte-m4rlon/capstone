@@ -7954,4 +7954,73 @@ input[type="time"] {
   border-color: rgba(100, 116, 139, 0.35);
 }
 
+/* ==========================================================================
+   ALPASFARM PROGRESSIVE WEB APP (PWA) STYLES
+   ========================================================================== */
+
+/* Keyframe Animations */
+@keyframes pwaSlideDown {
+  0% {
+    transform: translate(-50%, -100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes pwaSlideUp {
+  0% {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Spin animation for update icon */
+.spin {
+  animation: pwaSpin 1s linear infinite;
+}
+
+@keyframes pwaSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Dark Mode Overrides for PWA Components */
+[data-theme="dark"] .pwa-update-card {
+  background: rgba(18, 30, 22, 0.94) !important;
+  border: 1px solid rgba(35, 139, 69, 0.35) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-theme="dark"] .pwa-install-card {
+  background: rgba(18, 30, 22, 0.70) !important;
+  border: 1px solid rgba(35, 139, 69, 0.22) !important;
+}
+
+/* Standalone Native App Mode Enhancements */
+@media (display-mode: standalone) {
+  /* Prevent pull-to-refresh reload in standalone app when desired */
+  html, body {
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Safe Area Inset Support */
+  .topbar,
+  .app-header {
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+  }
+
+  .mobile-bottom-nav {
+    bottom: max(12px, calc(10px + env(safe-area-inset-bottom, 0px))) !important;
+  }
+}
+
+
 
