@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseServer } from '../lib/supabaseServer';
+import { getSupabaseServer } from '../_lib/supabaseServer';
 import {
   dispatchSms,
   dispatchEmail,
   buildEmailTemplate,
   normalizePhoneNumber,
-} from '../lib/sender';
+} from '../_lib/sender';
 
 interface DispatchRequestBody {
   userId: string;

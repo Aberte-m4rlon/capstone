@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseServer } from '../lib/supabaseServer';
+import { getSupabaseServer } from '../_lib/supabaseServer';
 import {
   dispatchSms,
   dispatchEmail,
   buildEmailTemplate,
   normalizePhoneNumber,
-} from '../lib/sender';
+} from '../_lib/sender';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
