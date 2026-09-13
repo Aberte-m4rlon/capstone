@@ -211,7 +211,7 @@ export function ScannerPage() {
     }
   };
 
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
+  const activeAnimals = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
 
   return (
     <div>

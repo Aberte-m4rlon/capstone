@@ -165,7 +165,7 @@ export function useMLHealthSummary() {
   const { warnings, canPredict, modelAccuracy, trainingSamples } = useEarlyWarnings();
 
   return useMemo(() => {
-    const active = farmData.animals.filter((a) => !a.archived);
+    const active = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
 
     const monitored = active.length;
     const healthy = active.filter((a) => a.health_status === 'Healthy').length;

@@ -169,7 +169,7 @@ export function AnimalProfilePage() {
   const animalSale = useMemo(() => {
     return (farmData.sales || []).find((s) => s.animal_id === id) ?? null;
   }, [farmData.sales, id]);
-  const isSold = Boolean(animalSale || animal?.status === 'Sold' || animal?.is_sold);
+  const isSold = Boolean(animalSale || animal?.status === 'Sold' || animal?.is_sold || animal?.archived);
 
   const growth = useMemo(() => calculateGrowth(animalWeights, farmData.settings?.target_weight_kg ?? 40), [animalWeights, farmData.settings]);
   const breedingAssessment = useMemo(() => {
@@ -670,7 +670,7 @@ export function AnimalProfilePage() {
             {isSold && (
               <GlassCard gridSpan={3} style={{ border: '1px solid #C7E9C0', background: 'linear-gradient(180deg, #F0FDF4 0%, #FFFFFF 100%)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <CardTitle icon={DollarSign} title="Detalye ng Pagbebenta (Sale Details)" />
+                  <CardTitle icon={DollarSign} title="Detalye ng Pagbebenta" />
                   <span style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -692,7 +692,7 @@ export function AnimalProfilePage() {
                   paddingTop: 8,
                 }}>
                   <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Timbang Bago Ibenta</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Timbang noong Nabenta</div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: '#1F2937', marginTop: 2 }}>
                       {animalSale?.sold_weight || animal.weight_kg || '—'} kg
                     </div>
@@ -701,6 +701,12 @@ export function AnimalProfilePage() {
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Presyo ng Pagbebenta</div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: '#238B45', marginTop: 2 }}>
                       ₱{(animalSale?.selling_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Halagang Natanggap</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#238B45', marginTop: 2 }}>
+                      ₱{(animalSale?.amount_received !== undefined && animalSale?.amount_received !== null ? animalSale.amount_received : (animalSale?.selling_price || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </div>
                   </div>
                   <div>

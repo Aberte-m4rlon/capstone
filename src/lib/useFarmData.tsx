@@ -154,9 +154,21 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
       };
 
       const salesData = (salesRes as AnimalSale[]) ?? [];
+      const soldAnimalIds = new Set(salesData.map((s) => s.animal_id));
+
+      const rawAnimals = (animalsRes.data as Animal[]) ?? [];
+      const enrichedAnimals: Animal[] = rawAnimals.map((a) => {
+        const isSold = Boolean(a.archived || soldAnimalIds.has(a.id) || a.status === 'Sold' || a.is_sold);
+        return {
+          ...a,
+          archived: isSold ? true : Boolean(a.archived),
+          status: isSold ? 'Sold' : (a.status || 'Active'),
+          is_sold: isSold,
+        };
+      });
 
       setData({
-        animals: (animalsRes.data as Animal[]) ?? [],
+        animals: enrichedAnimals,
         healthRecords: (healthRes.data as HealthRecord[]) ?? [],
         weightRecords: (weightRes.data as WeightRecord[]) ?? [],
         breedingRecords: (breedingRes.data as BreedingRecord[]) ?? [],

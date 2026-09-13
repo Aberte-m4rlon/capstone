@@ -186,7 +186,7 @@ export function buildFarmContext(
 ): string {
   const q = question.toLowerCase();
   const today = new Date().toISOString().slice(0, 10);
-  const active = farmData.animals.filter((a) => !a.archived);
+  const active = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
   const nm: Record<string, string> = {};
   farmData.animals.forEach((a) => { nm[a.id] = a.name; });
 

@@ -80,7 +80,7 @@ export function VaccinationsPage() {
   const [fStatus, setFStatus] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
+  const activeAnimals = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
 
   const animalMap = useMemo(() => {
     const map = new Map<string, typeof farmData.animals[0]>();

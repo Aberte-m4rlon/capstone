@@ -44,7 +44,7 @@ export function WeightsPage() {
   const mlGrowth = useGrowthPrediction(fAnimal !== 'All' ? fAnimal : null);
 
   const activeAnimals = useMemo(
-    () => farmData.animals.filter((a) => !a.archived),
+    () => farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold'),
     [farmData.animals]
   );
 

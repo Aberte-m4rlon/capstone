@@ -195,7 +195,7 @@ export function InventoryPage() {
 
   // ── Dynamic Livestock Metrics (Computed from animals & clinical tables) ─────
   const activeAnimals = useMemo(() => {
-    return farmData.animals.filter((a) => !a.archived);
+    return farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
   }, [farmData.animals]);
 
   const livestockMetrics = useMemo(() => {

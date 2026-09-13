@@ -70,9 +70,9 @@ export function SalesPage() {
     }
   }, [location.search]);
 
-  // Active animals available for sale (belonging to current user and not archived)
+  // Active animals available for sale (belonging to current user and not archived/sold)
   const availableAnimals = useMemo(() => {
-    return animals.filter((a) => !a.archived);
+    return animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
   }, [animals]);
 
   // Selected animal object
@@ -193,7 +193,7 @@ export function SalesPage() {
     setSubmitting(false);
 
     if (res.success) {
-      toast(`Matagumpay na naibenta ang ${selectedAnimal.tag_id} (${selectedAnimal.name || 'Hayop'})!`, 'success');
+      toast('Na-record na ang bentahan. Ang hayop ay nailipat na sa Kasaysayan ng Pagbebenta.', 'success');
       handleCloseModal();
       await refresh();
     } else {

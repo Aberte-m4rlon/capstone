@@ -280,9 +280,9 @@ export function HealthPage() {
   const [treatNotes, setTreatNotes] = useState('');
   const [treatSaving, setTreatSaving] = useState(false);
 
-  // Active animals list
+  // Active animals list (strictly excluding sold / archived animals)
   const activeAnimals = useMemo(() => {
-    return farmData.animals.filter((a) => !a.archived);
+    return farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
   }, [farmData.animals]);
 
   // Selected animal for modal

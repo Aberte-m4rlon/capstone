@@ -175,7 +175,7 @@ export function useAnimalClusters(): ClusterResult | null {
   const farmData = useFarmData();
 
   return useMemo(() => {
-    const active = farmData.animals.filter((a) => !a.archived);
+    const active = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
     if (active.length < 3) return null;
 
     const points = active.map((a) => ({
@@ -252,7 +252,7 @@ export function useFeedPrediction(): { model: ReturnType<typeof trainFeedRegress
     // Build training data: pair feed records with weight gains in same period
     const data: { feedKg: number; weightGain: number }[] = [];
 
-    farmData.animals.filter((a) => !a.archived).forEach((animal) => {
+    farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold').forEach((animal) => {
       const feeds = farmData.feedRecords.filter((f) => f.animal_id === animal.id);
       const weights = farmData.weightRecords
         .filter((w) => w.animal_id === animal.id)
@@ -299,7 +299,7 @@ export function useMLInsights(): MLInsights {
   const feedPred = useFeedPrediction();
 
   return useMemo(() => {
-    const activeAnimals = farmData.animals.filter((a) => !a.archived);
+    const activeAnimals = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
 
     const growthPredictions = activeAnimals.map((a) => {
       const records = farmData.weightRecords.filter((w) => w.animal_id === a.id);

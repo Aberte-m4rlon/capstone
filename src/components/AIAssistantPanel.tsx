@@ -254,7 +254,7 @@ function buildReply(
   };
 
   const { intent, animal: animalName } = detect(input);
-  const active = farmData.animals.filter((a) => !a.archived);
+  const active = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
   const animalName2 = (id: string) => farmData.animals.find((a) => a.id === id)?.name ?? 'Hindi kilala';
 
   // ── System FAQ ──────────────────────────────────────────────────────────────
@@ -800,7 +800,7 @@ export function AIAssistantPanel({ open, onClose }: Props) {
             <div>
               <div style={{ fontWeight: 800 }}>AI Farm Assistant</div>
               <div className="ai-assistant-subtitle">
-                {ml.totalInsights > 0 ? `${farmData.animals.filter(a=>!a.archived).length} aktibong hayop sa bukid` : 'Nakakonekta sa iyong farm data'}
+                {ml.totalInsights > 0 ? `${farmData.animals.filter(a => !a.archived && !a.is_sold && a.status !== 'Sold').length} aktibong hayop sa bukid` : 'Nakakonekta sa iyong farm data'}
               </div>
             </div>
           </div>

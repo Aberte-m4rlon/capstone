@@ -60,7 +60,7 @@ export function Dashboard() {
   const { animals, healthRecords, weightRecords, vaccinations, inventory, breedingRecords, settings, sales } = farmData;
   const mlInsights = useMLInsights();
 
-  const activeAnimals = useMemo(() => animals.filter((a) => !a.archived), [animals]);
+  const activeAnimals = useMemo(() => animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold'), [animals]);
 
   const salesStats = useMemo(() => {
     return calculateSalesMetrics(sales || []);

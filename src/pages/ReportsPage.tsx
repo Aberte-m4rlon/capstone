@@ -41,7 +41,7 @@ export function ReportsPage() {
   const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
 
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
+  const activeAnimals = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
 
   const inDateRange = (date: string) => {
     if (dateFrom && date < dateFrom) return false;

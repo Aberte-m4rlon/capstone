@@ -86,7 +86,7 @@ export function AnimalsPage() {
   }, [farmData.animals, soldAnimalIds, fStatus, fSpecies, fSex, fHealth, search]);
 
   const animalStats = useMemo(() => {
-    const active = farmData.animals.filter((a) => !a.archived);
+    const active = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
     const goats = active.filter((a) => a.species === 'Goat').length;
     const sheep = active.filter((a) => a.species === 'Sheep').length;
     const males = active.filter((a) => a.sex === 'Male').length;

@@ -55,7 +55,7 @@ export function AnalyticsPage() {
   cutoff.setDate(cutoff.getDate() - rangeDays);
   const cutoffStr = cutoff.toISOString().split('T')[0];
 
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
+  const activeAnimals = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
 
   // Health trend
   const healthTrend = useMemo(() => {

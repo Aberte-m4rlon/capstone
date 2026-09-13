@@ -39,41 +39,45 @@ export function parseAnimalNumber(tagId: string | null | undefined, targetPrefix
 }
 
 /**
- * Generates the next available candidate Animal ID based on in-memory animal list.
- * e.g., if highest Goat is GOAT-023, returns "GOAT-024".
- * If no existing animals exist, returns "GOAT-001" (or "SHEEP-001").
+ * Generates the next available candidate Animal ID based on active animals.
+ * Reuses the lowest available released ID among active animals of the same species.
+ * E.g., if GOAT-001 is active, GOAT-002 is sold/archived, and GOAT-003 is active,
+ * this returns "GOAT-002" (NOT GOAT-004).
+ * If no existing active animals exist, returns "GOAT-001" (or "SHEEP-001").
  */
 export function generateNextAnimalId(
   species: Species | string,
-  existingAnimals: Array<{ tag_id?: string | null; species?: string | null }> = []
+  existingAnimals: Array<{ tag_id?: string | null; species?: string | null; archived?: boolean; status?: string; is_sold?: boolean }> = []
 ): string {
   const prefix = getSpeciesPrefix(species);
-  let maxNumber = 0;
-
-  const usedNumbers = new Set<number>();
+  const activeNumbers = new Set<number>();
 
   for (const animal of existingAnimals) {
     if (!animal.tag_id) continue;
+    // Sold or archived animals release their visible tag ID for reuse!
+    const isSoldOrArchived = Boolean(animal.archived || animal.status === 'Sold' || animal.is_sold);
+    if (isSoldOrArchived) {
+      continue;
+    }
+
     const num = parseAnimalNumber(animal.tag_id, prefix);
     if (num !== null && num > 0) {
-      usedNumbers.add(num);
-      if (num > maxNumber) {
-        maxNumber = num;
-      }
+      activeNumbers.add(num);
     }
   }
 
-  // Next candidate is maxNumber + 1
-  let nextCandidateNum = maxNumber + 1;
-  while (usedNumbers.has(nextCandidateNum)) {
-    nextCandidateNum++;
+  // Find lowest positive integer (1, 2, 3...) not currently used by an ACTIVE animal
+  let candidateNum = 1;
+  while (activeNumbers.has(candidateNum)) {
+    candidateNum++;
   }
 
-  return `${prefix}-${String(nextCandidateNum).padStart(3, '0')}`;
+  return `${prefix}-${String(candidateNum).padStart(3, '0')}`;
 }
 
 /**
- * Queries Supabase to fetch all existing tag_ids and calculate the next unique ID.
+ * Queries Supabase to fetch all existing active tag_ids and calculate the next unique ID.
+ * Excludes archived/sold animals so their IDs are available for reuse.
  */
 export async function fetchNextUniqueAnimalId(
   species: Species | string,
@@ -82,7 +86,7 @@ export async function fetchNextUniqueAnimalId(
   const prefix = getSpeciesPrefix(species);
 
   try {
-    let query = supabase.from('animals').select('tag_id, species');
+    let query = supabase.from('animals').select('tag_id, species, archived').eq('archived', false);
     if (userId) {
       query = query.eq('user_id', userId);
     }
@@ -102,7 +106,8 @@ export async function fetchNextUniqueAnimalId(
 }
 
 /**
- * Checks whether a specific tag_id is already registered in the user's farm.
+ * Checks whether a specific tag_id is already registered by an ACTIVE animal in the user's farm.
+ * Sold animals (archived = true) release their tag ID, allowing it to be reused.
  */
 export async function isAnimalIdAvailable(
   tagId: string,
@@ -114,7 +119,8 @@ export async function isAnimalIdAvailable(
     let query = supabase
       .from('animals')
       .select('id')
-      .ilike('tag_id', tagId.trim());
+      .ilike('tag_id', tagId.trim())
+      .eq('archived', false); // Only active animals block ID availability!
 
     if (userId) {
       query = query.eq('user_id', userId);
@@ -150,7 +156,7 @@ export interface SaveAnimalResult {
 
 /**
  * Inserts a new animal with automatic duplicate prevention and race-condition retries.
- * Tag IDs are unique per farm (user_id).
+ * Tag IDs are unique per farm (user_id) among ACTIVE animals.
  */
 export async function insertAnimalWithUniqueRetry(
   payload: Partial<Animal> & { species: Species; user_id?: string },
@@ -159,8 +165,8 @@ export async function insertAnimalWithUniqueRetry(
   const maxRetries = options.maxRetries ?? 5;
   const prefix = getSpeciesPrefix(payload.species);
 
-  // 1. Fetch current DB state for this user to ensure starting candidate is fresh
-  let freshQuery = supabase.from('animals').select('tag_id, species');
+  // 1. Fetch current DB state for active animals for this user
+  let freshQuery = supabase.from('animals').select('tag_id, species, archived').eq('archived', false);
   if (payload.user_id) {
     freshQuery = freshQuery.eq('user_id', payload.user_id);
   }

@@ -56,7 +56,7 @@ export function AppShell({ children }: AppShellProps) {
 
   // ── Badges ──────────────────────────────────────────────────────────────────
   const unreadNotifs = unreadCount;
-  const overdueVacc  = farmData.animals.filter((a) => a.vaccination_status === 'Overdue' && !a.archived).length;
+  const overdueVacc  = farmData.animals.filter((a) => a.vaccination_status === 'Overdue' && !a.archived && !a.is_sold && a.status !== 'Sold').length;
   const lowStock     = farmData.inventory.filter((i) => Number(i.quantity) <= Number(i.minimum_stock)).length;
 
   function getBadge(to: string): number {

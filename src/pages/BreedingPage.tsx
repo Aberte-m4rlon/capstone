@@ -174,8 +174,8 @@ export function BreedingPage() {
   });
   const [savingOffspring, setSavingOffspring] = useState(false);
 
-  const females = useMemo(() => farmData.animals.filter((a) => !a.archived && a.sex === 'Female'), [farmData.animals]);
-  const males = useMemo(() => farmData.animals.filter((a) => !a.archived && a.sex === 'Male'), [farmData.animals]);
+  const females = useMemo(() => farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold' && a.sex === 'Female'), [farmData.animals]);
+  const males = useMemo(() => farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold' && a.sex === 'Male'), [farmData.animals]);
 
   // Comprehensive Breeding Assessments for all females and males
   const femaleAssessments = useMemo(() => {

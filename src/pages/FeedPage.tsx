@@ -52,7 +52,7 @@ export function FeedPage() {
   const [tab, setTab] = useState<'feed' | 'milk'>('feed');
   const [fAnimal, setFAnimal] = useState('All');
 
-  const activeAnimals = farmData.animals.filter((a) => !a.archived);
+  const activeAnimals = farmData.animals.filter((a) => !a.archived && !a.is_sold && a.status !== 'Sold');
   const females = activeAnimals.filter((a) => a.sex === 'Female');
 
   const filteredFeed = useMemo(() => {
