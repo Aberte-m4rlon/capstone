@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { notificationService } from './notificationService';
 import type { Animal, Species } from '../types';
 
 /**
@@ -364,6 +365,22 @@ export async function createAnimalWithInitialWeight(
 
   // If no initial weight was provided, return success immediately without fake records
   if (!hasWeight) {
+    notificationService
+      .dispatchNotification({
+        userId: createdAnimal.user_id,
+        type: 'System',
+        title: `Bagong Hayop: ${createdAnimal.name} (${createdAnimal.tag_id})`,
+        message: `Matagumpay na naidagdag si ${createdAnimal.name} (${createdAnimal.tag_id}, ${createdAnimal.species === 'Goat' ? 'Kambing' : 'Tupa'}) sa iyong bukid.`,
+        priority: 'Normal',
+        severity: 'normal',
+        link: `/animals/${createdAnimal.id}`,
+        animalId: createdAnimal.id,
+        relatedType: 'animal',
+        relatedId: createdAnimal.id,
+        eventKey: `animal_created_${createdAnimal.id}`,
+      })
+      .catch((e) => console.warn('Could not dispatch animal creation notification:', e));
+
     return {
       animal: createdAnimal,
       finalTagId: animalResult.finalTagId,
@@ -392,6 +409,22 @@ export async function createAnimalWithInitialWeight(
       error: weightResult.error || new Error('Hindi na-record ang unang timbang. Pakisubukan muli.'),
     };
   }
+
+  notificationService
+    .dispatchNotification({
+      userId: createdAnimal.user_id,
+      type: 'System',
+      title: `Bagong Hayop: ${createdAnimal.name} (${createdAnimal.tag_id})`,
+      message: `Matagumpay na naidagdag si ${createdAnimal.name} (${createdAnimal.tag_id}, ${createdAnimal.species === 'Goat' ? 'Kambing' : 'Tupa'}, ${initialWeightKg}kg) sa iyong bukid.`,
+      priority: 'Normal',
+      severity: 'normal',
+      link: `/animals/${createdAnimal.id}`,
+      animalId: createdAnimal.id,
+      relatedType: 'animal',
+      relatedId: createdAnimal.id,
+      eventKey: `animal_created_${createdAnimal.id}`,
+    })
+    .catch((e) => console.warn('Could not dispatch animal creation notification:', e));
 
   return {
     animal: createdAnimal,

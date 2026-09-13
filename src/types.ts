@@ -193,6 +193,23 @@ export interface InventoryItem {
   updated_at: string;
 }
 
+export interface InventoryUsageRecord {
+  id: string;
+  user_id: string;
+  inventory_id: string;
+  animal_id?: string | null;
+  quantity_used: number;
+  unit: string;
+  usage_date: string;
+  reason?: string | null;
+  treatment_status?: TreatmentStatus | string | null;
+  dosage?: string | null;
+  frequency?: string | null;
+  next_due_date?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
 export interface FeedRecord {
   id: string;
   user_id: string;
@@ -225,13 +242,65 @@ export interface Notification {
   description: string | null;
   message?: string | null;
   priority: NotificationPriority;
+  severity?: 'critical' | 'warning' | 'normal' | 'info';
   link: string | null;
   action_url?: string | null;
   animal_id?: string | null;
+  related_type?: 'animal' | 'health' | 'inventory' | 'breeding' | 'vaccination' | 'sale' | 'system' | null;
+  related_id?: string | null;
+  event_key?: string | null;
   read: boolean;
   is_read?: boolean;
   created_at: string;
+  updated_at?: string;
   read_at?: string | null;
+  deliveries?: NotificationDelivery[];
+}
+
+export type DeliveryChannel = 'in_app' | 'sms' | 'email';
+export type DeliveryStatus = 'pending' | 'sent' | 'delivered' | 'failed';
+
+export interface NotificationDelivery {
+  id: string;
+  user_id: string;
+  notification_id?: string | null;
+  channel: DeliveryChannel;
+  recipient?: string | null;
+  status: DeliveryStatus;
+  provider_message_id?: string | null;
+  error_message?: string | null;
+  attempt_count: number;
+  sent_at?: string | null;
+  delivered_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationPreferences {
+  id?: string;
+  user_id?: string;
+  health_in_app: boolean;
+  health_sms: boolean;
+  health_email: boolean;
+  inventory_in_app: boolean;
+  inventory_sms: boolean;
+  inventory_email: boolean;
+  breeding_in_app: boolean;
+  breeding_sms: boolean;
+  breeding_email: boolean;
+  vaccination_in_app: boolean;
+  vaccination_sms: boolean;
+  vaccination_email: boolean;
+  medication_in_app: boolean;
+  medication_sms: boolean;
+  medication_email: boolean;
+  sales_in_app: boolean;
+  sales_sms: boolean;
+  sales_email: boolean;
+  system_in_app: boolean;
+  system_sms: boolean;
+  system_email: boolean;
+  critical_bypass: boolean;
 }
 
 export interface Recommendation {

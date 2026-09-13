@@ -66,9 +66,14 @@ import {
 import { simplifyHealthObservation } from '../lib/farmerTerminology';
 import type { HealthRecord, Animal, TreatmentStatus, TreatmentUsageType, HealthStatus } from '../types';
 import { isMedicineCategory, isDewormerCategory, isSupplementCategory, consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
-import { AnimalCameraScanModal } from '../components/domain/health';
+import {
+  MedicationTreatmentModal,
+  InlineAnimalCameraScanner,
+  ScanResultCard,
+  type InlineScanResultData,
+} from '../components/domain/health';
 import { fileToCanvas } from '../lib/cameraML';
-import { scanGoatTemperature, getTemperatureStatus } from '../lib/geminiScanner';
+import { scanAnimalWithGemini, scanGoatTemperature, getTemperatureStatus } from '../lib/geminiScanner';
 
 // Symptom Chip Definition
 interface SymptomChip {
@@ -241,7 +246,9 @@ export function HealthPage() {
 
   // Modal & Prediction State
   const [modalOpen, setModalOpen] = useState(false);
-  const [cameraScanModalOpen, setCameraScanModalOpen] = useState(false);
+  const [healthCheckModalMode, setHealthCheckModalMode] = useState<'form' | 'camera' | 'scanning' | 'result'>('form');
+  const [lastScanResult, setLastScanResult] = useState<InlineScanResultData | null>(null);
+  const triggerScanRef = useRef<(() => void) | null>(null);
   const [scannedConfirmation, setScannedConfirmation] = useState<{
     tag_id: string;
     species: string;
@@ -498,44 +505,77 @@ export function HealthPage() {
   }, [farmData.healthRecords, farmData.animals, fRisk, fAnimal, searchQuery]);
 
   // Open Prediction Modal
-  const openPredictionModal = (preselectedAnimalId?: string) => {
+  const openPredictionModal = (
+    preselectedAnimalId?: string,
+    initialData?: { notes?: string; temp?: string; symptoms?: string[] }
+  ) => {
     const idToSelect = preselectedAnimalId || (activeAnimals.length > 0 ? activeAnimals[0].id : '');
     setSelectedAnimalId(idToSelect);
-    setObsTemp('');
+    setObsTemp(initialData?.temp ?? '');
     setObsAppetite(null);
     setObsActivity(null);
-    setSelectedSymptoms([]);
-    setNotes('');
+    setSelectedSymptoms(initialData?.symptoms ?? []);
+    setNotes(initialData?.notes ?? '');
     setManualMedId('');
     setScannedConfirmation(null);
+    setHealthCheckModalMode('form');
+    setLastScanResult(null);
     setModalOpen(true);
   };
 
   const [isScanningTemp, setIsScanningTemp] = useState(false);
   const geminiScanInputRef = useRef<HTMLInputElement>(null);
 
-  const handleAnimalScannedFromCamera = (animal: Animal, scannedTemp?: number | null) => {
-    setSelectedAnimalId(animal.id);
-    setScannedConfirmation({
-      tag_id: animal.tag_id,
-      species: animal.species,
-      name: animal.name || animal.tag_id,
-    });
-    // Auto-fill scanned temperature if present, otherwise fallback to recorded temperature or empty
-    if (scannedTemp) {
-      setObsTemp(String(scannedTemp));
-    } else if (animal.current_temperature) {
-      setObsTemp(String(animal.current_temperature));
-    } else {
-      setObsTemp('');
+  const handleScanComplete = (scanResult: InlineScanResultData) => {
+    setLastScanResult(scanResult);
+    setHealthCheckModalMode('result');
+    toast('Naisagawa ang pagsusuri sa hayop gamit ang AI.', 'info');
+  };
+
+  const handleApplyScanResultAndReturn = () => {
+    if (lastScanResult) {
+      // 1. Identify Animal: Only select confirmed animal, never invent animal ID
+      if (lastScanResult.matchedAnimal) {
+        setSelectedAnimalId(lastScanResult.matchedAnimal.id);
+        setScannedConfirmation({
+          tag_id: lastScanResult.matchedAnimal.tag_id,
+          species: lastScanResult.matchedAnimal.species,
+          name: lastScanResult.matchedAnimal.name || lastScanResult.matchedAnimal.tag_id,
+        });
+      }
+
+      // 2. Observations: Append to notes without clearing user's entered notes
+      if (lastScanResult.notesSnippet) {
+        setNotes((prevNotes) => {
+          if (!prevNotes || prevNotes.trim() === '') {
+            return lastScanResult.notesSnippet;
+          }
+          if (prevNotes.includes(lastScanResult.notesSnippet)) {
+            return prevNotes;
+          }
+          return `${prevNotes}\n\n${lastScanResult.notesSnippet}`;
+        });
+      }
+
+      // 3. Symptoms: Merge detected symptoms into selectedSymptoms without wiping existing ones
+      if (lastScanResult.suggestedSymptoms && lastScanResult.suggestedSymptoms.length > 0) {
+        setSelectedSymptoms((prev) => Array.from(new Set([...prev, ...lastScanResult.suggestedSymptoms])));
+      }
+
+      // 4. Zero fake temperature: obsTemp remains unchanged (Hindi nasukat)
+
+      // 5. Form data integrity: obsAppetite and obsActivity are completely preserved
+
+      toast('Nailagay na ang mga tala mula sa camera scan.', 'success');
     }
-    setObsAppetite(null);
-    setObsActivity(null);
-    setSelectedSymptoms([]);
-    setNotes('');
-    setManualMedId('');
-    setCameraScanModalOpen(false);
-    toast(`Nahanap: ${animal.name || animal.tag_id} (${animal.tag_id})`, 'success');
+
+    setHealthCheckModalMode('form');
+  };
+
+  const handleCloseHealthCheckModal = () => {
+    setHealthCheckModalMode('form');
+    setLastScanResult(null);
+    setModalOpen(false);
   };
 
   const handleGeminiTempScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -543,19 +583,29 @@ export function HealthPage() {
     if (!file) return;
     try {
       setIsScanningTemp(true);
-      toast('Sini-scan ang temperatura gamit ang Gemini AI...', 'info');
+      toast('Sini-scan ang hayop gamit ang Gemini AI...', 'info');
       const canvas = await fileToCanvas(file);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-      const targetSpecies = selectedAnimal?.species?.toLowerCase() === 'sheep' ? 'Sheep' : 'Goat';
-      const res = await scanGoatTemperature(dataUrl, {
-        animalType: targetSpecies,
-      });
-      if (res.estimatedTemperature !== null && res.estimatedTemperature !== undefined) {
-        setObsTemp(String(res.estimatedTemperature));
-        const tempMeta = getTemperatureStatus(res.estimatedTemperature);
-        toast(`Gemini AI Temp: ${res.estimatedTemperature}°C (${tempMeta.tagalogLabel})`, 'success');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const res = await scanAnimalWithGemini(dataUrl, { context: 'health_scan' });
+      if (res.detected && res.animals && res.animals.length > 0) {
+        const primary = res.animals[0];
+        // Zero fake temperature: ordinary camera cannot measure body temperature
+        setObsTemp('');
+        let newNotes = `[Gemini Visual Scan: ${primary.label || primary.species.toUpperCase()}]\n`;
+        if (primary.visualObservations?.length) {
+          newNotes += `Obserbasyon: ${primary.visualObservations.join(', ')}\n`;
+        }
+        if (primary.possibleHealthConcerns?.length) {
+          newNotes += `Maaaring Kondisyon: ${primary.possibleHealthConcerns.join(', ')}\n`;
+        }
+        if (res.recommendation) {
+          newNotes += `Rekomendasyon: ${res.recommendation}\n`;
+        }
+        newNotes += `Temperatura: Hindi nasukat (walang pisikal na thermometer sensor)`;
+        setNotes((prev) => (prev ? `${prev}\n\n${newNotes}` : newNotes));
+        toast(`Tagumpay na nasuri ang ${primary.label || primary.species.toUpperCase()}. Walang naimbentong temperatura.`, 'success');
       } else {
-        toast(res.explanation || 'Hindi nakita ang kambing o tupa sa litrato.', 'warning');
+        toast(res.overallMessage || 'Walang kambing o tupa na nakita sa litrato.', 'warning');
       }
     } catch (err: any) {
       toast('Hindi nagtagumpay ang Gemini scan: ' + (err?.message || 'Error'), 'error');
@@ -570,7 +620,19 @@ export function HealthPage() {
     const params = new URLSearchParams(location.search);
     if (params.get('action') === 'add' || params.get('action') === 'check') {
       const qAnimal = params.get('animalId') || undefined;
-      openPredictionModal(qAnimal);
+      const obs = params.get('obs') || '';
+      const concerns = params.get('concerns') || '';
+      const rec = params.get('rec') || '';
+      const species = params.get('species') || '';
+      let notesParts: string[] = [];
+      if (species) notesParts.push(`[Uri]: ${species.toUpperCase()}`);
+      if (obs) notesParts.push(`[Obserbasyon]: ${obs}`);
+      if (concerns) notesParts.push(`[Maaaring Kondisyon]: ${concerns}`);
+      if (rec) notesParts.push(`[Rekomendasyon]: ${rec}`);
+      notesParts.push(`[Temperatura]: Hindi nasukat (walang thermal sensor)`);
+      const initialNotes = notesParts.length > 1 ? notesParts.join('\n') : '';
+
+      openPredictionModal(qAnimal, initialNotes ? { notes: initialNotes } : undefined);
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);
@@ -724,29 +786,22 @@ export function HealthPage() {
       await animalUpdate;
 
       // Trigger automatic alert if significant risk increase or high risk (deduplicated to 24h)
-      if (manualFarmerStatus.key === 'gamot' || manualFarmerStatus.key === 'atensyon') {
+      if (manualFarmerStatus.key === 'gamot' || manualFarmerStatus.key === 'atensyon' || manualFarmerStatus.key === 'bantayan') {
         if (user) {
-          const { data: existingNotifs } = await supabase
-            .from('notifications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('link', `/animals/${selectedAnimal.id}`)
-            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-            .limit(1);
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const eventKey = `health_${selectedAnimal.id}_${manualFarmerStatus.key}_${todayStr}`;
+          const alertTitle = `${selectedAnimal.name}: May Napansing Alalahanin sa Kalusugan (${manualFarmerStatus.label})`;
+          const alertDesc = `${reasonsList || 'Pagsusuri sa kalusugan'}${medName ? ` | Gamot: ${medName}` : ''}`;
 
-          if (!existingNotifs || existingNotifs.length === 0) {
-            const alertTitle = `${selectedAnimal.name}: May Napansing Alalahanin sa Kalusugan (${manualFarmerStatus.label})`;
-            const alertDesc = reasonsList;
-
-            await createNotification(
-              user.id,
-              'Health',
-              alertTitle,
-              alertDesc,
-              manualFarmerStatus.key === 'gamot' ? 'Critical' : 'Warning',
-              `/animals/${selectedAnimal.id}`
-            );
-          }
+          createNotification(
+            user.id,
+            manualFarmerStatus.key === 'gamot' ? 'Health' : 'Health',
+            alertTitle,
+            alertDesc,
+            manualFarmerStatus.key === 'gamot' ? 'Critical' : manualFarmerStatus.key === 'atensyon' ? 'Warning' : 'Normal',
+            `/animals/${selectedAnimal.id}`,
+            eventKey
+          ).catch((e) => console.warn('Could not dispatch health alert:', e));
         }
       }
 
@@ -1340,18 +1395,19 @@ export function HealthPage() {
         )}
       </div>
 
-      {/* ── 8. EARLY ILLNESS PREDICTION MODAL (100% ENGLISH) ── */}
+      {/* ── 8. EARLY ILLNESS PREDICTION MODAL ── */}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleCloseHealthCheckModal}
         size="lg"
       >
         <ModalHeader
           title="Manual Health Check"
-          onClose={() => setModalOpen(false)}
+          onClose={handleCloseHealthCheckModal}
         />
         <ModalBody>
-        <div className="modal-inner-flow">
+          {healthCheckModalMode === 'form' && (
+            <div className="modal-inner-flow">
           {/* Quick Notice */}
           <div style={{
             display: 'flex',
@@ -1381,7 +1437,7 @@ export function HealthPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
               <button
                 type="button"
-                onClick={() => setCameraScanModalOpen(true)}
+                onClick={() => setHealthCheckModalMode('camera')}
                 className="btn btn-primary"
                 style={{
                   display: 'inline-flex',
@@ -1735,27 +1791,120 @@ export function HealthPage() {
             </div>
           </div>
 
-          {/* Modal Action Buttons */}
-          <div className="modal-actions-footer">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setModalOpen(false)}
-            >
-              I-cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ padding: '10px 22px', fontWeight: 700, borderRadius: 10 }}
-              onClick={handleSavePrediction}
-              disabled={saving || !selectedAnimal}
-            >
-              {saving ? 'Inililigtas...' : 'I-save ang Health Check'}
-            </button>
-          </div>
-        </div>
+            </div>
+          )}
+
+          {/* ── CAMERA SCANNER MODE ── */}
+          {(healthCheckModalMode === 'camera' || healthCheckModalMode === 'scanning') && (
+            <div className="modal-inner-flow" style={{ paddingTop: 4 }}>
+              <InlineAnimalCameraScanner
+                onBackToForm={() => setHealthCheckModalMode('form')}
+                onScanComplete={handleScanComplete}
+                isScanning={healthCheckModalMode === 'scanning'}
+                setIsScanning={(s) => setHealthCheckModalMode(s ? 'scanning' : 'camera')}
+                farmAnimals={activeAnimals}
+                currentUserId={user?.id}
+                isSuperAdmin={isSuperAdmin}
+                triggerScanRef={triggerScanRef}
+              />
+            </div>
+          )}
+
+          {/* ── CAMERA RESULT CARD MODE ── */}
+          {healthCheckModalMode === 'result' && lastScanResult && (
+            <div className="modal-inner-flow" style={{ paddingTop: 4 }}>
+              <ScanResultCard
+                result={lastScanResult}
+                farmAnimals={activeAnimals}
+              />
+            </div>
+          )}
         </ModalBody>
+
+        <ModalFooter>
+          {healthCheckModalMode === 'form' && (
+            <div className="modal-actions-footer">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={handleCloseHealthCheckModal}
+              >
+                Kanselahin
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ padding: '10px 22px', fontWeight: 700, borderRadius: 10 }}
+                onClick={handleSavePrediction}
+                disabled={saving || !selectedAnimal}
+              >
+                {saving ? 'Inililigtas...' : 'I-save ang Health Check'}
+              </button>
+            </div>
+          )}
+
+          {(healthCheckModalMode === 'camera' || healthCheckModalMode === 'scanning') && (
+            <div className="modal-actions-footer">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ borderRadius: 10, padding: '10px 18px', fontWeight: 600 }}
+                onClick={() => setHealthCheckModalMode('form')}
+                disabled={healthCheckModalMode === 'scanning'}
+              >
+                Bumalik sa Form
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 22px',
+                  fontWeight: 700,
+                  borderRadius: 10,
+                  background: '#16A34A',
+                  borderColor: '#16A34A',
+                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
+                }}
+                onClick={() => triggerScanRef.current?.()}
+                disabled={healthCheckModalMode === 'scanning'}
+              >
+                <Camera size={18} />
+                <span>{healthCheckModalMode === 'scanning' ? 'Sini-scan...' : 'Kunan ng Scan'}</span>
+              </button>
+            </div>
+          )}
+
+          {healthCheckModalMode === 'result' && (
+            <div className="modal-actions-footer">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ borderRadius: 10, padding: '10px 18px', fontWeight: 600 }}
+                onClick={() => setHealthCheckModalMode('camera')}
+              >
+                Ulitin ang Scan
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{
+                  padding: '10px 24px',
+                  fontWeight: 700,
+                  borderRadius: 10,
+                  background: '#16A34A',
+                  borderColor: '#16A34A',
+                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
+                }}
+                onClick={handleApplyScanResultAndReturn}
+              >
+                Magpatuloy
+              </button>
+            </div>
+          )}
+        </ModalFooter>
       </Modal>
 
       
@@ -1972,215 +2121,15 @@ export function HealthPage() {
       />
 
       {/* ── ADMINISTER TREATMENT & MEDICATION MODAL ── */}
-      <Modal open={treatmentModalOpen} onClose={() => setTreatmentModalOpen(false)} size="md">
-        <ModalHeader
-          title="Magtala ng Gamot o Purga mula sa Imbentaryo"
-          onClose={() => setTreatmentModalOpen(false)}
-        />
-        <ModalBody>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <FormField label="Piliin ang Hayop" required>
-                <select
-                  className="form-select"
-                  value={treatAnimalId}
-                  onChange={(e) => setTreatAnimalId(e.target.value)}
-                >
-                  <option value="">-- Piliin ang Hayop --</option>
-                  {activeAnimals.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.tag_id} {a.name ? `(${a.name})` : ''} — {a.species}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-
-              <FormField label="Uri ng Paggamot (Usage Type)" required>
-                <Select
-                  value={treatUsageType}
-                  onChange={(e) => setTreatUsageType(e.target.value as TreatmentUsageType)}
-                  options={[
-                    { value: 'Medication', label: 'Gamot (Medication)' },
-                    { value: 'Deworming', label: 'Purga (Deworming)' },
-                    { value: 'Supplement', label: 'Bitamina / Suplemento' },
-                    { value: 'Treatment', label: 'Iba pang Paggamot' },
-                  ]}
-                />
-              </FormField>
-            </div>
-
-            <FormField label="Pumili ng Gamot mula sa Imbentaryo" required>
-              <select
-                className="form-select"
-                value={treatItemId}
-                onChange={(e) => setTreatItemId(e.target.value)}
-              >
-                <option value="">-- Piliin ang Item mula sa Imbentaryo --</option>
-                {farmData.inventory
-                  .filter((i) =>
-                    treatUsageType === 'Deworming'
-                      ? isDewormerCategory(i.category) || isMedicineCategory(i.category)
-                      : isMedicineCategory(i.category) || isSupplementCategory(i.category) || i.category === 'Supplies'
-                  )
-                  .map((i) => (
-                    <option key={i.id} value={i.id} disabled={Number(i.quantity) <= 0 || (!!i.expiry_date && isItemExpired(i.expiry_date))}>
-                      {i.name} ({i.category}) — Available: {i.quantity} {i.unit}
-                      {Number(i.quantity) <= 0 ? ' (Out of stock)' : ''}
-                      {i.expiry_date && isItemExpired(i.expiry_date) ? ' (Expired)' : ''}
-                    </option>
-                  ))}
-              </select>
-            </FormField>
-
-            {treatItemId && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: 12,
-                  background: 'var(--surface-light, rgba(255,255,255,0.05))',
-                  border: '1px solid var(--border)',
-                  fontSize: 13,
-                }}
-              >
-                {(() => {
-                  const sel = farmData.inventory.find((i) => i.id === treatItemId);
-                  if (!sel) return null;
-                  const expired = sel.expiry_date && isItemExpired(sel.expiry_date);
-                  return (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>
-                        Kasalukuyang stock: <strong style={{ color: expired ? '#EF4444' : '#238B45' }}>{sel.quantity} {sel.unit}</strong>
-                      </span>
-                      {sel.expiry_date && (
-                        <span style={{ color: expired ? '#EF4444' : 'var(--text-secondary)' }}>
-                          Expiry: {formatDate(sel.expiry_date)} {expired && '(Expired)'}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <FormField label="Dami na Ibabawas sa Stock (Qty)" required>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={treatQty}
-                  onChange={(e) => setTreatQty(e.target.value)}
-                  placeholder="Hal. 2"
-                />
-              </FormField>
-
-              <FormField label="Dosis (Dosage Text)">
-                <Input
-                  value={treatDosage}
-                  onChange={(e) => setTreatDosage(e.target.value)}
-                  placeholder="Hal. 2 ml subcutaneous, 1 tablet"
-                />
-              </FormField>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <FormField label="Katayuan ng Gamot (Status)" required>
-                <Select
-                  value={treatStatus}
-                  onChange={(e) => setTreatStatus(e.target.value as TreatmentStatus)}
-                  options={[
-                    { value: 'Kasalukuyang Ginagamot', label: 'Kasalukuyang Ginagamot (Active)' },
-                    { value: 'Kailangan ng Gamot', label: 'Kailangan ng Gamot (Pending)' },
-                    { value: 'Tapos na ang Gamot', label: 'Tapos na ang Gamot (Completed)' },
-                    { value: 'Hindi pa Nabibigyan', label: 'Hindi pa Nabibigyan' },
-                    { value: 'Bantayan', label: 'Bantayan (Monitor)' },
-                  ]}
-                />
-              </FormField>
-
-              <FormField label="Dalas (Frequency)">
-                <Select
-                  value={treatFrequency}
-                  onChange={(e) => setTreatFrequency(e.target.value)}
-                  options={[
-                    { value: 'Once only', label: 'Isang beses lang' },
-                    { value: 'Once daily', label: 'Kada araw (Once daily)' },
-                    { value: 'Twice daily', label: 'Dalawang beses kada araw (Twice daily)' },
-                    { value: 'Every 3 araw', label: 'Kada 3 araw' },
-                    { value: 'Weekly', label: 'Kada linggo (Weekly)' },
-                  ]}
-                />
-              </FormField>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <FormField label="Petsa ng Simula (Start Date)" required>
-                <Input
-                  type="date"
-                  value={treatStartDate}
-                  onChange={(e) => setTreatStartDate(e.target.value)}
-                />
-              </FormField>
-
-              <FormField label="Petsa ng Pagtatapos (End Date / Duration)">
-                <Input
-                  type="date"
-                  value={treatEndDate}
-                  onChange={(e) => setTreatEndDate(e.target.value)}
-                />
-              </FormField>
-            </div>
-
-            <FormField label="Dahilan / Karamdaman" required>
-              <Input
-                value={treatReason}
-                onChange={(e) => setTreatReason(e.target.value)}
-                placeholder="Hal. Lagnat, Ubo, Bulate, Bitamina"
-              />
-            </FormField>
-
-            <FormField label="Karagdagang Tala (Notes)">
-              <textarea
-                className="form-textarea"
-                value={treatNotes}
-                onChange={(e) => setTreatNotes(e.target.value)}
-                placeholder="Hal. Ibinigay matapos kumain. Bantayan kung may reaksyon..."
-                style={{ minHeight: 70 }}
-              />
-            </FormField>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="secondary" onClick={() => setTreatmentModalOpen(false)}>
-            Kanselahin
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSaveTreatment}
-            loading={treatSaving}
-            leftIcon={<Package size={14} />}
-          >
-            Itala at Bawasan ang Imbentaryo
-          </Button>
-        </ModalFooter>
-      </Modal>
-
-      {/* ── CAMERA SCAN MODAL FOR MANUAL HEALTH CHECK ── */}
-      <AnimalCameraScanModal
-        open={cameraScanModalOpen}
-        onClose={() => setCameraScanModalOpen(false)}
-        onAnimalFound={handleAnimalScannedFromCamera}
-        onManualSelectRequest={() => {
-          setCameraScanModalOpen(false);
-          setTimeout(() => {
-            const selectEl = document.getElementById('manual-health-animal-select');
-            if (selectEl) selectEl.focus();
-          }, 100);
+      <MedicationTreatmentModal
+        open={treatmentModalOpen}
+        onClose={() => setTreatmentModalOpen(false)}
+        onSuccess={() => {
+          farmData.refresh();
         }}
-        farmAnimals={activeAnimals}
-        currentUserId={user?.id}
-        isSuperAdmin={isSuperAdmin}
       />
+
+
 
       {/* ── EMBEDDED STYLES FOR RESPONSIVENESS & LIQUID GLASS UI ── */}
       <style>{`

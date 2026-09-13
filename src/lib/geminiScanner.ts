@@ -1,29 +1,46 @@
 /**
- * geminiScanner.ts — Google Gemini API Livestock Temperature & Health Scanner
+ * geminiScanner.ts — AlpasFarm Google Gemini AI Livestock Scanner
  *
- * Replaces local machine learning models with Google Gemini Vision API
- * for scanning caprine & ovine surface/body temperature, fever detection,
- * and clinical health assessment.
+ * Multimodal Visual AI Engine for Caprine (Goat) & Ovine (Sheep) detection:
+ *   - Google Gemini Multimodal Vision via secure server-side endpoint (/api/ai/animal-scan)
+ *   - Normalized 0..1 bounding boxes with high-precision visual overlays
+ *   - Multiple animal identification (Goat #1, Goat #2, Sheep #1, etc.)
+ *   - ZERO FAKE TEMPERATURE: Strictly null / "Hindi nasukat" (no RGB thermal guessing)
+ *   - Secure: GEMINI_API_KEY is NEVER exposed to browser code
  */
 
-export interface GeminiThermalResult {
-  animalDetected: boolean;
-  animalType: 'Goat' | 'Sheep' | 'Other';
-  nonTargetClass: string | null;
-  detectionConfidence: number;
-  estimatedTemperature: number | null;
-  temperatureStatus: 'normal' | 'mild_elevation' | 'fever' | 'hypothermia' | null;
-  temperatureConfidence: number;
-  thermalIndicators: string[];
-  healthRisk: 'low' | 'moderate' | 'high' | 'critical';
-  riskScore: number;
-  possibleConditions: string[];
-  observations: string[];
-  explanation: string;
-  recommendedActions: string[];
+export interface AnimalBoundingBox {
+  x: number;      // 0..1 (horizontal position from left)
+  y: number;      // 0..1 (vertical position from top)
+  width: number;  // 0..1 (box width)
+  height: number; // 0..1 (box height)
+  rawBox: [number, number, number, number]; // [ymin, xmin, ymax, xmax] (0-1000)
+}
+
+export interface GeminiDetectedAnimal {
+  id: string;
+  species: 'goat' | 'sheep';
+  label: string; // e.g. "GOAT", "SHEEP", "GOAT #1", "SHEEP #2"
+  boundingBox: AnimalBoundingBox;
+  bodyOrientation: string; // e.g. "harap", "tagiliran", "likod", "nakatayo", "nakahiga"
+  visualObservations: string[];
+  possibleHealthConcerns: string[];
+  needsManualCheck: boolean;
+  healthStatus: 'healthy' | 'monitor' | 'attention';
+}
+
+export interface GeminiScanResult {
+  success: boolean;
+  detected: boolean;
+  animalCount: number;
+  animals: GeminiDetectedAnimal[];
+  overallMessage: string;
+  recommendation: string;
+  temperature: null;
+  temperatureDisplay: string; // Always "Hindi nasukat"
   engine: string;
   modelVersion: string;
-  disclaimer: string;
+  error?: string;
 }
 
 export interface TemperatureStatusDetail {
@@ -36,47 +53,37 @@ export interface TemperatureStatusDetail {
   description: string;
 }
 
-const STORAGE_KEY = 'alpasfarm_gemini_api_key';
-
-/**
- * Get stored Gemini API Key from localStorage or environment variable
- */
-export function getStoredGeminiApiKey(): string | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && stored.trim().length > 0) return stored.trim();
-  } catch {
-    // Ignore localStorage access restrictions
-  }
-  const viteEnv = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  if (viteEnv && viteEnv.trim().length > 0) return viteEnv.trim();
-  return null;
+// ── Backwards Compatible Types ──────────────────────────────────────────────
+export interface GeminiThermalResult {
+  animalDetected: boolean;
+  animalType: 'Goat' | 'Sheep' | 'Other';
+  nonTargetClass: string | null;
+  detectionConfidence: number;
+  estimatedTemperature: null; // Strictly null - RGB cannot measure temperature
+  temperatureStatus: null;
+  temperatureDisplay: string;
+  temperatureConfidence: number;
+  thermalIndicators: string[];
+  healthRisk: 'low' | 'moderate' | 'high' | 'critical';
+  riskScore: number;
+  possibleConditions: string[];
+  observations: string[];
+  explanation: string;
+  recommendedActions: string[];
+  engine: string;
+  modelVersion: string;
+  disclaimer: string;
+  animals?: GeminiDetectedAnimal[];
 }
 
-/**
- * Save user-configured Gemini API Key in localStorage
- */
-export function saveGeminiApiKey(key: string): void {
-  try {
-    if (!key || key.trim().length === 0) {
-      localStorage.removeItem(STORAGE_KEY);
-    } else {
-      localStorage.setItem(STORAGE_KEY, key.trim());
-    }
-  } catch {
-    // Ignore
-  }
-}
+// ── Concurrency & Cooldown Guard ─────────────────────────────────────────────
+let isScanInProgress = false;
+let lastScanTimestamp = 0;
+const MIN_SCAN_COOLDOWN_MS = 1500; // 1.5s minimum debounce/cooldown
 
 /**
- * Check if a Gemini API Key is available
- */
-export function hasGeminiApiKey(): boolean {
-  return Boolean(getStoredGeminiApiKey());
-}
-
-/**
- * Returns veterinary status details for a given temperature in Celsius
+ * Returns veterinary status details for a given temperature in Celsius.
+ * If null/undefined, accurately indicates temperature was not measured.
  */
 export function getTemperatureStatus(temp: number | null | undefined): TemperatureStatusDetail {
   if (temp === null || temp === undefined || isNaN(temp)) {
@@ -87,15 +94,9 @@ export function getTemperatureStatus(temp: number | null | undefined): Temperatu
       color: '#6B7280',
       badgeBg: 'rgba(107, 114, 128, 0.10)',
       badgeBorder: 'rgba(107, 114, 128, 0.25)',
-      description: 'Walang pisikal na thermometer sensor na ginamit. Hindi nasukat ang temperatura.',
+      description: 'Walang pisikal na thermometer sensor na ginamit. Hindi nasusukat ang tunay na temperatura sa ordinaryong camera.',
     };
   }
-
-  // Reference standards (PhilCaprine & Langston Univ):
-  // Normal: 38.5–39.7°C
-  // Mild elevation / Heat stress: 39.8–40.4°C
-  // High fever: >= 40.5°C
-  // Hypothermia: < 38.0°C
 
   if (temp >= 40.5) {
     return {
@@ -105,7 +106,7 @@ export function getTemperatureStatus(temp: number | null | undefined): Temperatu
       color: '#DC2626',
       badgeBg: 'rgba(220, 38, 38, 0.12)',
       badgeBorder: 'rgba(220, 38, 38, 0.35)',
-      description: `Mataas ang lagnat (${temp.toFixed(1)}°C). Senyales ng systemic infection, pulmonya, o pamamaga. Kumonsulta agad sa beterinaryo.`,
+      description: `Mataas ang lagnat (${temp.toFixed(1)}°C). Senyales ng impeksyon o pulmonya. Kumonsulta agad sa beterinaryo.`,
     };
   }
 
@@ -117,7 +118,7 @@ export function getTemperatureStatus(temp: number | null | undefined): Temperatu
       color: '#D97706',
       badgeBg: 'rgba(217, 119, 6, 0.12)',
       badgeBorder: 'rgba(217, 119, 6, 0.35)',
-      description: `Bahagyang mataas ang temperatura (${temp.toFixed(1)}°C). Palamigin ang silungan, bigyan ng sariwang tubig, at bantayan ang paghinga.`,
+      description: `Bahagyang mataas ang temperatura (${temp.toFixed(1)}°C). Palamigin ang silungan at bigyan ng sariwang tubig.`,
     };
   }
 
@@ -129,7 +130,7 @@ export function getTemperatureStatus(temp: number | null | undefined): Temperatu
       color: '#2563EB',
       badgeBg: 'rgba(37, 99, 235, 0.12)',
       badgeBorder: 'rgba(37, 99, 235, 0.35)',
-      description: `Mababa ang temperatura (${temp.toFixed(1)}°C). Posibleng may shock, dehydration, o labis na ginaw. Ilipat sa tuyo at mainit na kulungan.`,
+      description: `Mababa ang temperatura (${temp.toFixed(1)}°C). Posibleng may shock o dehydration. Panatilihing tuyo at mainit.`,
     };
   }
 
@@ -140,143 +141,154 @@ export function getTemperatureStatus(temp: number | null | undefined): Temperatu
     color: '#238B45',
     badgeBg: 'rgba(35, 139, 69, 0.12)',
     badgeBorder: 'rgba(35, 139, 69, 0.35)',
-    description: `Normal ang temperatura (${temp.toFixed(1)}°C). Pasok sa ligtas na veterinary baseline ng kambing/tupa (38.5–39.7°C).`,
+    description: `Normal ang temperatura (${temp.toFixed(1)}°C). Pasok sa pamantayang baseline (38.5–39.7°C).`,
   };
 }
 
 /**
- * Convert canvas or image to data URL
+ * Resize and compress image to a maximum dimension of 1280px JPEG (~0.85 quality)
+ * to ensure fast upload and optimal Gemini multimodal processing.
  */
-function toDataUrl(input: HTMLCanvasElement | string): string {
-  if (typeof input === 'string') {
-    if (input.startsWith('data:image/')) return input;
-    return `data:image/jpeg;base64,${input}`;
-  }
-  return input.toDataURL('image/jpeg', 0.88);
-}
+export async function optimizeImageForAI(
+  input: HTMLCanvasElement | HTMLImageElement | string,
+  maxDimension = 1280,
+  quality = 0.85,
+): Promise<string> {
+  if (typeof input === 'string' && input.startsWith('data:image/')) {
+    // If it's already a data URL, check size or downscale via temporary Image
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
 
-/**
- * Direct client-side call to Google Gemini Vision API (if user supplied key)
- */
-async function callGeminiDirect(
-  apiKey: string,
-  base64Data: string,
-  mimeType: string,
-  speciesHint?: string,
-): Promise<GeminiThermalResult> {
-  const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
-  const prompt = `You are an expert caprine and ovine veterinary diagnostician and livestock thermal health specialist in the Philippines.
-Analyze this camera image of a goat or sheep. Your primary task is to evaluate the animal's physical health, verify if it is a goat, sheep, or non-target, and estimate its physiological body/surface temperature based on visual clinical and thermal indicators.
-
-Veterinary Reference Standards (Philippine Caprine & Langston University):
-- Normal Temperature: 38.5°C to 39.7°C (Healthy normal: ~39.0°C - 39.2°C)
-- Mild Elevation / Heat Stress: 39.8°C to 40.4°C
-- Fever / Pyrexia: 40.5°C or higher (Indicative of systemic infection, pneumonia, PPR, or acute inflammation)
-- Sub-normal / Hypothermia: Below 38.0°C (Indicative of shock, exhaustion, severe ruminal acidosis, or exposure)
-
-Visual Thermal Indicators to examine:
-1. Eyes & Conjunctiva: Alertness, eye moisture, dullness, sunken eyes, tearing, eyelid discharge, or conjunctival flush.
-2. Muzzle & Nostrils: Normal moisture vs dry/crusted muzzle, nasal discharge, flaring nares.
-3. Respiration & Flank: Flank movement, open-mouth panting (heat stress / high fever), respiratory effort.
-4. Ears & Head Carriage: Active erect ears vs drooping ears, head carriage, shivering, lethargy.
-5. Coat & Demeanor: Piloerection (standing hairs), dull rough coat, recumbency, isolation.
-
-User Context:
-- Species hint: ${speciesHint || 'Auto'}
-
-Return ONLY a valid JSON object matching this EXACT schema:
-{
-  "animalDetected": boolean,
-  "animalType": "Goat" | "Sheep" | "Other",
-  "nonTargetClass": string or null,
-  "detectionConfidence": number between 0.0 and 1.0,
-  "estimatedTemperature": number (Celsius with 1 decimal, e.g. 39.2, or null if animalDetected is false),
-  "temperatureStatus": "normal" | "mild_elevation" | "fever" | "hypothermia" | null,
-  "temperatureConfidence": number between 0.0 and 1.0,
-  "thermalIndicators": [ "visible thermal indicator 1", "visible thermal indicator 2" ],
-  "healthRisk": "low" | "moderate" | "high" | "critical",
-  "riskScore": number between 0 and 100,
-  "possibleConditions": [ "condition name 1", "condition name 2" ],
-  "observations": [ "clinical observation 1 in Tagalog/English", "clinical observation 2" ],
-  "explanation": "Summary explanation in Tagalog for Filipino farmers explaining the estimated temperature and overall health status.",
-  "recommendedActions": [ "Step 1 in Tagalog/English", "Step 2" ]
-}`;
-
-  for (const model of models) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const payload = {
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType,
-                  data: base64Data,
-                },
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.15,
-          topK: 32,
-          topP: 0.9,
-          responseMimeType: 'application/json',
-        },
-      };
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (candidateText) {
-          const cleanedText = candidateText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-          const parsed = JSON.parse(cleanedText);
-          return {
-            animalDetected: Boolean(parsed.animalDetected),
-            animalType: parsed.animalType || (speciesHint === 'Sheep' ? 'Sheep' : 'Goat'),
-            nonTargetClass: parsed.nonTargetClass || null,
-            detectionConfidence: Number(parsed.detectionConfidence) || 0.92,
-            estimatedTemperature: parsed.estimatedTemperature !== null && parsed.estimatedTemperature !== undefined
-              ? Number(parsed.estimatedTemperature)
-              : null,
-            temperatureStatus: parsed.temperatureStatus || (parsed.estimatedTemperature ? (
-              parsed.estimatedTemperature > 40.4 ? 'fever' :
-              parsed.estimatedTemperature >= 39.8 ? 'mild_elevation' :
-              parsed.estimatedTemperature < 38.0 ? 'hypothermia' : 'normal'
-            ) : null),
-            temperatureConfidence: Number(parsed.temperatureConfidence) || 0.88,
-            thermalIndicators: Array.isArray(parsed.thermalIndicators) ? parsed.thermalIndicators : [],
-            healthRisk: parsed.healthRisk || 'low',
-            riskScore: Number(parsed.riskScore) || 12,
-            possibleConditions: Array.isArray(parsed.possibleConditions) ? parsed.possibleConditions : ['Normal Clinical Appearance'],
-            observations: Array.isArray(parsed.observations) ? parsed.observations : [],
-            explanation: parsed.explanation || 'Maayos ang pangkalahatang kalagayan ng hayop.',
-            recommendedActions: Array.isArray(parsed.recommendedActions) ? parsed.recommendedActions : ['Ipagpatuloy ang regular na monitoring.'],
-            engine: 'google-gemini-vision',
-            modelVersion: model,
-            disclaimer: 'AI results are intended for early health monitoring and decision support only. They are not a confirmed veterinary diagnosis. Consult a licensed veterinarian for proper diagnosis and treatment.',
-          };
+        if (width <= maxDimension && height <= maxDimension && input.length < 500000) {
+          resolve(input);
+          return;
         }
-      }
-    } catch {
-      // try next model
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          resolve(input);
+        }
+      };
+      img.onerror = () => resolve(input);
+      img.src = input;
+    });
+  }
+
+  let srcCanvas: HTMLCanvasElement;
+  if (input instanceof HTMLCanvasElement) {
+    srcCanvas = input;
+  } else if (input instanceof HTMLImageElement) {
+    const c = document.createElement('canvas');
+    c.width = input.naturalWidth || input.width;
+    c.height = input.naturalHeight || input.height;
+    const ctx = c.getContext('2d');
+    if (ctx) ctx.drawImage(input, 0, 0);
+    srcCanvas = c;
+  } else {
+    return String(input);
+  }
+
+  let width = srcCanvas.width;
+  let height = srcCanvas.height;
+
+  if (width > maxDimension || height > maxDimension) {
+    if (width > height) {
+      height = Math.round((height * maxDimension) / width);
+      width = maxDimension;
+    } else {
+      width = Math.round((width * maxDimension) / height);
+      height = maxDimension;
+    }
+
+    const scaledCanvas = document.createElement('canvas');
+    scaledCanvas.width = width;
+    scaledCanvas.height = height;
+    const ctx = scaledCanvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(srcCanvas, 0, 0, width, height);
+      return scaledCanvas.toDataURL('image/jpeg', quality);
     }
   }
 
-  throw new Error('Direct Gemini API call failed.');
+  return srcCanvas.toDataURL('image/jpeg', quality);
 }
 
 /**
- * Scan Goat Temperature & Health using Google Gemini API
+ * Scan Goat & Sheep with Google Gemini Multimodal Vision
+ * Calls backend POST /api/ai/animal-scan. Never exposes API key to client.
+ */
+export async function scanAnimalWithGemini(
+  input: HTMLCanvasElement | HTMLImageElement | string,
+  options?: {
+    context?: 'health_scan' | 'animal_add' | 'camera_live';
+  },
+): Promise<GeminiScanResult> {
+  const now = Date.now();
+  if (isScanInProgress) {
+    throw new Error('Kasalukuyan pang sini-scan ang nakaraang litrato. Maghintay sandali.');
+  }
+  if (now - lastScanTimestamp < MIN_SCAN_COOLDOWN_MS) {
+    const waitMs = MIN_SCAN_COOLDOWN_MS - (now - lastScanTimestamp);
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+
+  isScanInProgress = true;
+  lastScanTimestamp = Date.now();
+
+  try {
+    const optimizedDataUrl = await optimizeImageForAI(input, 1280, 0.85);
+
+    const res = await fetch('/api/ai/animal-scan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        image: optimizedDataUrl,
+        context: options?.context || 'health_scan',
+      }),
+    });
+
+    if (!res.ok) {
+      let errMsg = `Server error (${res.status})`;
+      try {
+        const errJson = await res.json();
+        if (errJson?.error) errMsg = errJson.error;
+      } catch {
+        // use fallback
+      }
+      throw new Error(errMsg);
+    }
+
+    const data: GeminiScanResult = await res.json();
+    return data;
+  } finally {
+    isScanInProgress = false;
+  }
+}
+
+/**
+ * Backwards-compatible scan wrapper for existing code.
+ * Routes safely through the serverless backend, guaranteeing zero fake temperature.
  */
 export async function scanGoatTemperature(
   input: HTMLCanvasElement | string,
@@ -288,115 +300,73 @@ export async function scanGoatTemperature(
     notes?: string;
   },
 ): Promise<GeminiThermalResult> {
-  const dataUrl = toDataUrl(input);
-  const userApiKey = options?.apiKey || getStoredGeminiApiKey();
-
-  // 1. Try dedicated Serverless Endpoint: /api/ai/scan-temperature
   try {
-    const res = await fetch('/api/ai/scan-temperature', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(userApiKey ? { 'X-Gemini-Key': userApiKey } : {}),
-      },
-      body: JSON.stringify({
-        image: dataUrl,
-        animalType: options?.animalType || 'Goat',
-        notes: options?.notes,
-        apiKey: userApiKey,
-      }),
-    });
+    const scanResult = await scanAnimalWithGemini(input, { context: 'health_scan' });
 
-    if (res.ok) {
-      const data: GeminiThermalResult = await res.json();
-      return data;
-    }
-  } catch (err) {
-    console.warn('[GeminiScanner] Server endpoint /api/ai/scan-temperature unreachable:', err);
+    const primaryAnimal = scanResult.animals?.[0];
+    const isSheep =
+      primaryAnimal?.species === 'sheep' ||
+      (options?.animalType && options.animalType.toLowerCase() === 'sheep');
+
+    return {
+      animalDetected: scanResult.detected,
+      animalType: scanResult.detected ? (isSheep ? 'Sheep' : 'Goat') : 'Other',
+      nonTargetClass: scanResult.detected ? null : 'Non-target / Walang hayop',
+      detectionConfidence: scanResult.detected ? 0.95 : 0.1,
+      estimatedTemperature: null, // Strictly null - no fake temperature
+      temperatureStatus: null,
+      temperatureDisplay: 'Hindi nasukat',
+      temperatureConfidence: 0,
+      thermalIndicators: [
+        'Walang pisikal na thermometer sensor na ginamit. Hindi nasusukat ang tunay na temperatura sa ordinaryong camera.',
+      ],
+      healthRisk: primaryAnimal?.healthStatus === 'attention' ? 'moderate' : 'low',
+      riskScore: primaryAnimal?.healthStatus === 'attention' ? 45 : 10,
+      possibleConditions: primaryAnimal?.possibleHealthConcerns || [],
+      observations: primaryAnimal?.visualObservations || [scanResult.overallMessage],
+      explanation: scanResult.overallMessage,
+      recommendedActions: [scanResult.recommendation],
+      engine: scanResult.engine || 'google-gemini-multimodal',
+      modelVersion: scanResult.modelVersion || 'gemini-2.0-flash',
+      disclaimer:
+        'Paunang visual screening lamang ito para sa tulong sa pagsubaybay. Hindi ito pinal na diagnosis ng beterinaryo at hindi sumusukat ng temperatura.',
+      animals: scanResult.animals,
+    };
+  } catch (err: any) {
+    // If /api/ai/animal-scan fails, fallback safely
+    return {
+      animalDetected: false,
+      animalType: 'Other',
+      nonTargetClass: null,
+      detectionConfidence: 0,
+      estimatedTemperature: null,
+      temperatureStatus: null,
+      temperatureDisplay: 'Hindi nasukat',
+      temperatureConfidence: 0,
+      thermalIndicators: [],
+      healthRisk: 'low',
+      riskScore: 0,
+      possibleConditions: [],
+      observations: ['Hindi matagumpay ang pagsusuri: ' + (err?.message || 'Error')],
+      explanation: err?.message || 'Hindi nakumpleto ang pagsusuri.',
+      recommendedActions: ['I-scan muli ang hayop nang may maayos na liwanag.'],
+      engine: 'google-gemini-multimodal',
+      modelVersion: 'gemini-2.0-flash',
+      disclaimer: 'Paunang visual screening lamang ito.',
+      animals: [],
+    };
   }
+}
 
-  // 2. Try direct client Gemini API call if user configured a key
-  if (userApiKey) {
-    try {
-      const base64Pure = dataUrl.replace(/^data:image\/[a-z]+;base64,/, '').replace(/\s+/g, '');
-      const directResult = await callGeminiDirect(
-        userApiKey,
-        base64Pure,
-        'image/jpeg',
-        options?.animalType,
-      );
-      return directResult;
-    } catch (directErr) {
-      console.warn('[GeminiScanner] Direct Gemini API failed:', directErr);
-    }
-  }
+// ── Deprecated Frontend Key Handlers (Maintained for Type Safety) ────────────
+export function getStoredGeminiApiKey(): string | null {
+  return null; // Keys are securely managed on the server only
+}
 
-  // 3. Fallback to /api/ml/analyze
-  try {
-    const fallbackRes = await fetch('/api/ml/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image: dataUrl,
-        animalType: options?.animalType || 'Goat',
-        animalId: options?.animalId,
-        farmContext: options?.farmContext,
-      }),
-    });
+export function saveGeminiApiKey(_key: string): void {
+  // No-op: API keys must remain strictly on the backend
+}
 
-    if (fallbackRes.ok) {
-      const analyzeData = await fallbackRes.json();
-      const temp = analyzeData.estimatedTemperature !== undefined && analyzeData.estimatedTemperature !== null
-        ? Number(analyzeData.estimatedTemperature)
-        : null;
-      return {
-        animalDetected: analyzeData.animalDetected !== false,
-        animalType: analyzeData.animalType || 'Goat',
-        nonTargetClass: analyzeData.nonTargetClass || null,
-        detectionConfidence: analyzeData.detectionConfidence || 0.90,
-        estimatedTemperature: temp,
-        temperatureStatus: temp !== null ? (analyzeData.temperatureStatus || (temp > 40.4 ? 'fever' : temp >= 39.8 ? 'mild_elevation' : 'normal')) : null,
-        temperatureConfidence: temp !== null ? (analyzeData.temperatureConfidence || 0.85) : 0,
-        thermalIndicators: analyzeData.thermalIndicators || [
-          'Normal na postura at paghinga ng hayop',
-          'Alerto ang postura ng ulo at tainga',
-        ],
-        healthRisk: analyzeData.healthRisk || 'low',
-        riskScore: analyzeData.riskScore || 12,
-        possibleConditions: analyzeData.possibleConditions || ['Normal Clinical Appearance'],
-        observations: analyzeData.observations || ['Maayos ang pangkalahatang kalagayan ng katawan.'],
-        explanation: analyzeData.explanation || 'Maayos ang kalagayan ng hayop. Ang temperatura ay hindi nasukat dahil walang pisikal na sensor.',
-        recommendedActions: analyzeData.recommendedActions || ['Ipagpatuloy ang regular na pagsubaybay.'],
-        engine: analyzeData.engine || 'google-gemini-vision',
-        modelVersion: analyzeData.modelVersion || 'gemini-2.0-flash',
-        disclaimer: analyzeData.disclaimer || 'Ang pagsusuri ay gabay lamang.',
-      };
-    }
-  } catch {
-    // Fall through
-  }
-
-  // 4. Safe offline baseline (guarantees scanner never crashes, no fake temperature)
-  return {
-    animalDetected: true,
-    animalType: (options?.animalType === 'Sheep' ? 'Sheep' : 'Goat'),
-    nonTargetClass: null,
-    detectionConfidence: 0.90,
-    estimatedTemperature: null,
-    temperatureStatus: null,
-    temperatureConfidence: 0,
-    thermalIndicators: [
-      'Normal na alerto sa mga mata at postura ng tainga',
-      'Normal na respiratory pattern',
-    ],
-    healthRisk: 'low',
-    riskScore: 10,
-    possibleConditions: ['Normal Clinical Appearance'],
-    observations: ['Normal ang postura at demeanor ng hayop batay sa camera scan.'],
-    explanation: 'Maayos ang nakikitang kalagayan ng hayop. Ang temperatura ng katawan ay hindi nasukat dahil walang pisikal na sensor.',
-    recommendedActions: ['Ipagpatuloy ang regular na pagpapakain at malinis na inuming tubig.'],
-    engine: 'google-gemini-vision',
-    modelVersion: 'gemini-2.0-flash',
-    disclaimer: 'AI results are intended for early health monitoring and decision support only.',
-  };
+export function hasGeminiApiKey(): boolean {
+  return true; // Server-managed
 }

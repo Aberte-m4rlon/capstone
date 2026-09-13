@@ -112,7 +112,29 @@ export function AIFloatingButton({
     window.addEventListener('touchend', onUp);
   }, [size]);
 
-  if (!mounted) return null;
+  // Check if any modal is currently open in DOM to prevent overlap
+  const [modalOpen, setModalOpen] = useState(false);
+  useEffect(() => {
+    const checkModal = () => {
+      const isModal =
+        document.body.classList.contains('modal-open') ||
+        document.body.getAttribute('data-modal-open') === 'true' ||
+        Boolean(document.querySelector('.alpas-modal-overlay'));
+      setModalOpen(isModal);
+    };
+
+    checkModal();
+    const observer = new MutationObserver(checkModal);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'data-modal-open'],
+      childList: true,
+      subtree: true,
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  if (!mounted || modalOpen) return null;
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
   const bottomOffset = isMobile ? 90 : MARGIN;
@@ -146,9 +168,13 @@ export function AIFloatingButton({
     }
   };
 
-
   return (
-    <div style={getPositionStyles()}>
+    <div
+      className="alpas-floating-ai-btn"
+      data-ai-launcher="true"
+      data-ai-floating-btn="true"
+      style={getPositionStyles()}
+    >
       <button
         type="button"
         onMouseDown={(e) => {

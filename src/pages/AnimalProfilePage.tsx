@@ -13,20 +13,40 @@ import {
   ageLabel,
   formatDate,
   daysUntil,
-  levelFromScore,
+  assessBreedingReadiness,
 } from '../lib/analytics';
-import { assessBreedingReadiness } from '../lib/analytics';
 import { Line } from 'react-chartjs-2';
-import { Plus, Pencil, Trash2, QrCode, ArrowLeft, Download, Printer, Activity, Heart, Scale, Syringe, Wheat, AlertTriangle, Camera, Sparkles, Tag, CheckCircle2, Package, DollarSign } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  QrCode,
+  Camera,
+  Pencil,
+  Trash2,
+  Plus,
+  Heart,
+  Scale,
+  Syringe,
+  Wheat,
+  AlertTriangle,
+  Activity,
+  Package,
+  DollarSign,
+  Info,
+  Tag,
+  Pill,
+  Download,
+  Printer,
+  HeartPulse,
+  Stethoscope,
+  ClipboardList,
+} from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Animal, HealthStatus, Species, Sex, TreatmentStatus, TreatmentUsageType } from '../types';
-import { isMedicineCategory, isDewormerCategory, isSupplementCategory, consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
-import { useAnimalMLPrediction, useAnimalRiskHistory } from '../lib/useMLHealth';
-import { MLHealthPanel } from '../components/MLHealthPanel';
+import { consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
 import { CameraScreeningModal } from '../components/CameraScreeningModal';
-import { ScreeningHistoryPanel } from '../components/ScreeningHistoryPanel';
 import { useAnimalScreenings } from '../lib/useCameraScreenings';
-import { MLScreeningPanel } from '../components/MLScreeningPanel';
+import { MedicationTreatmentModal } from '../components/domain/health';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const healthBadgeColor = (s: HealthStatus) =>
@@ -34,13 +54,6 @@ const healthBadgeColor = (s: HealthStatus) =>
 
 const healthBadgeBg = (s: HealthStatus) =>
   s === 'Healthy' ? '#EAF6ED' : s === 'Monitor' ? '#DDF0E2' : s === 'At Risk' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)';
-
-const riskColor = (score: number) => {
-  if (score >= 70) return '#EF4444';
-  if (score >= 45) return '#F59E0B';
-  if (score >= 20) return '#176B35';
-  return '#238B45';
-};
 
 const vaccBadgeColor = (s: string) =>
   s === 'Up to Date' ? '#238B45' : s === 'Due Soon' ? '#F59E0B' : s === 'Overdue' ? '#EF4444' : '#78877F';
@@ -97,11 +110,11 @@ function CardTitle({ icon: Icon, title }: { icon?: React.ComponentType<any>; tit
       {Icon && (
         <div style={{
           width: 30, height: 30, borderRadius: 8,
-          background: 'linear-gradient(135deg, rgba(255,106,42,0.25), rgba(255,59,48,0.15))',
-          border: '1px solid rgba(255,106,42,0.30)',
+          background: 'linear-gradient(135deg, rgba(35,139,69,0.18), rgba(23,107,53,0.12))',
+          border: '1px solid rgba(35,139,69,0.25)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>
-          <Icon size={15} color="var(--accent-orange)" />
+          <Icon size={16} color="#238B45" />
         </div>
       )}
       <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.3px' }}>{title}</span>
@@ -134,23 +147,13 @@ export function AnimalProfilePage() {
   const toast = useToast();
   const isSuperAdmin = profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'overview' | 'health' | 'weight' | 'breeding' | 'vaccination' | 'inventory' | 'feed' | 'history' | 'camera'>('overview');
+  // Farmer-first tab navigation (strictly 7 modules)
+  const [tab, setTab] = useState<'overview' | 'health' | 'breeding' | 'vaccination' | 'inventory' | 'feed' | 'report'>('overview');
   const [qrOpen, setQrOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cameraScreeningOpen, setCameraScreeningOpen] = useState(false);
   const [administerModalOpen, setAdministerModalOpen] = useState(false);
-  const [administerItemId, setAdministerItemId] = useState('');
-  const [administerQty, setAdministerQty] = useState('');
-  const [administerDosage, setAdministerDosage] = useState('');
-  const [administerFrequency, setAdministerFrequency] = useState('Once daily');
-  const [administerStartDate, setAdministerStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [administerEndDate, setAdministerEndDate] = useState('');
-  const [administerStatus, setAdministerStatus] = useState<TreatmentStatus>('Kasalukuyang Ginagamot');
-  const [administerUsageType, setAdministerUsageType] = useState<TreatmentUsageType>('Medication');
-  const [administerReason, setAdministerReason] = useState('');
-  const [administerNotes, setAdministerNotes] = useState('');
-  const [administerSaving, setAdministerSaving] = useState(false);
 
   const [editForm, setEditForm] = useState({
     tag_id: '', name: '', species: 'Goat' as Species, breed: '', sex: 'Female' as Sex,
@@ -165,7 +168,6 @@ export function AnimalProfilePage() {
   const animalBreedings = useMemo(() => farmData.breedingRecords.filter((r) => r.animal_id === id), [farmData.breedingRecords, id]);
   const animalVaccinations = useMemo(() => farmData.vaccinations.filter((r) => r.animal_id === id), [farmData.vaccinations, id]);
   const animalFeed = useMemo(() => farmData.feedRecords.filter((r) => r.animal_id === id), [farmData.feedRecords, id]);
-  const animalMilk = useMemo(() => farmData.milkRecords.filter((r) => r.animal_id === id), [farmData.milkRecords, id]);
   const animalSale = useMemo(() => {
     return (farmData.sales || []).find((s) => s.animal_id === id) ?? null;
   }, [farmData.sales, id]);
@@ -178,60 +180,165 @@ export function AnimalProfilePage() {
     return assessBreedingReadiness(animal, farmData.settings, lastMating);
   }, [animal, animalBreedings, farmData.settings]);
 
-  // ── ML hooks must be at top level, before any early returns (Rules of Hooks) ──
-  const mlPrediction = useAnimalMLPrediction(animal?.id ?? null);
-  const { dates: riskDates, probabilities: riskProbs, riskScores } = useAnimalRiskHistory(animal?.id ?? null);
+  // Keep camera screening hook active in background
   const { screenings: animalScreenings, refresh: refreshScreenings } = useAnimalScreenings(animal?.id ?? null);
 
-  const lastScreening = animalScreenings[0] ?? null;
-  const lastScreeningDate = useMemo(() => {
-    if (!lastScreening?.created_at) return 'No scan recorded';
-    const isToday = new Date(lastScreening.created_at).toDateString() === new Date().toDateString();
-    return isToday ? 'Today' : formatDate(lastScreening.created_at);
-  }, [lastScreening]);
+  const animalInventoryUsage = useMemo(() => {
+    return farmData.inventoryTransactions
+      .filter((tx) => tx.reference_type === 'animal' && tx.reference_id === animal?.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [farmData.inventoryTransactions, animal?.id]);
 
-  const riskTrendInfo = useMemo(() => {
-    if (animalScreenings.length >= 2) {
-      const curr = animalScreenings[0].risk_score ?? 0;
-      const prev = animalScreenings[1].risk_score ?? 0;
-      if (curr > prev + 5) {
-        return {
-          trend: 'Increasing' as const,
-          color: '#DC2626',
-          bg: 'rgba(220, 38, 38, 0.1)',
-          warning: 'Health risk has increased across recent screenings. Recommend closer monitoring.',
-        };
-      }
-      if (curr < prev - 5) {
-        return {
-          trend: 'Decreasing' as const,
-          color: '#238B45',
-          bg: '#EAF6ED',
-          warning: null,
-        };
-      }
+  // ─── Real-Data Driven Health Status ("Kalagayan ng Hayop") ───────────────────
+  // Hierarchy:
+  // 1. "Kailangan ng Gamot" - active medication or ongoing clinical treatment
+  // 2. "Kailangan ng Atensyon" - health concern detected or critical/high risk
+  // 3. "Bantayan" - under observation or moderate risk
+  // 4. "Maayos" - healthy with no active concerns
+  const sortedHealth = useMemo(() => {
+    return [...animalHealth].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime());
+  }, [animalHealth]);
+
+  const latestHealthRecord = sortedHealth[0] ?? null;
+
+  const activeMedicine = useMemo(() => {
+    const activeTx = animalInventoryUsage.find((tx) =>
+      tx.reason?.includes('Kasalukuyang Ginagamot') ||
+      tx.reason?.includes('Kailangan ng Gamot') ||
+      tx.notes?.includes('Katayuan: Kasalukuyang Ginagamot') ||
+      tx.notes?.includes('Katayuan: Kailangan ng Gamot')
+    );
+    if (activeTx) {
+      const match = activeTx.notes?.match(/Gamot:\s*([^|]+)/);
+      const dosageMatch = activeTx.notes?.match(/Dosis:\s*([^|]+)/);
+      const freqMatch = activeTx.notes?.match(/Dalas:\s*([^|]+)/);
       return {
-        trend: 'Stable' as const,
-        color: '#238B45',
-        bg: '#EAF6ED',
-        warning: null,
+        name: match ? match[1].trim() : activeTx.reason || 'Gamot',
+        dosage: dosageMatch ? dosageMatch[1].trim() : `${activeTx.quantity} ${activeTx.unit}`,
+        frequency: freqMatch ? freqMatch[1].trim() : 'Araw-araw',
+        status: 'Kasalukuyang Ginagamot',
       };
     }
-    if (animalScreenings.length === 1) {
+    if (latestHealthRecord && latestHealthRecord.reasons?.includes('Gamot')) {
       return {
-        trend: 'Stable' as const,
-        color: '#238B45',
-        bg: '#EAF6ED',
-        warning: null,
+        name: latestHealthRecord.reasons.replace('Gamot / Lunas:', '').trim(),
+        dosage: 'Ayon sa reseta',
+        frequency: 'Araw-araw',
+        status: 'Kasalukuyang Ginagamot',
       };
     }
+    return null;
+  }, [animalInventoryUsage, latestHealthRecord]);
+
+  const farmerStatus = useMemo(() => {
+    const isUnderTreatment = Boolean(activeMedicine) ||
+      animal?.health_status === 'Critical' ||
+      (latestHealthRecord?.reasons?.includes('Kasalukuyang Ginagamot') ?? false) ||
+      (latestHealthRecord?.reasons?.includes('Kailangan ng Gamot') ?? false);
+
+    if (isUnderTreatment) {
+      return {
+        label: 'Kailangan ng Gamot' as const,
+        color: '#DC2626',
+        bg: 'rgba(220, 38, 38, 0.12)',
+        borderColor: '#DC2626',
+        description: 'Kasalukuyang may gamot o lunas na ibinibigay sa hayop.',
+        Icon: Pill,
+      };
+    }
+
+    const hasDetectedConditions = Boolean(latestHealthRecord && (latestHealthRecord as any).detected_conditions);
+    const hasHealthConcern = animal?.health_status === 'At Risk' ||
+      latestHealthRecord?.risk_level === 'High' ||
+      (latestHealthRecord?.risk_score ?? 0) >= 50 ||
+      hasDetectedConditions;
+
+    if (hasHealthConcern) {
+      return {
+        label: 'Kailangan ng Atensyon' as const,
+        color: '#EA580C',
+        bg: 'rgba(234, 88, 12, 0.12)',
+        borderColor: '#EA580C',
+        description: 'May napansing kondisyon na nangangailangan ng atensyon o obserbasyon.',
+        Icon: AlertTriangle,
+      };
+    }
+
+    const isObserving = animal?.health_status === 'Monitor' ||
+      latestHealthRecord?.risk_level === 'Moderate' ||
+      (latestHealthRecord?.risk_score ?? 0) >= 25;
+
+    if (isObserving) {
+      return {
+        label: 'Bantayan' as const,
+        color: '#D97706',
+        bg: 'rgba(217, 119, 6, 0.12)',
+        borderColor: '#D97706',
+        description: 'Nasa ilalim ng masusing pagmamasid ang hayop.',
+        Icon: Activity,
+      };
+    }
+
     return {
-      trend: 'No screening yet' as const,
-      color: '#64748B',
-      bg: 'rgba(100, 116, 139, 0.1)',
-      warning: null,
+      label: 'Maayos' as const,
+      color: '#16A34A',
+      bg: 'rgba(22, 163, 74, 0.12)',
+      borderColor: '#16A34A',
+      description: 'Walang nakitang kailangang aksyunan sa pinakahuling check.',
+      Icon: CheckCircle2,
     };
-  }, [animalScreenings]);
+  }, [animal?.health_status, activeMedicine, latestHealthRecord]);
+
+  // Latest check date
+  const hulingCheckDate = useMemo(() => {
+    const dates: Date[] = [];
+    if (latestHealthRecord?.record_date) {
+      dates.push(new Date(latestHealthRecord.record_date));
+    }
+    if (animalScreenings[0]?.created_at) {
+      dates.push(new Date(animalScreenings[0].created_at));
+    }
+    if (dates.length === 0) return 'Wala pang check';
+    dates.sort((a, b) => b.getTime() - a.getTime());
+    return formatDate(dates[0].toISOString());
+  }, [latestHealthRecord, animalScreenings]);
+
+  // Latest weight (preserving weight records without separate tab)
+  const latestWeight = useMemo(() => {
+    if (animalWeights.length > 0) {
+      const sorted = [...animalWeights].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime());
+      return sorted[0].weight_kg;
+    }
+    return animal?.weight_kg || null;
+  }, [animalWeights, animal?.weight_kg]);
+
+  // Observations
+  const latestObservations = useMemo(() => {
+    if (latestHealthRecord) {
+      const obs = (latestHealthRecord as any).detected_conditions || latestHealthRecord.reasons || latestHealthRecord.notes;
+      if (obs && !obs.includes('Gamot / Lunas:')) return obs;
+    }
+    if (animalScreenings[0]?.notes) {
+      return animalScreenings[0].notes;
+    }
+    return 'Walang naitalang karamdaman';
+  }, [latestHealthRecord, animalScreenings]);
+
+  // Reminders
+  const activeReminders = useMemo(() => {
+    const list: string[] = [];
+    if (animal?.next_vaccine_date) {
+      list.push(`Nakatakdang bakuna sa ${formatDate(animal.next_vaccine_date)}`);
+    }
+    if (animal?.expected_kidding_date && animal.breeding_status === 'Pregnant') {
+      const days = daysUntil(animal.expected_kidding_date);
+      list.push(`Inaasahang ${animal.species === 'Goat' ? 'manganak' : 'magluwal'} sa ${formatDate(animal.expected_kidding_date)}${days !== null && days >= 0 ? ` (${days} araw na lang)` : ''}`);
+    }
+    if (activeMedicine) {
+      list.push(`Gamot: ${activeMedicine.name} (${activeMedicine.dosage}) — ${activeMedicine.frequency}`);
+    }
+    return list;
+  }, [animal, activeMedicine]);
 
   useEffect(() => {
     if (animal) {
@@ -281,11 +388,11 @@ export function AnimalProfilePage() {
 
       const { error } = await query;
       if (error) throw error;
-      toast('Animal successfully updated.', 'success');
+      toast('Matagumpay na na-update ang impormasyon ng hayop.', 'success');
       setEditOpen(false);
       farmData.refresh();
     } catch {
-      toast('Unable to save changes. Please try again.', 'error');
+      toast('Hindi mai-save ang mga pagbabago. Pakisubukan muli.', 'error');
     } finally {
       setSaving(false);
     }
@@ -300,121 +407,10 @@ export function AnimalProfilePage() {
       }
       const { error } = await query;
       if (error) throw error;
-      toast('Animal successfully deleted.', 'success');
+      toast('Matagumpay na nabura ang hayop.', 'success');
       navigate('/animals');
     } catch {
-      toast('Unable to delete animal. Please try again.', 'error');
-    }
-  };
-
-  const handleAdministerInventory = async () => {
-    if (!administerItemId || !animal || !user) return;
-    if (animal.user_id !== user.id && !isSuperAdmin) {
-      toast('Walang pahintulot na gumamit ng gamot sa hayop na ito.', 'error');
-      return;
-    }
-
-    const item = farmData.inventory.find((i) => i.id === administerItemId);
-    if (!item) {
-      toast('Pumili ng gamot o supply mula sa imbentaryo.', 'error');
-      return;
-    }
-    if (item.user_id !== user.id && !isSuperAdmin) {
-      toast('Walang pahintulot sa gamot o supply na ito.', 'error');
-      return;
-    }
-
-    const qty = Number(administerQty);
-    if (!administerQty || isNaN(qty) || qty <= 0) {
-      toast('Maglagay ng wastong dami (quantity).', 'error');
-      return;
-    }
-    if (qty > Number(item.quantity)) {
-      toast(`❌ Hindi sapat ang stock ng gamot. Available lang: ${item.quantity} ${item.unit}.`, 'error');
-      return;
-    }
-
-    if (item.expiry_date && isItemExpired(item.expiry_date)) {
-      toast(`⚠️ Expired na ang gamot na ito noong ${item.expiry_date}. Hindi maaaring ibigay sa hayop.`, 'error');
-      return;
-    }
-
-    setAdministerSaving(true);
-    try {
-      // 1. Consume from Inventory & write to inventory_transactions ledger atomically
-      const consumeRes = await consumeInventoryStock({
-        userId: user.id,
-        isSuperAdmin,
-        item,
-        quantity: qty,
-        usageType: administerUsageType === 'Deworming' ? 'deworming' : 'medication',
-        animalId: animal.id,
-        animalTag: animal.tag_id,
-        animalName: animal.name,
-        referenceType: 'animal',
-        referenceId: animal.id,
-        reason: `${administerUsageType} — ${administerStatus}: ${administerReason || item.name}`,
-        notes: `Gamot: ${item.name} (${qty} ${item.unit}). Dosis: ${administerDosage || `${qty} ${item.unit}`}, Dalas: ${administerFrequency}. Simula: ${administerStartDate}${
-          administerEndDate ? `, Hanggang: ${administerEndDate}` : ''
-        }. Katayuan: ${administerStatus}. ${administerNotes}`.trim(),
-      });
-
-      if (!consumeRes.success) {
-        toast(consumeRes.error || 'Hindi sapat ang stock sa imbentaryo.', 'error');
-        setAdministerSaving(false);
-        return;
-      }
-
-      // 2. Insert into health_records for full clinical history & dashboard tracking
-      const isCompleted = administerStatus === 'Tapos na ang Gamot';
-      const isCritical = administerStatus === 'Kailangan ng Gamot' || administerStatus === 'Kasalukuyang Ginagamot';
-      const { error: healthErr } = await supabase.from('health_records').insert({
-        user_id: user.id,
-        animal_id: animal.id,
-        record_date: administerStartDate,
-        reasons: `Gamot / Lunas: ${item.name} (${administerStatus})`,
-        recommendation: `Katayuan ng Gamot: ${administerStatus}. Dalas: ${administerFrequency}.`,
-        notes: `Uri: ${administerUsageType} | Gamot: ${item.name} | Dami: ${qty} ${item.unit} | Dosis: ${administerDosage || `${qty} ${item.unit}`} | Dalas: ${administerFrequency} | Katayuan: ${administerStatus} | Simula: ${administerStartDate}${
-          administerEndDate ? ` | Hanggang: ${administerEndDate}` : ''
-        } | Dahilan: ${administerReason || 'Pangangasiwa ng Gamot'} | Tala: ${administerNotes}`.trim(),
-        risk_level: isCompleted ? 'Low' : isCritical ? 'Moderate' : 'Low',
-        risk_score: isCompleted ? 5 : isCritical ? 60 : 20,
-      });
-      if (healthErr) throw healthErr;
-
-      // 3. Synchronize animal's health_status
-      let newHealthStatus: HealthStatus | null = null;
-      if (isCompleted) {
-        newHealthStatus = 'Healthy';
-      } else if (isCritical) {
-        newHealthStatus = 'Critical';
-      }
-
-      if (newHealthStatus) {
-        let animalUpdate = supabase.from('animals').update({ health_status: newHealthStatus }).eq('id', animal.id);
-        if (!isSuperAdmin) {
-          animalUpdate = animalUpdate.eq('user_id', user.id);
-        }
-        await animalUpdate;
-      }
-
-      toast(`Nai-save ang ${administerUsageType}! Nabawasan ng ${qty} ${item.unit} ang ${item.name} sa imbentaryo.`, 'success');
-      setAdministerModalOpen(false);
-      setAdministerItemId('');
-      setAdministerQty('');
-      setAdministerDosage('');
-      setAdministerFrequency('Once daily');
-      setAdministerStartDate(new Date().toISOString().split('T')[0]);
-      setAdministerEndDate('');
-      setAdministerStatus('Kasalukuyang Ginagamot');
-      setAdministerUsageType('Medication');
-      setAdministerReason('');
-      setAdministerNotes('');
-      farmData.refresh();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : 'Hindi mai-save ang paggamit ng gamot.', 'error');
-    } finally {
-      setAdministerSaving(false);
+      toast('Hindi mabura ang hayop. Pakisubukan muli.', 'error');
     }
   };
 
@@ -425,7 +421,7 @@ export function AnimalProfilePage() {
     link.href = dataUrl;
     link.download = `qr-${animal.tag_id}.png`;
     link.click();
-    toast('QR code downloaded.', 'success');
+    toast('Na-download ang QR code.', 'success');
   };
 
   const printQR = () => {
@@ -450,8 +446,8 @@ export function AnimalProfilePage() {
           <img src="${dataUrl}" alt="QR Code" />
           <div class="name">${animal.name}</div>
           <div class="tag">${animal.tag_id}</div>
-          <div class="meta">${animal.species}${animal.breed ? ` · ${animal.breed}` : ''} · ${animal.sex}</div>
-          <div class="hint">Scan this QR code with your phone camera or Google Lens to view this animal's profile.</div>
+          <div class="meta">${animal.species === 'Goat' ? 'Kambing' : 'Tupa'}${animal.breed ? ` · ${animal.breed}` : ''} · ${animal.sex === 'Female' ? 'Babae' : 'Lalaki'}</div>
+          <div class="hint">I-scan ang QR code na ito upang makita ang profile ng hayop.</div>
         </div>
       </body></html>`);
       win.document.close();
@@ -459,12 +455,12 @@ export function AnimalProfilePage() {
     });
   };
 
-  // Weight chart
+  // Weight chart for the Ulat / Reports tab
   const sortedWeights = [...animalWeights].sort((a, b) => new Date(a.record_date).getTime() - new Date(b.record_date).getTime());
   const weightChartData = {
     labels: sortedWeights.map((w) => formatDate(w.record_date)),
     datasets: [{
-      label: 'Weight (kg)',
+      label: 'Timbang (kg)',
       data: sortedWeights.map((w) => Number(w.weight_kg)),
       borderColor: '#238B45',
       backgroundColor: 'rgba(35, 139, 69, 0.15)',
@@ -473,35 +469,28 @@ export function AnimalProfilePage() {
     }],
   };
 
-  const animalInventoryUsage = useMemo(() => {
-    return farmData.inventoryTransactions
-      .filter((tx) => tx.reference_type === 'animal' && tx.reference_id === animal?.id)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [farmData.inventoryTransactions, animal?.id]);
-
+  // Farmer-first navigation modules
   const tabs = [
     { key: 'overview', label: 'Buod ng Hayop' },
     { key: 'health', label: 'Kalusugan' },
-    { key: 'weight', label: 'Timbang' },
     { key: 'breeding', label: 'Breeding' },
     { key: 'vaccination', label: 'Mga Bakuna' },
-    { key: 'inventory', label: 'Mga Gamot at Stock' },
+    { key: 'inventory', label: 'Mga Gamot at Gamit' },
     { key: 'feed', label: 'Pakain' },
-    { key: 'history', label: 'Mga Record' },
-    { key: 'camera', label: 'AI Health Scanner' },
+    { key: 'report', label: 'Ulat' },
   ] as const;
 
-  const scoreColor = riskColor(animal.health_risk_score);
+  const StatusIcon = farmerStatus.Icon;
 
   return (
     <>
       {/* Ambient background glows */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '-120px', left: '-80px', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,106,42,0.07) 0%, transparent 70%)', filter: 'blur(60px)' }} />
-        <div style={{ position: 'absolute', bottom: '-100px', right: '-60px', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,59,48,0.06) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+        <div style={{ position: 'absolute', top: '-120px', left: '-80px', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(35,139,69,0.06) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+        <div style={{ position: 'absolute', bottom: '-100px', right: '-60px', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(23,107,53,0.05) 0%, transparent 70%)', filter: 'blur(60px)' }} />
       </div>
 
-      {/* Page wrapper — prevents horizontal overflow */}
+      {/* Page wrapper */}
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 1400, margin: '0 auto', width: '100%', boxSizing: 'border-box', minWidth: 0 }}>
 
         {/* ── Back button ── */}
@@ -514,13 +503,13 @@ export function AnimalProfilePage() {
             fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)',
             cursor: 'pointer', marginBottom: 20, transition: 'all 0.2s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--accent-orange)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--color-primary, #238B45)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
         >
           <ArrowLeft size={15} /> Bumalik sa mga Hayop
         </button>
 
-        {/* ── Animal Header ── */}
+        {/* ── Animal Header (Identity + Farmer Health Status) ── */}
         <div style={{
           background: 'var(--glass-surface)',
           backdropFilter: 'var(--glass-blur)',
@@ -563,23 +552,23 @@ export function AnimalProfilePage() {
               }}>
                 {animal.name}
               </h1>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 6, display: 'flex', flexWrap: 'wrap' as const, gap: '4px 8px', alignItems: 'center' }}>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 8, display: 'flex', flexWrap: 'wrap' as const, gap: '4px 8px', alignItems: 'center' }}>
                 <span style={{ color: 'var(--color-primary, #238B45)', fontWeight: 700 }}>{animal.tag_id}</span>
-                <span style={{ opacity: 0.4 }}>·</span>
+                <span style={{ opacity: 0.4 }}>•</span>
                 <span>{animal.species === 'Goat' ? 'Kambing' : 'Tupa'}</span>
-                <span style={{ opacity: 0.4 }}>·</span>
+                <span style={{ opacity: 0.4 }}>•</span>
                 <span>{animal.sex === 'Female' ? 'Babae' : 'Lalaki'}</span>
-                <span style={{ opacity: 0.4 }}>·</span>
+                <span style={{ opacity: 0.4 }}>•</span>
                 <span>{ageLabel(animal.date_of_birth)}</span>
-                {animal.breed && <><span style={{ opacity: 0.4 }}>·</span><span>{animal.breed}</span></>}
+                {animal.breed && <><span style={{ opacity: 0.4 }}>•</span><span>{animal.breed}</span></>}
               </div>
 
               {/* Status + actions row */}
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 10, marginTop: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' as const, gap: 10, marginTop: 4 }}>
                 <StatusBadge
-                  label={animal.health_status}
-                  color={healthBadgeColor(animal.health_status)}
-                  bg={healthBadgeBg(animal.health_status)}
+                  label={farmerStatus.label}
+                  color={farmerStatus.color}
+                  bg={farmerStatus.bg}
                 />
                 {isSold && (
                   <span style={{
@@ -597,14 +586,14 @@ export function AnimalProfilePage() {
                     <CheckCircle2 size={14} /> Nabenta
                   </span>
                 )}
-                {/* Action buttons */}
+                {/* Action buttons — strictly farmer-facing labels */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                   <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setQrOpen(true)} variant="neutral" />
                   {!isSold && (
-                    <ActionBtn icon={<Camera size={14} />} label="AI Health Scan" onClick={() => navigate(`/camera-screening?animalId=${animal.id}`)} variant="orange" />
+                    <ActionBtn icon={<Camera size={14} />} label="Health Check" onClick={() => setCameraScreeningOpen(true)} variant="green" />
                   )}
                   {!isSold && (
-                    <ActionBtn icon={<Pencil size={14} />} label="I-edit" onClick={() => setEditOpen(true)} variant="orange" />
+                    <ActionBtn icon={<Pencil size={14} />} label="I-edit" onClick={() => setEditOpen(true)} variant="neutral" />
                   )}
                   <ActionBtn icon={<Trash2 size={14} />} label="Burahin" onClick={() => setConfirmDelete(true)} variant="red" />
                 </div>
@@ -613,7 +602,7 @@ export function AnimalProfilePage() {
           </div>
         </div>
 
-        {/* ── Tab Navigation ── */}
+        {/* ── Tab Navigation (Farmer-First 7 Modules) ── */}
         <div style={{
           width: '100%', maxWidth: '100%', boxSizing: 'border-box',
           overflowX: 'auto', overflowY: 'hidden',
@@ -657,7 +646,7 @@ export function AnimalProfilePage() {
 
         {/* ── Tab Content ── */}
 
-        {/* OVERVIEW TAB */}
+        {/* 1. BUOD NG HAYOP (OVERVIEW) */}
         {tab === 'overview' && (
           <div style={{
             display: 'grid',
@@ -719,17 +708,6 @@ export function AnimalProfilePage() {
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Bumibili</div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginTop: 2 }}>
                       {animalSale?.buyer_name || 'Hindi tinukoy'}
-                      {animalSale?.buyer_contact && (
-                        <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)' }}>
-                          {animalSale.buyer_contact}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Katayuan ng Bayad</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#1F2937', marginTop: 2 }}>
-                      {animalSale?.payment_status || 'Bayad na'}
                     </div>
                   </div>
                   <div>
@@ -739,469 +717,285 @@ export function AnimalProfilePage() {
                     </div>
                   </div>
                 </div>
-                {animalSale?.notes && (
-                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #E5E7EB', fontSize: 12, color: '#4B5563' }}>
-                    <strong>Mga Tala sa Benta:</strong> {animalSale.notes}
-                  </div>
-                )}
               </GlassCard>
             )}
 
-            {/* Health Risk Card */}
+            {/* CARD 1: KALAGAYAN NG HAYOP (Real-data farmer status) */}
             <GlassCard>
-              <CardTitle icon={Activity} title="AI Health Risk Status" />
-              {/* Score ring */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
-                <div style={{
-                  width: 72, height: 72, borderRadius: '50%', flexShrink: 0,
-                  background: `conic-gradient(${scoreColor} ${animal.health_risk_score * 3.6}deg, rgba(255,255,255,0.08) 0deg)`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: `0 0 20px ${scoreColor}44`,
-                  position: 'relative' as const,
-                }}>
-                  <div style={{
-                    position: 'absolute', inset: 6, borderRadius: '50%',
-                    background: 'var(--bg)', display: 'flex', flexDirection: 'column' as const,
-                    alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ fontSize: 20, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{animal.health_risk_score}</span>
-                    <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.5px' }}>/ 100</span>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: scoreColor, marginBottom: 2 }}>
-                    {animal.health_status || `${levelFromScore(animal.health_risk_score)} Risk`}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    {animal.health_risk_score >= 50 ? 'Needs Attention' : animal.health_risk_score >= 25 ? 'Requires Monitoring' : 'Healthy / Low Risk'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Status details & trend */}
-              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <StatRow label="Health Status" value={animal.health_status} />
-                <StatRow label="AI Risk Score" value={`${animal.health_risk_score ?? 0} / 100`} />
-                <StatRow label="Last AI Screening" value={lastScreeningDate} />
-                <StatRow
-                  label="Risk Trend"
-                  value={riskTrendInfo.trend}
-                  valueStyle={{ color: riskTrendInfo.color, fontWeight: 800 }}
-                />
-              </div>
-
-              {/* Risk Trend Warning Banner if Increasing */}
-              {riskTrendInfo.warning && (
-                <div style={{
-                  marginTop: 10,
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  background: 'rgba(220, 38, 38, 0.1)',
-                  border: '1px solid rgba(220, 38, 38, 0.3)',
-                  color: '#DC2626',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  lineHeight: 1.4,
-                }}>
-                  {riskTrendInfo.warning}
-                </div>
-              )}
-
-              {/* Vitals with strict transparency */}
-              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 10, marginTop: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6 }}>
-                  Vital Signs (Sensor Status)
-                </div>
-                <StatRow label="Temperature" value={animal.current_temperature ? `${animal.current_temperature}°C` : 'Not measured'} />
-                <StatRow label="Heart Rate" value={animal.current_heart_rate ? `${animal.current_heart_rate} BPM` : 'Not measured'} />
-                <StatRow label="Respiratory Rate" value="Not measured" />
-              </div>
-            </GlassCard>
-
-            {/* ML Health Assessment Card */}
-            <GlassCard gridSpan={2}>
-              {mlPrediction ? (
-                <MLHealthPanel
-                  prediction={mlPrediction}
-                  animalName={animal.name}
-                />
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-secondary)', fontSize: 13 }}>
-                  <AlertTriangle size={16} color="#F59E0B" />
-                  <span>
-                    <strong>Pagsusuri sa Kalusugan</strong> — Magdagdag ng kahit 5 health records upang makita ang kumpletong pagsusuri sa hayop na ito.
-                  </span>
-                </div>
-              )}
-            </GlassCard>
-
-            {/* Health Risk History Chart */}
-            {riskDates.length >= 2 && (
-              <GlassCard gridSpan={2}>
-                <CardTitle icon={Activity} title="Kasaysayan ng Kalusugan (Health Trend)" />
-                <div style={{ height: 200 }}>
-                  <Line
-                    data={{
-                      labels: riskDates.map(d => {
-                        const date = new Date(d);
-                        return `${date.getMonth() + 1}/${date.getDate()}`;
-                      }),
-                      datasets: [
-                        {
-                          label: 'Tinatayang Risk',
-                          data: riskProbs,
-                          borderColor: '#238B45',
-                          backgroundColor: 'rgba(35, 139, 69, 0.15)',
-                          fill: true,
-                          tension: 0.4,
-                          pointRadius: 4,
-                          pointBackgroundColor: '#238B45',
-                        },
-                        {
-                          label: 'Pagsusuri sa Bukid',
-                          data: riskScores,
-                          borderColor: '#176B35',
-                          backgroundColor: 'transparent',
-                          borderDash: [5, 5],
-                          tension: 0.4,
-                          pointRadius: 3,
-                          pointBackgroundColor: '#176B35',
-                        },
-                      ],
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: { display: true, position: 'top' as const, labels: { boxWidth: 12, font: { size: 11 } } },
-                        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%` } },
-                      },
-                      scales: {
-                        y: { min: 0, max: 100, ticks: { font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.06)' } },
-                        x: { ticks: { font: { size: 10 } }, grid: { display: false } },
-                      },
-                    }}
-                  />
-                </div>
-              </GlassCard>
-            )}
-
-            {/* Weight & Growth Card */}
-            <GlassCard>
-              <CardTitle icon={Scale} title="Weight & Growth" />
-              <StatRow label="Current Weight" value={growth.currentWeight ? `${growth.currentWeight} kg` : '—'} />
-              <StatRow label="Previous Weight" value={growth.previousWeight ? `${growth.previousWeight} kg` : '—'} />
-              <StatRow
-                label="Change"
-                value={growth.weightChange !== null
-                  ? `${growth.weightChange > 0 ? '+' : ''}${growth.weightChange} kg`
-                  : '—'}
-                valueStyle={growth.weightChange !== null ? { color: growth.weightChange >= 0 ? '#238B45' : '#EF4444' } : {}}
-              />
-              <StatRow label="Daily Gain" value={growth.dailyGain !== null ? `${growth.dailyGain} kg/day` : '—'} />
-              <StatRow label="Trend" value={growth.trend || 'Insufficient data'} />
-              {growth.marketReadyDate && (
-                <StatRow label="Market Ready" value={formatDate(growth.marketReadyDate)} />
-              )}
-            </GlassCard>
-
-            {/* Breeding Card */}
-            <GlassCard>
-              <CardTitle icon={Heart} title="Breeding" />
-              <StatRow label="Status" value={
-                <StatusBadge
-                  label={animal.breeding_status}
-                  color={animal.breeding_status === 'Pregnant' ? '#176B35' : animal.breeding_status === 'Open' ? '#50645A' : '#78877F'}
-                  bg={animal.breeding_status === 'Pregnant' ? '#EAF6ED' : animal.breeding_status === 'Open' ? '#F4FAF5' : 'rgba(120,135,127,0.12)'}
-                />
-              } />
-              <StatRow label="Last Mating" value={formatDate(animal.last_mating_date)} />
-              <StatRow label="Expected Kidding" value={formatDate(animal.expected_kidding_date)} />
-              {breedingAssessment && (
-                <StatRow label="Readiness" value={
-                  <StatusBadge
-                    label={breedingAssessment.recommendation}
-                    color={breedingAssessment.recommendation === 'Ready' ? '#238B45' : breedingAssessment.recommendation === 'Monitor' ? '#176B35' : '#78877F'}
-                    bg={breedingAssessment.recommendation === 'Ready' ? '#EAF6ED' : breedingAssessment.recommendation === 'Monitor' ? '#DDF0E2' : 'rgba(120,135,127,0.12)'}
-                  />
-                } />
-              )}
-            </GlassCard>
-
-            {/* Vaccination Card */}
-            <GlassCard>
-              <CardTitle icon={Syringe} title="Vaccination" />
-              <StatRow label="Status" value={
-                <StatusBadge
-                  label={animal.vaccination_status}
-                  color={vaccBadgeColor(animal.vaccination_status)}
-                  bg={`${vaccBadgeColor(animal.vaccination_status)}22`}
-                />
-              } />
-              <StatRow label="Last Vaccine" value={formatDate(animal.last_vaccine_date)} />
-              <StatRow label="Next Due" value={formatDate(animal.next_vaccine_date)} />
-            </GlassCard>
-
-            {/* Inventory Usage Mini-Card */}
-            <GlassCard>
-              <CardTitle icon={Package} title="Gamit at Imbentaryo" />
-              <StatRow label="Nagamit na Gamot/Dosis" value={`${animalInventoryUsage.length} tala`} />
-              <StatRow
-                label="Kabuuang Halaga"
-                value={`₱${animalInventoryUsage.reduce((sum, tx) => sum + (tx.quantity * (tx.cost_per_unit || 0)), 0).toFixed(2)}`}
-              />
-              <button
-                onClick={() => setTab('inventory')}
-                style={{
-                  width: '100%',
-                  marginTop: 10,
-                  padding: '7px',
-                  borderRadius: 8,
-                  border: '1px solid var(--border-light)',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  color: 'var(--text)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Tingnan ang Talaan ng Gamit
-              </button>
-            </GlassCard>
-
-            {/* Notes Card — spans 2 cols on desktop */}
-            <GlassCard style={{ gridColumn: 'span 2' }}>
-              <CardTitle title="Notes" />
-              <p style={{
-                fontSize: 14, color: animal.notes ? 'var(--text)' : 'var(--text-secondary)',
-                lineHeight: 1.7, margin: 0, fontStyle: animal.notes ? 'normal' : 'italic',
+              <CardTitle icon={HeartPulse} title="Kalagayan ng Hayop" />
+              <div style={{
+                background: farmerStatus.bg,
+                border: `1.5px solid ${farmerStatus.borderColor}44`,
+                borderRadius: 14,
+                padding: '16px',
+                marginBottom: 14,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
               }}>
-                {animal.notes || 'No notes recorded for this animal.'}
-              </p>
-            </GlassCard>
-
-            {/* Camera Screening summary card */}
-            <GlassCard>
-              <CardTitle icon={Camera} title="Camera Health Screening" />
-              {animalScreenings.length > 0 ? (() => {
-                const latest = animalScreenings[0];
-                const predColor = latest.prediction === 'possible_health_concern' ? '#EF4444' : latest.prediction === 'normal_appearance' ? '#16A34A' : '#F59E0B';
-                const predLabel = latest.prediction === 'possible_health_concern' ? 'Posibleng May Karamdaman' : latest.prediction === 'normal_appearance' ? 'Maayos ang Hitsura' : 'Mababang Kalidad ng Litrato';
-                return (
-                  <div>
-                    <StatRow label="Huling Pagsusuri" value={formatDate(latest.created_at)} />
-                    <StatRow label="Resulta" value={<span style={{ fontWeight: 700, color: predColor }}>{predLabel}</span>} />
-                    <StatRow label="Kabuuang Pagsusuri" value={`${animalScreenings.length} beses`} />
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      <button
-                        onClick={() => setCameraScreeningOpen(true)}
-                        style={{
-                          flex: 1, padding: '8px', borderRadius: 9, border: 'none',
-                          background: 'linear-gradient(135deg,#238B45,#176B35)',
-                          color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                        }}
-                      >
-                        <Camera size={12} /> New Screening
-                      </button>
-                      <button
-                        onClick={() => setTab('camera')}
-                        style={{
-                          flex: 1, padding: '8px', borderRadius: 9,
-                          border: '1px solid var(--border)', background: 'var(--surface)',
-                          color: 'var(--text)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                        }}
-                      >
-                        View History
-                      </button>
-                    </div>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: '#FFFFFF',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                  flexShrink: 0,
+                }}>
+                  <StatusIcon size={26} color={farmerStatus.color} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: farmerStatus.color, lineHeight: 1.2 }}>
+                    ● {farmerStatus.label}
                   </div>
-                );
-              })() : (
-                <div style={{ textAlign: 'center', paddingTop: 8 }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
-                    Wala pang screening. Mag-screen ng kalusugan gamit ang camera.
+                  <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 4, lineHeight: 1.4, fontWeight: 500 }}>
+                    {farmerStatus.description}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <StatRow label="Huling Health Check" value={hulingCheckDate} />
+                <StatRow
+                  label="Kasalukuyang Gamot"
+                  value={activeMedicine ? activeMedicine.name : 'Wala'}
+                  valueStyle={activeMedicine ? { color: '#DC2626', fontWeight: 800 } : {}}
+                />
+              </div>
+
+              {activeMedicine && (
+                <div style={{
+                  marginTop: 12,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(220, 38, 38, 0.08)',
+                  border: '1px solid rgba(220, 38, 38, 0.25)',
+                  fontSize: 12,
+                }}>
+                  <div style={{ fontWeight: 700, color: '#DC2626', marginBottom: 2 }}>
+                    May gamot na ibinibigay:
+                  </div>
+                  <div style={{ color: 'var(--text)' }}>
+                    <strong>{activeMedicine.name}</strong> — {activeMedicine.dosage} ({activeMedicine.frequency})
                   </div>
                   <button
-                    onClick={() => setCameraScreeningOpen(true)}
+                    onClick={() => setTab('inventory')}
                     style={{
-                      padding: '9px 16px', borderRadius: 10, border: 'none',
-                      background: 'linear-gradient(135deg,#238B45,#176B35)',
-                      color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      boxShadow: '0 4px 14px rgba(35,139,69,0.3)',
+                      marginTop: 8,
+                      padding: '5px 10px',
+                      borderRadius: 6,
+                      border: '1px solid rgba(220, 38, 38, 0.35)',
+                      background: '#fff',
+                      color: '#DC2626',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
                     }}
                   >
-                    <Camera size={14} /> Suriin ang Hayop
+                    Tingnan ang Gamot
                   </button>
                 </div>
               )}
             </GlassCard>
 
+            {/* CARD 2: MAHALAGANG IMPORMASYON */}
+            <GlassCard>
+              <CardTitle icon={Info} title="Mahalagang Impormasyon" />
+              <StatRow label="Animal ID" value={animal.tag_id} />
+              <StatRow label="Pangalan" value={animal.name} />
+              <StatRow label="Uri" value={animal.species === 'Goat' ? 'Kambing' : 'Tupa'} />
+              <StatRow label="Lahi" value={animal.breed || '—'} />
+              <StatRow label="Kasarian" value={animal.sex === 'Female' ? 'Babae' : 'Lalaki'} />
+              <StatRow label="Edad" value={ageLabel(animal.date_of_birth)} />
+              <StatRow
+                label="Timbang"
+                value={latestWeight ? `${latestWeight} kg` : 'Hindi nakatala'}
+                valueStyle={{ color: '#238B45', fontWeight: 800 }}
+              />
+              <StatRow
+                label="Kalagayan"
+                value={<StatusBadge label={farmerStatus.label} color={farmerStatus.color} bg={farmerStatus.bg} />}
+              />
+            </GlassCard>
+
+            {/* CARD 3: KALUSUGAN AT MGA PAALALA */}
+            <GlassCard>
+              <CardTitle icon={Activity} title="Kalusugan at Mga Paalala" />
+              {!isSold && (
+                <button
+                  onClick={() => setCameraScreeningOpen(true)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #238B45, #176B35)',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    marginBottom: 14,
+                    boxShadow: '0 4px 14px rgba(35,139,69,0.3)',
+                  }}
+                >
+                  <Camera size={15} /> Health Check
+                </button>
+              )}
+
+              <StatRow label="Huling Pagsusuri" value={hulingCheckDate} />
+              <StatRow label="Mga Napansin" value={latestObservations} />
+              <StatRow label="Kasalukuyang Gamot" value={activeMedicine ? activeMedicine.name : 'Wala'} />
+
+              <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--border-light)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Mga Paalala
+                </div>
+                {activeReminders.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {activeReminders.map((rem, idx) => (
+                      <div key={idx} style={{ fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: '#238B45', fontWeight: 800 }}>•</span>
+                        {rem}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    Walang aktibong paalala sa ngayon.
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+
+            {/* CARD 4: MGA TALA / NOTES (Spans 3 cols on desktop) */}
+            <GlassCard gridSpan={3}>
+              <CardTitle icon={ClipboardList} title="Mga Tala (Notes)" />
+              <p style={{
+                fontSize: 14, color: animal.notes ? 'var(--text)' : 'var(--text-secondary)',
+                lineHeight: 1.7, margin: 0, fontStyle: animal.notes ? 'normal' : 'italic',
+              }}>
+                {animal.notes || 'Walang naitalang karagdagang tala para sa hayop na ito.'}
+              </p>
+            </GlassCard>
+
           </div>
         )}
 
-        {/* HEALTH TAB */}
+        {/* 2. KALUSUGAN TAB (Clean farmer health table, no technical ML metrics) */}
         {tab === 'health' && (
           <GlassCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={Activity} title="Early Illness & Health Records" />
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/health')}>
-                <Sparkles size={15} /> Suriin ang Kalusugan
-              </button>
+              <CardTitle icon={HeartPulse} title="Kalusugan ng Hayop" />
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                {!isSold && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setCameraScreeningOpen(true)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Camera size={15} /> Health Check
+                  </button>
+                )}
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => navigate('/health')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Stethoscope size={15} /> Manual Health Check
+                </button>
+              </div>
             </div>
+
+            {/* Kalagayan Card Banner */}
+            <div style={{
+              background: farmerStatus.bg,
+              border: `1.5px solid ${farmerStatus.borderColor}44`,
+              borderRadius: 12,
+              padding: '14px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <StatusIcon size={24} color={farmerStatus.color} />
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: farmerStatus.color }}>
+                    Kalagayan: {farmerStatus.label}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 2 }}>
+                    {farmerStatus.description}
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                Huling Check: <strong>{hulingCheckDate}</strong>
+              </div>
+            </div>
+
+            {/* Table of Health Records */}
             {animalHealth.length === 0 ? (
               <div className="empty-state">
-                <div className="es-icon"><Icons.HeartPulse size={24} /></div>
-                <h4>No health records</h4>
-                <p>Record a health check to start early illness detection.</p>
+                <div className="es-icon"><HeartPulse size={24} /></div>
+                <h4>Bagong hayop ito o wala pang health record</h4>
+                <p>Magsagawa ng Health Check gamit ang camera o magtala ng manu-manong pagsusuri.</p>
+                {!isSold && (
+                  <button
+                    className="btn btn-primary"
+                    style={{ marginTop: 12 }}
+                    onClick={() => setCameraScreeningOpen(true)}
+                  >
+                    <Camera size={14} /> Magsagawa ng Health Check
+                  </button>
+                )}
               </div>
-            ) : (
-              <>
-                {(() => {
-                  const latest = [...animalHealth].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime())[0];
-                  const conditions = (latest as any).detected_conditions;
-                  return (
-                    <>
-                      {conditions && (
-                        <div style={{ marginBottom: 14, padding: '12px 14px', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', borderRadius: 12, display: 'flex', gap: 10 }}>
-                          <AlertTriangle size={16} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444', marginBottom: 3 }}>Early Illness Detection — Latest Record</div>
-                            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>{conditions}</p>
-                          </div>
-                        </div>
-                      )}
-                      {/* ML Health Screening — uses trained Random Forest model */}
-                      <div style={{ marginBottom: 16 }}>
-                        <MLScreeningPanel record={latest} animal={animal} />
-                      </div>
-                    </>
-                  );
-                })()}
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Date</th><th>Temp</th><th>Appetite</th><th>Activity</th>
-                        <th>Risk Score</th><th>Detected Concerns / Reasons</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {animalHealth.map((r) => (
-                        <tr key={r.id}>
-                          <td>{formatDate(r.record_date)}</td>
-                          <td>{r.temperature ? `${r.temperature}°C` : '—'}</td>
-                          <td>{r.appetite ?? '—'}</td>
-                          <td>{r.activity_level ?? '—'}</td>
-                          <td>
-                            <span className={`badge badge-${r.risk_level === 'Low' ? 'green' : r.risk_level === 'Moderate' ? 'yellow' : r.risk_level === 'High' ? 'orange' : 'red'}`}>
-                              {r.risk_level} ({r.risk_score}%)
-                            </span>
-                          </td>
-                          <td style={{ maxWidth: 260, fontSize: 11 }}>
-                            {(r as any).detected_conditions
-                              ? <span style={{ color: '#EF4444', fontWeight: 600 }}>{(r as any).detected_conditions}</span>
-                              : r.reasons
-                              ? <span style={{ color: 'var(--text-secondary)' }}>{r.reasons}</span>
-                              : <span style={{ color: 'var(--text-secondary)' }}>None</span>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </GlassCard>
-        )}
-
-        {/* WEIGHT TAB */}
-        {tab === 'weight' && (
-          <GlassCard>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={Scale} title="Kasaysayan ng Timbang (Weight History)" />
-              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                {animalWeights.length} talaan ng timbang
-              </span>
-            </div>
-            {animalWeights.length === 0 ? (
-              <div className="empty-state"><div className="es-icon"><Icons.Scale size={24} /></div><h4>No weight records</h4><p>Add a weigh-in to start tracking growth.</p></div>
-            ) : (
-              <>
-                <div style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', padding: '4px 0' }}>
-                  <Line data={weightChartData} options={{
-                    responsive: true,
-                    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(6,18,32,0.92)', bodyColor: '#fff', titleColor: '#238B45' } },
-                    scales: {
-                      x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-secondary)' as any } },
-                      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-secondary)' as any } },
-                    },
-                  }} />
-                </div>
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead><tr><th>Date</th><th>Record Type</th><th>Weight</th><th>Change</th><th>Daily Gain</th><th>Notes</th></tr></thead>
-                    <tbody>
-                      {[...animalWeights].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime()).map((w) => {
-                        const isInitial = w.previous_weight_kg === null || Boolean(w.notes && w.notes.toLowerCase().includes('initial'));
-                        return (
-                          <tr key={w.id}>
-                            <td>{formatDate(w.record_date)}</td>
-                            <td>
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  padding: '2px 8px',
-                                  borderRadius: 4,
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  background: isInitial ? 'rgba(35, 139, 69, 0.15)' : 'rgba(100, 116, 139, 0.15)',
-                                  color: isInitial ? '#238B45' : 'var(--text-secondary)',
-                                }}
-                              >
-                                {isInitial ? 'Initial Weight' : 'Weight Update'}
-                              </span>
-                            </td>
-                            <td><strong>{w.weight_kg} kg</strong></td>
-                            <td style={{ color: w.weight_change_kg !== null && w.weight_change_kg < 0 ? '#EF4444' : w.weight_change_kg !== null && w.weight_change_kg > 0 ? '#238B45' : 'inherit', fontWeight: 600 }}>
-                              {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
-                            </td>
-                            <td>{w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}</td>
-                            <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{w.notes || '—'}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </GlassCard>
-        )}
-
-        {/* BREEDING TAB */}
-        {tab === 'breeding' && (
-          <GlassCard>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={Heart} title="Breeding Records" />
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/breeding')}><Plus size={15} /> Add Record</button>
-            </div>
-            {animalBreedings.length === 0 ? (
-              <div className="empty-state"><div className="es-icon"><Icons.Heart size={24} /></div><h4>No breeding records</h4><p>Add a mating record to track pregnancy.</p></div>
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Mating Date</th><th>Expected Kidding</th><th>Status</th><th>Days Until Kidding</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Petsa (Date)</th>
+                      <th>Temperatura</th>
+                      <th>Gana sa Pagkain</th>
+                      <th>Sigla at Galaw</th>
+                      <th>Kalagayan</th>
+                      <th>Mga Napansin at Tala</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {animalBreedings.map((b) => {
-                      const days = b.expected_kidding_date ? daysUntil(b.expected_kidding_date) : null;
+                    {sortedHealth.map((r) => {
+                      // Format record-specific friendly status
+                      const isMed = r.reasons?.includes('Gamot') || r.notes?.includes('Ginagamot');
+                      const isConcern = r.risk_level === 'High' || r.risk_level === 'Critical' || Boolean((r as any).detected_conditions);
+                      const isMon = r.risk_level === 'Moderate';
+                      const recLabel = isMed ? 'Kailangan ng Gamot' : isConcern ? 'Kailangan ng Atensyon' : isMon ? 'Bantayan' : 'Maayos';
+                      const recColor = isMed ? '#DC2626' : isConcern ? '#EA580C' : isMon ? '#D97706' : '#16A34A';
+                      const recBg = isMed ? 'rgba(220, 38, 38, 0.12)' : isConcern ? 'rgba(234, 88, 12, 0.12)' : isMon ? 'rgba(217, 119, 6, 0.12)' : 'rgba(22, 163, 74, 0.12)';
+
                       return (
-                        <tr key={b.id}>
-                          <td>{formatDate(b.mating_date)}</td>
-                          <td>{formatDate(b.expected_kidding_date)}</td>
-                          <td><span className={`badge badge-${b.status === 'Pregnant' ? 'blue' : b.status === 'Kidded' ? 'green' : 'gray'}`}>{b.status}</span></td>
-                          <td>{days !== null && days >= 0 ? `${days} days` : '—'}</td>
+                        <tr key={r.id}>
+                          <td>{formatDate(r.record_date)}</td>
+                          <td>{r.temperature ? `${r.temperature}°C` : 'Hindi nasukat'}</td>
+                          <td>{r.appetite ?? 'Normal'}</td>
+                          <td>{r.activity_level ?? 'Normal'}</td>
+                          <td>
+                            <StatusBadge label={recLabel} color={recColor} bg={recBg} />
+                          </td>
+                          <td style={{ maxWidth: 300, fontSize: 12 }}>
+                            {(r as any).detected_conditions ? (
+                              <span style={{ color: '#EA580C', fontWeight: 600 }}>{(r as any).detected_conditions}</span>
+                            ) : r.reasons ? (
+                              <span>{r.reasons}</span>
+                            ) : r.notes ? (
+                              <span style={{ color: 'var(--text-secondary)' }}>{r.notes}</span>
+                            ) : (
+                              <span style={{ color: 'var(--text-secondary)' }}>Normal / Walang problema</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -1212,19 +1006,81 @@ export function AnimalProfilePage() {
           </GlassCard>
         )}
 
-        {/* VACCINATION TAB */}
-        {tab === 'vaccination' && (
+        {/* 3. BREEDING TAB */}
+        {tab === 'breeding' && (
           <GlassCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={Syringe} title="Vaccination Records" />
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/vaccinations')}><Plus size={15} /> Add Vaccination</button>
+              <CardTitle icon={Heart} title="Talaan ng Pagpaparami (Breeding)" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/breeding')}>
+                <Plus size={15} /> Magdagdag ng Record
+              </button>
             </div>
-            {animalVaccinations.length === 0 ? (
-              <div className="empty-state"><div className="es-icon"><Icons.Syringe size={24} /></div><h4>No vaccination records</h4><p>Add a vaccination to track immunization.</p></div>
+            {animalBreedings.length === 0 ? (
+              <div className="empty-state">
+                <div className="es-icon"><Heart size={24} /></div>
+                <h4>Walang talaan ng breeding</h4>
+                <p>Magtala ng pagpaparis upang masubaybayan ang inaasahang panganganak.</p>
+              </div>
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Vaccine</th><th>Date Given</th><th>Next Due</th><th>Veterinarian</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Petsa ng Pagpaparis</th>
+                      <th>Inaasahang Panganganak</th>
+                      <th>Katayuan</th>
+                      <th>Natitirang Araw</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {animalBreedings.map((b) => {
+                      const days = b.expected_kidding_date ? daysUntil(b.expected_kidding_date) : null;
+                      return (
+                        <tr key={b.id}>
+                          <td>{formatDate(b.mating_date)}</td>
+                          <td>{formatDate(b.expected_kidding_date)}</td>
+                          <td>
+                            <span className={`badge badge-${b.status === 'Pregnant' ? 'blue' : b.status === 'Kidded' ? 'green' : 'gray'}`}>
+                              {b.status === 'Pregnant' ? 'Buntis' : b.status === 'Kidded' ? 'Nanganak na' : b.status}
+                            </span>
+                          </td>
+                          <td>{days !== null && days >= 0 ? `${days} araw` : '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </GlassCard>
+        )}
+
+        {/* 4. VACCINATION TAB */}
+        {tab === 'vaccination' && (
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+              <CardTitle icon={Syringe} title="Mga Bakuna ng Hayop" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/vaccinations')}>
+                <Plus size={15} /> Magdagdag ng Bakuna
+              </button>
+            </div>
+            {animalVaccinations.length === 0 ? (
+              <div className="empty-state">
+                <div className="es-icon"><Syringe size={24} /></div>
+                <h4>Walang talaan ng bakuna</h4>
+                <p>Magtala ng bakuna upang mapanatiling ligtas ang hayop sa mga sakit.</p>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Pangalan ng Bakuna</th>
+                      <th>Petsa ng Pagbigay</th>
+                      <th>Susunod na Bakuna</th>
+                      <th>Beterinaryo / Nagbakuna</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {animalVaccinations.map((v) => (
                       <tr key={v.id}>
@@ -1241,59 +1097,55 @@ export function AnimalProfilePage() {
           </GlassCard>
         )}
 
-        {/* FEED TAB */}
-        {tab === 'feed' && (
-          <GlassCard>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={Wheat} title="Feed Records" />
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/feed')}><Plus size={15} /> Add Feed Record</button>
-            </div>
-            {animalFeed.length === 0 ? (
-              <div className="empty-state"><div className="es-icon"><Icons.Wheat size={24} /></div><h4>No feed records</h4><p>Record feed to track consumption and efficiency.</p></div>
-            ) : (
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead><tr><th>Date</th><th>Feed Type</th><th>Quantity</th><th>Cost</th></tr></thead>
-                  <tbody>
-                    {animalFeed.map((f) => (
-                      <tr key={f.id}>
-                        <td>{formatDate(f.record_date)}</td>
-                        <td style={{ fontWeight: 600 }}>{f.feed_type}</td>
-                        <td>{f.quantity_kg} kg</td>
-                        <td>{f.cost ? `₱${f.cost}` : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </GlassCard>
-        )}
-
-        {/* INVENTORY USAGE TAB */}
+        {/* 5. INVENTORY & MEDICATION TAB (MGA GAMOT AT GAMIT) */}
         {tab === 'inventory' && (
           <GlassCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-              <CardTitle icon={Package} title="Gamit at Supplies mula sa Imbentaryo (Inventory Usage)" />
+              <CardTitle icon={Package} title="Mga Gamot at Gamit mula sa Imbentaryo" />
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary, #238B45)' }}>
-                  {animalInventoryUsage.length} naitalang paggamit
+                  {animalInventoryUsage.length} naitalang gamit
                 </span>
                 <Button
                   variant="primary"
                   size="sm"
                   leftIcon={<Plus size={14} />}
-                  onClick={() => setAdministerModalOpen(true)}
+                  onClick={() => {
+                    if (isSold) {
+                      toast('Hindi maaaring bigyan ng gamot ang nabentang hayop.', 'error');
+                      return;
+                    }
+                    setAdministerModalOpen(true);
+                  }}
+                  disabled={isSold}
                 >
                   Bigyan ng Gamot / Gamit
                 </Button>
               </div>
             </div>
 
+            {/* Active Medication Card */}
+            {activeMedicine && (
+              <div style={{
+                background: 'rgba(220, 38, 38, 0.08)',
+                border: '1.5px solid rgba(220, 38, 38, 0.35)',
+                borderRadius: 12,
+                padding: '14px 16px',
+                marginBottom: 16,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#DC2626', fontWeight: 800, fontSize: 14 }}>
+                  <Pill size={18} /> Kasalukuyang Gamot: {activeMedicine.name}
+                </div>
+                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text)' }}>
+                  Dosis: <strong>{activeMedicine.dosage}</strong> • Dalas: <strong>{activeMedicine.frequency}</strong> • Katayuan: <span style={{ color: '#DC2626', fontWeight: 700 }}>{activeMedicine.status}</span>
+                </div>
+              </div>
+            )}
+
             {animalInventoryUsage.length === 0 ? (
               <div className="empty-state">
                 <div className="es-icon"><Package size={24} /></div>
-                <h4>Walang gamit na naitala</h4>
+                <h4>Walang gamit o gamot na naitala</h4>
                 <p>Kusang maitatala rito ang mga bakuna, gamot, o supplies na ibinawas mula sa imbentaryo para kay {animal.name}.</p>
               </div>
             ) : (
@@ -1303,8 +1155,8 @@ export function AnimalProfilePage() {
                     <tr>
                       <th>Petsa (Date)</th>
                       <th>Dami / Yunit</th>
-                      <th>Uri / Dahilan</th>
-                      <th>Detalye (Notes)</th>
+                      <th>Gamot o Gamit</th>
+                      <th>Detalye / Tala</th>
                       <th>Halaga (Cost)</th>
                     </tr>
                   </thead>
@@ -1335,108 +1187,144 @@ export function AnimalProfilePage() {
           </GlassCard>
         )}
 
-        {/* HISTORY TAB */}
-        {tab === 'history' && (
+        {/* 6. FEED TAB (PAKAIN) */}
+        {tab === 'feed' && (
           <GlassCard>
-            <CardTitle icon={Activity} title="Recent Activity" />
-            {animalHealth.length === 0 && animalWeights.length === 0 && animalVaccinations.length === 0 ? (
-              <div className="empty-state"><div className="es-icon"><Icons.Activity size={24} /></div><h4>No activity yet</h4><p>Records will appear here as you add them.</p></div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+              <CardTitle icon={Wheat} title="Pakain at Konsumo" />
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/feed')}>
+                <Plus size={15} /> Magtala ng Pakain
+              </button>
+            </div>
+            {animalFeed.length === 0 ? (
+              <div className="empty-state">
+                <div className="es-icon"><Wheat size={24} /></div>
+                <h4>Walang talaan ng pakain</h4>
+                <p>Magtala ng konsumo sa pagkain upang masubaybayan ang gastos at nutrisyon.</p>
+              </div>
             ) : (
-              <div>
-                {animalHealth.slice(0, 3).map((r) => (
-                  <StatRow key={r.id} label={`Health Check — ${formatDate(r.record_date)}`} value={
-                    <StatusBadge
-                      label={`${r.risk_level} risk`}
-                      color={riskColor(r.risk_score)}
-                      bg={`${riskColor(r.risk_score)}22`}
-                    />
-                  } />
-                ))}
-                {animalWeights.slice(0, 3).map((w) => (
-                  <StatRow key={w.id} label={`Weight Record — ${formatDate(w.record_date)}`} value={`${w.weight_kg} kg`} />
-                ))}
-                {animalVaccinations.slice(0, 3).map((v) => (
-                  <StatRow key={v.id} label={`Vaccination — ${formatDate(v.date_given)}`} value={v.vaccine_name} />
-                ))}
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Petsa (Date)</th>
+                      <th>Uri ng Pagkain</th>
+                      <th>Dami (Quantity)</th>
+                      <th>Halaga (Cost)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {animalFeed.map((f) => (
+                      <tr key={f.id}>
+                        <td>{formatDate(f.record_date)}</td>
+                        <td style={{ fontWeight: 600 }}>{f.feed_type}</td>
+                        <td>{f.quantity_kg} kg</td>
+                        <td>{f.cost ? `₱${f.cost}` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </GlassCard>
         )}
 
-        {/* CAMERA SCREENING TAB */}
-        {tab === 'camera' && (
-          <div>
-            {/* Latest screening summary + run button */}
-            {animalScreenings.length > 0 && (() => {
-              const latest = animalScreenings[0];
-              const predColor = latest.prediction === 'possible_health_concern' ? '#EF4444' : latest.prediction === 'normal_appearance' ? '#16A34A' : '#F59E0B';
-              const predLabel = latest.prediction === 'possible_health_concern' ? 'Posibleng May Karamdaman' : latest.prediction === 'normal_appearance' ? 'Maayos ang Hitsura' : 'Mababang Kalidad ng Litrato';
-              return (
-                <GlassCard style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
-                    <CardTitle icon={Camera} title="Huling Pagsusuri sa Camera" />
-                    <button
-                      onClick={() => setCameraScreeningOpen(true)}
-                      style={{
-                        padding: '8px 16px', borderRadius: 10, border: 'none',
-                        background: 'linear-gradient(135deg,#238B45,#176B35)',
-                        color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        boxShadow: '0 4px 14px rgba(35,139,69,0.3)',
-                      }}
-                    >
-                      <Camera size={14} /> Magsagawa ng Pagsusuri
-                    </button>
-                  </div>
-                  <StatRow label="Petsa" value={formatDate(latest.created_at)} />
-                  <StatRow label="Resulta" value={<span style={{ fontWeight: 700, color: predColor }}>{predLabel}</span>} />
-                  <StatRow label="Kalidad ng Litrato" value={`${latest.quality_score}/100`} />
-                  {latest.notes && <StatRow label="Mga Tala" value={latest.notes} />}
-                  <div style={{
-                    marginTop: 12, padding: '10px 12px',
-                    background: 'rgba(35,139,69,0.08)',
-                    border: '1px solid rgba(35,139,69,0.20)',
-                    borderRadius: 8, fontSize: 11, color: '#176B35', lineHeight: 1.6,
-                  }}>
-                    Ang camera screening ay paunang gabay lamang sa pagmamasid sa bukid at hindi opisyal na diagnosis ng beterinaryo.
-                  </div>
-                </GlassCard>
-              );
-            })()}
-
-            {/* If no screenings, show prompt */}
-            {animalScreenings.length === 0 && (
-              <GlassCard style={{ marginBottom: 16 }}>
-                <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                  <Camera size={36} color="var(--color-primary, #238B45)" style={{ marginBottom: 12, opacity: 0.7 }} />
-                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>
-                    No Camera Screenings Yet
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-                    Mag-screen ng kalusugan gamit ang camera ng cellphone o mag-upload ng litrato ni {animal.name}.
-                  </div>
-                  <button
-                    onClick={() => setCameraScreeningOpen(true)}
-                    style={{
-                      padding: '10px 24px', borderRadius: 12, border: 'none',
-                      background: 'linear-gradient(135deg,#238B45,#176B35)',
-                      color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer',
-                      display: 'inline-flex', alignItems: 'center', gap: 8,
-                      boxShadow: '0 6px 20px rgba(35,139,69,0.35)',
-                    }}
-                  >
-                    <Camera size={16} /> Start Camera Screening
-                  </button>
-                </div>
-              </GlassCard>
-            )}
-
-            {/* Screening history */}
+        {/* 7. ULAT TAB (WEIGHT HISTORY & ANIMAL SUMMARY REPORTS) */}
+        {tab === 'report' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* Weight Progression Chart & Full Weight Records (Preserved here without standalone main tab) */}
             <GlassCard>
-              <ScreeningHistoryPanel
-                animalId={animal.id}
-                animalName={animal.name}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+                <CardTitle icon={Scale} title="Kasaysayan ng Timbang (Weight History)" />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {animalWeights.length} naitalang timbang
+                </span>
+              </div>
+              {animalWeights.length === 0 ? (
+                <div className="empty-state">
+                  <div className="es-icon"><Scale size={24} /></div>
+                  <h4>Walang talaan ng timbang</h4>
+                  <p>Maaaring maglagay ng timbang tuwing nag-e-edit ng hayop o kapag nagtitimbang sa bukid.</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', padding: '4px 0' }}>
+                    <Line data={weightChartData} options={{
+                      responsive: true,
+                      plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(6,18,32,0.92)', bodyColor: '#fff', titleColor: '#238B45' } },
+                      scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-secondary)' as any } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-secondary)' as any } },
+                      },
+                    }} />
+                  </div>
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Petsa</th>
+                          <th>Timbang</th>
+                          <th>Pagbabago</th>
+                          <th>Dagdag bawat Araw</th>
+                          <th>Mga Tala</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...animalWeights].sort((a, b) => new Date(b.record_date).getTime() - new Date(a.record_date).getTime()).map((w) => {
+                          return (
+                            <tr key={w.id}>
+                              <td>{formatDate(w.record_date)}</td>
+                              <td><strong>{w.weight_kg} kg</strong></td>
+                              <td style={{ color: w.weight_change_kg !== null && w.weight_change_kg < 0 ? '#EF4444' : w.weight_change_kg !== null && w.weight_change_kg > 0 ? '#238B45' : 'inherit', fontWeight: 600 }}>
+                                {w.weight_change_kg !== null ? `${w.weight_change_kg > 0 ? '+' : ''}${w.weight_change_kg} kg` : '—'}
+                              </td>
+                              <td>{w.daily_gain_kg !== null ? `${w.daily_gain_kg} kg/day` : '—'}</td>
+                              <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{w.notes || '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </GlassCard>
+
+            {/* Summary Statistics of all Records */}
+            <GlassCard>
+              <CardTitle icon={ClipboardList} title="Buod ng mga Naitala sa Hayop" />
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 14,
+                marginBottom: 16,
+              }}>
+                <div style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Health Checks</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', marginTop: 4 }}>{animalHealth.length}</div>
+                </div>
+                <div style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Talaan ng Timbang</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: '#238B45', marginTop: 4 }}>{animalWeights.length}</div>
+                </div>
+                <div style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Bakuna</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', marginTop: 4 }}>{animalVaccinations.length}</div>
+                </div>
+                <div style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Nagamit na Gamot</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: '#DC2626', marginTop: 4 }}>{animalInventoryUsage.length}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Button variant="secondary" onClick={downloadQR} leftIcon={<Download size={15} />}>
+                  I-download ang QR Code
+                </Button>
+                <Button variant="secondary" onClick={printQR} leftIcon={<Printer size={15} />}>
+                  I-print ang QR Code
+                </Button>
+              </div>
             </GlassCard>
           </div>
         )}
@@ -1477,16 +1365,16 @@ export function AnimalProfilePage() {
         <ModalHeader title={`QR Code — ${animal.name}`} onClose={() => setQrOpen(false)} />
         <ModalBody>
           <div className="qr-display" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <QRCanvas value={`https://capstone-delta-jet.vercel.app/public/${animal.id}`} size={240} />
+            <QRCanvas value={`${window.location.origin}/public/${animal.id}`} size={240} />
             <div style={{ textAlign: 'center' }}>
               <p style={{ fontWeight: 800, fontSize: 16, margin: '0 0 2px' }}>{animal.name}</p>
               <p style={{ color: 'var(--color-primary, #238B45)', fontSize: 13, fontWeight: 600, margin: 0 }}>{animal.tag_id}</p>
-              <p style={{ color: 'var(--color-text-secondary, #64748B)', fontSize: 12, marginTop: 6 }}>Scan to view public animal profile</p>
+              <p style={{ color: 'var(--color-text-secondary, #64748B)', fontSize: 12, marginTop: 6 }}>I-scan gamit ang cellphone camera upang makita ang hayop</p>
             </div>
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="secondary" onClick={() => setQrOpen(false)}>Close</Button>
+          <Button variant="secondary" onClick={() => setQrOpen(false)}>Isara</Button>
           <Button variant="secondary" onClick={downloadQR} leftIcon={<Download size={15} />}>Download</Button>
           <Button variant="primary" onClick={printQR} leftIcon={<Printer size={15} />}>Print</Button>
         </ModalFooter>
@@ -1608,7 +1496,7 @@ export function AnimalProfilePage() {
         onCancel={() => setConfirmDelete(false)}
       />
 
-      {/* ── Camera Screening Modal ── */}
+      {/* ── Camera Screening Modal (Cleaned result, no technical scores) ── */}
       {cameraScreeningOpen && (
         <CameraScreeningModal
           animalId={animal.id}
@@ -1628,9 +1516,9 @@ export function AnimalProfilePage() {
               ? Math.round((Date.now() - new Date(animalHealth[0].record_date).getTime()) / 86400000)
               : undefined,
             recentIllnesses: animalHealth
-              .filter((r) => r.detected_conditions)
+              .filter((r) => (r as any).detected_conditions)
               .slice(0, 3)
-              .map((r) => r.detected_conditions!)
+              .map((r) => (r as any).detected_conditions!)
               .filter(Boolean),
             vaccinationStatus: animal.vaccination_status,
             ageMonths: animal.date_of_birth
@@ -1640,188 +1528,19 @@ export function AnimalProfilePage() {
             breedingStatus: animal.breeding_status,
           }}
           onClose={() => setCameraScreeningOpen(false)}
-          onSaved={() => { refreshScreenings(); setCameraScreeningOpen(false); }}
+          onSaved={() => { refreshScreenings(); farmData.refresh(); setCameraScreeningOpen(false); }}
         />
       )}
 
       {/* ── Administer Medicine / Inventory Modal ── */}
-      <Modal open={administerModalOpen} onClose={() => setAdministerModalOpen(false)} size="md">
-        <ModalHeader
-          title={`Bigyan ng Gamot / Gamit mula sa Imbentaryo (${animal.tag_id})`}
-          onClose={() => setAdministerModalOpen(false)}
-        />
-        <ModalBody>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <FormField label="Uri ng Paggamot (Usage Type)" required>
-                <Select
-                  value={administerUsageType}
-                  onChange={(e) => setAdministerUsageType(e.target.value as TreatmentUsageType)}
-                  options={[
-                    { value: 'Medication', label: 'Gamot (Medication)' },
-                    { value: 'Deworming', label: 'Purga (Deworming)' },
-                    { value: 'Supplement', label: 'Bitamina / Suplemento' },
-                    { value: 'Treatment', label: 'Iba pang Paggamot' },
-                  ]}
-                />
-              </FormField>
-
-              <FormField label="Katayuan ng Gamot (Status)" required>
-                <Select
-                  value={administerStatus}
-                  onChange={(e) => setAdministerStatus(e.target.value as TreatmentStatus)}
-                  options={[
-                    { value: 'Kasalukuyang Ginagamot', label: 'Kasalukuyang Ginagamot (Active)' },
-                    { value: 'Kailangan ng Gamot', label: 'Kailangan ng Gamot (Pending)' },
-                    { value: 'Tapos na ang Gamot', label: 'Tapos na ang Gamot (Completed)' },
-                    { value: 'Hindi pa Nabibigyan', label: 'Hindi pa Nabibigyan' },
-                    { value: 'Bantayan', label: 'Bantayan (Monitor)' },
-                  ]}
-                />
-              </FormField>
-            </div>
-
-            <FormField label="Pumili ng Gamot mula sa Imbentaryo" required>
-              <select
-                className="form-select"
-                value={administerItemId}
-                onChange={(e) => setAdministerItemId(e.target.value)}
-              >
-                <option value="">-- Piliin ang Item mula sa Imbentaryo --</option>
-                {farmData.inventory
-                  .filter((i) =>
-                    administerUsageType === 'Deworming'
-                      ? isDewormerCategory(i.category) || isMedicineCategory(i.category)
-                      : isMedicineCategory(i.category) || isSupplementCategory(i.category) || i.category === 'Supplies'
-                  )
-                  .map((i) => (
-                    <option key={i.id} value={i.id} disabled={Number(i.quantity) <= 0 || (!!i.expiry_date && isItemExpired(i.expiry_date))}>
-                      {i.name} ({i.category}) — Available: {i.quantity} {i.unit}
-                      {Number(i.quantity) <= 0 ? ' (Out of stock)' : ''}
-                      {i.expiry_date && isItemExpired(i.expiry_date) ? ' (Expired)' : ''}
-                    </option>
-                  ))}
-              </select>
-            </FormField>
-
-            {administerItemId && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: 12,
-                  background: 'var(--surface-light, rgba(255,255,255,0.05))',
-                  border: '1px solid var(--border)',
-                  fontSize: 13,
-                }}
-              >
-                {(() => {
-                  const sel = farmData.inventory.find((i) => i.id === administerItemId);
-                  if (!sel) return null;
-                  const expired = sel.expiry_date && isItemExpired(sel.expiry_date);
-                  return (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>
-                        Kasalukuyang stock: <strong style={{ color: expired ? '#EF4444' : '#238B45' }}>{sel.quantity} {sel.unit}</strong>
-                      </span>
-                      {sel.expiry_date && (
-                        <span style={{ color: expired ? '#EF4444' : 'var(--text-secondary)' }}>
-                          Expiry: {formatDate(sel.expiry_date)} {expired && '(Expired)'}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <FormField label="Dami na Ibabawas sa Stock (Qty)" required>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={administerQty}
-                  onChange={(e) => setAdministerQty(e.target.value)}
-                  placeholder="Hal. 2"
-                />
-              </FormField>
-
-              <FormField label="Dosis (Dosage Text)">
-                <Input
-                  value={administerDosage}
-                  onChange={(e) => setAdministerDosage(e.target.value)}
-                  placeholder="Hal. 2 ml subcutaneous, 1 tablet"
-                />
-              </FormField>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <FormField label="Dalas (Frequency)">
-                <Select
-                  value={administerFrequency}
-                  onChange={(e) => setAdministerFrequency(e.target.value)}
-                  options={[
-                    { value: 'Once only', label: 'Isang beses lang' },
-                    { value: 'Once daily', label: 'Kada araw (Once daily)' },
-                    { value: 'Twice daily', label: 'Dalawang beses kada araw (Twice daily)' },
-                    { value: 'Every 3 days', label: 'Kada 3 araw' },
-                    { value: 'Weekly', label: 'Kada linggo (Weekly)' },
-                  ]}
-                />
-              </FormField>
-
-              <FormField label="Dahilan / Karamdaman" required>
-                <Input
-                  value={administerReason}
-                  onChange={(e) => setAdministerReason(e.target.value)}
-                  placeholder="Hal. Lagnat, Ubo, Bulate, Bitamina"
-                />
-              </FormField>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <FormField label="Petsa ng Simula (Start Date)" required>
-                <Input
-                  type="date"
-                  value={administerStartDate}
-                  onChange={(e) => setAdministerStartDate(e.target.value)}
-                />
-              </FormField>
-
-              <FormField label="Petsa ng Pagtatapos (End Date / Duration)">
-                <Input
-                  type="date"
-                  value={administerEndDate}
-                  onChange={(e) => setAdministerEndDate(e.target.value)}
-                />
-              </FormField>
-            </div>
-
-            <FormField label="Karagdagang Tala (Notes)">
-              <textarea
-                className="form-textarea"
-                value={administerNotes}
-                onChange={(e) => setAdministerNotes(e.target.value)}
-                placeholder="Hal. Ibinigay matapos kumain. Bantayan kung may reaksyon..."
-                style={{ minHeight: 70 }}
-              />
-            </FormField>
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="secondary" onClick={() => setAdministerModalOpen(false)}>
-            Kanselahin
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleAdministerInventory}
-            loading={administerSaving}
-            leftIcon={<Package size={14} />}
-          >
-            Itala at Bawasan ang Imbentaryo
-          </Button>
-        </ModalFooter>
-      </Modal>
+      <MedicationTreatmentModal
+        open={administerModalOpen}
+        onClose={() => setAdministerModalOpen(false)}
+        preselectedAnimalId={animal.id}
+        onSuccess={() => {
+          farmData.refresh();
+        }}
+      />
     </>
   );
 }
@@ -1829,11 +1548,11 @@ export function AnimalProfilePage() {
 // ─── Action Button ─────────────────────────────────────────────────────────────
 function ActionBtn({ icon, label, onClick, variant }: {
   icon: React.ReactNode; label: string; onClick: () => void;
-  variant: 'neutral' | 'orange' | 'red';
+  variant: 'neutral' | 'green' | 'red';
 }) {
   const colors = {
     neutral: { base: 'var(--surface)', border: 'var(--border)', text: 'var(--text-secondary)', hover: 'var(--surface-hover)' },
-    orange: { base: '#EAF6ED', border: 'rgba(35,139,69,0.35)', text: '#176B35', hover: '#DDF0E2' },
+    green: { base: '#EAF6ED', border: 'rgba(35,139,69,0.35)', text: '#176B35', hover: '#DDF0E2' },
     red: { base: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.30)', text: '#EF4444', hover: 'rgba(239,68,68,0.20)' },
   }[variant];
 

@@ -211,6 +211,10 @@ export function computeVeterinaryAssessment(
   observations: string[];
   explanation: string;
   recommendedActions: string[];
+  estimatedTemperature: number | null;
+  temperatureStatus: 'normal' | 'mild_elevation' | 'fever' | 'hypothermia' | null;
+  temperatureConfidence: number;
+  thermalIndicators: string[];
 } {
   const observations: string[] = [];
   const possibleConditions: string[] = [];
@@ -406,12 +410,12 @@ export function computeVeterinaryAssessment(
         'Perform regular bi-weekly weight checks to monitor growth.',
         'Keep housing pen dry, clean, and well-ventilated.',
       ],
-      estimatedTemperature: farmContext?.temperature ?? 39.1,
-      temperatureStatus: 'normal' as const,
-      temperatureConfidence: 0.88,
+      estimatedTemperature: farmContext?.temperature ?? null,
+      temperatureStatus: farmContext?.temperature ? ('normal' as const) : null,
+      temperatureConfidence: farmContext?.temperature ? 0.88 : 0,
       thermalIndicators: [
-        'Normal muzzle moisture with no oral or nasal discharge',
-        'Alert eye carriage and upright ear posture',
+        'Normal visual observation sa balat at postura ng hayop',
+        'Walang thermal sensor — temperatura ay hindi nasukat',
       ],
     };
   }
@@ -493,8 +497,8 @@ export function computeVeterinaryAssessment(
   }
 
   const hasFeverSymptoms = possibleConditions.some((c) => c.includes('Pneumonia') || c.includes('Respiratory') || c.includes('Enteritis'));
-  const calculatedTemp = farmContext?.temperature ?? (hasFeverSymptoms ? 40.6 : (finalRiskScore > 40 ? 40.1 : 39.2));
-  const calcTempStatus = calculatedTemp >= 40.5 ? 'fever' : calculatedTemp >= 39.8 ? 'mild_elevation' : calculatedTemp < 38.0 ? 'hypothermia' : 'normal';
+  const calculatedTemp = farmContext?.temperature ?? null;
+  const calcTempStatus = calculatedTemp ? (calculatedTemp >= 40.5 ? 'fever' : calculatedTemp >= 39.8 ? 'mild_elevation' : calculatedTemp < 38.0 ? 'hypothermia' : 'normal') : null;
 
   return {
     healthRisk,
@@ -505,9 +509,9 @@ export function computeVeterinaryAssessment(
     recommendedActions,
     estimatedTemperature: calculatedTemp,
     temperatureStatus: calcTempStatus,
-    temperatureConfidence: 0.84,
+    temperatureConfidence: calculatedTemp ? 0.84 : 0,
     thermalIndicators: [
-      hasFeverSymptoms ? 'Posibleng init o lagnat dulot ng respiratory/systemic condition' : 'Normal na thermal observation sa balat at katawan',
+      hasFeverSymptoms ? 'May napansing sintomas ng panghihina o hirap huminga (Kailangan ng thermometer)' : 'Visual screening lamang — walang physical thermometer reading',
     ],
   };
 }
@@ -556,15 +560,15 @@ Return ONLY a strict JSON object:
   "animalType": "Goat" | "Sheep" | "Other",
   "nonTargetClass": string or null,
   "detectionConfidence": number between 0 and 1,
-  "estimatedTemperature": number (Celsius with 1 decimal, or null if animalDetected is false),
-  "temperatureStatus": "normal" | "mild_elevation" | "fever" | "hypothermia" | null,
-  "temperatureConfidence": number between 0 and 1,
-  "thermalIndicators": [ "indicator 1", "indicator 2" ],
+  "estimatedTemperature": null,
+  "temperatureStatus": null,
+  "temperatureConfidence": 0,
+  "thermalIndicators": [ "Walang thermal sensor — temperatura ay hindi nasukat" ],
   "healthRisk": "low" | "moderate" | "high" | "critical",
   "riskScore": number between 0 and 100,
   "possibleConditions": [ "condition 1" ],
   "observations": [ "clinical observation 1 in Tagalog/English" ],
-  "explanation": "Summary in Tagalog for Filipino farmers explaining the estimated temperature and overall health status.",
+  "explanation": "Summary in Tagalog for Filipino farmers explaining the visual health status (note: temperature is not measured without thermal hardware).",
   "recommendedActions": [ "Action 1", "Action 2" ]
 }`;
 
@@ -609,21 +613,20 @@ Return ONLY a strict JSON object:
         if (candidateText) {
           const cleanedText = candidateText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
           const r = JSON.parse(cleanedText);
+          const hasPhysicalTemp = farmContext?.temperature !== undefined && farmContext?.temperature !== null;
           return {
             animalDetected: Boolean(r.animalDetected),
             animalType: r.animalType || (requestedSpecies === 'Sheep' ? 'Sheep' : 'Goat'),
             nonTargetClass: r.nonTargetClass || null,
             detectionConfidence: Number(r.detectionConfidence) || 0.92,
-            estimatedTemperature: r.estimatedTemperature !== null && r.estimatedTemperature !== undefined
-              ? Number(r.estimatedTemperature)
-              : null,
-            temperatureStatus: r.temperatureStatus || (r.estimatedTemperature ? (
-              r.estimatedTemperature > 40.4 ? 'fever' :
-              r.estimatedTemperature >= 39.8 ? 'mild_elevation' :
-              r.estimatedTemperature < 38.0 ? 'hypothermia' : 'normal'
-            ) : null),
-            temperatureConfidence: Number(r.temperatureConfidence) || 0.88,
-            thermalIndicators: Array.isArray(r.thermalIndicators) ? r.thermalIndicators : [],
+            estimatedTemperature: hasPhysicalTemp ? Number(farmContext!.temperature) : null,
+            temperatureStatus: hasPhysicalTemp ? (
+              Number(farmContext!.temperature) > 40.4 ? 'fever' :
+              Number(farmContext!.temperature) >= 39.8 ? 'mild_elevation' :
+              Number(farmContext!.temperature) < 38.0 ? 'hypothermia' : 'normal'
+            ) : null,
+            temperatureConfidence: hasPhysicalTemp ? 0.9 : 0,
+            thermalIndicators: hasPhysicalTemp ? ['Sensor reading: ' + farmContext!.temperature + '°C'] : ['Walang thermometer sensor (Hindi nasukat)'],
             healthRisk: r.healthRisk || 'low',
             riskScore: Number(r.riskScore) || 12,
             possibleConditions: Array.isArray(r.possibleConditions) ? r.possibleConditions : ['Normal Clinical Appearance'],

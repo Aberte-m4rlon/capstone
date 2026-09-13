@@ -10,6 +10,7 @@
  */
 
 import { supabase } from './supabase';
+import { notificationService } from './notificationService';
 import type { Animal, AnimalSale, PaymentStatus } from '../types';
 
 export interface RecordSaleInput {
@@ -259,6 +260,23 @@ export async function recordAnimalSale(
     if (animalUpdateErr) {
       console.warn('Failed to update animal archived status in Supabase:', animalUpdateErr.message);
     }
+
+    // 4. Dispatch Sales Notification (In-App + SMS + Email) asynchronously
+    notificationService
+      .dispatchNotification({
+        userId,
+        type: 'Sales',
+        title: `Naibenta ang Hayop: ${animal.name} (${animal.tag_id})`,
+        message: `Naitala ang pagbebenta kay ${buyerName || 'Bumibili'}: ₱${sellingPrice.toLocaleString()} (${soldWeight}kg, Bayad: ₱${amountReceived.toLocaleString()}).`,
+        priority: 'Normal',
+        severity: 'normal',
+        link: '/sales',
+        animalId: animal.id,
+        relatedType: 'sale',
+        relatedId: saleRecord.id,
+        eventKey: `sale_${saleRecord.id}`,
+      })
+      .catch((nErr) => console.warn('Could not dispatch sale notification:', nErr));
 
     return { success: true, sale: saleRecord };
   } catch (err: any) {

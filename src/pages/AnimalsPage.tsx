@@ -109,20 +109,23 @@ export function AnimalsPage() {
     };
   }, [farmData.animals]);
 
-  const openAdd = () => {
-    const nextId = generateNextAnimalId('Goat', farmData.animals);
+  const openAdd = (prefSpecies?: Species | unknown) => {
+    const targetSpecies: Species = (typeof prefSpecies === 'string' && (prefSpecies === 'Goat' || prefSpecies === 'Sheep'))
+      ? prefSpecies
+      : 'Goat';
+    const nextId = generateNextAnimalId(targetSpecies, farmData.animals);
     setEditing(null);
     setForm({
       ...emptyForm,
-      species: 'Goat',
+      species: targetSpecies,
       tag_id: nextId,
     });
     setErrors({});
     setModalOpen(true);
 
     // Verify against database for newest sequential index
-    fetchNextUniqueAnimalId('Goat', user?.id).then((freshId) => {
-      setForm((prev) => (prev.species === 'Goat' ? { ...prev, tag_id: freshId } : prev));
+    fetchNextUniqueAnimalId(targetSpecies, user?.id).then((freshId) => {
+      setForm((prev) => (prev.species === targetSpecies ? { ...prev, tag_id: freshId } : prev));
     }).catch(() => {});
   };
 
@@ -130,7 +133,9 @@ export function AnimalsPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('action') === 'add') {
-      openAdd();
+      const qSpecies = params.get('species');
+      const targetSpecies: Species = (qSpecies && qSpecies.toLowerCase() === 'sheep') ? 'Sheep' : 'Goat';
+      openAdd(targetSpecies);
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);

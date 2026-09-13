@@ -7,30 +7,14 @@ import { Camera, KeyRound, Eye, EyeOff, User, Phone, Mail, MapPin, Building2, Sh
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, FormField } from '../components/ui/Input';
-import { getStoredGeminiApiKey, saveGeminiApiKey } from '../lib/geminiScanner';
 import { InstallButton } from '../components/pwa';
+import { NotificationPreferencesCard } from '../components/domain/notifications/NotificationPreferencesCard';
 
 export function SettingsPage() {
   const farmData = useFarmData();
   const { user, profile } = useAuth();
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // Gemini API Key state
-  const [geminiKey, setGeminiKey] = useState('');
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [geminiKeySaved, setGeminiKeySaved] = useState(false);
-
-  useEffect(() => {
-    setGeminiKey(getStoredGeminiApiKey() || '');
-  }, []);
-
-  const handleSaveGeminiKey = () => {
-    saveGeminiApiKey(geminiKey);
-    setGeminiKeySaved(true);
-    toast('Nai-save ang Gemini API Key.', 'success');
-    setTimeout(() => setGeminiKeySaved(false), 3000);
-  };
 
   // Profile state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -399,55 +383,39 @@ export function SettingsPage() {
         </div>
       </Card>
 
+      {/* ── MGA KAGUSTUHAN SA NOTIFICATION (IN-APP, SMS, EMAIL) ── */}
+      <NotificationPreferencesCard contactPhone={contactNumber} />
+
       {/* ── GOOGLE GEMINI AI CONFIGURATION ── */}
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(35, 139, 69, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bot size={18} color="#238B45" />
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(35, 139, 69, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bot size={20} color="#238B45" />
             </div>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>Google Gemini AI Thermal & Temperature Scanner</div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>Google Gemini Multimodal Vision AI</div>
+              <div style={{ fontSize: 11, color: '#64748B' }}>Smart Goat & Sheep Detection and Health Screening</div>
+            </div>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: geminiKey ? '#E8F5E9' : '#F1F5F9', color: geminiKey ? '#2E7D32' : '#64748B', border: `1px solid ${geminiKey ? '#C8E6C9' : '#CBD5E1'}` }}>
-            {geminiKey ? 'Custom Key: Aktibo' : 'System Cloud Vision: Aktibo'}
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: '#E8F5E9', color: '#2E7D32', border: '1px solid #C8E6C9', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <ShieldCheck size={14} />
+            Ligtas na Naka-configure sa Server
           </span>
         </div>
         <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14, lineHeight: 1.5 }}>
-          Ginagamit ang Google Gemini 2.0 Flash Multimodal Vision API upang suriin ang temperatura ng katawan, mag-detect ng lagnat, at mag-screen ng mga visual symptoms ng kambing at tupa nang direkta mula sa camera scan o larawan.
+          Ginagamit ng AlpasFarm ang Google Gemini Multimodal Vision para sa real-time na pagtukoy sa kambing at tupa, pag-detect ng maraming hayop sa iisang kuha, at pag-screen ng mga visual signs sa kalusugan (tulad ng sipon, sugat, at pangangatawan).
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <FormField label="Gemini API Key (Opsyonal — kung may sariling Google AI Studio key)">
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <Input
-                  type={showGeminiKey ? 'text' : 'password'}
-                  placeholder="AIzaSy..."
-                  value={geminiKey}
-                  onChange={(e) => setGeminiKey(e.target.value)}
-                  style={{ paddingRight: 40 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowGeminiKey(!showGeminiKey)}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
-                >
-                  {showGeminiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              <Button
-                variant={geminiKeySaved ? 'secondary' : 'primary'}
-                onClick={handleSaveGeminiKey}
-                style={{ flexShrink: 0 }}
-              >
-                {geminiKeySaved ? <Check size={16} /> : <KeyRound size={16} />}
-                <span style={{ marginLeft: 6 }}>{geminiKeySaved ? 'Nai-save' : 'I-save ang Key'}</span>
-              </Button>
-            </div>
-          </FormField>
-          <div style={{ fontSize: 11, color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, lineHeight: 1.4 }}>
-            <Sparkles size={13} color="#238B45" style={{ flexShrink: 0 }} />
-            <span>Kumuha ng libreng API key sa <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: '#238B45', fontWeight: 700, textDecoration: 'underline' }}>Google AI Studio</a>. Kung walang custom key, gagamitin ang standard system endpoint.</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(255, 255, 255, 0.65)', border: '1px solid rgba(0, 0, 0, 0.06)', borderRadius: 10, padding: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Sparkles size={14} color="#238B45" />
+            Protektadong AI Architecture & Privacy
+          </div>
+          <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div>• <strong>Ligtas na API Key:</strong> Ang <code>GEMINI_API_KEY</code> ay ligtas na nakalagay sa server environment (<code>.env</code>) at hindi kailanman inilalantad sa browser.</div>
+            <div>• <strong>Zero Fake Temperature:</strong> Alinsunod sa tamang pamantayang medikal, hindi nag-iimbento ang AI ng pekeng temperatura mula sa litrato. Tanging pisikal na thermometer lamang ang sumusukat ng totoong temperatura.</div>
+            <div>• <strong>Single Frame AI:</strong> Hindi nag-i-stream ng tuloy-tuloy na video sa AI; kusa lamang nagpapadala ng isang naka-compress na litrato kapag pinindot ang scan o matatag ang camera.</div>
           </div>
         </div>
       </Card>

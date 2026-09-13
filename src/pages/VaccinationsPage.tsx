@@ -287,7 +287,8 @@ export function VaccinationsPage() {
           `${animal.name} — Lampas na sa schedule ng bakuna`,
           `${vaccName} ay dapat noong ${form.next_due_date}`,
           'Critical',
-          '/vaccinations'
+          '/vaccinations',
+          `vacc_overdue_${form.animal_id}_${form.next_due_date}`
         );
       } else if (vaccStatus === 'Due Soon') {
         const days = form.next_due_date ? daysUntil(form.next_due_date) : null;
@@ -297,7 +298,8 @@ export function VaccinationsPage() {
           `${animal.name} — Bakuna sa loob ng ${days} araw`,
           `${vaccName} schedule sa ${form.next_due_date}`,
           'Warning',
-          '/vaccinations'
+          '/vaccinations',
+          `vacc_duesoon_${form.animal_id}_${form.next_due_date}`
         );
       }
 

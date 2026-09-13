@@ -1738,7 +1738,7 @@ export function InventoryPage() {
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <div className="modal-form-grid-2">
               <FormField label="Pangalan ng Gamit / Item Name" required error={errors.name}>
                 <Input
                   value={form.name}
@@ -1752,11 +1752,11 @@ export function InventoryPage() {
                   value={form.category}
                   onChange={(e) => setForm({ ...form, category: e.target.value as InventoryCategory })}
                   options={[
-                    { value: 'Feed', label: 'Reserbang Pakain (Feed)' },
                     { value: 'Medicine', label: 'Gamot (Medicine)' },
                     { value: 'Vaccines', label: 'Bakuna (Vaccines)' },
                     { value: 'Vitamins', label: 'Bitamina (Vitamins)' },
                     { value: 'Supplements', label: 'Suplemento (Supplements)' },
+                    { value: 'Feed', label: 'Reserbang Pakain (Feed)' },
                     { value: 'Supplies', label: 'Mga Gamit (Supplies)' },
                     { value: 'Equipment', label: 'Kagamitan (Equipment)' },
                     { value: 'Tools', label: 'Kasangkapan (Tools)' },
@@ -1766,7 +1766,7 @@ export function InventoryPage() {
               </FormField>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+            <div className="modal-form-grid-2">
               <FormField label="Dami / Quantity" required error={errors.quantity}>
                 <Input
                   type="number"
@@ -1777,14 +1777,16 @@ export function InventoryPage() {
                 />
               </FormField>
 
-              <FormField label="Yunit (kg, bote, piraso, sako)">
+              <FormField label="Yunit (ml, bote, piraso, kg, sako)">
                 <Input
                   value={form.unit}
                   onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                  placeholder="kg"
+                  placeholder="Hal. ml, bote, dose, kg"
                 />
               </FormField>
+            </div>
 
+            <div className="modal-form-grid-2">
               <FormField label="Minimum Safe Stock">
                 <Input
                   type="number"
@@ -1794,9 +1796,19 @@ export function InventoryPage() {
                   placeholder="Hal. 10"
                 />
               </FormField>
+
+              <FormField label="Halaga bawat Yunit / Unit Cost (₱)">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.cost}
+                  onChange={(e) => setForm({ ...form, cost: e.target.value })}
+                  placeholder="Hal. 120"
+                />
+              </FormField>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <div className="modal-form-grid-2">
               <FormField label="Petsa ng Pagbili (Purchase Date)">
                 <Input
                   type="date"
@@ -1814,25 +1826,13 @@ export function InventoryPage() {
               </FormField>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-              <FormField label="Supplier o Tindahan">
-                <Input
-                  value={form.supplier}
-                  onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-                  placeholder="Hal. Agrivet Supplies"
-                />
-              </FormField>
-
-              <FormField label="Halaga bawat Yunit / Unit Cost (₱)">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.cost}
-                  onChange={(e) => setForm({ ...form, cost: e.target.value })}
-                  placeholder="Hal. 120"
-                />
-              </FormField>
-            </div>
+            <FormField label="Supplier o Tindahan">
+              <Input
+                value={form.supplier}
+                onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                placeholder="Hal. Agrivet Supplies"
+              />
+            </FormField>
 
             <FormField label="Mga Tala / Notes">
               <textarea

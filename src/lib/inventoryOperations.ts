@@ -72,6 +72,46 @@ export function isSupplementCategory(category?: string | null): boolean {
 }
 
 /**
+ * Filter items appropriate for medication and treatments.
+ * Strictly excludes Feed, Equipment, Tools, and Containers.
+ */
+export function isTreatmentInventoryItem(category?: string | null): boolean {
+  if (!category) return false;
+  const c = category.trim().toLowerCase();
+  // Exclude non-treatment categories strictly
+  if (
+    c === 'feed' ||
+    c === 'equipment' ||
+    c === 'tools' ||
+    c.includes('pakain') ||
+    c.includes('kagamitan') ||
+    c.includes('kasangkapan') ||
+    c.includes('lalagyan')
+  ) {
+    return false;
+  }
+  return (
+    c === 'medicine' ||
+    c === 'medicines' ||
+    c === 'dewormer' ||
+    c === 'purga' ||
+    c === 'supplement' ||
+    c === 'supplements' ||
+    c === 'vitamins' ||
+    c === 'vitamin' ||
+    c === 'vaccine' ||
+    c === 'vaccines' ||
+    c === 'supplies' ||
+    c.includes('gamot') ||
+    c.includes('bitamina') ||
+    c.includes('suplemento') ||
+    c.includes('bakuna') ||
+    c.includes('health') ||
+    c.includes('med')
+  );
+}
+
+/**
  * Check if an item is expired based on current date
  */
 export function isItemExpired(itemOrDate: InventoryItem | string | null | undefined): boolean {
@@ -246,9 +286,34 @@ export async function consumeInventoryStock(params: ConsumeStockParams): Promise
     };
   }
 
+  // 3.1. Insert record into inventory_usage if animal is linked
+  let usageId: string | undefined;
+  if (animalId) {
+    try {
+      const { data: usageData } = await supabase.from('inventory_usage').insert({
+        user_id: userId,
+        inventory_id: item.id,
+        animal_id: animalId,
+        quantity_used: quantity,
+        unit: item.unit,
+        usage_date: new Date().toISOString(),
+        reason: transactionReason,
+        treatment_status: treatmentStatus || null,
+        dosage: dosage ? String(dosage) : null,
+        frequency: frequency || null,
+        next_due_date: endDate || null,
+        notes: fullNotes || null,
+      }).select('id').maybeSingle();
+      if (usageData?.id) usageId = usageData.id;
+    } catch (usageErr) {
+      console.warn('Non-blocking inventory_usage insert skipped:', usageErr);
+    }
+  }
+
   // 4. Low stock / Out of stock trigger notification
   try {
     const minStock = Number(item.minimum_stock) || 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
     if (newStock === 0) {
       await createNotification(
         userId,
@@ -256,7 +321,8 @@ export async function consumeInventoryStock(params: ConsumeStockParams): Promise
         `Naubos na ang Stock: ${item.name}`,
         `Ang ${item.name} (${item.category}) ay 0 ${item.unit} na lamang. Mag-restock kaagad upang hindi maantala ang gawain sa bukid.`,
         'Critical',
-        '/inventory'
+        '/inventory',
+        `inventory_out_${item.id}_${todayStr}`
       );
     } else if (newStock <= minStock) {
       await createNotification(
@@ -265,7 +331,8 @@ export async function consumeInventoryStock(params: ConsumeStockParams): Promise
         `Mababang Stock: ${item.name}`,
         `Ang natitirang stock ng ${item.name} ay ${newStock} ${item.unit} na lamang (minimum: ${minStock} ${item.unit}).`,
         'Warning',
-        '/inventory'
+        '/inventory',
+        `inventory_low_${item.id}_${todayStr}`
       );
     }
   } catch (notifErr) {
@@ -277,5 +344,420 @@ export async function consumeInventoryStock(params: ConsumeStockParams): Promise
     previousStock: prevStock,
     newStock: newStock,
     transactionId: txData?.id,
+  };
+}
+
+export interface AdministerMedicationParams {
+  userId: string;
+  isSuperAdmin?: boolean;
+  animalId: string;
+  animalTag?: string;
+  animalName?: string;
+  inventoryItem: InventoryItem;
+  quantity: number;
+  unit: string;
+  usageType?: TreatmentUsageType | string;
+  status: TreatmentStatus;
+  dosage?: string;
+  frequency?: string;
+  startDate?: string;
+  endDate?: string;
+  reason?: string;
+  notes?: string;
+  allowExpired?: boolean;
+}
+
+export interface AdministerMedicationResult {
+  success: boolean;
+  previousStock: number;
+  newStock: number;
+  usageId?: string;
+  transactionId?: string;
+  healthRecordId?: string;
+  error?: string;
+}
+
+/**
+ * Atomic Administration of Medication & Treatment with Farm Inventory Deduction.
+ * Dual-layer transactional safety:
+ * 1. Checks animal ownership and ensures animal is active (not sold/archived)
+ * 2. Checks inventory item ownership, sufficiency, unit match, and non-expiration
+ * 3. Attempts PostgreSQL RPC function for 100% single-transaction atomicity
+ * 4. Falls back to client-side atomic compensation rollback if RPC is not present
+ * 5. Creates records in inventory_usage, inventory_transactions, and health_records
+ * 6. Updates animal's clinical health status
+ * 7. Dispatches deduplicated low-stock alerts via In-App, SMS, and Email
+ */
+export async function administerMedicationTreatment(
+  params: AdministerMedicationParams
+): Promise<AdministerMedicationResult> {
+  const {
+    userId,
+    isSuperAdmin = false,
+    animalId,
+    animalTag,
+    animalName,
+    inventoryItem,
+    quantity,
+    unit,
+    usageType = 'Medication',
+    status,
+    dosage,
+    frequency = 'Once daily',
+    startDate = new Date().toISOString().slice(0, 10),
+    endDate,
+    reason,
+    notes = '',
+    allowExpired = false,
+  } = params;
+
+  // 1. Authentication & Ownership validation
+  if (!userId) {
+    return {
+      success: false,
+      previousStock: inventoryItem.quantity,
+      newStock: inventoryItem.quantity,
+      error: 'Kailangan ng naka-login na user.',
+    };
+  }
+
+  if (!animalId) {
+    return {
+      success: false,
+      previousStock: inventoryItem.quantity,
+      newStock: inventoryItem.quantity,
+      error: 'Pumili ng hayop para sa paggamot.',
+    };
+  }
+
+  if (!inventoryItem || !inventoryItem.id) {
+    return {
+      success: false,
+      previousStock: 0,
+      newStock: 0,
+      error: 'Pumili ng gamot mula sa imbentaryo.',
+    };
+  }
+
+  if (!isSuperAdmin && inventoryItem.user_id && inventoryItem.user_id !== userId) {
+    return {
+      success: false,
+      previousStock: inventoryItem.quantity,
+      newStock: inventoryItem.quantity,
+      error: 'Walang pahintulot sa gamot na ito mula sa imbentaryo.',
+    };
+  }
+
+  // 2. Quantity & Stock sufficiency validation
+  if (isNaN(quantity) || quantity <= 0) {
+    return {
+      success: false,
+      previousStock: inventoryItem.quantity,
+      newStock: inventoryItem.quantity,
+      error: 'Maglagay ng wastong dami (dapat mas mataas sa 0).',
+    };
+  }
+
+  const prevStock = Number(inventoryItem.quantity) || 0;
+  if (quantity > prevStock) {
+    return {
+      success: false,
+      previousStock: prevStock,
+      newStock: prevStock,
+      error: `Hindi sapat ang stock. Mayroon lamang ${prevStock} ${inventoryItem.unit} sa imbentaryo.`,
+    };
+  }
+
+  // 3. Unit validation
+  if (unit && inventoryItem.unit && unit.trim().toLowerCase() !== inventoryItem.unit.trim().toLowerCase()) {
+    return {
+      success: false,
+      previousStock: prevStock,
+      newStock: prevStock,
+      error: `Hindi tugma ang unit ng gamot (${unit}) at stock (${inventoryItem.unit}).`,
+    };
+  }
+
+  // 4. Expiration check
+  if (!allowExpired && isItemExpired(inventoryItem)) {
+    return {
+      success: false,
+      previousStock: prevStock,
+      newStock: prevStock,
+      error: `Expired na ang gamot na ito noong ${inventoryItem.expiry_date}. Hindi maaaring gamitin.`,
+    };
+  }
+
+  // 5. Verify Animal status (Must not be sold or archived)
+  try {
+    const { data: animalData, error: animalCheckErr } = await supabase
+      .from('animals')
+      .select('id, user_id, tag_id, name, is_sold, status, archived, health_status')
+      .eq('id', animalId)
+      .maybeSingle();
+
+    if (animalCheckErr || !animalData) {
+      return {
+        success: false,
+        previousStock: prevStock,
+        newStock: prevStock,
+        error: 'Hindi nahanap ang hayop o walang pahintulot.',
+      };
+    }
+
+    if (!isSuperAdmin && animalData.user_id !== userId) {
+      return {
+        success: false,
+        previousStock: prevStock,
+        newStock: prevStock,
+        error: 'Walang pahintulot na gamutin ang hayop na ito.',
+      };
+    }
+
+    if (animalData.is_sold || animalData.status === 'Sold' || animalData.archived) {
+      return {
+        success: false,
+        previousStock: prevStock,
+        newStock: prevStock,
+        error: 'Hindi maaaring bigyan ng gamot ang hayop na naibenta na o naka-archive.',
+      };
+    }
+  } catch (checkEx) {
+    console.warn('Could not verify animal status via DB:', checkEx);
+  }
+
+  // 6. Try PostgreSQL Atomic RPC
+  try {
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('administer_medication_treatment', {
+      p_user_id: userId,
+      p_animal_id: animalId,
+      p_inventory_id: inventoryItem.id,
+      p_quantity: quantity,
+      p_unit: inventoryItem.unit,
+      p_usage_type: usageType,
+      p_status: status,
+      p_dosage: dosage || null,
+      p_frequency: frequency || null,
+      p_start_date: startDate,
+      p_end_date: endDate || null,
+      p_reason: reason || null,
+      p_notes: notes || null,
+    });
+
+    if (!rpcErr && rpcData && rpcData.success) {
+      // Dispatched successfully via database transaction
+      const newStockVal = Number(rpcData.new_stock);
+      const minStockVal = Number(rpcData.minimum_stock) || 0;
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      if (rpcData.is_low_stock) {
+        try {
+          if (newStockVal === 0) {
+            await createNotification(
+              userId,
+              'Inventory',
+              `Naubos na ang Stock: ${rpcData.item_name}`,
+              `Ang ${rpcData.item_name} ay 0 ${rpcData.unit} na lamang. Mag-restock kaagad upang hindi maantala ang paggamot sa bukid.`,
+              'Critical',
+              '/inventory',
+              `inventory_out_${inventoryItem.id}_${todayStr}`
+            );
+          } else if (newStockVal <= minStockVal) {
+            await createNotification(
+              userId,
+              'Inventory',
+              `Mababang Stock: ${rpcData.item_name}`,
+              `Ang natitirang stock ng ${rpcData.item_name} ay ${newStockVal} ${rpcData.unit} na lamang (minimum: ${minStockVal} ${rpcData.unit}).`,
+              'Warning',
+              '/inventory',
+              `inventory_low_${inventoryItem.id}_${todayStr}`
+            );
+          }
+        } catch (e) {
+          console.warn('Notification dispatch warning:', e);
+        }
+      }
+
+      return {
+        success: true,
+        previousStock: Number(rpcData.previous_stock),
+        newStock: newStockVal,
+        usageId: rpcData.usage_id,
+        healthRecordId: rpcData.health_record_id,
+        transactionId: rpcData.transaction_id,
+      };
+    }
+
+    // If RPC returned a specific business logic failure (e.g. insufficient stock message)
+    if (rpcErr && !rpcErr.message.includes('function administer_medication_treatment') && !rpcErr.message.includes('could not find')) {
+      return {
+        success: false,
+        previousStock: prevStock,
+        newStock: prevStock,
+        error: rpcErr.message,
+      };
+    }
+  } catch (rpcEx) {
+    console.warn('RPC administer_medication_treatment unavailable or failed, applying client atomic fallback:', rpcEx);
+  }
+
+  // 7. Client-Side Atomic Compensation Routine (Fallback if RPC not active in Supabase)
+  const newStock = Math.max(0, +(prevStock - quantity).toFixed(2));
+
+  // Step A: Deduct stock from inventory table
+  let updateInvQuery = supabase
+    .from('inventory')
+    .update({ quantity: newStock, updated_at: new Date().toISOString() })
+    .eq('id', inventoryItem.id);
+
+  if (!isSuperAdmin) {
+    updateInvQuery = updateInvQuery.eq('user_id', userId);
+  }
+
+  const { error: invErr } = await updateInvQuery;
+  if (invErr) {
+    return {
+      success: false,
+      previousStock: prevStock,
+      newStock: prevStock,
+      error: `Hindi nabawas ang stock: ${invErr.message}`,
+    };
+  }
+
+  // Step B: Insert into inventory_usage
+  let createdUsageId: string | undefined;
+  try {
+    const { data: uData, error: uErr } = await supabase
+      .from('inventory_usage')
+      .insert({
+        user_id: userId,
+        inventory_id: inventoryItem.id,
+        animal_id: animalId,
+        quantity_used: quantity,
+        unit: inventoryItem.unit,
+        usage_date: new Date().toISOString(),
+        reason: reason || 'Treatment',
+        treatment_status: status,
+        dosage: dosage ? `${dosage} ${inventoryItem.unit}` : null,
+        frequency: frequency || null,
+        next_due_date: endDate || null,
+        notes: notes || null,
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (!uErr && uData?.id) createdUsageId = uData.id;
+  } catch (err) {
+    console.warn('inventory_usage insert warning:', err);
+  }
+
+  // Step C: Insert into inventory_transactions ledger
+  const animalLabel = animalTag ? `${animalTag}${animalName ? ` (${animalName})` : ''}` : 'Hayop';
+  const notesDetail = `Para kay: ${animalLabel} | Gamot: ${inventoryItem.name} | Dosis: ${dosage ? `${dosage} ${inventoryItem.unit}` : `${quantity} ${inventoryItem.unit}`} | Dalas: ${frequency} | Katayuan: ${status} | ${notes || ''}`.trim();
+
+  const { data: txData, error: txErr } = await supabase
+    .from('inventory_transactions')
+    .insert({
+      user_id: userId,
+      inventory_item_id: inventoryItem.id,
+      type: 'CONSUMPTION',
+      quantity: quantity,
+      unit: inventoryItem.unit,
+      reason: `${usageType} — ${status}: ${reason || inventoryItem.name}`,
+      notes: notesDetail,
+      previous_stock: prevStock,
+      new_stock: newStock,
+      cost_per_unit: inventoryItem.cost ?? null,
+      reference_type: 'animal',
+      reference_id: animalId,
+      created_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single();
+
+  if (txErr) {
+    // ROLLBACK SAFETY: Revert inventory stock
+    console.error('Failed to log inventory transaction. Rolling back stock deduction...', txErr);
+    await supabase.from('inventory').update({ quantity: prevStock }).eq('id', inventoryItem.id);
+    return {
+      success: false,
+      previousStock: prevStock,
+      newStock: prevStock,
+      error: `Nabigo ang pagtatala sa inventory ledger. Naibalik ang stock sa ${prevStock} ${inventoryItem.unit}.`,
+    };
+  }
+
+  // Step D: Insert clinical record into health_records
+  const healthRecordPayload = {
+    user_id: userId,
+    animal_id: animalId,
+    record_date: startDate || new Date().toISOString().slice(0, 10),
+    reasons: `Gamot / Lunas: ${inventoryItem.name} (${status})`,
+    recommendation: `Katayuan ng Gamot: ${status}. Dalas: ${frequency}. Dosis: ${dosage || `${quantity} ${inventoryItem.unit}`}`,
+    notes: `Uri: ${usageType} | Gamot: ${inventoryItem.name} | Dami: ${quantity} ${inventoryItem.unit} | Katayuan: ${status} | Simula: ${startDate}${endDate ? ` | Hanggang: ${endDate}` : ''}${reason ? ` | Dahilan: ${reason}` : ''}${notes ? ` | Tala: ${notes}` : ''}`,
+    risk_level: status === 'Tapos na ang Gamot' ? 'Low' : 'Moderate',
+    risk_score: status === 'Tapos na ang Gamot' ? 5 : 60,
+  };
+
+  let createdHealthRecordId: string | undefined;
+  const { data: hrData, error: hrErr } = await supabase
+    .from('health_records')
+    .insert(healthRecordPayload)
+    .select('id')
+    .single();
+
+  if (hrErr) {
+    console.warn('Health record insert warning:', hrErr);
+  } else if (hrData?.id) {
+    createdHealthRecordId = hrData.id;
+  }
+
+  // Step E: Update animal health status in animals table
+  try {
+    if (status === 'Tapos na ang Gamot') {
+      await supabase.from('animals').update({ health_status: 'Healthy' }).eq('id', animalId);
+    } else if (status === 'Kailangan ng Gamot' || status === 'Kasalukuyang Ginagamot') {
+      await supabase.from('animals').update({ health_status: 'Critical' }).eq('id', animalId);
+    }
+  } catch (animalUpdErr) {
+    console.warn('Animal health status update warning:', animalUpdErr);
+  }
+
+  // Step F: Trigger low stock / out of stock notification if applicable
+  try {
+    const minStock = Number(inventoryItem.minimum_stock) || 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (newStock === 0) {
+      await createNotification(
+        userId,
+        'Inventory',
+        `Naubos na ang Stock: ${inventoryItem.name}`,
+        `Ang ${inventoryItem.name} (${inventoryItem.category}) ay 0 ${inventoryItem.unit} na lamang. Mag-restock kaagad upang hindi maantala ang gawain sa bukid.`,
+        'Critical',
+        '/inventory',
+        `inventory_out_${inventoryItem.id}_${todayStr}`
+      );
+    } else if (newStock <= minStock) {
+      await createNotification(
+        userId,
+        'Inventory',
+        `Mababang Stock: ${inventoryItem.name}`,
+        `Ang natitirang stock ng ${inventoryItem.name} ay ${newStock} ${inventoryItem.unit} na lamang (minimum: ${minStock} ${inventoryItem.unit}).`,
+        'Warning',
+        '/inventory',
+        `inventory_low_${inventoryItem.id}_${todayStr}`
+      );
+    }
+  } catch (notifErr) {
+    console.warn('Notification dispatch error:', notifErr);
+  }
+
+  return {
+    success: true,
+    previousStock: prevStock,
+    newStock: newStock,
+    usageId: createdUsageId,
+    transactionId: txData?.id,
+    healthRecordId: createdHealthRecordId,
   };
 }

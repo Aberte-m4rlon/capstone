@@ -22,7 +22,7 @@ import {
   Zap, ShieldAlert, Activity, Check,
   Bot, SwitchCamera, X, Play,
   ArrowLeft, Settings, Image, Thermometer, Compass,
-  ChevronDown, ChevronUp, Eye, HeartPulse, Heart, Pill, Stethoscope
+  ChevronDown, ChevronUp, Eye, HeartPulse, Heart, Pill, Stethoscope, PlusCircle
 } from 'lucide-react';
 import { useAllScreenings, saveScreeningResult, type CameraScreening } from '../lib/useCameraScreenings';
 import { useFarmData } from '../lib/useFarmData';
@@ -554,8 +554,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
             const h = Math.max(30, (y2Norm - y1Norm) * H);
 
             const isSelected = selectedId ? a.id === selectedId : a.isSelected;
-            const strokeColor = isSelected ? '#43A047' : 'rgba(255, 255, 255, 0.85)';
-            const fillColor = isSelected ? 'rgba(67, 160, 71, 0.14)' : 'rgba(255, 255, 255, 0.06)';
+            const strokeColor = isSelected ? '#2E7D32' : '#43A047';
+            const fillColor = isSelected ? 'rgba(46, 125, 50, 0.16)' : 'rgba(67, 160, 71, 0.08)';
 
             // Fill bounding box
             ctx.fillStyle = fillColor;
@@ -563,13 +563,13 @@ What are the recommended early livestock interventions, supportive veterinary ca
 
             // Bounding box border
             ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = isSelected ? 2.5 : 1.5;
+            ctx.lineWidth = 2.5;
             ctx.strokeRect(x, y, w, h);
 
             // Sleek Corner Accents
             const cornerLen = Math.min(24, w * 0.25, h * 0.25);
-            ctx.strokeStyle = isSelected ? '#81C784' : '#FFFFFF';
-            ctx.lineWidth = 3.5;
+            ctx.strokeStyle = isSelected ? '#43A047' : '#81C784';
+            ctx.lineWidth = 3;
             ctx.lineCap = 'round';
 
             // Top-Left
@@ -612,9 +612,13 @@ What are the recommended early livestock interventions, supportive veterinary ca
               ctx.stroke();
             }
 
-            // High-legibility species label badge: KAMBING / TUPA
-            const speciesText = a.species.toLowerCase() === 'sheep' ? 'TUPA' : 'KAMBING';
-            const badgeText = speciesText;
+            // High-legibility professional species label badge: GOAT / SHEEP (GOAT #1, GOAT #2, SHEEP #1 if multiple)
+            const isSheep = a.species.toLowerCase() === 'sheep';
+            const isMulti = tracked.length > 1;
+            const animalIndex = tracked.indexOf(a) + 1;
+            const badgeText = isSheep
+              ? (isMulti ? `SHEEP #${animalIndex}` : 'SHEEP')
+              : (isMulti ? `GOAT #${animalIndex}` : 'GOAT');
 
             ctx.font = 'bold 12px Plus Jakarta Sans, Inter, system-ui, sans-serif';
             const textWidth = ctx.measureText(badgeText).width;
@@ -624,14 +628,14 @@ What are the recommended early livestock interventions, supportive veterinary ca
             const tagY = Math.max(tagH + 8, y - 8);
 
             // Badge Background
-            ctx.fillStyle = isSelected ? '#2E7D32' : 'rgba(15, 23, 42, 0.9)';
+            ctx.fillStyle = isSelected ? '#1B5E20' : '#2E7D32';
             ctx.beginPath();
-            ctx.roundRect(tagX, tagY - tagH, tagW, tagH, 8);
+            ctx.roundRect(tagX, tagY - tagH, tagW, tagH, 6);
             ctx.fill();
 
             // Badge Border
-            ctx.strokeStyle = isSelected ? '#43A047' : 'rgba(255, 255, 255, 0.25)';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#43A047';
+            ctx.lineWidth = 1.5;
             ctx.stroke();
 
             // Badge Text
@@ -988,7 +992,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                     marginTop: 6,
                   }}
                 >
-                  Pahintulutan ang Camera
+                  Buksan ang Camera
                 </button>
               </>
             )}
@@ -1014,7 +1018,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
                     marginTop: 6,
                   }}
                 >
-                  Subukan Ulit ang Camera
+                  Buksan ang Camera
                 </button>
               </>
             )}
@@ -2110,10 +2114,32 @@ function ScanResultCard({
   onRescan: () => void;
   onViewHistory?: () => void;
 }) {
+  const navigate = useNavigate();
   const [selectedMedId, setSelectedMedId] = useState('');
   const targetAnimal = animal;
   const targetName = animalName || targetAnimal?.name;
   const targetTag = animalTag || targetAnimal?.tag_id;
+
+  const handleCreateHealthRecord = () => {
+    const params = new URLSearchParams();
+    params.set('action', 'check');
+    params.set('species', species);
+    if (targetAnimal?.id) params.set('animalId', targetAnimal.id);
+    if (result.observations && result.observations.length > 0) {
+      params.set('obs', result.observations.join(', '));
+    }
+    if (result.possibleConditions && result.possibleConditions.length > 0) {
+      params.set('concerns', result.possibleConditions.join(', '));
+    }
+    if (result.recommendation) {
+      params.set('rec', result.recommendation);
+    }
+    navigate(`/health?${params.toString()}`);
+  };
+
+  const handleAddToAnimals = () => {
+    navigate(`/animals?action=add&species=${species}`);
+  };
 
   // Non-target fallback
   if (!result.goatDetected) {
@@ -2526,6 +2552,51 @@ function ScanResultCard({
             <span>{savedId ? 'Nai-save Na sa Talaan' : saving ? 'Sini-save...' : 'I-save ang Health Check'}</span>
           </button>
 
+          {/* Quick Integration Actions: Health Record & Animals Page */}
+          <div style={{ display: 'grid', gridTemplateColumns: targetAnimal ? '1fr' : '1fr 1fr', gap: 8 }}>
+            <button
+              onClick={handleCreateHealthRecord}
+              style={{
+                padding: '11px 12px',
+                borderRadius: 10,
+                border: '1.5px solid #238B45',
+                background: 'rgba(35, 139, 69, 0.08)',
+                color: '#1B5E20',
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              <HeartPulse size={14} color="#238B45" /> Gumawa ng Health Record
+            </button>
+
+            {!targetAnimal && (
+              <button
+                onClick={handleAddToAnimals}
+                style={{
+                  padding: '11px 12px',
+                  borderRadius: 10,
+                  border: '1.5px solid #2563EB',
+                  background: 'rgba(37, 99, 235, 0.08)',
+                  color: '#1D4ED8',
+                  fontWeight: 800,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                <PlusCircle size={14} color="#2563EB" /> Magdagdag sa Hayop
+              </button>
+            )}
+          </div>
+
           {/* Secondary Actions */}
           <div style={{ display: 'flex', gap: 8 }}>
             <button
@@ -2597,7 +2668,7 @@ function ScanResultCard({
           )}
         </div>
 
-        {/* Collapsible Detalye ng Pagsusuri (Hidden by default) */}
+        {/* Collapsible Detalye ng Pagsusuri (Hidden by default, farmer-friendly without raw ML numbers) */}
         <details
           style={{
             marginTop: 6,
@@ -2621,22 +2692,20 @@ function ScanResultCard({
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, color: 'var(--text-secondary, #4B5563)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Teknolohiya / Engine:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.detectionEngine || 'Google Gemini Vision AI'}</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>Google Gemini Vision AI</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Confidence:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.confidencePercent}%</span>
+              <span>Uri ng Hayop:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{species === 'sheep' ? 'Tupa (Sheep)' : 'Kambing (Goat)'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Internal Risk Score:</span>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{result.riskScore} / 100</span>
+              <span>Katayuan sa Kalusugan:</span>
+              <span style={{ fontWeight: 600, color: farmerStatus.badgeColor }}>{farmerStatus.label}</span>
             </div>
-            {finalCombined.technicalDetails && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Kalidad ng Larawan:</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2937)' }}>{finalCombined.technicalDetails.imageQualityScore} / 100</span>
-              </div>
-            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Pagsukat ng Temperatura:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-secondary, #6B7280)' }}>Hindi nasukat (walang thermal sensor)</span>
+            </div>
             <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 6, background: 'rgba(35, 139, 69, 0.08)', fontSize: 11, color: '#174B2A', lineHeight: 1.4 }}>
               <strong>Paunawa:</strong> Ang visual screening na ito ay gabay lamang para sa maagang pagmamasid at hindi pamalit sa opisyal na diagnosis ng lisensyadong beterinaryo.
             </div>

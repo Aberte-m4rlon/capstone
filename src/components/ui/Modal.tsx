@@ -21,7 +21,7 @@ export interface ModalProps {
   'aria-label'?: string;
 }
 
-// ── Body Scroll Lock ──────────────────────────────────────────────────────────
+// ── Body Scroll Lock & Modal State Tracking ────────────────────────────────
 function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
@@ -31,6 +31,9 @@ function useScrollLock(active: boolean) {
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
+    document.body.setAttribute('data-modal-open', 'true');
+
     if (scrollbarWidth > 0) {
       document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
@@ -38,6 +41,8 @@ function useScrollLock(active: boolean) {
     return () => {
       document.body.style.overflow = prevOverflow;
       document.body.style.paddingRight = prevPaddingRight;
+      document.body.classList.remove('modal-open');
+      document.body.removeAttribute('data-modal-open');
       window.scrollTo(0, scrollY);
     };
   }, [active]);
@@ -91,14 +96,15 @@ export function Modal({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(6, 18, 32, 0.75)',
+        background: 'rgba(6, 18, 32, 0.78)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
+        padding: 'max(8px, env(safe-area-inset-top, 8px)) max(8px, env(safe-area-inset-right, 8px)) max(8px, env(safe-area-inset-bottom, 8px)) max(8px, env(safe-area-inset-left, 8px))',
         animation: 'fadeIn 0.2s ease-out',
+        boxSizing: 'border-box',
       }}
     >
       <div
@@ -107,14 +113,15 @@ export function Modal({
         style={{
           width: '100%',
           maxWidth: getMaxWidth(),
-          maxHeight: 'min(90vh, calc(100dvh - 32px))',
+          maxHeight: 'min(92dvh, calc(100dvh - 16px))',
           background: 'var(--color-surface, #FFFFFF)',
           border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
-          borderRadius: 'var(--radius-2xl, 28px)',
-          boxShadow: 'var(--shadow-modal, 0 24px 64px rgba(15, 23, 42, 0.20))',
+          borderRadius: 'clamp(16px, 3.5vw, 24px)',
+          boxShadow: 'var(--shadow-modal, 0 24px 64px rgba(15, 23, 42, 0.25))',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          boxSizing: 'border-box',
           animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
@@ -162,17 +169,17 @@ export function ModalHeader({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '18px 24px',
+        padding: '14px 18px',
         borderBottom: '1px solid var(--color-border-light, rgba(226, 232, 240, 0.8))',
         position: 'sticky',
         top: 0,
         background: 'var(--color-surface, #FFFFFF)',
-        zIndex: 2,
+        zIndex: 10,
         ...style,
       }}
       {...props}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1, paddingRight: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1, paddingRight: 10 }}>
         {icon && (
           <div
             style={{
@@ -194,10 +201,11 @@ export function ModalHeader({
           <h3
             style={{
               margin: 0,
-              fontSize: '17px',
+              fontSize: '16px',
               fontWeight: 700,
               color: 'var(--color-text-primary, #1F2933)',
               letterSpacing: '-0.01em',
+              lineHeight: 1.3,
             }}
           >
             {displayTitle}
@@ -206,9 +214,9 @@ export function ModalHeader({
             <p
               style={{
                 margin: '2px 0 0 0',
-                fontSize: '12.5px',
+                fontSize: '12px',
                 color: 'var(--color-text-muted, #667085)',
-                lineHeight: 1.4,
+                lineHeight: 1.35,
               }}
             >
               {subtitle}
@@ -223,20 +231,23 @@ export function ModalHeader({
           onClick={onClose}
           aria-label="Close dialog"
           style={{
-            width: 32,
-            height: 32,
+            minWidth: 36,
+            minHeight: 36,
+            width: 36,
+            height: 36,
             borderRadius: 'var(--radius-sm, 10px)',
-            background: 'var(--color-surface, rgba(148, 163, 184, 0.1))',
+            background: 'var(--color-surface, rgba(148, 163, 184, 0.12))',
             border: 'none',
             color: 'var(--color-text-secondary, #475569)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
+            flexShrink: 0,
             transition: 'all 0.15s ease',
           }}
         >
-          <X size={16} />
+          <X size={18} />
         </button>
       )}
     </div>
@@ -254,9 +265,11 @@ export function ModalBody({
     <div
       className={`alpas-modal-body ${className}`}
       style={{
-        padding: '20px 24px',
+        padding: '16px 18px',
         overflowY: 'auto',
+        overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'contain',
         flex: 1,
         ...style,
       }}
@@ -282,12 +295,12 @@ export function ModalFooter({
         alignItems: 'center',
         justifyContent: 'flex-end',
         gap: '10px',
-        padding: '14px 24px',
+        padding: '12px 18px max(12px, env(safe-area-inset-bottom, 12px))',
         borderTop: '1px solid var(--color-border-light, rgba(226, 232, 240, 0.8))',
         background: 'var(--color-surface, #FFFFFF)',
         position: 'sticky',
         bottom: 0,
-        zIndex: 2,
+        zIndex: 10,
         ...style,
       }}
       {...props}

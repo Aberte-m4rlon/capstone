@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { notificationService } from './notificationService';
 import type {
   Animal,
   WeightRecord,
@@ -587,14 +588,17 @@ export async function createNotification(
   description: string | null,
   priority: Priority,
   link: string | null = null,
+  eventKey?: string | null
 ): Promise<void> {
-  await supabase.from('notifications').insert({
-    user_id: userId,
+  await notificationService.dispatchNotification({
+    userId,
     type,
     title,
+    message: description || title,
     description,
     priority,
     link,
+    eventKey,
   });
 }
 

@@ -10,15 +10,29 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { useToast } from '../components/ui/Toast';
-import { notificationService, normalizeNotification } from '../lib/notificationService';
-import type { Notification, NotificationType, Priority } from '../types';
+import {
+  notificationService,
+  normalizeNotification,
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  type DispatchNotificationPayload,
+} from '../lib/notificationService';
+import type {
+  Notification,
+  NotificationType,
+  Priority,
+  NotificationPreferences,
+  NotificationDelivery,
+} from '../types';
 import type { DailyAlert } from '../lib/recommendations';
 
 export interface NotificationContextValue {
   notifications: Notification[];
   unreadCount: number;
   loading: boolean;
+  preferences: NotificationPreferences;
   refresh: () => Promise<void>;
+  refreshPreferences: () => Promise<void>;
+  updatePreferences: (prefs: Partial<NotificationPreferences>) => Promise<boolean>;
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (notificationId: string) => Promise<void>;
@@ -36,7 +50,15 @@ export interface NotificationContextValue {
     link?: string | null;
     action_url?: string | null;
     animal_id?: string | null;
+    event_key?: string | null;
   }) => Promise<Notification | null>;
+  dispatchNotification: (
+    payload: Omit<DispatchNotificationPayload, 'userId'>
+  ) => Promise<{ success: boolean; notification?: Notification; deliveries?: NotificationDelivery[] }>;
+  testChannel: (
+    channel: 'sms' | 'email',
+    recipient?: string
+  ) => Promise<{ success: boolean; provider?: string; message?: string; error?: string }>;
   syncAlerts: (alerts: DailyAlert[]) => Promise<void>;
 }
 
@@ -46,6 +68,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const toast = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [preferences, setPreferences] = useState<NotificationPreferences>(
+    DEFAULT_NOTIFICATION_PREFERENCES
+  );
   const [loading, setLoading] = useState<boolean>(true);
   const isSyncingRef = useRef<boolean>(false);
 
@@ -67,14 +92,40 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, [user]);
 
-  // Initial fetch and Realtime subscription
+  // Refresh user preferences
+  const refreshPreferences = useCallback(async () => {
+    if (!user) return;
+    const prefs = await notificationService.fetchPreferences(user.id);
+    setPreferences(prefs);
+  }, [user]);
+
+  // Update preferences
+  const updatePreferences = useCallback(
+    async (newPrefs: Partial<NotificationPreferences>) => {
+      if (!user) return false;
+      setPreferences((prev) => ({ ...prev, ...newPrefs }));
+      const res = await notificationService.updatePreferences(user.id, newPrefs);
+      if (res.success) {
+        toast('Nai-save ang mga kagustuhan sa notification.', 'success');
+        return true;
+      } else {
+        toast(res.error || 'Hindi na-save ang notification settings.', 'error');
+        await refreshPreferences();
+        return false;
+      }
+    },
+    [user, toast, refreshPreferences]
+  );
+
+  // Initial fetch and Realtime subscriptions
   useEffect(() => {
     refresh();
+    refreshPreferences();
 
     if (!user) return;
 
     // Realtime Postgres subscription on notifications table
-    const channel = supabase
+    const notifChannel = supabase
       .channel('public:notifications:' + user.id)
       .on(
         'postgres_changes',
@@ -94,7 +145,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           } else if (payload.eventType === 'UPDATE') {
             const updated = normalizeNotification(payload.new);
             setNotifications((prev) =>
-              prev.map((n) => (n.id === updated.id ? updated : n))
+              prev.map((n) => (n.id === updated.id ? { ...n, ...updated } : n))
             );
           } else if (payload.eventType === 'DELETE') {
             const oldId = payload.old?.id;
@@ -106,17 +157,49 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
+    // Realtime Postgres subscription on notification_deliveries table
+    const deliveryChannel = supabase
+      .channel('public:notification_deliveries:' + user.id)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notification_deliveries',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const delivery = payload.new as NotificationDelivery;
+            if (delivery.notification_id) {
+              setNotifications((prev) =>
+                prev.map((n) => {
+                  if (n.id !== delivery.notification_id) return n;
+                  const curDeliveries = n.deliveries || [];
+                  const exists = curDeliveries.some((d) => d.id === delivery.id);
+                  const updatedDelivs = exists
+                    ? curDeliveries.map((d) => (d.id === delivery.id ? delivery : d))
+                    : [...curDeliveries, delivery];
+                  return { ...n, deliveries: updatedDelivs };
+                })
+              );
+            }
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(notifChannel);
+      supabase.removeChannel(deliveryChannel);
     };
-  }, [user, refresh]);
+  }, [user, refresh, refreshPreferences]);
 
   // Mark single notification as read (Optimistic UI)
   const markAsRead = useCallback(
     async (notificationId: string) => {
       if (!notificationId) return;
 
-      // 1. Optimistically update local state immediately
       setNotifications((prev) =>
         prev.map((n) =>
           n.id === notificationId
@@ -130,7 +213,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         )
       );
 
-      // 2. Persist to database in background
       await notificationService.markAsRead(notificationId, user?.id);
     },
     [user]
@@ -141,7 +223,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const unread = notifications.filter((n) => !n.read && !n.is_read);
     if (unread.length === 0) return;
 
-    // 1. Optimistic UI update immediately
     const nowIso = new Date().toISOString();
     setNotifications((prev) =>
       prev.map((n) => ({
@@ -152,9 +233,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       }))
     );
 
-    toast('All notifications marked as read', 'success');
-
-    // 2. Persist to database
+    toast('Lahat ng paalala ay minarkahan bilang nabasa.', 'success');
     await notificationService.markAllAsRead(user?.id);
   }, [notifications, user, toast]);
 
@@ -171,7 +250,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   // Clear all notifications (Optimistic UI)
   const clearAll = useCallback(async () => {
     setNotifications([]);
-    toast('All notifications cleared', 'success');
+    toast('Na-clear na ang lahat ng paalala.', 'success');
     await notificationService.clearAllNotifications(user?.id);
   }, [user, toast]);
 
@@ -180,7 +259,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     async (notification: Notification, navigate?: (path: string) => void) => {
       if (!notification) return;
 
-      // 1. Mark as read optimistically if not already read
       if (!notification.read && !notification.is_read) {
         setNotifications((prev) =>
           prev.map((n) =>
@@ -195,13 +273,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           )
         );
 
-        // 2. Save to database in background
         notificationService.markAsRead(notification.id, user?.id).catch((err) => {
           console.warn('Failed to save read state in DB:', err);
         });
       }
 
-      // 3. Navigate to target URL if available
       const targetUrl =
         notification.action_url ||
         notification.link ||
@@ -211,10 +287,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         navigate(targetUrl);
       }
     },
-    []
+    [user]
   );
 
-  // Create notification helper
+  // Create notification helper (backward-compatible)
   const createNotification = useCallback(
     async (data: {
       type: NotificationType;
@@ -225,6 +301,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       link?: string | null;
       action_url?: string | null;
       animal_id?: string | null;
+      event_key?: string | null;
     }) => {
       if (!user) return null;
       const created = await notificationService.createNotification(user.id, data);
@@ -232,6 +309,35 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         setNotifications((prev) => [created, ...prev.filter((n) => n.id !== created.id)]);
       }
       return created;
+    },
+    [user]
+  );
+
+  // Unified multi-channel dispatcher (In-App + SMS + Email)
+  const dispatchNotification = useCallback(
+    async (payload: Omit<DispatchNotificationPayload, 'userId'>) => {
+      if (!user) return { success: false };
+      const res = await notificationService.dispatchNotification({
+        ...payload,
+        userId: user.id,
+      });
+
+      if (res.notification) {
+        const notif = res.notification;
+        setNotifications((prev) => [notif, ...prev.filter((n) => n.id !== notif.id)]);
+      }
+      return res;
+    },
+    [user]
+  );
+
+  // Test SMS / Email channel
+  const testChannel = useCallback(
+    async (channel: 'sms' | 'email', recipient?: string) => {
+      if (!user) {
+        return { success: false, error: 'Hindi naka-login ang user.' };
+      }
+      return await notificationService.testChannel(user.id, channel, recipient);
     },
     [user]
   );
@@ -257,13 +363,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notifications,
         unreadCount,
         loading,
+        preferences,
         refresh,
+        refreshPreferences,
+        updatePreferences,
         markAsRead,
         markAllAsRead,
         deleteNotification,
         clearAll,
         handleNotificationClick,
         createNotification,
+        dispatchNotification,
+        testChannel,
         syncAlerts,
       }}
     >

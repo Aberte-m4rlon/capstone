@@ -200,12 +200,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         weightHistory.current_weight_kg = latest.weight_kg ?? animal.weight_kg;
         weightHistory.last_recorded_date = latest.record_date;
 
-        if (wRecords.length > 1 && wRecords[1].weight_kg != null) {
+        if (weightHistory.current_weight_kg != null && wRecords.length > 1 && wRecords[1].weight_kg != null) {
           weightHistory.previous_weight_kg = wRecords[1].weight_kg;
           weightHistory.weight_change_kg = Number(
             (weightHistory.current_weight_kg - wRecords[1].weight_kg).toFixed(2),
           );
-        } else if (latest.previous_weight_kg != null) {
+        } else if (weightHistory.current_weight_kg != null && latest.previous_weight_kg != null) {
           weightHistory.previous_weight_kg = latest.previous_weight_kg;
           weightHistory.weight_change_kg = latest.weight_change_kg != null
             ? Number(latest.weight_change_kg)

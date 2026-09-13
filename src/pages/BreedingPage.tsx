@@ -414,6 +414,7 @@ export function BreedingPage() {
             `Ang ${female?.name ?? 'hayop'} ay inaasahang manganganak bandang ${formatDate(kiddingDate)}.`,
             'Normal',
             '/breeding',
+            `breeding_kidding_${form.animal_id}_${kiddingDate}`
           );
         }
       }

@@ -8022,5 +8022,128 @@ input[type="time"] {
   }
 }
 
+/* ==========================================================================
+   ALPASFARM MODAL MOBILE DESIGN & FLOATING AI OVERLAP PREVENTION
+   ========================================================================== */
 
+/* 1. Floating AI Button Modal Suppression:
+   Completely hides the floating AI launcher when any modal is open
+   so it never blocks Save, Cancel, inputs, or dropdowns. */
+body.modal-open .alpas-floating-ai-btn,
+body[data-modal-open="true"] .alpas-floating-ai-btn,
+body:has(.alpas-modal-overlay) .alpas-floating-ai-btn {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
 
+/* 2. Modal Form Responsive Grid Layouts */
+.modal-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .modal-form-grid-2 {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .modal-form-grid-2.modal-form-grid-stack-xs {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 3. Live Stock Calculation Preview Card */
+.stock-preview-card {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  text-align: center;
+}
+
+[data-theme="dark"] .stock-preview-card {
+  background: #1E293B;
+  border-color: #334155;
+}
+
+@media (max-width: 360px) {
+  .stock-preview-card {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
+/* Stat Pills inside preview card */
+.stat-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+}
+
+[data-theme="dark"] .stat-pill {
+  background: #0F172A;
+  border-color: #334155;
+}
+
+.stat-pill .stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-theme="dark"] .stat-pill .stat-label {
+  color: #94A3B8;
+}
+
+.stat-pill .stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+[data-theme="dark"] .stat-pill .stat-value {
+  color: #F8FAFC;
+}
+
+/* 4. Mobile Modal Viewport & Safe-Area Protection */
+@media (max-width: 640px) {
+  .alpas-modal-overlay {
+    padding: 8px !important;
+    padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px)) !important;
+    padding-left: max(8px, env(safe-area-inset-left, 8px)) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 8px)) !important;
+  }
+
+  .alpas-modal {
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 18px !important;
+    width: 100% !important;
+  }
+
+  .alpas-modal-header {
+    padding: 12px 16px !important;
+  }
+
+  .alpas-modal-body {
+    padding: 14px 16px !important;
+  }
+
+  .alpas-modal-footer {
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom, 12px)) !important;
+  }
+}

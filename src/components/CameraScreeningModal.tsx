@@ -325,12 +325,12 @@ export function CameraScreeningModal({
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                           <div style={{ border: '2px dashed rgba(67,160,71,0.8)', borderRadius: 16, width: '75%', height: '65%' }} />
                         </div>
-                        {/* Mandate 12: Thermal camera status pill */}
+                        {/* Google Gemini Vision status pill */}
                         <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 999, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, zIndex: 10 }}>
-                          <Thermometer size={12} color="#22C55E" />
-                          <span style={{ color: '#86EFAC' }}>Gemini AI Thermal Scanner: Aktibo</span>
+                          <Camera size={12} color="#22C55E" />
+                          <span style={{ color: '#86EFAC' }}>Google Gemini Multimodal Vision: Aktibo</span>
                           <span style={{ opacity: 0.4 }}>•</span>
-                          <span>Surface Temp: {animal?.current_temperature ? `${animal.current_temperature}°C` : 'Handa'}</span>
+                          <span>{animal?.current_temperature ? `Temp: ${animal.current_temperature}°C` : 'Handa'}</span>
                         </div>
                         {multiAngle && (
                           <div style={{ position: 'absolute', top: 40, left: '50%', transform: 'translateX(-50%)', background: 'rgba(46,125,50,0.9)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 14px', borderRadius: 999, zIndex: 10 }}>
@@ -621,23 +621,11 @@ function ScanResultCard({
             outline: 'none',
           }}
         >
-          Detalye ng Pagsusuri
+          Paunawa sa Pagsusuri
         </summary>
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text-secondary, #4B5563)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Katiyakan (Confidence):</span>
-            <span style={{ fontWeight: 600, color: 'var(--text, #1F2937)' }}>{result.confidencePercent}%</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Internal Risk Score:</span>
-            <span style={{ fontWeight: 600, color: 'var(--text, #1F2937)' }}>{score} / 100</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Kalidad ng Litrato:</span>
-            <span style={{ fontWeight: 600, color: 'var(--text, #1F2937)' }}>{result.qualityReport?.score ?? 0} / 100</span>
-          </div>
-          <div style={{ marginTop: 6, padding: '8px 10px', borderRadius: 6, background: 'rgba(35, 139, 69, 0.08)', fontSize: 11, color: '#176B35', lineHeight: 1.4 }}>
-            <strong>Paunawa:</strong> Ang visual screening na ito ay gabay lamang para sa maagang pagmamasid at hindi opisyal na medical diagnosis.
+          <div style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(35, 139, 69, 0.08)', fontSize: 11, color: '#176B35', lineHeight: 1.4 }}>
+            <strong>Paalala:</strong> Ang visual health check na ito ay gabay lamang para sa maagang pagmamasid sa bukid at hindi pamalit sa payo ng lisensyadong beterinaryo.
           </div>
         </div>
       </details>
