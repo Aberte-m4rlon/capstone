@@ -42,15 +42,15 @@ import {
 export type { LivestockAngle, AngleClassificationResult };
 
 // ── Lazy TF.js imports ────────────────────────────────────────────────────────
-type TFModule = typeof import('@tensorflow/tfjs');
-type MobileNetModule = typeof import('@tensorflow-models/mobilenet');
+type TFModule = any;
+type MobileNetModule = any;
 
-let _tf: TFModule | null = null;
+let _tf: any = null;
 let _mobilenet: any = null;          // loaded MobileNet model instance
 let _modelLoading = false;
 let _modelLoadFailed = false;
 
-async function getTF(): Promise<TFModule> {
+async function getTF(): Promise<any> {
   if (_tf) return _tf;
   _tf = await import('@tensorflow/tfjs');
   return _tf;
@@ -300,10 +300,10 @@ export async function extractFeatures(canvas: HTMLCanvasElement): Promise<Float3
         const resized = tf.image.resizeBilinear(img as any, [224, 224]);
         const normalized = resized.div(255.0).expandDims(0);
         // MobileNet .infer() returns the embedding before the final layer
-        return (model as any).infer(normalized, true) as import('@tensorflow/tfjs').Tensor;
+        return (model as any).infer(normalized, true);
       });
-      const data = await features.data() as Float32Array;
-      features.dispose();
+      const data = await (features as any).data() as Float32Array;
+      if ((features as any)?.dispose) (features as any).dispose();
       return data;
     } catch (err) {
       console.warn('[AlpasFarm AI] MobileNet inference failed, using fallback:', err);

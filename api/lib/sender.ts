@@ -5,10 +5,6 @@
  */
 
 import * as https from 'https';
-// @ts-ignore
-import nodemailer from 'nodemailer';
-// @ts-ignore
-import twilio from 'twilio';
 
 // ── Phone Number Normalization ──────────────────────────────────────────────
 export interface PhoneNormalizationResult {
@@ -87,7 +83,7 @@ function postRequest(
   });
 }
 
-// ── Twilio SMS Dispatcher ───────────────────────────────────────────────────
+// ── Twilio SMS Dispatcher (Pure REST API) ───────────────────────────────────
 export async function sendTwilioSms(
   to: string,
   message: string,
@@ -95,7 +91,7 @@ export async function sendTwilioSms(
 ): Promise<DispatchResult> {
   const accountSid = (process.env.TWILIO_ACCOUNT_SID || '').trim();
   const authToken = (process.env.TWILIO_AUTH_TOKEN || '').trim();
-  const fromNumber = (process.env.TWILIO_PHONE_NUMBER || '').trim();
+  const fromNumber = (process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_FROM_NUMBER || '').trim();
 
   if (!accountSid || !authToken || !fromNumber) {
     return {
@@ -105,30 +101,50 @@ export async function sendTwilioSms(
     };
   }
 
+  const authHeader = 'Basic ' + Buffer.from(accountSid + ':' + authToken).toString('base64');
+  const postData = new URLSearchParams({
+    To: to,
+    From: fromNumber,
+    Body: message,
+  }).toString();
+
   let lastError = '';
   for (let attempt = 1; attempt <= retryCount + 1; attempt++) {
     try {
-      const client = twilio(accountSid, authToken);
-      const res = await client.messages.create({
-        to,
-        from: fromNumber,
-        body: message,
-      });
+      const res = await postRequest(
+        'https://api.twilio.com/2010-04-01/Accounts/' + accountSid + '/Messages.json',
+        {
+          Authorization: authHeader,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+        postData
+      );
 
-      if (res && res.sid) {
+      let parsed: any = {};
+      try {
+        parsed = JSON.parse(res.data);
+      } catch {
+        parsed = { raw: res.data };
+      }
+
+      if (res.status >= 200 && res.status < 300 && parsed.sid) {
         return {
           success: true,
           provider: 'Twilio',
-          messageId: res.sid,
+          messageId: parsed.sid,
         };
       }
+
+      lastError = parsed.message || parsed.detail || `Twilio HTTP ${res.status}`;
+      console.warn(`[Twilio SMS] Attempt ${attempt} failed:`, lastError);
     } catch (err: any) {
       lastError = err?.message || String(err);
-      console.warn(`[Twilio SMS] Attempt ${attempt} failed:`, lastError);
-      if (attempt <= retryCount) {
-        // Wait 500ms before retry
-        await new Promise((r) => setTimeout(r, 500));
-      }
+      console.warn(`[Twilio SMS] Attempt ${attempt} error:`, lastError);
+    }
+
+    if (attempt <= retryCount) {
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
 
@@ -357,66 +373,29 @@ export async function dispatchEmail(
   htmlContent: string,
   textContent: string
 ): Promise<DispatchResult> {
-  const mailHost = (process.env.MAIL_HOST || '').trim();
-  const mailPort = parseInt(process.env.MAIL_PORT || '587', 10);
-  const mailUser = (process.env.MAIL_USERNAME || '').trim();
-  const mailPass = (process.env.MAIL_PASSWORD || '').trim();
   const mailFrom = (process.env.MAIL_FROM_ADDRESS || 'notifications@alpasfarm.ph').trim();
   const mailFromName = (process.env.MAIL_FROM_NAME || 'ALPASFARM').trim();
 
-  // 1. Try Nodemailer SMTP if configured
-  if (mailHost && mailUser && mailPass) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: mailHost,
-        port: mailPort,
-        secure: mailPort === 465,
-        auth: {
-          user: mailUser,
-          pass: mailPass,
-        },
-      });
-
-      const info = await transporter.sendMail({
-        from: `"${mailFromName}" <${mailFrom}>`,
-        to,
-        subject,
-        text: textContent,
-        html: htmlContent,
-      });
-
-      return {
-        success: true,
-        provider: 'SMTP',
-        messageId: info.messageId,
-      };
-    } catch (err: any) {
-      console.warn('[dispatchEmail] SMTP failed:', err?.message || err);
-      return {
-        success: false,
-        provider: 'SMTP',
-        error: `SMTP Error: ${err?.message || 'Connection failed'}`,
-      };
-    }
-  }
-
-  // 2. Try Resend if configured
+  // 1. Try Resend if configured
   const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
   if (resendApiKey) {
     try {
+      const payload = JSON.stringify({
+        from: `${mailFromName} <${mailFrom}>`,
+        to: [to],
+        subject,
+        html: htmlContent,
+        text: textContent,
+      });
+
       const res = await postRequest(
         'https://api.resend.com/emails',
         {
           Authorization: `Bearer ${resendApiKey}`,
           'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
         },
-        JSON.stringify({
-          from: `${mailFromName} <${mailFrom}>`,
-          to: [to],
-          subject,
-          html: htmlContent,
-          text: textContent,
-        })
+        payload
       );
 
       const parsed = JSON.parse(res.data);
@@ -441,9 +420,54 @@ export async function dispatchEmail(
     }
   }
 
+  // 2. Try SendGrid if configured
+  const sendgridApiKey = (process.env.SENDGRID_API_KEY || '').trim();
+  if (sendgridApiKey) {
+    try {
+      const payload = JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: mailFrom, name: mailFromName },
+        subject,
+        content: [
+          { type: 'text/plain', value: textContent },
+          { type: 'text/html', value: htmlContent },
+        ],
+      });
+
+      const res = await postRequest(
+        'https://api.sendgrid.com/v3/mail/send',
+        {
+          Authorization: `Bearer ${sendgridApiKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+        },
+        payload
+      );
+
+      if (res.status >= 200 && res.status < 300) {
+        return {
+          success: true,
+          provider: 'SendGrid',
+          messageId: 'SENDGRID_SENT',
+        };
+      }
+      return {
+        success: false,
+        provider: 'SendGrid',
+        error: `SendGrid HTTP ${res.status}: ${res.data}`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        provider: 'SendGrid',
+        error: err?.message || 'SendGrid network error',
+      };
+    }
+  }
+
   return {
     success: false,
     provider: 'None',
-    error: 'No email provider configured. Set MAIL_HOST/MAIL_USERNAME/MAIL_PASSWORD or RESEND_API_KEY in environment.',
+    error: 'No email provider configured. Set RESEND_API_KEY or SENDGRID_API_KEY in environment.',
   };
 }
