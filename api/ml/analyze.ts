@@ -525,7 +525,7 @@ async function analyzeWithGeminiVision(
 ): Promise<any> {
   let mimeType = 'image/jpeg';
   let base64Pure = dataUrl;
-  const match = dataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/s);
+  const match = dataUrl.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,([\s\S]+)$/);
   if (match) {
     mimeType = match[1];
     base64Pure = match[2];

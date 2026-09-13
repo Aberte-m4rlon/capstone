@@ -4,8 +4,10 @@
  * All credentials remain securely on the server.
  */
 
-import https from 'https';
+import * as https from 'https';
+// @ts-ignore
 import nodemailer from 'nodemailer';
+// @ts-ignore
 import twilio from 'twilio';
 
 // ── Phone Number Normalization ──────────────────────────────────────────────

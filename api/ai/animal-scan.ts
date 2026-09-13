@@ -153,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Parse MIME type and base64
   let mimeType = 'image/jpeg';
   let base64Pure = image;
-  const match = image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/s);
+  const match = image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,([\s\S]+)$/);
   if (match) {
     mimeType = match[1];
     base64Pure = match[2];
