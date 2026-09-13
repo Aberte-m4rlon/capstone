@@ -80,7 +80,7 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Hindi nahanap ang hayop o walang pahintulot.';
   END IF;
-  IF v_animal.is_sold = true OR v_animal.status = 'Sold' OR v_animal.archived = true THEN
+  IF v_animal.archived = true OR EXISTS (SELECT 1 FROM animal_sales WHERE animal_id = p_animal_id) THEN
     RAISE EXCEPTION 'Hindi maaaring bigyan ng gamot ang hayop na naibenta na o naka-archive.';
   END IF;
 

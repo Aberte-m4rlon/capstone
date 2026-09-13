@@ -8147,3 +8147,13 @@ body:has(.alpas-modal-overlay) .alpas-floating-ai-btn {
     padding: 12px 16px max(12px, env(safe-area-inset-bottom, 12px)) !important;
   }
 }
+
+/* 5. Hide Floating AI Button when any modal is open (prevent obscuring form inputs/actions on mobile 320px-430px) */
+body.modal-open .alpas-floating-ai-btn,
+body[data-modal-open="true"] .alpas-floating-ai-btn {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transform: scale(0.8) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s !important;
+}

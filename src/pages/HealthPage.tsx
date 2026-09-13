@@ -2124,6 +2124,7 @@ export function HealthPage() {
       <MedicationTreatmentModal
         open={treatmentModalOpen}
         onClose={() => setTreatmentModalOpen(false)}
+        animals={activeAnimals}
         onSuccess={() => {
           farmData.refresh();
         }}

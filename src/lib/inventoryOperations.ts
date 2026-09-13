@@ -492,7 +492,7 @@ export async function administerMedicationTreatment(
   try {
     const { data: animalData, error: animalCheckErr } = await supabase
       .from('animals')
-      .select('id, user_id, tag_id, name, is_sold, status, archived, health_status')
+      .select('id, user_id, tag_id, name, archived, health_status')
       .eq('id', animalId)
       .maybeSingle();
 
@@ -514,12 +514,29 @@ export async function administerMedicationTreatment(
       };
     }
 
-    if (animalData.is_sold || animalData.status === 'Sold' || animalData.archived) {
+    if (animalData.archived) {
       return {
         success: false,
         previousStock: prevStock,
         newStock: prevStock,
         error: 'Hindi maaaring bigyan ng gamot ang hayop na naibenta na o naka-archive.',
+      };
+    }
+
+    // Check animal_sales table to verify animal is not sold
+    const { data: saleData } = await supabase
+      .from('animal_sales')
+      .select('id')
+      .eq('animal_id', animalId)
+      .limit(1)
+      .maybeSingle();
+
+    if (saleData) {
+      return {
+        success: false,
+        previousStock: prevStock,
+        newStock: prevStock,
+        error: 'Hindi maaaring bigyan ng gamot ang hayop na naibenta na.',
       };
     }
   } catch (checkEx) {
@@ -589,7 +606,14 @@ export async function administerMedicationTreatment(
     }
 
     // If RPC returned a specific business logic failure (e.g. insufficient stock message)
-    if (rpcErr && !rpcErr.message.includes('function administer_medication_treatment') && !rpcErr.message.includes('could not find')) {
+    if (
+      rpcErr &&
+      !rpcErr.message.includes('function administer_medication_treatment') &&
+      !rpcErr.message.includes('could not find') &&
+      !rpcErr.message.includes('schema cache') &&
+      !rpcErr.message.includes('does not exist') &&
+      !rpcErr.message.includes('is_sold')
+    ) {
       return {
         success: false,
         previousStock: prevStock,
