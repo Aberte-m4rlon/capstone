@@ -663,7 +663,7 @@ export function CameraFirstHealthModal({
 
   return (
     <Modal open={open} onClose={handleModalClose} size="lg">
-      <ModalHeader title="Manual Health Check" onClose={handleModalClose} />
+      <ModalHeader title="Health Check" onClose={handleModalClose} />
 
       <ModalBody>
         <div className="modal-inner-flow" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

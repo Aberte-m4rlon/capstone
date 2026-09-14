@@ -889,22 +889,22 @@ export function AnimalProfilePage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
               <CardTitle icon={HeartPulse} title="Kalusugan ng Hayop" />
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-                {!isSold && (
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => setCameraScreeningOpen(true)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                  >
-                    <Camera size={15} /> Health Check
-                  </button>
-                )}
                 <button
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-primary btn-sm"
                   onClick={() => navigate(`/health?action=check&animalId=${animal.id}`)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  <Stethoscope size={15} /> Manual Health Check
+                  <Stethoscope size={15} /> Health Check
                 </button>
+                {!isSold && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setCameraScreeningOpen(true)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <Camera size={15} /> Camera Screening
+                  </button>
+                )}
               </div>
             </div>
 

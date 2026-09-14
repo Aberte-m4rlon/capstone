@@ -551,34 +551,12 @@ export function HealthPage() {
         <button
           type="button"
           className="health-primary-scanner-btn"
-          onClick={() => navigate('/camera-screening')}
+          onClick={() => openPredictionModal()}
           style={{ flex: '1 1 240px', maxWidth: 360 }}
         >
           <Camera size={18} />
-          <span>Buksan ang Camera</span>
+          <span>Health Check</span>
           <ArrowRight size={16} className="scanner-arrow-icon" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => openPredictionModal()}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '12px 20px',
-            borderRadius: 12,
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
-            color: 'var(--text)',
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          }}
-        >
-          <Heart size={16} color="#16A34A" />
-          <span>Manual Health Check</span>
         </button>
       </div>
 
@@ -758,8 +736,8 @@ export function HealthPage() {
             <div className="action-card-icon icon-green">
               <Stethoscope size={22} color="#238B45" />
             </div>
-            <div className="action-card-title">Magtala ng Health Check</div>
-            <div className="action-card-desc">Itala ang temperatura, vitals, at pisikal na obserbasyon</div>
+            <div className="action-card-title">Magsagawa ng Health Check</div>
+            <div className="action-card-desc">I-scan ang hayop gamit ang camera para sa mabilis na health check</div>
             <div className="action-card-arrow">
               <ArrowUpRight size={16} />
             </div>

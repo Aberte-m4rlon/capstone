@@ -2639,7 +2639,7 @@ function ScanResultCard({
                   gap: 5,
                 }}
               >
-                <HeartPulse size={13} /> Manual Check
+                <HeartPulse size={13} /> Health Check
               </button>
             )}
           </div>
