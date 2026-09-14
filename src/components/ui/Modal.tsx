@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode, type HTMLAttributes } from 'react';
+import { useEffect, Children, isValidElement, type ReactNode, type HTMLAttributes } from 'react';
 import { X } from 'lucide-react';
 import { Button } from './Button';
 
@@ -21,29 +21,38 @@ export interface ModalProps {
   'aria-label'?: string;
 }
 
-// ── Body Scroll Lock & Modal State Tracking ────────────────────────────────
+// ── Body Scroll Lock & Modal State Tracking (Ref-counted for nested modals) ─
+let openModalCount = 0;
+let prevBodyOverflow = '';
+let prevBodyPaddingRight = '';
+
 function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
-    const scrollY = window.scrollY;
-    const prevOverflow = document.body.style.overflow;
-    const prevPaddingRight = document.body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
-    document.body.style.overflow = 'hidden';
-    document.body.classList.add('modal-open');
-    document.body.setAttribute('data-modal-open', 'true');
+    if (openModalCount === 0) {
+      prevBodyOverflow = document.body.style.overflow;
+      prevBodyPaddingRight = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
+      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+      document.body.setAttribute('data-modal-open', 'true');
+
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
     }
+    openModalCount++;
 
     return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.paddingRight = prevPaddingRight;
-      document.body.classList.remove('modal-open');
-      document.body.removeAttribute('data-modal-open');
-      window.scrollTo(0, scrollY);
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        document.body.style.overflow = prevBodyOverflow;
+        document.body.style.paddingRight = prevBodyPaddingRight;
+        document.body.classList.remove('modal-open');
+        document.body.removeAttribute('data-modal-open');
+      }
     };
   }, [active]);
 }
@@ -86,6 +95,24 @@ export function Modal({
     }
   };
 
+  // Inspect children to determine if caller already provided compound elements
+  const hasCompoundContent = Children.toArray(children).some((child) => {
+    if (!isValidElement(child)) return false;
+    const type = child.type as any;
+    return (
+      type === ModalHeader ||
+      type === ModalBody ||
+      type === ModalFooter ||
+      type?.name === 'ModalHeader' ||
+      type?.name === 'ModalBody' ||
+      type?.name === 'ModalFooter' ||
+      (child.props && typeof child.props === 'object' && (
+        (child.props as any).className?.includes('alpas-modal-body') ||
+        (child.props as any).className?.includes('alpas-modal-header')
+      ))
+    );
+  });
+
   return (
     <div
       className="alpas-modal-overlay"
@@ -113,7 +140,7 @@ export function Modal({
         style={{
           width: '100%',
           maxWidth: getMaxWidth(),
-          maxHeight: 'min(92dvh, calc(100dvh - 16px))',
+          maxHeight: 'min(92dvh, calc(100dvh - 24px))',
           background: 'var(--color-surface, #FFFFFF)',
           border: '1px solid var(--color-border, rgba(226, 232, 240, 0.95))',
           borderRadius: 'clamp(16px, 3.5vw, 24px)',
@@ -125,18 +152,25 @@ export function Modal({
           animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        {/* Modal Header */}
-        {(title || subtitle) && (
-          <ModalHeader onClose={onClose} subtitle={subtitle}>
-            {title}
-          </ModalHeader>
+        {/* If title or subtitle prop is supplied, render standard props-driven layout */}
+        {(title || subtitle) ? (
+          <>
+            <ModalHeader onClose={onClose} subtitle={subtitle}>
+              {title}
+            </ModalHeader>
+            <ModalBody>{children}</ModalBody>
+            {footer && <ModalFooter>{footer}</ModalFooter>}
+          </>
+        ) : hasCompoundContent ? (
+          /* Compound components already contain ModalHeader, ModalBody, ModalFooter as direct flex children */
+          children
+        ) : (
+          /* Simple children without title/compound headers */
+          <>
+            <ModalBody>{children}</ModalBody>
+            {footer && <ModalFooter>{footer}</ModalFooter>}
+          </>
         )}
-
-        {/* Modal Body */}
-        <ModalBody>{children}</ModalBody>
-
-        {/* Modal Footer */}
-        {footer && <ModalFooter>{footer}</ModalFooter>}
       </div>
     </div>
   );
@@ -174,7 +208,8 @@ export function ModalHeader({
         position: 'sticky',
         top: 0,
         background: 'var(--color-surface, #FFFFFF)',
-        zIndex: 10,
+        flexShrink: 0,
+        zIndex: 20,
         ...style,
       }}
       {...props}
@@ -259,18 +294,43 @@ export function ModalBody({
   children,
   className = '',
   style,
+  onFocusCapture,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
+  // Mobile virtual keyboard auto-centering
+  const handleFocusCapture = (e: React.FocusEvent<HTMLDivElement>) => {
+    onFocusCapture?.(e);
+    const target = e.target as HTMLElement;
+    if (
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable)
+    ) {
+      setTimeout(() => {
+        target.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest',
+        });
+      }, 300);
+    }
+  };
+
   return (
     <div
       className={`alpas-modal-body ${className}`}
+      onFocusCapture={handleFocusCapture}
       style={{
-        padding: '16px 18px',
+        padding: '16px 18px max(28px, env(safe-area-inset-bottom, 28px))',
         overflowY: 'auto',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y',
         overscrollBehavior: 'contain',
-        flex: 1,
+        flex: '1 1 auto',
+        minHeight: 0,
         ...style,
       }}
       {...props}
@@ -295,12 +355,13 @@ export function ModalFooter({
         alignItems: 'center',
         justifyContent: 'flex-end',
         gap: '10px',
-        padding: '12px 18px max(12px, env(safe-area-inset-bottom, 12px))',
+        padding: '12px 18px max(14px, env(safe-area-inset-bottom, 14px))',
         borderTop: '1px solid var(--color-border-light, rgba(226, 232, 240, 0.8))',
         background: 'var(--color-surface, #FFFFFF)',
+        flexShrink: 0,
         position: 'sticky',
         bottom: 0,
-        zIndex: 10,
+        zIndex: 20,
         ...style,
       }}
       {...props}

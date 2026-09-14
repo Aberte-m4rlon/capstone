@@ -2463,17 +2463,26 @@ select option:checked,
 .modal-body {
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1 1 auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
 }
 
 .modal-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid rgba(35, 139, 69, 0.12);
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
   background: inherit;
   border-radius: 0 0 20px 20px;
 }
@@ -8119,32 +8128,94 @@ body:has(.alpas-modal-overlay) .alpas-floating-ai-btn {
   color: #F8FAFC;
 }
 
-/* 4. Mobile Modal Viewport & Safe-Area Protection */
+/* 4. Global Modal Mobile Viewport, Touch Scrolling & Safe-Area Protection */
+.alpas-modal,
+.modal {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  max-height: calc(100dvh - 24px) !important;
+  box-sizing: border-box !important;
+}
+
+.alpas-modal-header,
+.modal-header {
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  background: var(--color-surface, #FFFFFF) !important;
+}
+
+.alpas-modal-body,
+.modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  overscroll-behavior: contain !important;
+}
+
+.alpas-modal-footer,
+.modal-footer {
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 20 !important;
+  background: var(--color-surface, #FFFFFF) !important;
+}
+
+[data-theme="dark"] .alpas-modal,
+[data-theme="dark"] .modal {
+  background: var(--color-surface, #0F172A) !important;
+  border-color: var(--color-border, rgba(255, 255, 255, 0.12)) !important;
+}
+
+[data-theme="dark"] .alpas-modal-header,
+[data-theme="dark"] .modal-header {
+  background: var(--color-surface, #0F172A) !important;
+  border-bottom-color: var(--color-border, rgba(255, 255, 255, 0.12)) !important;
+}
+
+[data-theme="dark"] .alpas-modal-footer,
+[data-theme="dark"] .modal-footer {
+  background: var(--color-surface, #0F172A) !important;
+  border-top-color: var(--color-border, rgba(255, 255, 255, 0.12)) !important;
+}
+
 @media (max-width: 640px) {
-  .alpas-modal-overlay {
-    padding: 8px !important;
-    padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
-    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px)) !important;
+  .alpas-modal-overlay,
+  .modal-overlay {
+    padding: 10px !important;
+    padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px)) !important;
     padding-left: max(8px, env(safe-area-inset-left, 8px)) !important;
     padding-right: max(8px, env(safe-area-inset-right, 8px)) !important;
   }
 
-  .alpas-modal {
-    max-height: calc(100dvh - 16px) !important;
+  .alpas-modal,
+  .modal {
+    max-height: calc(100dvh - 20px) !important;
     border-radius: 18px !important;
-    width: 100% !important;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
   }
 
-  .alpas-modal-header {
-    padding: 12px 16px !important;
+  .alpas-modal-header,
+  .modal-header {
+    padding: 13px 16px !important;
   }
 
-  .alpas-modal-body {
-    padding: 14px 16px !important;
+  .alpas-modal-body,
+  .modal-body {
+    padding: 14px 16px max(28px, env(safe-area-inset-bottom, 28px)) !important;
   }
 
-  .alpas-modal-footer {
-    padding: 12px 16px max(12px, env(safe-area-inset-bottom, 12px)) !important;
+  .alpas-modal-footer,
+  .modal-footer {
+    padding: 12px 16px max(14px, env(safe-area-inset-bottom, 14px)) !important;
   }
 }
 

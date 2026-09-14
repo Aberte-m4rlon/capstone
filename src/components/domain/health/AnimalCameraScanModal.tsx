@@ -465,7 +465,7 @@ export function AnimalCameraScanModal({
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '92vh',
+          maxHeight: 'calc(100dvh - 24px)',
         }}
       >
         {/* Modal Header */}
@@ -477,6 +477,10 @@ export function AnimalCameraScanModal({
             alignItems: 'center',
             justifyContent: 'space-between',
             background: '#1E293B',
+            flexShrink: 0,
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -509,14 +513,15 @@ export function AnimalCameraScanModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Isara"
+            aria-label="Isara ang camera scanner"
             style={{
-              background: 'transparent',
+              background: 'rgba(255, 255, 255, 0.08)',
               border: 'none',
+              borderRadius: 8,
+              width: 36,
+              height: 36,
               color: '#94A3B8',
               cursor: 'pointer',
-              padding: 6,
-              borderRadius: 8,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -531,6 +536,10 @@ export function AnimalCameraScanModal({
           style={{
             padding: 16,
             overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+            flex: '1 1 auto',
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',

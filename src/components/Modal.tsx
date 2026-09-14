@@ -13,16 +13,26 @@ interface ModalProps {
   size?: ModalSize;
 }
 
-// ── Body scroll lock ──────────────────────────────────────────────────────────
+// ── Body scroll lock (Ref-counted for nested modals) ──────────────────────────
+let openLegacyModalCount = 0;
+let prevLegacyBodyOverflow = '';
+
 function useScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
-    const scrollY = window.scrollY;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (openLegacyModalCount === 0) {
+      prevLegacyBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+    }
+    openLegacyModalCount++;
+
     return () => {
-      document.body.style.overflow = prev;
-      window.scrollTo(0, scrollY);
+      openLegacyModalCount = Math.max(0, openLegacyModalCount - 1);
+      if (openLegacyModalCount === 0) {
+        document.body.style.overflow = prevLegacyBodyOverflow;
+        document.body.classList.remove('modal-open');
+      }
     };
   }, [active]);
 }

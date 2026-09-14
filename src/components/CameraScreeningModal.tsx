@@ -254,10 +254,15 @@ export function CameraScreeningModal({
         borderRadius: 20,
         boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
         width: '100%', maxWidth: 520,
-        maxHeight: '96vh', overflowY: 'auto',
+        maxHeight: 'calc(100dvh - 24px)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 14px', borderBottom: '1px solid var(--border-light)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px 14px', borderBottom: '1px solid var(--border-light)',
+          flexShrink: 0, position: 'sticky', top: 0, background: 'var(--glass-surface, #FFFFFF)', zIndex: 10
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: '#EAF6ED', border: '1px solid rgba(35,139,69,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Camera size={19} color="#238B45" />
@@ -273,13 +278,16 @@ export function CameraScreeningModal({
         </div>
 
         {modelLoading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 20px', background: '#EAF6ED', borderBottom: '1px solid rgba(35,139,69,0.2)', fontSize: 12, color: '#176B35' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 20px', background: '#EAF6ED', borderBottom: '1px solid rgba(35,139,69,0.2)', fontSize: 12, color: '#176B35', flexShrink: 0 }}>
             <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
             Loading AI model in background…
           </div>
         )}
 
-        <div style={{ padding: '16px 20px 20px' }}>
+        <div style={{
+          padding: '16px 20px 20px',
+          flex: '1 1 auto', minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y'
+        }}>
 
           {/* ── CAPTURE ── */}
           {step === 'capture' && (

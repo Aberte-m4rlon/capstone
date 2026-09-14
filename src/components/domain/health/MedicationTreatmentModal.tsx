@@ -340,10 +340,6 @@ export function MedicationTreatmentModal({
           display: 'flex',
           flexDirection: 'column',
           gap: 14,
-          maxHeight: 'calc(90dvh - 130px)',
-          overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          paddingRight: 2,
         }}
       >
         {/* Error Notification Banner */}
@@ -632,6 +628,11 @@ export function MedicationTreatmentModal({
             marginTop: 8,
             paddingTop: 12,
             borderTop: '1px solid var(--color-border-light, #E2E8F0)',
+            position: 'sticky',
+            bottom: 0,
+            background: 'var(--color-surface, #FFFFFF)',
+            zIndex: 10,
+            paddingBottom: 'max(4px, env(safe-area-inset-bottom, 4px))',
           }}
         >
           <Button

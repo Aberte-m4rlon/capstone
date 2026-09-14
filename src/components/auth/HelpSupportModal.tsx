@@ -197,7 +197,7 @@ export function HelpSupportModal({
         style={{
           width: '100%',
           maxWidth: '580px',
-          maxHeight: 'min(90vh, calc(100dvh - 32px))',
+          maxHeight: 'calc(100dvh - 24px)',
           background: 'rgba(255, 255, 255, 0.96)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
@@ -220,7 +220,11 @@ export function HelpSupportModal({
             alignItems: 'flex-start',
             justifyContent: 'space-between',
             gap: 16,
-            background: 'linear-gradient(180deg, rgba(234, 246, 237, 0.5) 0%, rgba(255, 255, 255, 0) 100%)',
+            background: 'inherit',
+            flexShrink: 0,
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -300,8 +304,14 @@ export function HelpSupportModal({
         {/* Scrollable Modal Body */}
         <div
           style={{
-            padding: '20px 24px',
+            padding: '20px 24px max(24px, env(safe-area-inset-bottom, 24px))',
             overflowY: 'auto',
+            overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+            overscrollBehavior: 'contain',
+            flex: '1 1 auto',
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 20,
