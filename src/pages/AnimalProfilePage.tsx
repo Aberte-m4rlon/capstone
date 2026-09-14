@@ -900,7 +900,7 @@ export function AnimalProfilePage() {
                 )}
                 <button
                   className="btn btn-secondary btn-sm"
-                  onClick={() => navigate('/health')}
+                  onClick={() => navigate(`/health?action=check&animalId=${animal.id}`)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
                   <Stethoscope size={15} /> Manual Health Check

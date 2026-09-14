@@ -4,3 +4,4 @@ export * from './EarlyIllnessHero';
 export * from './AnimalCameraScanModal';
 export * from './MedicationTreatmentModal';
 export * from './InlineAnimalCameraScanner';
+export * from './CameraFirstHealthModal';
