@@ -152,3 +152,66 @@ export async function optimizeImageForAI(
 
   return srcCanvas.toDataURL('image/jpeg', quality);
 }
+
+// ── Live Object Detection & Bounding Box Types ───────────────────────────────
+
+export interface BoundingBox {
+  x: number;       // 0.0 to 1.0 (left percentage)
+  y: number;       // 0.0 to 1.0 (top percentage)
+  width: number;   // 0.0 to 1.0 (width percentage)
+  height: number;  // 0.0 to 1.0 (height percentage)
+}
+
+export type LiveTargetType = 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER_ANIMAL' | 'OBJECT';
+export type LiveTargetLabel = 'KAMBING' | 'TUPA' | 'TAO' | 'HAYOP' | 'BAGAY';
+
+export interface LiveDetectedObject {
+  type: LiveTargetType;
+  label: LiveTargetLabel;
+  boundingBox: BoundingBox;
+}
+
+export interface LiveObjectDetectionResult {
+  success: boolean;
+  detections: LiveDetectedObject[];
+  count_goats: number;
+  count_sheep: number;
+  multiple_targets: boolean;
+  status_message: string;
+  error?: string;
+}
+
+/**
+ * Capture a lightweight downscaled frame (default max 480px)
+ * for rapid sampling during live object detection.
+ */
+export function captureLowResFrame(
+  video: HTMLVideoElement,
+  maxDimension: number = 480
+): HTMLCanvasElement {
+  const vWidth = video.videoWidth || 640;
+  const vHeight = video.videoHeight || 480;
+
+  let width = vWidth;
+  let height = vHeight;
+
+  if (width > maxDimension || height > maxDimension) {
+    if (width > height) {
+      height = Math.round((height * maxDimension) / width);
+      width = maxDimension;
+    } else {
+      width = Math.round((width * maxDimension) / height);
+      height = maxDimension;
+    }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.drawImage(video, 0, 0, width, height);
+  }
+  return canvas;
+}

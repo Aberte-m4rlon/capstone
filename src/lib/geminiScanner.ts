@@ -10,9 +10,28 @@
  */
 
 import { supabase } from './supabase';
-import { optimizeImageForAI } from './cameraUtils';
+import {
+  optimizeImageForAI,
+  captureLowResFrame,
+  BoundingBox,
+  LiveDetectedObject,
+  LiveObjectDetectionResult,
+  LiveTargetType,
+  LiveTargetLabel,
+} from './cameraUtils';
 
-export { optimizeImageForAI };
+export {
+  optimizeImageForAI,
+  captureLowResFrame,
+};
+
+export type {
+  BoundingBox,
+  LiveDetectedObject,
+  LiveObjectDetectionResult,
+  LiveTargetType,
+  LiveTargetLabel,
+};
 
 export interface GeminiAnimalScanResponse {
   success: boolean;
@@ -123,6 +142,73 @@ export function getTemperatureStatus(temp?: number | null): TemperatureStatusDet
     badgeBorder: 'rgba(107, 114, 128, 0.25)',
     description: 'Walang pisikal na thermometer sensor na ginamit. Hindi nasusukat ang tunay na temperatura sa ordinaryong camera.',
   };
+}
+
+let isDetectingLive = false;
+
+/**
+ * Fast sampled frame object detection for live camera bounding boxes
+ * Calls POST /api/gemini/detect-objects. Never exposes API key to client.
+ */
+export async function detectLiveObjects(
+  input: HTMLCanvasElement | string
+): Promise<LiveObjectDetectionResult> {
+  if (isDetectingLive) {
+    return {
+      success: false,
+      detections: [],
+      count_goats: 0,
+      count_sheep: 0,
+      multiple_targets: false,
+      status_message: 'Tinitingnan ang camera...',
+    };
+  }
+
+  isDetectingLive = true;
+  try {
+    const dataUrl =
+      typeof input === 'string'
+        ? input
+        : input.toDataURL('image/jpeg', 0.70);
+
+    let authHeader: Record<string, string> = {};
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.access_token) {
+        authHeader['Authorization'] = `Bearer ${data.session.access_token}`;
+      }
+    } catch {
+      // offline/fallback
+    }
+
+    const res = await fetch('/api/gemini/detect-objects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+      },
+      body: JSON.stringify({ image: dataUrl }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Detection HTTP ${res.status}`);
+    }
+
+    const data: LiveObjectDetectionResult = await res.json();
+    return data;
+  } catch (err: any) {
+    return {
+      success: false,
+      detections: [],
+      count_goats: 0,
+      count_sheep: 0,
+      multiple_targets: false,
+      status_message: 'Tinitingnan ang camera...',
+      error: err?.message,
+    };
+  } finally {
+    isDetectingLive = false;
+  }
 }
 
 /**

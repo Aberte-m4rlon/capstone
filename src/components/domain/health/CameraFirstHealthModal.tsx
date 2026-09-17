@@ -31,8 +31,8 @@ import {
   X,
 } from 'lucide-react';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../ui/Modal';
-import { captureVideoFrame } from '../../../lib/cameraUtils';
-import { scanAnimalWithGemini } from '../../../lib/geminiScanner';
+import { captureVideoFrame, captureLowResFrame, LiveDetectedObject } from '../../../lib/cameraUtils';
+import { scanAnimalWithGemini, detectLiveObjects } from '../../../lib/geminiScanner';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../lib/toast';
 import { createNotification } from '../../../lib/recommendations';
@@ -88,7 +88,10 @@ export function CameraFirstHealthModal({
   const [cameraPermissionError, setCameraPermissionError] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [liveStatusText, setLiveStatusText] = useState('Handa nang mag-scan • Ilagay ang kambing o tupa sa loob ng frame.');
+  const [liveStatusText, setLiveStatusText] = useState('Tinitingnan ang camera...');
+  const [liveDetections, setLiveDetections] = useState<LiveDetectedObject[]>([]);
+  const [multipleAnimalsDetected, setMultipleAnimalsDetected] = useState(false);
+  const [autoCaptureStatus, setAutoCaptureStatus] = useState<'idle' | 'holding' | 'capturing'>('idle');
 
   // ── Scan Evaluation State ──
   const [isScanning, setIsScanning] = useState(false);
@@ -105,6 +108,10 @@ export function CameraFirstHealthModal({
   const streamRef = useRef<MediaStream | null>(null);
   const isMountedRef = useRef(true);
   const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isSamplingRef = useRef(false);
+  const stableTargetCountRef = useRef(0);
+  const handlePerformScanRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Filter active farm animals
   const activeAnimals = useMemo(() => {
@@ -133,6 +140,12 @@ export function CameraFirstHealthModal({
       clearInterval(qrIntervalRef.current);
       qrIntervalRef.current = null;
     }
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+    isSamplingRef.current = false;
+    stableTargetCountRef.current = 0;
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((track) => {
@@ -147,6 +160,9 @@ export function CameraFirstHealthModal({
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    setLiveDetections([]);
+    setMultipleAnimalsDetected(false);
+    setAutoCaptureStatus('idle');
   }, []);
 
   // ── Match Decoded Text (QR/Tag/UUID) with Farm Animals ─────────────────────
@@ -220,6 +236,94 @@ export function CameraFirstHealthModal({
       // Safe fallback
     }
   }, [isScanning, matchAnimalFromText]);
+
+  // ── Live Object Detection & Bounding Box Sampling ──────────────────────────
+  const runLiveObjectDetection = useCallback(async () => {
+    const video = videoRef.current;
+    if (
+      !video ||
+      video.videoWidth === 0 ||
+      video.videoHeight === 0 ||
+      isScanning ||
+      scanResult ||
+      isSamplingRef.current ||
+      !isMountedRef.current
+    ) {
+      return;
+    }
+
+    isSamplingRef.current = true;
+    try {
+      const lowResCanvas = captureLowResFrame(video, 480);
+      const result = await detectLiveObjects(lowResCanvas);
+
+      if (!isMountedRef.current || isScanning || scanResult) return;
+
+      if (!result.success) {
+        setLiveDetections([]);
+        setMultipleAnimalsDetected(false);
+        stableTargetCountRef.current = 0;
+        setAutoCaptureStatus('idle');
+        return;
+      }
+
+      const detections = result.detections || [];
+      setLiveDetections(detections);
+
+      const goatsAndSheep = detections.filter(
+        (d) => d.type === 'GOAT' || d.type === 'SHEEP'
+      );
+      const totalGoatsAndSheep =
+        (result.count_goats || 0) + (result.count_sheep || 0) || goatsAndSheep.length;
+
+      if (result.multiple_targets || totalGoatsAndSheep > 1) {
+        setMultipleAnimalsDetected(true);
+        stableTargetCountRef.current = 0;
+        setAutoCaptureStatus('idle');
+        setLiveStatusText('Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.');
+      } else if (totalGoatsAndSheep === 1) {
+        setMultipleAnimalsDetected(false);
+        const singleTarget = goatsAndSheep[0];
+        const targetName = singleTarget?.label === 'TUPA' ? 'Tupa' : 'Kambing';
+
+        stableTargetCountRef.current += 1;
+
+        if (stableTargetCountRef.current === 1) {
+          setAutoCaptureStatus('holding');
+          setLiveStatusText(`${targetName}: Handa nang i-scan • Manatiling nakatutok...`);
+        } else if (stableTargetCountRef.current >= 2) {
+          setAutoCaptureStatus('capturing');
+          setLiveStatusText(`Kinukunan ang ${targetName.toLowerCase()}...`);
+          stableTargetCountRef.current = 0;
+          // Auto-capture Stage 2 health analysis
+          handlePerformScanRef.current();
+        }
+      } else {
+        // 0 goats or sheep: Person, Other Animal, Object, or Nothing
+        setMultipleAnimalsDetected(false);
+        stableTargetCountRef.current = 0;
+        setAutoCaptureStatus('idle');
+
+        const person = detections.find((d) => d.type === 'PERSON');
+        const otherAnimal = detections.find((d) => d.type === 'OTHER_ANIMAL');
+        const obj = detections.find((d) => d.type === 'OBJECT');
+
+        if (person) {
+          setLiveStatusText('TAO — Hindi kambing o tupa');
+        } else if (otherAnimal) {
+          setLiveStatusText('HAYOP — Hindi kambing o tupa');
+        } else if (obj) {
+          setLiveStatusText('BAGAY');
+        } else {
+          setLiveStatusText(result.status_message || 'Tinitingnan ang camera...');
+        }
+      }
+    } catch {
+      // Ignore network jitter
+    } finally {
+      isSamplingRef.current = false;
+    }
+  }, [isScanning, scanResult]);
 
   // ── Start Camera Stream ───────────────────────────────────────────────────
   const startCameraStream = useCallback(async () => {
@@ -443,6 +547,47 @@ export function CameraFirstHealthModal({
     }
   };
 
+  // Keep handlePerformScan ref synced
+  useEffect(() => {
+    handlePerformScanRef.current = handlePerformScan;
+  });
+
+  // ── Periodic Object Detection Loop ──
+  useEffect(() => {
+    if (!open || !isCameraActive || isScanning || scanResult) {
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current);
+        detectionIntervalRef.current = null;
+      }
+      return;
+    }
+
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+    }
+
+    // Run sampled frame detection every ~1300ms for smooth live bounding boxes
+    detectionIntervalRef.current = setInterval(() => {
+      runLiveObjectDetection();
+    }, 1300);
+
+    return () => {
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current);
+        detectionIntervalRef.current = null;
+      }
+    };
+  }, [open, isCameraActive, isScanning, scanResult, runLiveObjectDetection]);
+
+  const handleResetScan = () => {
+    setScanResult(null);
+    setLiveDetections([]);
+    setMultipleAnimalsDetected(false);
+    setAutoCaptureStatus('idle');
+    stableTargetCountRef.current = 0;
+    setLiveStatusText('Tinitingnan ang camera...');
+  };
+
   // ── Save Health Check Record to Supabase ──────────────────────────────────
   const handleSaveHealthCheck = async () => {
     if (!selectedAnimal || !currentUserId) {
@@ -609,6 +754,10 @@ export function CameraFirstHealthModal({
   const isGoat = scanResult?.detectedSpecies === 'Goat';
   const isSheep = scanResult?.detectedSpecies === 'Sheep';
 
+  const liveGoatDetected = liveDetections.some((d) => d.type === 'GOAT');
+  const liveSheepDetected = liveDetections.some((d) => d.type === 'SHEEP');
+  const liveTargetDetected = liveGoatDetected || liveSheepDetected;
+
   return (
     <Modal open={open} onClose={handleModalClose} size="lg">
       <ModalHeader title="Health Check" onClose={handleModalClose} />
@@ -733,61 +882,196 @@ export function CameraFirstHealthModal({
                   <SwitchCamera size={16} />
                 </button>
 
-                {/* Targeting Box Overlay */}
+                {/* Dynamic Live Bounding Boxes Overlay */}
                 <div
                   style={{
                     position: 'absolute',
-                    inset: '10% 8%',
-                    border: hasAnimalDetected
-                      ? '2.5px solid #16A34A'
-                      : '2px dashed rgba(255, 255, 255, 0.45)',
-                    borderRadius: 14,
-                    background: hasAnimalDetected ? 'rgba(22, 163, 74, 0.08)' : 'transparent',
+                    inset: 0,
                     pointerEvents: 'none',
-                    transition: 'all 0.25s ease',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    padding: 8,
-                    boxShadow: hasAnimalDetected ? '0 0 16px rgba(22, 163, 74, 0.35)' : 'none',
+                    overflow: 'hidden',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                    {hasAnimalDetected ? (
-                      <span
+                  {liveDetections.map((detection, idx) => {
+                    const isTarget = detection.type === 'GOAT' || detection.type === 'SHEEP';
+                    const isPerson = detection.type === 'PERSON';
+                    const isOtherAnimal = detection.type === 'OTHER_ANIMAL';
+
+                    const borderColor = isTarget
+                      ? '#16A34A'
+                      : isPerson
+                      ? '#3B82F6'
+                      : isOtherAnimal
+                      ? '#F59E0B'
+                      : 'rgba(255, 255, 255, 0.6)';
+
+                    const labelBg = isTarget
+                      ? '#16A34A'
+                      : isPerson
+                      ? '#2563EB'
+                      : isOtherAnimal
+                      ? '#D97706'
+                      : 'rgba(30, 41, 59, 0.9)';
+
+                    const leftPct = Math.max(0, Math.min(92, (detection.boundingBox?.x ?? 0.1) * 100));
+                    const topPct = Math.max(0, Math.min(92, (detection.boundingBox?.y ?? 0.1) * 100));
+                    const widthPct = Math.max(8, Math.min(100 - leftPct, (detection.boundingBox?.width ?? 0.8) * 100));
+                    const heightPct = Math.max(8, Math.min(100 - topPct, (detection.boundingBox?.height ?? 0.8) * 100));
+
+                    return (
+                      <div
+                        key={`${detection.type}-${idx}`}
                         style={{
-                          background: '#16A34A',
-                          color: '#FFFFFF',
-                          fontWeight: 800,
-                          fontSize: 11,
-                          padding: '2px 8px',
-                          borderRadius: 6,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                          position: 'absolute',
+                          left: `${leftPct}%`,
+                          top: `${topPct}%`,
+                          width: `${widthPct}%`,
+                          height: `${heightPct}%`,
+                          border: isTarget
+                            ? '2.5px solid #16A34A'
+                            : `2px ${detection.type === 'OBJECT' ? 'dashed' : 'solid'} ${borderColor}`,
+                          borderRadius: 10,
+                          boxShadow: isTarget
+                            ? '0 0 16px rgba(22, 163, 74, 0.4), inset 0 0 10px rgba(22, 163, 74, 0.1)'
+                            : isPerson
+                            ? '0 0 12px rgba(59, 130, 246, 0.35)'
+                            : '0 2px 6px rgba(0, 0, 0, 0.3)',
+                          background: isTarget ? 'rgba(22, 163, 74, 0.08)' : 'transparent',
+                          transition: 'left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), top 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          padding: 6,
                         }}
                       >
-                        <Sparkles size={12} />
-                        {isSheep ? 'TUPA' : 'KAMBING'}
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          background: 'rgba(0,0,0,0.55)',
-                          color: 'rgba(255,255,255,0.85)',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: '2px 7px',
-                          borderRadius: 6,
-                          backdropFilter: 'blur(4px)',
-                        }}
-                      >
-                        Itapat sa Hayop
-                      </span>
-                    )}
-                  </div>
+                        {/* Top Label */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                          <span
+                            style={{
+                              background: labelBg,
+                              color: '#FFFFFF',
+                              fontWeight: 800,
+                              fontSize: 11,
+                              padding: '2px 8px',
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.35)',
+                              letterSpacing: '0.04em',
+                            }}
+                          >
+                            {isTarget && <Sparkles size={11} />}
+                            {detection.label}
+                          </span>
+                        </div>
+
+                        {/* Bottom Subtitle inside box */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: 'rgba(255, 255, 255, 0.9)',
+                              textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
+                              letterSpacing: '0.02em',
+                              textTransform: 'lowercase',
+                              background: 'rgba(0, 0, 0, 0.45)',
+                              padding: '1px 6px',
+                              borderRadius: 4,
+                              backdropFilter: 'blur(4px)',
+                            }}
+                          >
+                            {detection.type.toLowerCase().replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {/* Subtle Viewfinder Guides when camera is idle/searching */}
+                {liveDetections.length === 0 && !isScanning && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: '12% 10%',
+                      border: '1.5px dashed rgba(255, 255, 255, 0.3)',
+                      borderRadius: 14,
+                      pointerEvents: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        background: 'rgba(15, 23, 42, 0.65)',
+                        backdropFilter: 'blur(4px)',
+                        color: 'rgba(255, 255, 255, 0.75)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: '3px 10px',
+                        borderRadius: 8,
+                      }}
+                    >
+                      Itapat ang camera sa kambing o tupa
+                    </span>
+                  </div>
+                )}
+
+                {/* Multiple Animals Detected Warning Banner */}
+                {multipleAnimalsDetected && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      left: 10,
+                      right: 54,
+                      background: 'rgba(217, 119, 6, 0.95)',
+                      backdropFilter: 'blur(6px)',
+                      color: '#FFFFFF',
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                      zIndex: 12,
+                    }}
+                  >
+                    <AlertTriangle size={14} color="#FFFFFF" />
+                    <span>Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.</span>
+                  </div>
+                )}
+
+                {/* Auto-Capture Steady Indicator */}
+                {autoCaptureStatus === 'holding' && !multipleAnimalsDetected && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      left: 10,
+                      right: 54,
+                      background: 'rgba(22, 163, 74, 0.95)',
+                      backdropFilter: 'blur(6px)',
+                      color: '#FFFFFF',
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                      zIndex: 12,
+                    }}
+                  >
+                    <Sparkles size={14} color="#FFFFFF" />
+                    <span>Naka-lock sa hayop • Kinukunan nang kusa...</span>
+                  </div>
+                )}
 
                 {/* Live Status Pill at Bottom of Viewport */}
                 <div
@@ -803,12 +1087,14 @@ export function CameraFirstHealthModal({
                 >
                   <div
                     style={{
-                      background: hasAnimalDetected
+                      background: multipleAnimalsDetected
+                        ? 'rgba(217, 119, 6, 0.92)'
+                        : liveTargetDetected
                         ? 'rgba(22, 163, 74, 0.92)'
-                        : 'rgba(15, 23, 42, 0.82)',
+                        : 'rgba(15, 23, 42, 0.85)',
                       backdropFilter: 'blur(6px)',
                       color: '#FFFFFF',
-                      padding: '5px 12px',
+                      padding: '5px 14px',
                       borderRadius: 18,
                       fontSize: 11.5,
                       fontWeight: 700,
@@ -817,13 +1103,18 @@ export function CameraFirstHealthModal({
                       gap: 6,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
                       textAlign: 'center',
-                      maxWidth: '90%',
+                      maxWidth: '92%',
                     }}
                   >
-                    {hasAnimalDetected ? (
+                    {multipleAnimalsDetected ? (
+                      <>
+                        <AlertTriangle size={13} color="#FFFFFF" />
+                        <span>Maraming hayop ang nakita.</span>
+                      </>
+                    ) : liveTargetDetected ? (
                       <>
                         <CheckCircle2 size={13} color="#FFFFFF" />
-                        <span>{isSheep ? 'Tupa ang nakita.' : 'Kambing ang nakita.'}</span>
+                        <span>{liveStatusText}</span>
                       </>
                     ) : (
                       <>
@@ -862,7 +1153,7 @@ export function CameraFirstHealthModal({
                       }}
                     />
                     <div style={{ fontSize: 13, fontWeight: 700 }}>
-                      Sinusuri ang kalusugan ng hayop...
+                      Sinusuri ang kalusugan sa Gemini Vision...
                     </div>
                   </div>
                 )}
@@ -872,43 +1163,62 @@ export function CameraFirstHealthModal({
 
           {/* Primary Action Button directly below the Camera */}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{
-                flex: 1,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                padding: '11px 20px',
-                fontSize: 14,
-                fontWeight: 700,
-                borderRadius: 12,
-                background: '#16A34A',
-                borderColor: '#16A34A',
-                boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
-              }}
-              onClick={handlePerformScan}
-              disabled={isScanning || !isCameraActive}
-            >
-              {isScanning ? (
-                <>
-                  <RefreshCw size={16} className="animate-spin" />
-                  <span>Sinusuri ang hayop...</span>
-                </>
-              ) : scanResult ? (
-                <>
-                  <RefreshCw size={16} />
-                  <span>I-scan Muli</span>
-                </>
-              ) : (
-                <>
-                  <Camera size={18} />
-                  <span>I-scan ang Hayop</span>
-                </>
-              )}
-            </button>
+            {scanResult ? (
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{
+                  flex: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '11px 20px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  borderRadius: 12,
+                  color: '#16A34A',
+                  borderColor: '#16A34A',
+                }}
+                onClick={handleResetScan}
+              >
+                <RefreshCw size={16} />
+                <span>Mag-scan ng Panibagong Hayop</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{
+                  flex: 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '11px 20px',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  borderRadius: 12,
+                  background: '#16A34A',
+                  borderColor: '#16A34A',
+                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
+                }}
+                onClick={handlePerformScan}
+                disabled={isScanning || !isCameraActive}
+              >
+                {isScanning ? (
+                  <>
+                    <RefreshCw size={16} className="animate-spin" />
+                    <span>Sinusuri ang hayop sa Gemini Vision...</span>
+                  </>
+                ) : (
+                  <>
+                    <Camera size={18} />
+                    <span>I-scan ang Hayop</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           {/* ── 2. RESULTS APPEAR DIRECTLY BELOW CAMERA ── */}

@@ -10,6 +10,7 @@ function localApiPlugin() {
           req.url &&
           (req.url.startsWith('/api/auth/sms') ||
             req.url.startsWith('/api/public-animal') ||
+            req.url.startsWith('/api/gemini/detect-objects') ||
             req.url.startsWith('/api/gemini/animal-scan') ||
             req.url.startsWith('/api/ai/animal-scan'))
         ) {
@@ -17,6 +18,8 @@ function localApiPlugin() {
             let modulePath = '/api/auth/sms.ts';
             if (req.url.startsWith('/api/public-animal')) {
               modulePath = '/api/public-animal.ts';
+            } else if (req.url.startsWith('/api/gemini/detect-objects')) {
+              modulePath = '/api/gemini/detect-objects.ts';
             } else if (req.url.startsWith('/api/gemini/animal-scan')) {
               modulePath = '/api/gemini/animal-scan.ts';
             } else if (req.url.startsWith('/api/ai/animal-scan')) {
