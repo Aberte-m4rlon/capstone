@@ -31,8 +31,9 @@ import {
   X,
 } from 'lucide-react';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../ui/Modal';
-import { captureVideoFrame, captureLowResFrame, LiveDetectedObject } from '../../../lib/cameraUtils';
-import { scanAnimalWithGemini, detectLiveObjects } from '../../../lib/geminiScanner';
+import { captureVideoFrame, LiveDetectedObject } from '../../../lib/cameraUtils';
+import { scanAnimalWithGemini } from '../../../lib/geminiScanner';
+import { detectLiveFrameLocally } from '../../../lib/clientObjectDetector';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../lib/toast';
 import { createNotification } from '../../../lib/recommendations';
@@ -262,7 +263,7 @@ export function CameraFirstHealthModal({
     }
   }, [isScanning, matchAnimalFromText]);
 
-  // ── Live Object Detection & Bounding Box Sampling ──────────────────────────
+  // ── Live Object Detection & Bounding Box Sampling (100% Client-Side) ──────
   const runLiveObjectDetection = useCallback(async () => {
     const video = videoRef.current;
     if (
@@ -279,8 +280,8 @@ export function CameraFirstHealthModal({
 
     isSamplingRef.current = true;
     try {
-      const lowResCanvas = captureLowResFrame(video, 480);
-      const result = await detectLiveObjects(lowResCanvas);
+      const preferred = selectedAnimal?.species?.toLowerCase().includes('sheep') ? 'sheep' : 'goat';
+      const result = await detectLiveFrameLocally(video, preferred);
 
       if (!isMountedRef.current || isScanning || scanResult) return;
 
@@ -316,7 +317,7 @@ export function CameraFirstHealthModal({
         if (stableTargetCountRef.current === 1) {
           setAutoCaptureStatus('holding');
           setLiveStatusText(`${targetName}: Handa nang i-scan • Manatiling nakatutok...`);
-        } else if (stableTargetCountRef.current >= 2) {
+        } else if (stableTargetCountRef.current >= 3) {
           setAutoCaptureStatus('capturing');
           setLiveStatusText(`Kinukunan ang ${targetName.toLowerCase()}...`);
           stableTargetCountRef.current = 0;
@@ -340,15 +341,15 @@ export function CameraFirstHealthModal({
         } else if (obj) {
           setLiveStatusText('BAGAY');
         } else {
-          setLiveStatusText(result.status_message || 'Tinitingnan ang camera...');
+          setLiveStatusText(result.statusMessage || 'Tinitingnan ang camera...');
         }
       }
     } catch {
-      // Ignore network jitter
+      // Ignore frame jitter
     } finally {
       isSamplingRef.current = false;
     }
-  }, [isScanning, scanResult]);
+  }, [isScanning, scanResult, selectedAnimal]);
 
   // ── Start Camera Stream ───────────────────────────────────────────────────
   const startCameraStream = useCallback(async () => {
@@ -448,7 +449,7 @@ export function CameraFirstHealthModal({
     }
 
     setIsScanning(true);
-    setLiveStatusText('Sinusuri sa Gemini Vision...');
+    setLiveStatusText('Sinusuri ang kalagayan ng hayop...');
 
     try {
       const frameCanvas = captureVideoFrame(video);
@@ -591,10 +592,10 @@ export function CameraFirstHealthModal({
       clearInterval(detectionIntervalRef.current);
     }
 
-    // Run sampled frame detection every ~1300ms for smooth live bounding boxes
+    // Run fast client-side frame detection every 120ms (~8 FPS) for smooth real-time tracking
     detectionIntervalRef.current = setInterval(() => {
       runLiveObjectDetection();
-    }, 1300);
+    }, 120);
 
     return () => {
       if (detectionIntervalRef.current) {
