@@ -279,8 +279,7 @@ export function useAutoScan(options: {
     isSamplingRef.current = true;
 
     try {
-      const pref = speciesPreference === 'sheep' ? 'sheep' : (speciesPreference === 'goat' ? 'goat' : 'auto');
-      const liveRes = await detectLiveFrameLocally(video, pref);
+      const liveRes = await detectLiveFrameLocally(video);
       if (!mountedRef.current) return;
 
       setLiveDetections(liveRes.detections);
@@ -436,7 +435,9 @@ export function useAutoScan(options: {
         stateRef.current = 'detecting';
       }
     } catch (err) {
-      console.warn('[useAutoScan] detectionTick error:', err);
+      console.warn('[useAutoScan] detectionTick error, clearing stale detections:', err);
+      setLiveDetections([]);
+      setDetection(null);
     } finally {
       isSamplingRef.current = false;
     }

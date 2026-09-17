@@ -72,6 +72,18 @@ export interface HealthScanResult {
   scannedAt: string;
 }
 
+export type CameraLifecycleState =
+  | 'INITIALIZING'
+  | 'DETECTING'
+  | 'GOAT_DETECTED'
+  | 'SHEEP_DETECTED'
+  | 'OTHER_DETECTED'
+  | 'NO_DETECTION'
+  | 'CAPTURING'
+  | 'ANALYZING'
+  | 'RESULT'
+  | 'ERROR';
+
 export function CameraFirstHealthModal({
   open,
   onClose,
@@ -85,6 +97,7 @@ export function CameraFirstHealthModal({
   const toast = useToast();
 
   // ── Camera & Detection State ──
+  const [cameraState, setCameraState] = useState<CameraLifecycleState>('INITIALIZING');
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [cameraPermissionError, setCameraPermissionError] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -186,6 +199,7 @@ export function CameraFirstHealthModal({
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    setCameraState('INITIALIZING');
     setLiveDetections([]);
     setMultipleAnimalsDetected(false);
     setAutoCaptureStatus('idle');
@@ -280,37 +294,56 @@ export function CameraFirstHealthModal({
 
     isSamplingRef.current = true;
     try {
-      const preferred = selectedAnimal?.species?.toLowerCase().includes('sheep') ? 'sheep' : 'goat';
-      const result = await detectLiveFrameLocally(video, preferred);
+      const result = await detectLiveFrameLocally(video);
 
       if (!isMountedRef.current || isScanning || scanResult) return;
 
-      if (!result.success) {
+      // Handle unready / failed detector
+      if (!result.success || !result.detections || result.detections.length === 0) {
         setLiveDetections([]);
         setMultipleAnimalsDetected(false);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
+        setCameraState(result.success ? 'NO_DETECTION' : 'ERROR');
+        setLiveStatusText(result.statusMessage || 'Tinitingnan ang camera...');
         return;
       }
 
-      const detections = result.detections || [];
-      setLiveDetections(detections);
+      // Strictly discard stale detections older than 250ms (Section 8)
+      const now = Date.now();
+      const freshDetections = result.detections.filter((d) => (now - (d.timestamp || 0)) <= 250);
 
-      const goatsAndSheep = detections.filter(
+      if (freshDetections.length === 0) {
+        setLiveDetections([]);
+        setMultipleAnimalsDetected(false);
+        stableTargetCountRef.current = 0;
+        setAutoCaptureStatus('idle');
+        setCameraState('NO_DETECTION');
+        setLiveStatusText(result.statusMessage || 'Tinitingnan ang camera...');
+        return;
+      }
+
+      // Immediately replace detections in state with current frame results
+      setLiveDetections(freshDetections);
+
+      const targetLivestock = freshDetections.filter(
         (d) => d.type === 'GOAT' || d.type === 'SHEEP'
       );
-      const totalGoatsAndSheep =
-        (result.count_goats || 0) + (result.count_sheep || 0) || goatsAndSheep.length;
+      const totalLivestock =
+        (result.count_goats || 0) + (result.count_sheep || 0) || targetLivestock.length;
 
-      if (result.multiple_targets || totalGoatsAndSheep > 1) {
+      if (result.multiple_targets || totalLivestock > 1) {
         setMultipleAnimalsDetected(true);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
-        setLiveStatusText('Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.');
-      } else if (totalGoatsAndSheep === 1) {
+        setCameraState('OTHER_DETECTED');
+        setLiveStatusText('Maraming hayop ang nakita. Itapat ang camera sa isang hayop.');
+      } else if (totalLivestock === 1) {
         setMultipleAnimalsDetected(false);
-        const singleTarget = goatsAndSheep[0];
-        const targetName = singleTarget?.label === 'TUPA' ? 'Tupa' : 'Kambing';
+        const singleTarget = targetLivestock[0];
+        const isGoat = singleTarget.type === 'GOAT';
+        setCameraState(isGoat ? 'GOAT_DETECTED' : 'SHEEP_DETECTED');
+        const targetName = singleTarget.label === 'TUPA' ? 'Tupa' : 'Kambing';
 
         stableTargetCountRef.current += 1;
 
@@ -318,6 +351,7 @@ export function CameraFirstHealthModal({
           setAutoCaptureStatus('holding');
           setLiveStatusText(`${targetName}: Handa nang i-scan • Manatiling nakatutok...`);
         } else if (stableTargetCountRef.current >= 3) {
+          setCameraState('CAPTURING');
           setAutoCaptureStatus('capturing');
           setLiveStatusText(`Kinukunan ang ${targetName.toLowerCase()}...`);
           stableTargetCountRef.current = 0;
@@ -329,10 +363,11 @@ export function CameraFirstHealthModal({
         setMultipleAnimalsDetected(false);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
+        setCameraState('OTHER_DETECTED');
 
-        const person = detections.find((d) => d.type === 'PERSON');
-        const otherAnimal = detections.find((d) => d.type === 'OTHER_ANIMAL');
-        const obj = detections.find((d) => d.type === 'OBJECT');
+        const person = freshDetections.find((d) => d.type === 'PERSON');
+        const otherAnimal = freshDetections.find((d) => d.type === 'OTHER_ANIMAL');
+        const obj = freshDetections.find((d) => d.type === 'OBJECT');
 
         if (person) {
           setLiveStatusText('TAO — Hindi kambing o tupa');
@@ -345,11 +380,17 @@ export function CameraFirstHealthModal({
         }
       }
     } catch {
-      // Ignore frame jitter
+      // Clear detections on error or frame drop (Section 12)
+      setLiveDetections([]);
+      setMultipleAnimalsDetected(false);
+      stableTargetCountRef.current = 0;
+      setAutoCaptureStatus('idle');
+      setCameraState('ERROR');
+      setLiveStatusText('Tinitingnan ang camera...');
     } finally {
       isSamplingRef.current = false;
     }
-  }, [isScanning, scanResult, selectedAnimal]);
+  }, [isScanning, scanResult]);
 
   // ── Start Camera Stream ───────────────────────────────────────────────────
   const startCameraStream = useCallback(async () => {
@@ -389,6 +430,7 @@ export function CameraFirstHealthModal({
         videoRef.current.play().catch(() => {});
       }
       setIsCameraActive(true);
+      setCameraState('DETECTING');
       setLiveStatusText('Handa nang mag-scan • Ilagay ang kambing o tupa sa loob ng frame.');
 
       if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
@@ -449,6 +491,7 @@ export function CameraFirstHealthModal({
     }
 
     setIsScanning(true);
+    setCameraState('ANALYZING');
     setLiveStatusText('Sinusuri ang kalagayan ng hayop...');
 
     try {
@@ -472,6 +515,7 @@ export function CameraFirstHealthModal({
         } else if (raw?.reason === 'multiple_animals') {
           msg = 'Maraming hayop ang nakita sa camera. Tutukan ang iisang hayop lamang.';
         }
+        setCameraState('NO_DETECTION');
         setLiveStatusText(msg);
         toast(msg, 'warning');
         return;
@@ -560,6 +604,7 @@ export function CameraFirstHealthModal({
       };
 
       setScanResult(result);
+      setCameraState('RESULT');
       if (!notes) {
         setNotes(result.notesSnippet);
       }
@@ -567,6 +612,7 @@ export function CameraFirstHealthModal({
       toast(`Naisagawa ang pagsusuri sa ${speciesTagalog.toLowerCase()} gamit ang Gemini Vision.`, 'success');
     } catch (err: any) {
       console.error('Gemini Scan failed:', err);
+      setCameraState('ERROR');
       toast(err.message || 'Hindi nagtagumpay ang scan. Pakisubukang itapat muli ang camera.', 'error');
     } finally {
       setIsScanning(false);
@@ -611,6 +657,7 @@ export function CameraFirstHealthModal({
     setMultipleAnimalsDetected(false);
     setAutoCaptureStatus('idle');
     stableTargetCountRef.current = 0;
+    setCameraState('DETECTING');
     setLiveStatusText('Tinitingnan ang camera...');
   };
 
@@ -945,7 +992,7 @@ export function CameraFirstHealthModal({
 
                     return (
                       <div
-                        key={`${detection.type}-${idx}`}
+                        key={`${detection.type}-${detection.label}-${idx}`}
                         style={{
                           position: 'absolute',
                           left: `${leftPct}%`,
@@ -962,7 +1009,7 @@ export function CameraFirstHealthModal({
                             ? '0 0 12px rgba(59, 130, 246, 0.35)'
                             : '0 2px 6px rgba(0, 0, 0, 0.3)',
                           background: isTarget ? 'rgba(22, 163, 74, 0.08)' : 'transparent',
-                          transition: 'left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), top 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), width 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                          transition: 'none',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',

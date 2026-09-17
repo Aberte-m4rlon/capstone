@@ -1,17 +1,18 @@
 /**
- * clientObjectDetector.ts — Ultra-Fast Browser-Side Real-Time Livestock & Object Detector
+ * clientObjectDetector.ts — Browser-Side Real-Time Object & Animal Detector
  *
  * 100% CLIENT-SIDE INFERENCE:
  *   - Runs locally in the browser using @mediapipe/tasks-vision (WASM / WebGL).
  *   - Zero server network calls during live video preview.
- *   - Detection latency: 20–45ms (< 50ms) for high-framerate real-time tracking.
- *   - Emits real normalized 2D bounding boxes and instantaneous labels:
- *       • GOAT ('KAMBING') & SHEEP ('TUPA') — Target ruminants with real bounding boxes.
- *       • PERSON ('TAO') — Instantly rejected: "TAO — Hindi kambing o tupa".
- *       • OTHER_ANIMAL ('HAYOP') — Dogs, cats, cows, horses, etc.
- *       • OBJECT ('BAGAY') — Furniture, monitors, phones, vehicles.
- *   - Built-in zero-network fallback: If WebGL or WASM fails to load, gracefully falls
- *     back to pure-JS Edge CV color & contour analysis.
+ *   - Detection latency: ~20–45ms (< 50ms) per frame.
+ *   - Strictly respects genuine model taxonomy:
+ *       • PERSON ('TAO') — Genuine COCO class.
+ *       • SHEEP ('TUPA') — Genuine COCO class.
+ *       • OTHER_ANIMAL ('HAYOP') — Cow, horse, dog, cat, bird, etc.
+ *       • OBJECT ('BAGAY') — Furniture, monitors, phones, etc.
+ *       • GOAT ('KAMBING') — Only if genuine 'goat' class is present in the model.
+ *         (NEVER faked or remapped from sheep/cow/horse/brown pixels).
+ *   - Strict per-frame replacement: Empty frames immediately yield empty detections ([]).
  */
 
 import { FilesetResolver, ObjectDetector } from '@mediapipe/tasks-vision';
@@ -30,12 +31,14 @@ export type BoundingBox2D = BoundingBox;
 export interface ClientDetectedObject extends LiveDetectedObject {
   confidence: number;
   rawCategory?: string;
+  timestamp: number; // Frame capture epoch ms for strict TTL expiration
 }
 
 export interface ClientDetectorResult {
   success: boolean;
   modelReady: boolean;
-  usingFallback: boolean;
+  modelName: string;
+  supportsGoatClass: boolean;
   detections: ClientDetectedObject[];
   count_goats: number;
   count_sheep: number;
@@ -46,14 +49,24 @@ export interface ClientDetectorResult {
   statusMessage: string;
 }
 
-// ── Constants & Synsets ────────────────────────────────────────────────────────
+// ── Constants & Configuration ─────────────────────────────────────────────────
 
 const WASM_CDN_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
 const LOCAL_MODEL_URL = '/models/efficientdet_lite0.tflite';
 const REMOTE_MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite';
 
-const OTHER_ANIMALS_SET = new Set([
+// Class-specific confidence thresholds (Section 14)
+export const CONFIDENCE_THRESHOLDS = {
+  PERSON: 0.55,       // Strict threshold for human detection
+  SHEEP: 0.45,        // Target ovine threshold
+  GOAT: 0.45,         // Target caprine threshold
+  OTHER_ANIMAL: 0.50, // Cow, horse, dog, etc.
+  OBJECT: 0.48,       // Furniture, gadgets, etc.
+} as const;
+
+// Animals recognized in COCO dataset taxonomy
+const COCO_ANIMALS_SET = new Set([
   'bird',
   'cat',
   'dog',
@@ -70,28 +83,12 @@ const OTHER_ANIMALS_SET = new Set([
 let _detectorPromise: Promise<ObjectDetector | null> | null = null;
 let _detectorInstance: ObjectDetector | null = null;
 let _isModelReady = false;
-let _usingFallback = false;
 let _loadError: string | null = null;
-
-// Reusable offscreen canvas for fast pixel texture analysis
-let _analysisCanvas: HTMLCanvasElement | null = null;
-let _analysisCtx: CanvasRenderingContext2D | null = null;
-
-function getAnalysisContext(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null {
-  if (typeof document === 'undefined') return null;
-  if (!_analysisCanvas) {
-    _analysisCanvas = document.createElement('canvas');
-    _analysisCanvas.width = 128;
-    _analysisCanvas.height = 128;
-    _analysisCtx = _analysisCanvas.getContext('2d', { willReadFrequently: true });
-  }
-  if (!_analysisCtx) return null;
-  return { canvas: _analysisCanvas, ctx: _analysisCtx };
-}
+let _hasGoatClass = false;
 
 /**
  * Initializes the MediaPipe ObjectDetector singleton.
- * Loads once, cached in memory across camera sessions.
+ * Loads once and caches in memory across camera sessions.
  */
 export async function initClientObjectDetector(): Promise<ObjectDetector | null> {
   if (_detectorInstance) {
@@ -107,7 +104,6 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
     try {
       const vision = await FilesetResolver.forVisionTasks(WASM_CDN_URL);
 
-      // Try local model first; if unavailable, try CDN
       let detector: ObjectDetector;
       try {
         detector = await ObjectDetector.createFromOptions(vision, {
@@ -115,32 +111,37 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
             modelAssetPath: LOCAL_MODEL_URL,
             delegate: 'GPU',
           },
-          scoreThreshold: 0.28,
+          scoreThreshold: 0.30,
           runningMode: 'IMAGE',
         });
-      } catch (localErr) {
-        // Fallback to CDN URL
+      } catch {
+        // Fallback to CDN URL if local asset is unavailable
         detector = await ObjectDetector.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: REMOTE_MODEL_URL,
             delegate: 'GPU',
           },
-          scoreThreshold: 0.28,
+          scoreThreshold: 0.30,
           runningMode: 'IMAGE',
         });
       }
 
       _detectorInstance = detector;
       _isModelReady = true;
-      _usingFallback = false;
+
+      // Audit model classes
+      _hasGoatClass = false;
+      console.log(
+        '[ClientObjectDetector] EfficientDet-Lite0 initialized successfully. ' +
+        'Genuine classes: person, sheep, cow, horse, dog, cat, etc. ' +
+        'Note: Model taxonomy is COCO-80. Fake goat remapping is strictly disabled.'
+      );
+
       return detector;
     } catch (err: any) {
-      console.warn(
-        '[ClientObjectDetector] MediaPipe WASM/GPU load failed, activating zero-network Edge CV fallback:',
-        err?.message || err
-      );
-      _usingFallback = true;
+      console.error('[ClientObjectDetector] MediaPipe ObjectDetector initialization failed:', err?.message || err);
       _loadError = err?.message || 'Model load failed';
+      _isModelReady = false;
       return null;
     }
   })();
@@ -152,224 +153,64 @@ export function isClientDetectorReady(): boolean {
   return _isModelReady;
 }
 
-export function isClientDetectorUsingFallback(): boolean {
-  return _usingFallback;
+export function hasGenuineGoatClass(): boolean {
+  return _hasGoatClass;
 }
 
 /**
- * Texture & coat analysis to accurately distinguish GOAT vs SHEEP
- * inside the localized bounding box.
+ * Validates bounding box geometry (Section 13).
+ * Rejects invalid, negative, NaN, or microscopic boxes.
  */
-function analyzeRuminantSpecies(
-  video: HTMLVideoElement,
-  box: BoundingBox2D,
-  speciesPreference?: 'goat' | 'sheep' | 'auto'
-): { species: 'goat' | 'sheep'; label: 'KAMBING' | 'TUPA'; confidence: number } {
-  // If user explicitly configured preference, prioritize it
-  if (speciesPreference === 'sheep') {
-    return { species: 'sheep', label: 'TUPA', confidence: 0.94 };
-  }
-  if (speciesPreference === 'goat') {
-    return { species: 'goat', label: 'KAMBING', confidence: 0.94 };
-  }
-
-  const analysis = getAnalysisContext();
-  if (!analysis) {
-    return { species: 'goat', label: 'KAMBING', confidence: 0.88 };
+function isValidBoundingBox(box: { x: number; y: number; width: number; height: number }): boolean {
+  if (
+    typeof box.x !== 'number' ||
+    typeof box.y !== 'number' ||
+    typeof box.width !== 'number' ||
+    typeof box.height !== 'number' ||
+    isNaN(box.x) ||
+    isNaN(box.y) ||
+    isNaN(box.width) ||
+    isNaN(box.height)
+  ) {
+    return false;
   }
 
-  try {
-    const { canvas, ctx } = analysis;
-    const vW = video.videoWidth || 640;
-    const vH = video.videoHeight || 480;
-
-    const sx = Math.max(0, Math.floor(box.x * vW));
-    const sy = Math.max(0, Math.floor(box.y * vH));
-    const sw = Math.min(vW - sx, Math.max(10, Math.floor(box.width * vW)));
-    const sh = Math.min(vH - sy, Math.max(10, Math.floor(box.height * vH)));
-
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, 128, 128);
-    const imgData = ctx.getImageData(0, 0, 128, 128);
-    const data = imgData.data;
-
-    let fleecePixels = 0;
-    let coarseCoatPixels = 0;
-    const totalPixels = 128 * 128;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-
-      // Sheep wool / fleece: desaturated bright wool texture
-      if (r > 140 && g > 140 && b > 130 && Math.abs(r - g) < 22 && Math.abs(g - b) < 22) {
-        fleecePixels++;
-      }
-
-      // Goat coarse coat: darker / multi-toned hair
-      if ((r > 40 && g > 30 && b < 50 && (r - b) > 10) || (r > 70 && g > 45 && b < 50)) {
-        coarseCoatPixels++;
-      }
-    }
-
-    const fleeceRatio = fleecePixels / totalPixels;
-    const coatRatio = coarseCoatPixels / totalPixels;
-
-    if (fleeceRatio > 0.16 && fleeceRatio > coatRatio) {
-      return { species: 'sheep', label: 'TUPA', confidence: 0.92 };
-    }
-
-    return { species: 'goat', label: 'KAMBING', confidence: 0.90 };
-  } catch {
-    return { species: 'goat', label: 'KAMBING', confidence: 0.88 };
+  // Box must have non-trivial size (at least 6% width & height)
+  if (box.width < 0.06 || box.height < 0.06) {
+    return false;
   }
+
+  // Box area must be at least 0.8% of the viewport and at most 98%
+  const area = box.width * box.height;
+  if (area < 0.008 || area > 0.98) {
+    return false;
+  }
+
+  // Coordinates must be reasonably within the camera frame
+  if (box.x < -0.05 || box.y < -0.05 || box.x + box.width > 1.05 || box.y + box.height > 1.05) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
- * Pure-JS Edge CV fallback for 100% offline environments or unsupported devices.
- */
-function runEdgeCVFallback(
-  video: HTMLVideoElement,
-  speciesPreference?: 'goat' | 'sheep' | 'auto'
-): ClientDetectorResult {
-  const vW = video.videoWidth || 640;
-  const vH = video.videoHeight || 480;
-
-  const analysis = getAnalysisContext();
-  if (!analysis) {
-    return {
-      success: false,
-      modelReady: false,
-      usingFallback: true,
-      detections: [],
-      count_goats: 0,
-      count_sheep: 0,
-      count_persons: 0,
-      count_others: 0,
-      multiple_targets: false,
-      primaryTarget: null,
-      statusMessage: 'Inihahanda ang camera...',
-    };
-  }
-
-  const { canvas, ctx } = analysis;
-  canvas.width = 96;
-  canvas.height = 96;
-  ctx.drawImage(video, 0, 0, 96, 96);
-  const data = ctx.getImageData(0, 0, 96, 96).data;
-  const totalPixels = 96 * 96;
-
-  let humanSkinPixels = 0;
-  let animalPixels = 0;
-  let minX = 96, maxX = 0, minY = 96, maxY = 0;
-
-  for (let y = 0; y < 96; y++) {
-    for (let x = 0; x < 96; x++) {
-      const idx = (y * 96 + x) * 4;
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-      // Human skin pattern
-      const isSkin = r > 95 && g > 45 && b > 20 && (r - g) > 15 && (r - b) > 20 && lum > 40 && lum < 225;
-      if (isSkin) humanSkinPixels++;
-
-      // Animal coat/fleece signature
-      const isFleece = r > 140 && g > 140 && b > 130 && Math.abs(r - g) < 25;
-      const isCoat = (r > 35 && g > 25 && b < 50 && Math.abs(r - g) < 30) || (r > 60 && g > 40 && b < 40);
-      if ((isFleece || isCoat) && lum > 25 && lum < 240) {
-        animalPixels++;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-
-  const skinRatio = humanSkinPixels / totalPixels;
-  if (skinRatio > 0.22) {
-    const personObj: ClientDetectedObject = {
-      type: 'PERSON',
-      label: 'TAO',
-      confidence: 0.92,
-      boundingBox: { x: 0.15, y: 0.1, width: 0.7, height: 0.8 },
-      rawCategory: 'person',
-    };
-    return {
-      success: true,
-      modelReady: true,
-      usingFallback: true,
-      detections: [personObj],
-      count_goats: 0,
-      count_sheep: 0,
-      count_persons: 1,
-      count_others: 0,
-      multiple_targets: false,
-      primaryTarget: personObj,
-      statusMessage: 'TAO — Hindi kambing o tupa',
-    };
-  }
-
-  if (animalPixels > 120 && maxX > minX && maxY > minY) {
-    const normX = Math.max(0.05, minX / 96 - 0.05);
-    const normY = Math.max(0.08, minY / 96 - 0.05);
-    const normW = Math.min(0.95 - normX, (maxX - minX) / 96 + 0.1);
-    const normH = Math.min(0.95 - normY, (maxY - minY) / 96 + 0.1);
-
-    const isSheep = speciesPreference === 'sheep';
-    const targetObj: ClientDetectedObject = {
-      type: isSheep ? 'SHEEP' : 'GOAT',
-      label: isSheep ? 'TUPA' : 'KAMBING',
-      confidence: 0.88,
-      boundingBox: { x: normX, y: normY, width: normW, height: normH },
-      rawCategory: isSheep ? 'sheep' : 'goat',
-    };
-
-    return {
-      success: true,
-      modelReady: true,
-      usingFallback: true,
-      detections: [targetObj],
-      count_goats: isSheep ? 0 : 1,
-      count_sheep: isSheep ? 1 : 0,
-      count_persons: 0,
-      count_others: 0,
-      multiple_targets: false,
-      primaryTarget: targetObj,
-      statusMessage: `${targetObj.label}: Handa nang i-scan • Manatiling nakatutok...`,
-    };
-  }
-
-  return {
-    success: true,
-    modelReady: true,
-    usingFallback: true,
-    detections: [],
-    count_goats: 0,
-    count_sheep: 0,
-    count_persons: 0,
-    count_others: 0,
-    multiple_targets: false,
-    primaryTarget: null,
-    statusMessage: 'Tinitingnan ang camera...',
-  };
-}
-
-/**
- * Detects objects in a live video frame locally in real-time.
- * Returns normalized bounding boxes and classifications.
+ * Detects objects in the CURRENT live video frame locally in real-time.
+ * Every call strictly reflects ONLY the current frame.
+ * Does NOT cache, preserve, or fabricate detections.
  */
 export async function detectLiveFrameLocally(
-  video: HTMLVideoElement,
-  speciesPreference?: 'goat' | 'sheep' | 'auto'
+  video: HTMLVideoElement
 ): Promise<ClientDetectorResult> {
+  const now = Date.now();
+
+  // Validate video element state
   if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
     return {
       success: false,
       modelReady: _isModelReady,
-      usingFallback: _usingFallback,
+      modelName: 'EfficientDet-Lite0',
+      supportsGoatClass: _hasGoatClass,
       detections: [],
       count_goats: 0,
       count_sheep: 0,
@@ -382,19 +223,32 @@ export async function detectLiveFrameLocally(
   }
 
   // Ensure detector is initialized
-  if (!_detectorInstance && !_usingFallback) {
+  if (!_detectorInstance) {
     await initClientObjectDetector();
   }
 
-  // If detector failed or offline, use pure Edge CV fallback
-  if (!_detectorInstance || _usingFallback) {
-    return runEdgeCVFallback(video, speciesPreference);
+  if (!_detectorInstance) {
+    return {
+      success: false,
+      modelReady: false,
+      modelName: 'EfficientDet-Lite0',
+      supportsGoatClass: false,
+      detections: [],
+      count_goats: 0,
+      count_sheep: 0,
+      count_persons: 0,
+      count_others: 0,
+      multiple_targets: false,
+      primaryTarget: null,
+      statusMessage: 'Inihahanda ang camera...',
+    };
   }
 
   try {
     const vW = video.videoWidth;
     const vH = video.videoHeight;
 
+    // Run stateless inference on the current frame
     const mpResult = _detectorInstance.detect(video);
     const rawDetections = mpResult.detections || [];
 
@@ -413,70 +267,104 @@ export async function detectLiveFrameLocally(
 
       // Normalize bounding box coordinates to 0.0 – 1.0
       const box = d.boundingBox;
-      const normX = Math.max(0, Math.min(0.95, box.originX / vW));
-      const normY = Math.max(0, Math.min(0.95, box.originY / vH));
-      const normW = Math.max(0.05, Math.min(1.0 - normX, box.width / vW));
-      const normH = Math.max(0.05, Math.min(1.0 - normY, box.height / vH));
+      const rawX = box.originX / vW;
+      const rawY = box.originY / vH;
+      const rawW = box.width / vW;
+      const rawH = box.height / vH;
 
-      const boundingBox: BoundingBox2D = {
-        x: normX,
-        y: normY,
-        width: normW,
-        height: normH,
+      const rawBox = { x: rawX, y: rawY, width: rawW, height: rawH };
+
+      // Section 13: Validate bounding box geometry
+      if (!isValidBoundingBox(rawBox)) {
+        continue;
+      }
+
+      const clampedBox: BoundingBox2D = {
+        x: Math.max(0, Math.min(0.95, rawX)),
+        y: Math.max(0, Math.min(0.95, rawY)),
+        width: Math.max(0.05, Math.min(1.0 - rawX, rawW)),
+        height: Math.max(0.05, Math.min(1.0 - rawY, rawH)),
       };
 
-      // ── Classification Rules ─────────────────────────────────────────────
+      // ── Strict Genuine Class Classification & Confidence Filtering ──────────
+
+      // 1. PERSON ('TAO')
       if (catName === 'person') {
-        count_persons++;
-        detections.push({
-          type: 'PERSON',
-          label: 'TAO',
-          confidence: score,
-          boundingBox,
-          rawCategory: catName,
-        });
-      } else if (catName === 'sheep' || catName === 'goat') {
-        // Target ruminant
-        const ruminant = analyzeRuminantSpecies(video, boundingBox, speciesPreference);
-        if (ruminant.species === 'sheep') {
-          count_sheep++;
-        } else {
-          count_goats++;
+        if (score >= CONFIDENCE_THRESHOLDS.PERSON) {
+          count_persons++;
+          detections.push({
+            type: 'PERSON',
+            label: 'TAO',
+            confidence: score,
+            boundingBox: clampedBox,
+            rawCategory: catName,
+            timestamp: now,
+          });
         }
-        detections.push({
-          type: ruminant.species === 'sheep' ? 'SHEEP' : 'GOAT',
-          label: ruminant.label,
-          confidence: Math.max(score, ruminant.confidence),
-          boundingBox,
-          rawCategory: catName,
-        });
-      } else if (OTHER_ANIMALS_SET.has(catName)) {
-        count_others++;
-        detections.push({
-          type: 'OTHER_ANIMAL',
-          label: 'HAYOP',
-          confidence: score,
-          boundingBox,
-          rawCategory: catName,
-        });
-      } else {
-        // Household / everyday object
-        detections.push({
-          type: 'OBJECT',
-          label: 'BAGAY',
-          confidence: score,
-          boundingBox,
-          rawCategory: catName,
-        });
+      }
+      // 2. GOAT ('KAMBING') — ONLY if model genuinely outputs 'goat'
+      else if (catName === 'goat') {
+        if (score >= CONFIDENCE_THRESHOLDS.GOAT) {
+          count_goats++;
+          detections.push({
+            type: 'GOAT',
+            label: 'KAMBING',
+            confidence: score,
+            boundingBox: clampedBox,
+            rawCategory: catName,
+            timestamp: now,
+          });
+        }
+      }
+      // 3. SHEEP ('TUPA') — Genuine COCO class
+      else if (catName === 'sheep') {
+        if (score >= CONFIDENCE_THRESHOLDS.SHEEP) {
+          count_sheep++;
+          detections.push({
+            type: 'SHEEP',
+            label: 'TUPA',
+            confidence: score,
+            boundingBox: clampedBox,
+            rawCategory: catName,
+            timestamp: now,
+          });
+        }
+      }
+      // 4. OTHER ANIMALS ('HAYOP') — Cow, horse, dog, cat, etc.
+      else if (COCO_ANIMALS_SET.has(catName)) {
+        if (score >= CONFIDENCE_THRESHOLDS.OTHER_ANIMAL) {
+          count_others++;
+          detections.push({
+            type: 'OTHER_ANIMAL',
+            label: 'HAYOP',
+            confidence: score,
+            boundingBox: clampedBox,
+            rawCategory: catName,
+            timestamp: now,
+          });
+        }
+      }
+      // 5. HOUSEHOLD / OBJECTS ('BAGAY')
+      else {
+        if (score >= CONFIDENCE_THRESHOLDS.OBJECT) {
+          detections.push({
+            type: 'OBJECT',
+            label: 'BAGAY',
+            confidence: score,
+            boundingBox: clampedBox,
+            rawCategory: catName,
+            timestamp: now,
+          });
+        }
       }
     }
 
-    const totalRuminants = count_goats + count_sheep;
-    const multiple_targets = totalRuminants > 1;
+    const totalLivestock = count_goats + count_sheep;
+    const multiple_targets = totalLivestock > 1;
 
-    // Pick primary target for stability & auto-capture
+    // Pick primary target for stability tracking
     let primaryTarget: ClientDetectedObject | null = null;
-    if (totalRuminants > 0) {
+    if (totalLivestock > 0) {
       primaryTarget = detections.find((d) => d.type === 'GOAT' || d.type === 'SHEEP') || null;
     } else if (count_persons > 0) {
       primaryTarget = detections.find((d) => d.type === 'PERSON') || null;
@@ -484,11 +372,11 @@ export async function detectLiveFrameLocally(
       primaryTarget = detections[0];
     }
 
-    // Compose user-friendly status message in Filipino
+    // Compose user-facing Filipino status message
     let statusMessage = 'Tinitingnan ang camera...';
     if (multiple_targets) {
-      statusMessage = 'Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.';
-    } else if (totalRuminants === 1 && primaryTarget) {
+      statusMessage = 'Maraming hayop ang nakita. Itapat ang camera sa isang hayop.';
+    } else if (totalLivestock === 1 && primaryTarget) {
       statusMessage = `${primaryTarget.label}: Handa nang i-scan • Manatiling nakatutok...`;
     } else if (count_persons > 0) {
       statusMessage = 'TAO — Hindi kambing o tupa';
@@ -496,12 +384,15 @@ export async function detectLiveFrameLocally(
       statusMessage = 'HAYOP — Hindi kambing o tupa';
     } else if (detections.some((d) => d.type === 'OBJECT')) {
       statusMessage = 'BAGAY — Itapat ang camera sa kambing o tupa';
+    } else {
+      statusMessage = 'Tinitingnan ang camera...';
     }
 
     return {
       success: true,
       modelReady: true,
-      usingFallback: false,
+      modelName: 'EfficientDet-Lite0',
+      supportsGoatClass: _hasGoatClass,
       detections,
       count_goats,
       count_sheep,
@@ -512,8 +403,21 @@ export async function detectLiveFrameLocally(
       statusMessage,
     };
   } catch (err: any) {
-    // If MediaPipe runtime error occurs during a frame, gracefully fallback
-    console.warn('[ClientObjectDetector] Detection failed, switching to Edge CV:', err?.message || err);
-    return runEdgeCVFallback(video, speciesPreference);
+    // If inference error occurs, return EMPTY detections immediately (Section 12)
+    console.warn('[ClientObjectDetector] Frame inference error, clearing frame detections:', err?.message || err);
+    return {
+      success: false,
+      modelReady: _isModelReady,
+      modelName: 'EfficientDet-Lite0',
+      supportsGoatClass: _hasGoatClass,
+      detections: [],
+      count_goats: 0,
+      count_sheep: 0,
+      count_persons: 0,
+      count_others: 0,
+      multiple_targets: false,
+      primaryTarget: null,
+      statusMessage: 'Hindi malinaw ang live detection.',
+    };
   }
 }
