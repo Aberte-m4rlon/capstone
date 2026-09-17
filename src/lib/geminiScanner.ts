@@ -404,7 +404,7 @@ export async function scanGoatTemperature(
       explanation: err?.message || 'Hindi nakumpleto ang pagsusuri.',
       recommendedActions: ['I-scan muli ang hayop nang may maayos na liwanag.'],
       engine: 'gemini-vision-api',
-      modelVersion: 'gemini-2.5-flash',
+      modelVersion: 'gemini-3.6-flash',
       disclaimer: 'Paunang visual screening lamang ito.',
       animals: [],
     };

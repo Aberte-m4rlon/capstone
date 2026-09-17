@@ -3,15 +3,15 @@
  * POST /api/gemini/detect-objects
  *
  * Fast, lightweight sampled frame object detection:
- * - Detects GOAT (KAMBING), SHEEP (TUPA), PERSON (TAO), OTHER_ANIMAL (HAYOP), OBJECT (BAGAY)
+ * - Detects GOAT (KAMBING), SHEEP (TUPA), PERSON (TAO), OTHER_ANIMAL (HAYOP), OBJECT (BAGAY), NONE
  * - Returns normalized bounding boxes [x, y, width, height] for each detected subject
+ * - Strictly uses valid Gemini-supported primitive types (ZERO NULL types in schema)
  * - Identifies single target vs multiple animals
- * - Zero developer jargon returned to frontend
  * - Secure server-side execution: GEMINI_API_KEY is never exposed to browser
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { getSupabaseServer } from '../_lib/supabaseServer';
 
 export interface BoundingBox {
@@ -40,73 +40,65 @@ export interface LiveObjectDetectionResponse {
   error?: string;
 }
 
-const SYSTEM_PROMPT = `You are the live object-detection vision engine for ALPASFARM (Philippines).
-Analyze the camera frame to visually detect and localize subjects with bounding boxes.
+const SYSTEM_PROMPT = `You are the real-time visual object-detection engine for ALPASFARM livestock management.
+Analyze the provided camera frame to detect and localize subjects with bounding boxes.
 
-Allowed Classes and Labels:
-- GOAT -> label "KAMBING"
-- SHEEP -> label "TUPA"
-- PERSON -> label "TAO"
-- OTHER_ANIMAL -> label "HAYOP" (dogs, cats, chickens, birds, pigs, cattle)
-- OBJECT -> label "BAGAY" (furniture, vehicles, phones, equipment, walls, pens)
+Allowed Classes:
+- GOAT: Domestic goat (kambing)
+- SHEEP: Domestic sheep (tupa)
+- PERSON: Human person (farmer, handler, visitor)
+- OTHER_ANIMAL: Non-livestock animal (dog, cat, bird, pig, chicken, cow)
+- OBJECT: Inanimate physical object, farm equipment, wall, fence, vehicle
+- NONE: When no prominent entity is visible
 
 Rules:
-1. Detect prominent subjects in the image.
-2. For each detected subject, provide a tight bounding box with normalized coordinates between 0.0 and 1.0:
-   - x: top-left horizontal coordinate (0.0 = left edge, 1.0 = right edge)
-   - y: top-left vertical coordinate (0.0 = top edge, 1.0 = bottom edge)
-   - width: box width (0.0 to 1.0)
-   - height: box height (0.0 to 1.0)
-   Coordinates must be within bounds: x >= 0, y >= 0, x + width <= 1.0, y + height <= 1.0.
-3. If there are multiple goats or sheep, draw a separate bounding box around EACH individual animal. Never combine multiple animals into one large box.
-4. Count the number of goats in count_goats and sheep in count_sheep.
-5. If count_goats + count_sheep > 1, set multiple_targets = true.
-6. For status_message, provide a concise Tagalog status for the farmer:
-   - If 1 goat: "KAMBING: Handa nang i-scan"
-   - If 1 sheep: "TUPA: Handa nang i-scan"
-   - If multiple goats/sheep: "Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa."
-   - If person: "TAO: Hindi kambing o tupa"
-   - If other animal: "HAYOP: Hindi kambing o tupa"
-   - If object: "BAGAY"
-   - If nothing prominent: "Tinitingnan ang camera..."
-7. Return ONLY valid JSON adhering strictly to the schema.`;
+1. Detect prominent entities in the camera frame.
+2. For each detected entity, return:
+   - type: One of "GOAT", "SHEEP", "PERSON", "OTHER_ANIMAL", "OBJECT"
+   - label: Brief description (e.g. "goat", "sheep", "person", "dog", "fence")
+   - x: Normalized top-left horizontal coordinate (0.0 to 1.0)
+   - y: Normalized top-left vertical coordinate (0.0 to 1.0)
+   - width: Normalized box width (0.0 to 1.0)
+   - height: Normalized box height (0.0 to 1.0)
+3. Coordinates must be bounded: 0.0 <= x <= 1.0, 0.0 <= y <= 1.0, x + width <= 1.0, y + height <= 1.0.
+4. If multiple goats or sheep are visible, output a separate entry with bounding box for EACH individual animal.
+5. If nothing distinct is visible, return an empty array for detections: [].
+6. Every field in your JSON response must strictly follow the schema with valid types. NEVER return null.`;
 
+// Clean, standard Gemini-compatible schema using Type enum with zero null types
 const RESPONSE_SCHEMA = {
-  type: 'object',
+  type: Type.OBJECT,
   properties: {
     detections: {
-      type: 'array',
+      type: Type.ARRAY,
       items: {
-        type: 'object',
+        type: Type.OBJECT,
         properties: {
           type: {
-            type: 'string',
-            enum: ['GOAT', 'SHEEP', 'PERSON', 'OTHER_ANIMAL', 'OBJECT'],
+            type: Type.STRING,
+            enum: ['GOAT', 'SHEEP', 'PERSON', 'OTHER_ANIMAL', 'OBJECT', 'NONE'],
           },
           label: {
-            type: 'string',
-            enum: ['KAMBING', 'TUPA', 'TAO', 'HAYOP', 'BAGAY'],
+            type: Type.STRING,
           },
-          boundingBox: {
-            type: 'object',
-            properties: {
-              x: { type: 'number', description: 'Normalized top-left x (0.0 to 1.0)' },
-              y: { type: 'number', description: 'Normalized top-left y (0.0 to 1.0)' },
-              width: { type: 'number', description: 'Normalized width (0.0 to 1.0)' },
-              height: { type: 'number', description: 'Normalized height (0.0 to 1.0)' },
-            },
-            required: ['x', 'y', 'width', 'height'],
+          x: {
+            type: Type.NUMBER,
+          },
+          y: {
+            type: Type.NUMBER,
+          },
+          width: {
+            type: Type.NUMBER,
+          },
+          height: {
+            type: Type.NUMBER,
           },
         },
-        required: ['type', 'label', 'boundingBox'],
+        required: ['type', 'label', 'x', 'y', 'width', 'height'],
       },
     },
-    count_goats: { type: 'integer' },
-    count_sheep: { type: 'integer' },
-    multiple_targets: { type: 'boolean' },
-    status_message: { type: 'string' },
   },
-  required: ['detections', 'count_goats', 'count_sheep', 'multiple_targets', 'status_message'],
+  required: ['detections'],
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -193,13 +185,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 4. Initialize Google Gen AI client
   const ai = new GoogleGenAI({ apiKey });
 
-  // Priority models for fast object detection
+  // Priority models: gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-flash-latest
   const modelsToTry = [
     process.env.GEMINI_MODEL,
+    'gemini-3.8-flash',
     'gemini-3.6-flash',
+    'gemini-3.5-flash',
     'gemini-flash-latest',
-    'gemini-3.7-flash',
-    'gemini-2.0-flash',
   ].filter((m): m is string => Boolean(m && m.trim()));
 
   let lastError: any = null;
@@ -234,50 +226,92 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         throw new Error('Walang naibalik na text mula sa Gemini Vision.');
       }
 
-      const parsed = JSON.parse(text);
+      let parsed: any;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        const cleaned = text.replace(/```(?:json)?\s*([\s\S]*?)\s*```/i, '$1').trim();
+        parsed = JSON.parse(cleaned);
+      }
 
-      // Clamp coordinates to valid range [0.0, 1.0]
-      const sanitizedDetections: ObjectDetectionItem[] = (parsed.detections || []).map((d: any) => {
-        const rawBox = d.boundingBox || {};
-        const x = Math.max(0, Math.min(1, Number(rawBox.x) || 0));
-        const y = Math.max(0, Math.min(1, Number(rawBox.y) || 0));
-        const width = Math.max(0.02, Math.min(1 - x, Number(rawBox.width) || 0.1));
-        const height = Math.max(0.02, Math.min(1 - y, Number(rawBox.height) || 0.1));
+      const validTypes = new Set(['GOAT', 'SHEEP', 'PERSON', 'OTHER_ANIMAL', 'OBJECT']);
+      const rawList = Array.isArray(parsed?.detections) ? parsed.detections : [];
 
-        return {
-          type: d.type || 'OBJECT',
-          label: d.label || 'BAGAY',
-          boundingBox: {
-            x: Math.round(x * 1000) / 1000,
-            y: Math.round(y * 1000) / 1000,
-            width: Math.round(width * 1000) / 1000,
-            height: Math.round(height * 1000) / 1000,
-          },
-        };
-      });
+      const sanitizedDetections: ObjectDetectionItem[] = rawList
+        .filter((d: any) => d && validTypes.has(String(d.type).toUpperCase()))
+        .map((d: any) => {
+          const type = String(d.type).toUpperCase() as TargetType;
+          let defaultLabel: TargetLabel = 'BAGAY';
+          if (type === 'GOAT') defaultLabel = 'KAMBING';
+          else if (type === 'SHEEP') defaultLabel = 'TUPA';
+          else if (type === 'PERSON') defaultLabel = 'TAO';
+          else if (type === 'OTHER_ANIMAL') defaultLabel = 'HAYOP';
+
+          const x = Math.max(0, Math.min(0.95, Number(d.x) || 0));
+          const y = Math.max(0, Math.min(0.95, Number(d.y) || 0));
+          const width = Math.max(0.04, Math.min(1 - x, Number(d.width) || 0.1));
+          const height = Math.max(0.04, Math.min(1 - y, Number(d.height) || 0.1));
+
+          return {
+            type,
+            label: defaultLabel,
+            boundingBox: {
+              x: Math.round(x * 1000) / 1000,
+              y: Math.round(y * 1000) / 1000,
+              width: Math.round(width * 1000) / 1000,
+              height: Math.round(height * 1000) / 1000,
+            },
+          };
+        });
+
+      const countGoats = sanitizedDetections.filter(d => d.type === 'GOAT').length;
+      const countSheep = sanitizedDetections.filter(d => d.type === 'SHEEP').length;
+      const multipleTargets = (countGoats + countSheep) > 1;
+
+      let statusMessage = 'Tinitingnan ang camera...';
+      if (multipleTargets) {
+        statusMessage = 'Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.';
+      } else if (countGoats === 1) {
+        statusMessage = 'KAMBING: Handa nang i-scan';
+      } else if (countSheep === 1) {
+        statusMessage = 'TUPA: Handa nang i-scan';
+      } else {
+        const person = sanitizedDetections.find(d => d.type === 'PERSON');
+        const otherAnimal = sanitizedDetections.find(d => d.type === 'OTHER_ANIMAL');
+        const objectItem = sanitizedDetections.find(d => d.type === 'OBJECT');
+        if (person) {
+          statusMessage = 'TAO: Hindi kambing o tupa';
+        } else if (otherAnimal) {
+          statusMessage = 'HAYOP: Hindi kambing o tupa';
+        } else if (objectItem) {
+          statusMessage = 'BAGAY';
+        }
+      }
 
       return res.status(200).json({
         success: true,
         detections: sanitizedDetections,
-        count_goats: Number(parsed.count_goats) || 0,
-        count_sheep: Number(parsed.count_sheep) || 0,
-        multiple_targets: Boolean(parsed.multiple_targets),
-        status_message: parsed.status_message || 'Tinitingnan ang camera...',
+        count_goats: countGoats,
+        count_sheep: countSheep,
+        multiple_targets: multipleTargets,
+        status_message: statusMessage,
       });
     } catch (err: any) {
       lastError = err;
-      console.warn(`[detect-objects] Model ${model} failed, trying next fallback:`, err?.message || err);
+      console.warn(`[detect-objects] Model ${model} encountered issue:`, err?.message || err);
+      // Try next fallback model
+      continue;
     }
   }
 
-  console.error('[detect-objects] Lahat ng Gemini models ay nag-fail:', lastError);
+  console.error('[detect-objects] Lahat ng Gemini models ay nag-fail:', lastError?.message || lastError);
   return res.status(502).json({
     success: false,
-    error: `Hindi makakonekta sa Gemini Vision: ${lastError?.message || 'Unknown error'}`,
+    error: 'Hindi makumpleto ang scan. Subukan muli.',
     detections: [],
     count_goats: 0,
     count_sheep: 0,
     multiple_targets: false,
-    status_message: 'Tinitingnan ang camera...',
+    status_message: 'Hindi makumpleto ang scan. Subukan muli.',
   });
 }
