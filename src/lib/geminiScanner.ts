@@ -1,13 +1,39 @@
 /**
- * geminiScanner.ts — AlpasFarm Google Gemini AI Livestock Scanner
+ * geminiScanner.ts — AlpasFarm Google Gemini AI Livestock Vision Scanner
  *
  * Multimodal Visual AI Engine for Caprine (Goat) & Ovine (Sheep) detection:
- *   - Google Gemini Multimodal Vision via secure server-side endpoint (/api/ai/animal-scan)
- *   - Normalized 0..1 bounding boxes with high-precision visual overlays
- *   - Multiple animal identification (Goat #1, Goat #2, Sheep #1, etc.)
+ *   - Google Gemini Multimodal Vision via secure server-side endpoint (/api/gemini/animal-scan)
+ *   - Uses official @google/genai SDK on the server side
  *   - ZERO FAKE TEMPERATURE: Strictly null / "Hindi nasukat" (no RGB thermal guessing)
  *   - Secure: GEMINI_API_KEY is NEVER exposed to browser code
+ *   - Authenticated with Supabase session token
  */
+
+import { supabase } from './supabase';
+import { optimizeImageForAI } from './cameraUtils';
+
+export { optimizeImageForAI };
+
+export interface GeminiAnimalScanResponse {
+  success: boolean;
+  detected: boolean;
+  animal_type: 'goat' | 'sheep' | 'unknown';
+  animal_label: string;
+  image_quality: 'good' | 'poor';
+  multiple_animals: boolean;
+  health_status: 'healthy' | 'monitor' | 'needs_attention' | 'needs_medication' | 'unknown';
+  observations: string[];
+  possible_concerns: string[];
+  recommendation: string;
+  needs_attention: boolean;
+  needs_medication: boolean;
+  temperature: null;
+  temperature_status: 'not_measured';
+  reason: 'needs_better_image' | 'not_goat_or_sheep' | 'multiple_animals' | null;
+  animal_id?: string | null;
+  raw_model?: string;
+  error?: string;
+}
 
 export interface AnimalBoundingBox {
   x: number;      // 0..1 (horizontal position from left)
@@ -20,9 +46,9 @@ export interface AnimalBoundingBox {
 export interface GeminiDetectedAnimal {
   id: string;
   species: 'goat' | 'sheep';
-  label: string; // e.g. "GOAT", "SHEEP", "GOAT #1", "SHEEP #2"
+  label: string; // e.g. "KAMBING", "TUPA"
   boundingBox: AnimalBoundingBox;
-  bodyOrientation: string; // e.g. "harap", "tagiliran", "likod", "nakatayo", "nakahiga"
+  bodyOrientation: string;
   visualObservations: string[];
   possibleHealthConcerns: string[];
   needsManualCheck: boolean;
@@ -41,6 +67,8 @@ export interface GeminiScanResult {
   engine: string;
   modelVersion: string;
   error?: string;
+  // Raw API response
+  rawResponse?: GeminiAnimalScanResponse;
 }
 
 export interface TemperatureStatusDetail {
@@ -79,167 +107,34 @@ export interface GeminiThermalResult {
 // ── Concurrency & Cooldown Guard ─────────────────────────────────────────────
 let isScanInProgress = false;
 let lastScanTimestamp = 0;
-const MIN_SCAN_COOLDOWN_MS = 1500; // 1.5s minimum debounce/cooldown
+const MIN_SCAN_COOLDOWN_MS = 1000; // 1s minimum debounce/cooldown
 
 /**
  * Returns veterinary status details for a given temperature in Celsius.
- * If null/undefined, accurately indicates temperature was not measured.
+ * In camera vision, temperature is always null / not measured.
  */
-export function getTemperatureStatus(temp: number | null | undefined): TemperatureStatusDetail {
-  if (temp === null || temp === undefined || isNaN(temp)) {
-    return {
-      status: 'unknown',
-      label: 'Not Measured',
-      tagalogLabel: 'Hindi nasukat',
-      color: '#6B7280',
-      badgeBg: 'rgba(107, 114, 128, 0.10)',
-      badgeBorder: 'rgba(107, 114, 128, 0.25)',
-      description: 'Walang pisikal na thermometer sensor na ginamit. Hindi nasusukat ang tunay na temperatura sa ordinaryong camera.',
-    };
-  }
-
-  if (temp >= 40.5) {
-    return {
-      status: 'fever',
-      label: 'High Fever / Pyrexia',
-      tagalogLabel: 'Mataas na Lagnat',
-      color: '#DC2626',
-      badgeBg: 'rgba(220, 38, 38, 0.12)',
-      badgeBorder: 'rgba(220, 38, 38, 0.35)',
-      description: `Mataas ang lagnat (${temp.toFixed(1)}°C). Senyales ng impeksyon o pulmonya. Kumonsulta agad sa beterinaryo.`,
-    };
-  }
-
-  if (temp >= 39.8) {
-    return {
-      status: 'mild_elevation',
-      label: 'Mild Elevation / Warm',
-      tagalogLabel: 'Medyo Mainit / Heat Stress',
-      color: '#D97706',
-      badgeBg: 'rgba(217, 119, 6, 0.12)',
-      badgeBorder: 'rgba(217, 119, 6, 0.35)',
-      description: `Bahagyang mataas ang temperatura (${temp.toFixed(1)}°C). Palamigin ang silungan at bigyan ng sariwang tubig.`,
-    };
-  }
-
-  if (temp < 38.0) {
-    return {
-      status: 'hypothermia',
-      label: 'Sub-normal / Hypothermia',
-      tagalogLabel: 'Mababa ang Temperatura',
-      color: '#2563EB',
-      badgeBg: 'rgba(37, 99, 235, 0.12)',
-      badgeBorder: 'rgba(37, 99, 235, 0.35)',
-      description: `Mababa ang temperatura (${temp.toFixed(1)}°C). Posibleng may shock o dehydration. Panatilihing tuyo at mainit.`,
-    };
-  }
-
+export function getTemperatureStatus(temp?: number | null): TemperatureStatusDetail {
   return {
-    status: 'normal',
-    label: 'Normal Body Temperature',
-    tagalogLabel: 'Normal na Temperatura',
-    color: '#238B45',
-    badgeBg: 'rgba(35, 139, 69, 0.12)',
-    badgeBorder: 'rgba(35, 139, 69, 0.35)',
-    description: `Normal ang temperatura (${temp.toFixed(1)}°C). Pasok sa pamantayang baseline (38.5–39.7°C).`,
+    status: 'unknown',
+    label: 'Not Measured',
+    tagalogLabel: 'Hindi nasukat',
+    color: '#6B7280',
+    badgeBg: 'rgba(107, 114, 128, 0.10)',
+    badgeBorder: 'rgba(107, 114, 128, 0.25)',
+    description: 'Walang pisikal na thermometer sensor na ginamit. Hindi nasusukat ang tunay na temperatura sa ordinaryong camera.',
   };
 }
 
 /**
- * Resize and compress image to a maximum dimension of 1280px JPEG (~0.85 quality)
- * to ensure fast upload and optimal Gemini multimodal processing.
- */
-export async function optimizeImageForAI(
-  input: HTMLCanvasElement | HTMLImageElement | string,
-  maxDimension = 1280,
-  quality = 0.85,
-): Promise<string> {
-  if (typeof input === 'string' && input.startsWith('data:image/')) {
-    // If it's already a data URL, check size or downscale via temporary Image
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.naturalWidth || img.width;
-        let height = img.naturalHeight || img.height;
-
-        if (width <= maxDimension && height <= maxDimension && input.length < 500000) {
-          resolve(input);
-          return;
-        }
-
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        } else {
-          resolve(input);
-        }
-      };
-      img.onerror = () => resolve(input);
-      img.src = input;
-    });
-  }
-
-  let srcCanvas: HTMLCanvasElement;
-  if (input instanceof HTMLCanvasElement) {
-    srcCanvas = input;
-  } else if (input instanceof HTMLImageElement) {
-    const c = document.createElement('canvas');
-    c.width = input.naturalWidth || input.width;
-    c.height = input.naturalHeight || input.height;
-    const ctx = c.getContext('2d');
-    if (ctx) ctx.drawImage(input, 0, 0);
-    srcCanvas = c;
-  } else {
-    return String(input);
-  }
-
-  let width = srcCanvas.width;
-  let height = srcCanvas.height;
-
-  if (width > maxDimension || height > maxDimension) {
-    if (width > height) {
-      height = Math.round((height * maxDimension) / width);
-      width = maxDimension;
-    } else {
-      width = Math.round((width * maxDimension) / height);
-      height = maxDimension;
-    }
-
-    const scaledCanvas = document.createElement('canvas');
-    scaledCanvas.width = width;
-    scaledCanvas.height = height;
-    const ctx = scaledCanvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(srcCanvas, 0, 0, width, height);
-      return scaledCanvas.toDataURL('image/jpeg', quality);
-    }
-  }
-
-  return srcCanvas.toDataURL('image/jpeg', quality);
-}
-
-/**
- * Scan Goat & Sheep with Google Gemini Multimodal Vision
- * Calls backend POST /api/ai/animal-scan. Never exposes API key to client.
+ * Scan Goat & Sheep with Google Gemini Multimodal Vision API
+ * Calls secure backend POST /api/gemini/animal-scan. Never exposes API key to client.
  */
 export async function scanAnimalWithGemini(
   input: HTMLCanvasElement | HTMLImageElement | string,
   options?: {
     context?: 'health_scan' | 'animal_add' | 'camera_live';
+    animalId?: string;
+    farmId?: string;
   },
 ): Promise<GeminiScanResult> {
   const now = Date.now();
@@ -257,13 +152,27 @@ export async function scanAnimalWithGemini(
   try {
     const optimizedDataUrl = await optimizeImageForAI(input, 1280, 0.85);
 
-    const res = await fetch('/api/ai/animal-scan', {
+    // Get current auth session token
+    let authHeader: Record<string, string> = {};
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.access_token) {
+        authHeader['Authorization'] = `Bearer ${data.session.access_token}`;
+      }
+    } catch {
+      // Local or offline mode fallback
+    }
+
+    const res = await fetch('/api/gemini/animal-scan', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeader,
       },
       body: JSON.stringify({
         image: optimizedDataUrl,
+        animalId: options?.animalId,
+        farmId: options?.farmId,
         context: options?.context || 'health_scan',
       }),
     });
@@ -274,13 +183,69 @@ export async function scanAnimalWithGemini(
         const errJson = await res.json();
         if (errJson?.error) errMsg = errJson.error;
       } catch {
-        // use fallback
+        // fallback
       }
       throw new Error(errMsg);
     }
 
-    const data: GeminiScanResult = await res.json();
-    return data;
+    const apiData: GeminiAnimalScanResponse = await res.json();
+
+    // Map into standard GeminiScanResult structure
+    const isSheep = apiData.animal_type === 'sheep';
+    const speciesLabel = apiData.animal_type === 'sheep' ? 'TUPA' : 'KAMBING';
+    const healthStatusMapped: 'healthy' | 'monitor' | 'attention' =
+      apiData.health_status === 'needs_attention' || apiData.health_status === 'needs_medication'
+        ? 'attention'
+        : apiData.health_status === 'monitor'
+        ? 'monitor'
+        : 'healthy';
+
+    const detectedAnimals: GeminiDetectedAnimal[] = apiData.detected
+      ? [
+          {
+            id: 'animal-1',
+            species: isSheep ? 'sheep' : 'goat',
+            label: speciesLabel,
+            boundingBox: {
+              x: 0.1,
+              y: 0.1,
+              width: 0.8,
+              height: 0.8,
+              rawBox: [100, 100, 900, 900],
+            },
+            bodyOrientation: 'nakatayo',
+            visualObservations: apiData.observations,
+            possibleHealthConcerns: apiData.possible_concerns,
+            needsManualCheck: apiData.needs_attention || apiData.needs_medication,
+            healthStatus: healthStatusMapped,
+          },
+        ]
+      : [];
+
+    let overallMsg = apiData.recommendation;
+    if (!apiData.detected) {
+      if (apiData.reason === 'needs_better_image') {
+        overallMsg = 'Hindi malinaw ang larawan. Ilapit at itutok ang camera sa buong hayop.';
+      } else if (apiData.reason === 'multiple_animals') {
+        overallMsg = 'Maraming hayop ang nakita. Mag-scan ng isang kambing o tupa lamang.';
+      } else {
+        overallMsg = 'Hindi kambing o tupa ang nakita. Ilapit ang camera sa isang kambing o tupa.';
+      }
+    }
+
+    return {
+      success: apiData.success,
+      detected: apiData.detected,
+      animalCount: detectedAnimals.length,
+      animals: detectedAnimals,
+      overallMessage: overallMsg,
+      recommendation: apiData.recommendation,
+      temperature: null,
+      temperatureDisplay: 'Hindi nasukat',
+      engine: 'gemini-vision-api',
+      modelVersion: apiData.raw_model || 'gemini-2.5-flash',
+      rawResponse: apiData,
+    };
   } finally {
     isScanInProgress = false;
   }
@@ -301,7 +266,10 @@ export async function scanGoatTemperature(
   },
 ): Promise<GeminiThermalResult> {
   try {
-    const scanResult = await scanAnimalWithGemini(input, { context: 'health_scan' });
+    const scanResult = await scanAnimalWithGemini(input, {
+      context: 'health_scan',
+      animalId: options?.animalId,
+    });
 
     const primaryAnimal = scanResult.animals?.[0];
     const isSheep =
@@ -320,20 +288,19 @@ export async function scanGoatTemperature(
       thermalIndicators: [
         'Walang pisikal na thermometer sensor na ginamit. Hindi nasusukat ang tunay na temperatura sa ordinaryong camera.',
       ],
-      healthRisk: primaryAnimal?.healthStatus === 'attention' ? 'moderate' : 'low',
-      riskScore: primaryAnimal?.healthStatus === 'attention' ? 45 : 10,
+      healthRisk: primaryAnimal?.healthStatus === 'attention' ? 'high' : primaryAnimal?.healthStatus === 'monitor' ? 'moderate' : 'low',
+      riskScore: primaryAnimal?.healthStatus === 'attention' ? 60 : primaryAnimal?.healthStatus === 'monitor' ? 30 : 10,
       possibleConditions: primaryAnimal?.possibleHealthConcerns || [],
       observations: primaryAnimal?.visualObservations || [scanResult.overallMessage],
       explanation: scanResult.overallMessage,
       recommendedActions: [scanResult.recommendation],
-      engine: scanResult.engine || 'google-gemini-multimodal',
-      modelVersion: scanResult.modelVersion || 'gemini-2.0-flash',
+      engine: 'gemini-vision-api',
+      modelVersion: scanResult.modelVersion,
       disclaimer:
         'Paunang visual screening lamang ito para sa tulong sa pagsubaybay. Hindi ito pinal na diagnosis ng beterinaryo at hindi sumusukat ng temperatura.',
       animals: scanResult.animals,
     };
   } catch (err: any) {
-    // If /api/ai/animal-scan fails, fallback safely
     return {
       animalDetected: false,
       animalType: 'Other',
@@ -350,8 +317,8 @@ export async function scanGoatTemperature(
       observations: ['Hindi matagumpay ang pagsusuri: ' + (err?.message || 'Error')],
       explanation: err?.message || 'Hindi nakumpleto ang pagsusuri.',
       recommendedActions: ['I-scan muli ang hayop nang may maayos na liwanag.'],
-      engine: 'google-gemini-multimodal',
-      modelVersion: 'gemini-2.0-flash',
+      engine: 'gemini-vision-api',
+      modelVersion: 'gemini-2.5-flash',
       disclaimer: 'Paunang visual screening lamang ito.',
       animals: [],
     };

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './auth';
 import type { ScanResult } from './cameraML';
-import { canvasToBlob } from './cameraML';
+import { canvasToBlob } from './cameraUtils';
 import { createNotification } from './recommendations';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -160,14 +160,11 @@ async function syncScreeningToAnimalHealth(
   }
 
   try {
-    // 1. Update animal record
+    // 1. Update animal record (do NOT set temperature from camera)
     const animalUpdates: Record<string, any> = {
       health_status: mappedStatus,
       health_risk_score: scoreVal,
     };
-    if (result.estimatedTemperature !== null && result.estimatedTemperature !== undefined) {
-      animalUpdates.current_temperature = result.estimatedTemperature;
-    }
 
     await supabase
       .from('animals')
@@ -175,13 +172,11 @@ async function syncScreeningToAnimalHealth(
       .eq('id', animalId)
       .eq('user_id', userId);
 
-    // 2. Insert clinical record into health_records
+    // 2. Insert clinical record into health_records with strictly null temperature
     const conditionLabels = (result.indicators || []).map((i) => i.label).filter(Boolean);
     const clinicalNotes = [
       `Camera Health Screening (${mappedStatus === 'Needs Attention' ? 'Kailangan ng Atensyon' : mappedStatus === 'Monitor' ? 'Bantayan' : 'Maayos'}).`,
-      result.estimatedTemperature !== null && result.estimatedTemperature !== undefined
-        ? `Temperatura: ${result.estimatedTemperature}°C.`
-        : 'Temperatura: Hindi nasukat.',
+      'Temperatura: Hindi nasukat (Ordinaryong camera).',
       conditionLabels.length > 0 ? `Mga napansin: ${conditionLabels.join(', ')}.` : null,
       result.recommendation ? `Susunod na gagawin: ${result.recommendation}` : null,
       notes ? `Tala: ${notes}` : null,
@@ -191,7 +186,7 @@ async function syncScreeningToAnimalHealth(
       user_id: userId,
       animal_id: animalId,
       record_date: new Date().toISOString().split('T')[0],
-      temperature: result.estimatedTemperature ?? null,
+      temperature: null, // STRICTLY null: camera cannot measure temperature
       reasons: conditionLabels.length > 0 ? conditionLabels : ['Camera Health Screening'],
       notes: clinicalNotes,
       risk_level: mappedStatus === 'Needs Attention' ? 'High' : mappedStatus === 'Monitor' ? 'Moderate' : 'Low',

@@ -6,11 +6,22 @@ function localApiPlugin() {
     name: 'local-api-handler',
     configureServer(server: any) {
       server.middlewares.use(async (req: any, res: any, next: any) => {
-        if (req.url && (req.url.startsWith('/api/auth/sms') || req.url.startsWith('/api/public-animal'))) {
+        if (
+          req.url &&
+          (req.url.startsWith('/api/auth/sms') ||
+            req.url.startsWith('/api/public-animal') ||
+            req.url.startsWith('/api/gemini/animal-scan') ||
+            req.url.startsWith('/api/ai/animal-scan'))
+        ) {
           try {
-            const modulePath = req.url.startsWith('/api/public-animal')
-              ? '/api/public-animal.ts'
-              : '/api/auth/sms.ts';
+            let modulePath = '/api/auth/sms.ts';
+            if (req.url.startsWith('/api/public-animal')) {
+              modulePath = '/api/public-animal.ts';
+            } else if (req.url.startsWith('/api/gemini/animal-scan')) {
+              modulePath = '/api/gemini/animal-scan.ts';
+            } else if (req.url.startsWith('/api/ai/animal-scan')) {
+              modulePath = '/api/gemini/animal-scan.ts';
+            }
             const { default: handler } = await server.ssrLoadModule(modulePath);
             let body = '';
             req.on('data', (chunk: any) => { body += chunk.toString(); });
@@ -68,13 +79,5 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 4000,
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          // Split TensorFlow.js into its own async chunk — only loaded when camera screening runs
-          if (id.includes('@tensorflow/tfjs')) return 'tfjs';
-        },
-      },
-    },
   },
 });

@@ -31,12 +31,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../ui/Modal';
-import {
-  captureVideoFrame,
-  identifyLivestockSpecies,
-  type LivestockSpeciesDetection,
-} from '../../../lib/cameraML';
-import { runRuleBasedScreening } from '../../../lib/ruleBasedScreening';
+import { captureVideoFrame } from '../../../lib/cameraUtils';
 import { scanAnimalWithGemini } from '../../../lib/geminiScanner';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../lib/toast';
@@ -93,8 +88,7 @@ export function CameraFirstHealthModal({
   const [cameraPermissionError, setCameraPermissionError] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [liveDetection, setLiveDetection] = useState<LivestockSpeciesDetection | null>(null);
-  const [liveStatusText, setLiveStatusText] = useState('Handa nang mag-scan');
+  const [liveStatusText, setLiveStatusText] = useState('Handa nang mag-scan • Ilagay ang kambing o tupa sa loob ng frame.');
 
   // ── Scan Evaluation State ──
   const [isScanning, setIsScanning] = useState(false);
@@ -110,7 +104,6 @@ export function CameraFirstHealthModal({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isMountedRef = useRef(true);
-  const mlIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Filter active farm animals
@@ -136,10 +129,6 @@ export function CameraFirstHealthModal({
 
   // ── Camera Stream Cleanup ──────────────────────────────────────────────────
   const stopCameraStream = useCallback(() => {
-    if (mlIntervalRef.current) {
-      clearInterval(mlIntervalRef.current);
-      mlIntervalRef.current = null;
-    }
     if (qrIntervalRef.current) {
       clearInterval(qrIntervalRef.current);
       qrIntervalRef.current = null;
@@ -179,24 +168,25 @@ export function CameraFirstHealthModal({
       if (!candidateId && text.startsWith('{') && text.endsWith('}')) {
         try {
           const parsed = JSON.parse(text);
-          if (parsed.id) candidateId = String(parsed.id);
-          if (parsed.tag_id) candidateTag = String(parsed.tag_id);
-        } catch {}
-      }
-
-      // UUID or Tag pattern
-      if (!candidateId && !candidateTag) {
-        if (/^[a-f0-9\-]{36}$/i.test(text)) {
-          candidateId = text;
-        } else {
-          candidateTag = text;
+          candidateId = parsed.id || parsed.animal_id || null;
+          candidateTag = parsed.tag || parsed.tag_id || null;
+        } catch {
+          // ignore
         }
       }
 
+      // Plain tag matching
+      if (!candidateId && !candidateTag) {
+        candidateTag = text;
+      }
+
       if (candidateId) {
-        const found = activeAnimals.find((a) => a.id.toLowerCase() === candidateId!.toLowerCase());
+        const found = activeAnimals.find(
+          (a) => a.id.toLowerCase() === candidateId!.toLowerCase()
+        );
         if (found) return found;
       }
+
       if (candidateTag) {
         const found = activeAnimals.find(
           (a) => a.tag_id.toLowerCase() === candidateTag!.toLowerCase()
@@ -208,27 +198,6 @@ export function CameraFirstHealthModal({
     },
     [activeAnimals]
   );
-
-  // ── Live ML Species Check ─────────────────────────────────────────────────
-  const runLiveMLCheck = useCallback(async () => {
-    const video = videoRef.current;
-    if (!video || video.videoWidth === 0 || video.videoHeight === 0 || isScanning) return;
-
-    try {
-      const canvas = captureVideoFrame(video);
-      const detection = await identifyLivestockSpecies(canvas);
-      if (!isMountedRef.current) return;
-
-      setLiveDetection(detection);
-      if (detection.detected) {
-        setLiveStatusText(detection.species === 'Sheep' ? 'Tupa ang nakita' : 'Kambing ang nakita');
-      } else {
-        setLiveStatusText('Hindi kambing o tupa ang nakita. Ilapit ang camera sa hayop.');
-      }
-    } catch {
-      // Background analysis error, keep live flow uninterrupted
-    }
-  }, [isScanning]);
 
   // ── Live QR/Tag Check ─────────────────────────────────────────────────────
   const runLiveQRCheck = useCallback(async () => {
@@ -292,9 +261,6 @@ export function CameraFirstHealthModal({
       setIsCameraActive(true);
       setLiveStatusText('Handa nang mag-scan • Ilagay ang kambing o tupa sa loob ng frame.');
 
-      if (mlIntervalRef.current) clearInterval(mlIntervalRef.current);
-      mlIntervalRef.current = setInterval(runLiveMLCheck, 1000);
-
       if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
       qrIntervalRef.current = setInterval(runLiveQRCheck, 600);
     } catch (err: any) {
@@ -311,7 +277,7 @@ export function CameraFirstHealthModal({
         setCameraError('Hindi mabuksan ang camera. Siguraduhing may camera permission ang browser.');
       }
     }
-  }, [facingMode, runLiveMLCheck, runLiveQRCheck, stopCameraStream]);
+  }, [facingMode, runLiveQRCheck, stopCameraStream]);
 
   // Flip camera between front & back
   const toggleFacingMode = () => {
@@ -353,38 +319,40 @@ export function CameraFirstHealthModal({
     }
 
     setIsScanning(true);
-    setLiveStatusText('Sinusuri ang hayop...');
+    setLiveStatusText('Sinusuri sa Gemini Vision...');
 
     try {
       const frameCanvas = captureVideoFrame(video);
       const snapshotUrl = frameCanvas.toDataURL('image/jpeg', 0.85);
 
-      // 1. MobileNet Species & Feature Detection
-      const speciesRes = await identifyLivestockSpecies(frameCanvas);
+      // Call Google Gemini Vision API via serverless backend (/api/gemini/animal-scan)
+      const geminiRes = await scanAnimalWithGemini(frameCanvas, {
+        context: 'health_scan',
+        animalId: selectedAnimalId,
+      });
 
-      // 2. Rule-Based Visual Screening
-      const ruleRes = runRuleBasedScreening(frameCanvas);
+      const raw = geminiRes.rawResponse;
 
-      // 3. Gemini Visual Inspection
-      let geminiObservations: string[] = [];
-      let geminiConcerns: string[] = [];
-      let geminiRec: string = '';
-      let geminiStatus: 'healthy' | 'monitor' | 'attention' = 'healthy';
-
-      try {
-        const geminiRes = await scanAnimalWithGemini(frameCanvas, { context: 'health_scan' });
-        if (geminiRes.detected && geminiRes.animals && geminiRes.animals.length > 0) {
-          const primary = geminiRes.animals[0];
-          geminiObservations = primary.visualObservations || [];
-          geminiConcerns = primary.possibleHealthConcerns || [];
-          geminiRec = geminiRes.recommendation || '';
-          geminiStatus = primary.healthStatus || 'monitor';
+      if (!geminiRes.detected || !raw?.detected) {
+        let msg = 'Walang nakitang kambing o tupa sa litrato.';
+        if (raw?.reason === 'needs_better_image') {
+          msg = 'Hindi malinaw ang larawan. Paki-tutok nang maayos ang camera at i-scan muli.';
+        } else if (raw?.reason === 'not_goat_or_sheep') {
+          msg = 'Hindi kambing o tupa ang nakita sa larawan.';
+        } else if (raw?.reason === 'multiple_animals') {
+          msg = 'Maraming hayop ang nakita sa camera. Tutukan ang iisang hayop lamang.';
         }
-      } catch {
-        // Fallback gracefully to rule-based screening
+        setLiveStatusText(msg);
+        toast(msg, 'warning');
+        return;
       }
 
-      // 4. Try QR Code detection on high-res frame
+      // Determine animal species
+      const isSheep = raw.animal_type === 'sheep';
+      const detectedSpecies: 'Goat' | 'Sheep' = isSheep ? 'Sheep' : 'Goat';
+      const speciesTagalog = isSheep ? 'Tupa' : 'Kambing';
+
+      // Try QR Code detection on high-res frame if animal not yet selected
       let detectedAnimalMatch = selectedAnimal;
       if (!detectedAnimalMatch && 'BarcodeDetector' in window) {
         try {
@@ -400,46 +368,23 @@ export function CameraFirstHealthModal({
         } catch {}
       }
 
-      // 5. Consolidate Observations
-      const consolidatedObs: string[] = [];
-      if (geminiObservations.length > 0) {
-        geminiObservations.forEach((obs) => {
-          if (!consolidatedObs.includes(obs)) consolidatedObs.push(obs);
-        });
-      }
-      if (ruleRes.observations && ruleRes.observations.length > 0) {
-        ruleRes.observations.forEach((obs) => {
-          if (!consolidatedObs.includes(obs)) consolidatedObs.push(obs);
-        });
-      }
-      if (consolidatedObs.length === 0) {
-        consolidatedObs.push('Normal ang tindig at kilos');
-        consolidatedObs.push('Walang napansing obvious concern sa balahibo o mata');
-      }
+      // Observations & Concerns
+      const visualObservations = raw.observations && raw.observations.length > 0
+        ? raw.observations
+        : ['Normal ang tindig at kilos', 'Walang napansing obvious concern sa balahibo o mata'];
+      const suggestedConditions = raw.possible_concerns || [];
 
-      // 6. Species Determination
-      const detectedSpecies: 'Goat' | 'Sheep' | 'Unknown' = speciesRes.detected
-        ? speciesRes.species === 'Sheep'
-          ? 'Sheep'
-          : 'Goat'
-        : 'Unknown';
-
-      const speciesTagalog =
-        detectedSpecies === 'Sheep'
-          ? 'Tupa'
-          : detectedSpecies === 'Goat'
-          ? 'Kambing'
-          : 'Hindi tiyak ang hayop';
-
-      // 7. Health Status Formulation (Strictly Farmer Terminology)
-      const hasConcerns = ruleRes.hasConcern || geminiConcerns.length > 0 || geminiStatus === 'attention';
+      // Farmer-friendly Health Status
       let healthStatus: 'healthy' | 'monitor' | 'attention' | 'medication' = 'healthy';
       let healthStatusLabel = 'Maayos';
 
-      if (geminiStatus === 'attention' || (ruleRes.hasConcern && geminiConcerns.length > 1)) {
+      if (raw.needs_medication || raw.health_status === 'needs_medication') {
+        healthStatus = 'medication';
+        healthStatusLabel = 'Kailangan ng Gamot';
+      } else if (raw.needs_attention || raw.health_status === 'needs_attention') {
         healthStatus = 'attention';
         healthStatusLabel = 'Kailangan ng Atensyon';
-      } else if (hasConcerns) {
+      } else if (raw.health_status === 'monitor' || suggestedConditions.length > 0) {
         healthStatus = 'monitor';
         healthStatusLabel = 'Bantayan';
       } else {
@@ -448,13 +393,15 @@ export function CameraFirstHealthModal({
       }
 
       // Recommendation (Farmer-friendly advice, zero medical diagnosis claims)
-      const rec =
-        geminiRec ||
-        (healthStatus === 'attention'
-          ? 'May napansing kondisyon na kailangan bantayan. Obserbahan ang pagkain, galaw, at pangkalahatang kalagayan. Kumonsulta sa beterinaryo kung kinakailangan.'
+      const rec = raw.recommendation || (
+        healthStatus === 'medication'
+          ? 'Kailangan ng gamot o pagsusuri ng lisensyadong beterinaryo.'
+          : healthStatus === 'attention'
+          ? 'May napansing kondisyon na kailangan bantayan. Obserbahan ang pagkain, galaw, at kalusugan.'
           : healthStatus === 'monitor'
-          ? 'Obserbahan ang hayop sa susunod na 24–48 oras. Bantayan ang gana kumain at sigla.'
-          : 'Normal at malusog ang kalagayan ng hayop. Panatilihin ang maayos na pagkain at malinis na inumin.');
+          ? 'Obserbahan ang hayop sa susunod na 24–48 oras.'
+          : 'Normal at malusog ang kalagayan ng hayop.'
+      );
 
       const notesLines: string[] = [];
       notesLines.push(`[Camera Scan: ${speciesTagalog.toUpperCase()}]`);
@@ -463,7 +410,7 @@ export function CameraFirstHealthModal({
           `Hayop: ${detectedAnimalMatch.name || detectedAnimalMatch.tag_id} (${detectedAnimalMatch.tag_id})`
         );
       }
-      notesLines.push(`Mga Napansin: ${consolidatedObs.join(', ')}`);
+      notesLines.push(`Mga Napansin: ${visualObservations.join(', ')}`);
       notesLines.push(`Payo: ${rec}`);
       notesLines.push('Temperatura: Hindi nasukat (walang thermometer sensor)');
 
@@ -471,12 +418,12 @@ export function CameraFirstHealthModal({
         detectedSpecies,
         speciesLabelTagalog: speciesTagalog,
         matchedAnimal: detectedAnimalMatch,
-        visualObservations: consolidatedObs,
-        suggestedConditions: geminiConcerns,
+        visualObservations,
+        suggestedConditions,
         healthStatus,
         healthStatusLabel,
         recommendation: rec,
-        temperatureDisplay: 'Hindi nasukat',
+        temperatureDisplay: 'Hindi nasukat', // ZERO fake vitals
         notesSnippet: notesLines.join('\n'),
         capturedImageUrl: snapshotUrl,
         scannedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -486,10 +433,11 @@ export function CameraFirstHealthModal({
       if (!notes) {
         setNotes(result.notesSnippet);
       }
-      toast('Naisagawa ang pagsusuri sa hayop gamit ang camera.', 'success');
+      setLiveStatusText(`${speciesTagalog} ang nakita • Katayuan: ${healthStatusLabel}`);
+      toast(`Naisagawa ang pagsusuri sa ${speciesTagalog.toLowerCase()} gamit ang Gemini Vision.`, 'success');
     } catch (err: any) {
-      console.error('Scan failed:', err);
-      toast('Hindi nagtagumpay ang scan. Pakisubukang itapat muli ang camera.', 'error');
+      console.error('Gemini Scan failed:', err);
+      toast(err.message || 'Hindi nagtagumpay ang scan. Pakisubukang itapat muli ang camera.', 'error');
     } finally {
       setIsScanning(false);
     }
@@ -657,9 +605,9 @@ export function CameraFirstHealthModal({
     onClose();
   };
 
-  const hasAnimalDetected = liveDetection?.detected === true;
-  const isGoat = liveDetection?.species === 'Goat';
-  const isSheep = liveDetection?.species === 'Sheep';
+  const hasAnimalDetected = scanResult !== null && scanResult.detectedSpecies !== 'Unknown';
+  const isGoat = scanResult?.detectedSpecies === 'Goat';
+  const isSheep = scanResult?.detectedSpecies === 'Sheep';
 
   return (
     <Modal open={open} onClose={handleModalClose} size="lg">
