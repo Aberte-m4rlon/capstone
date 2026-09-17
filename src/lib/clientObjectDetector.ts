@@ -47,6 +47,7 @@ export interface ClientDetectorResult {
   multiple_targets: boolean;
   primaryTarget: ClientDetectedObject | null;
   statusMessage: string;
+  error?: string;
 }
 
 // ── Constants & Configuration ─────────────────────────────────────────────────
@@ -58,12 +59,57 @@ const REMOTE_MODEL_URL =
 
 // Class-specific confidence thresholds (Section 14)
 export const CONFIDENCE_THRESHOLDS = {
-  PERSON: 0.55,       // Strict threshold for human detection
-  SHEEP: 0.45,        // Target ovine threshold
-  GOAT: 0.45,         // Target caprine threshold
-  OTHER_ANIMAL: 0.50, // Cow, horse, dog, etc.
-  OBJECT: 0.48,       // Furniture, gadgets, etc.
+  PERSON: 0.38,       // Balanced threshold for human detection
+  SHEEP: 0.38,        // Target ovine threshold
+  GOAT: 0.38,         // Target caprine threshold
+  OTHER_ANIMAL: 0.38, // Cow, horse, dog, cat, bird, etc.
+  OBJECT: 0.38,       // Household/farm objects
 } as const;
+
+// Genuine COCO classes with farmer-friendly Filipino names
+export const COCO_CLASS_MAP: Record<string, { type: LiveTargetType; label: LiveTargetLabel }> = {
+  // Humans
+  person: { type: 'PERSON', label: 'TAO' },
+
+  // Target livestock
+  sheep: { type: 'SHEEP', label: 'TUPA' },
+  goat: { type: 'GOAT', label: 'KAMBING' },
+
+  // Genuine animal classes
+  dog: { type: 'OTHER_ANIMAL', label: 'ASO' },
+  cat: { type: 'OTHER_ANIMAL', label: 'PUSA' },
+  cow: { type: 'OTHER_ANIMAL', label: 'BAKA' },
+  horse: { type: 'OTHER_ANIMAL', label: 'KABAYO' },
+  bird: { type: 'OTHER_ANIMAL', label: 'IBON' },
+  elephant: { type: 'OTHER_ANIMAL', label: 'ELEPANTE' },
+  bear: { type: 'OTHER_ANIMAL', label: 'OSO' },
+  zebra: { type: 'OTHER_ANIMAL', label: 'SEBRA' },
+  giraffe: { type: 'OTHER_ANIMAL', label: 'JIRAFA' },
+
+  // Farm and everyday household objects
+  'cell phone': { type: 'OBJECT', label: 'TELEPONO' },
+  bottle: { type: 'OBJECT', label: 'BOTE' },
+  cup: { type: 'OBJECT', label: 'TASA' },
+  chair: { type: 'OBJECT', label: 'CHAIR' },
+  couch: { type: 'OBJECT', label: 'SOFA' },
+  backpack: { type: 'OBJECT', label: 'BAG' },
+  handbag: { type: 'OBJECT', label: 'BAG' },
+  suitcase: { type: 'OBJECT', label: 'MALETA' },
+  umbrella: { type: 'OBJECT', label: 'PAYONG' },
+  car: { type: 'OBJECT', label: 'KOTSE' },
+  truck: { type: 'OBJECT', label: 'TRUCK' },
+  motorcycle: { type: 'OBJECT', label: 'MOTOR' },
+  bicycle: { type: 'OBJECT', label: 'BISEKLETA' },
+  book: { type: 'OBJECT', label: 'LIBRO' },
+  laptop: { type: 'OBJECT', label: 'LAPTOP' },
+  tv: { type: 'OBJECT', label: 'TV' },
+  clock: { type: 'OBJECT', label: 'ORASAN' },
+  scissors: { type: 'OBJECT', label: 'GUNTING' },
+  banana: { type: 'OBJECT', label: 'SAGING' },
+  apple: { type: 'OBJECT', label: 'MANSANA' },
+  orange: { type: 'OBJECT', label: 'ORANGE' },
+  'potted plant': { type: 'OBJECT', label: 'HALAMAN' },
+};
 
 // Animals recognized in COCO dataset taxonomy
 const COCO_ANIMALS_SET = new Set([
@@ -175,19 +221,19 @@ function isValidBoundingBox(box: { x: number; y: number; width: number; height: 
     return false;
   }
 
-  // Box must have non-trivial size (at least 6% width & height)
-  if (box.width < 0.06 || box.height < 0.06) {
+  // Box must have non-trivial size (at least 3.5% width & height)
+  if (box.width < 0.035 || box.height < 0.035) {
     return false;
   }
 
-  // Box area must be at least 0.8% of the viewport and at most 98%
+  // Box area must be at least 0.2% of the viewport and at most 99%
   const area = box.width * box.height;
-  if (area < 0.008 || area > 0.98) {
+  if (area < 0.002 || area > 0.99) {
     return false;
   }
 
   // Coordinates must be reasonably within the camera frame
-  if (box.x < -0.05 || box.y < -0.05 || box.x + box.width > 1.05 || box.y + box.height > 1.05) {
+  if (box.x < -0.15 || box.y < -0.15 || box.x > 1.15 || box.y > 1.15) {
     return false;
   }
 
@@ -204,10 +250,15 @@ export async function detectLiveFrameLocally(
 ): Promise<ClientDetectorResult> {
   const now = Date.now();
 
-  // Validate video element state
-  if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+  // Guard: Video element must be actively playing with valid dimensions
+  if (
+    !video ||
+    video.readyState < 2 ||
+    video.videoWidth === 0 ||
+    video.videoHeight === 0
+  ) {
     return {
-      success: false,
+      success: true,
       modelReady: _isModelReady,
       modelName: 'EfficientDet-Lite0',
       supportsGoatClass: _hasGoatClass,
@@ -222,9 +273,13 @@ export async function detectLiveFrameLocally(
     };
   }
 
-  // Ensure detector is initialized
+  // Ensure MediaPipe ObjectDetector is initialized
   if (!_detectorInstance) {
-    await initClientObjectDetector();
+    try {
+      await initClientObjectDetector();
+    } catch {
+      // Model loading error handled below
+    }
   }
 
   if (!_detectorInstance) {
@@ -232,7 +287,7 @@ export async function detectLiveFrameLocally(
       success: false,
       modelReady: false,
       modelName: 'EfficientDet-Lite0',
-      supportsGoatClass: false,
+      supportsGoatClass: _hasGoatClass,
       detections: [],
       count_goats: 0,
       count_sheep: 0,
@@ -240,7 +295,8 @@ export async function detectLiveFrameLocally(
       count_others: 0,
       multiple_targets: false,
       primaryTarget: null,
-      statusMessage: 'Inihahanda ang camera...',
+      statusMessage: 'Naglo-load ang detection model...',
+      error: _loadError || 'Model not loaded',
     };
   }
 
@@ -280,83 +336,52 @@ export async function detectLiveFrameLocally(
       }
 
       const clampedBox: BoundingBox2D = {
-        x: Math.max(0, Math.min(0.95, rawX)),
-        y: Math.max(0, Math.min(0.95, rawY)),
-        width: Math.max(0.05, Math.min(1.0 - rawX, rawW)),
-        height: Math.max(0.05, Math.min(1.0 - rawY, rawH)),
+        x: Math.max(0, Math.min(0.96, rawX)),
+        y: Math.max(0, Math.min(0.96, rawY)),
+        width: Math.max(0.04, Math.min(1.0 - Math.max(0, rawX), rawW)),
+        height: Math.max(0.04, Math.min(1.0 - Math.max(0, rawY), rawH)),
       };
 
       // ── Strict Genuine Class Classification & Confidence Filtering ──────────
+      let targetType: LiveTargetType = 'OBJECT';
+      let targetLabel: LiveTargetLabel = 'BAGAY';
 
-      // 1. PERSON ('TAO')
-      if (catName === 'person') {
-        if (score >= CONFIDENCE_THRESHOLDS.PERSON) {
-          count_persons++;
-          detections.push({
-            type: 'PERSON',
-            label: 'TAO',
-            confidence: score,
-            boundingBox: clampedBox,
-            rawCategory: catName,
-            timestamp: now,
-          });
-        }
+      const mapped = COCO_CLASS_MAP[catName];
+      if (mapped) {
+        targetType = mapped.type;
+        targetLabel = mapped.label;
+      } else if (COCO_ANIMALS_SET.has(catName)) {
+        targetType = 'OTHER_ANIMAL';
+        targetLabel = 'HAYOP';
+      } else {
+        targetType = 'OBJECT';
+        targetLabel = catName.toUpperCase() as any;
       }
-      // 2. GOAT ('KAMBING') — ONLY if model genuinely outputs 'goat'
-      else if (catName === 'goat') {
-        if (score >= CONFIDENCE_THRESHOLDS.GOAT) {
-          count_goats++;
-          detections.push({
-            type: 'GOAT',
-            label: 'KAMBING',
-            confidence: score,
-            boundingBox: clampedBox,
-            rawCategory: catName,
-            timestamp: now,
-          });
-        }
+
+      // Check class-specific threshold
+      let threshold: number = CONFIDENCE_THRESHOLDS.OBJECT;
+      if (targetType === 'PERSON') threshold = CONFIDENCE_THRESHOLDS.PERSON;
+      else if (targetType === 'SHEEP') threshold = CONFIDENCE_THRESHOLDS.SHEEP;
+      else if (targetType === 'GOAT') threshold = CONFIDENCE_THRESHOLDS.GOAT;
+      else if (targetType === 'OTHER_ANIMAL') threshold = CONFIDENCE_THRESHOLDS.OTHER_ANIMAL;
+
+      if (score < threshold) {
+        continue;
       }
-      // 3. SHEEP ('TUPA') — Genuine COCO class
-      else if (catName === 'sheep') {
-        if (score >= CONFIDENCE_THRESHOLDS.SHEEP) {
-          count_sheep++;
-          detections.push({
-            type: 'SHEEP',
-            label: 'TUPA',
-            confidence: score,
-            boundingBox: clampedBox,
-            rawCategory: catName,
-            timestamp: now,
-          });
-        }
-      }
-      // 4. OTHER ANIMALS ('HAYOP') — Cow, horse, dog, cat, etc.
-      else if (COCO_ANIMALS_SET.has(catName)) {
-        if (score >= CONFIDENCE_THRESHOLDS.OTHER_ANIMAL) {
-          count_others++;
-          detections.push({
-            type: 'OTHER_ANIMAL',
-            label: 'HAYOP',
-            confidence: score,
-            boundingBox: clampedBox,
-            rawCategory: catName,
-            timestamp: now,
-          });
-        }
-      }
-      // 5. HOUSEHOLD / OBJECTS ('BAGAY')
-      else {
-        if (score >= CONFIDENCE_THRESHOLDS.OBJECT) {
-          detections.push({
-            type: 'OBJECT',
-            label: 'BAGAY',
-            confidence: score,
-            boundingBox: clampedBox,
-            rawCategory: catName,
-            timestamp: now,
-          });
-        }
-      }
+
+      if (targetType === 'PERSON') count_persons++;
+      else if (targetType === 'GOAT') count_goats++;
+      else if (targetType === 'SHEEP') count_sheep++;
+      else if (targetType === 'OTHER_ANIMAL') count_others++;
+
+      detections.push({
+        type: targetType,
+        label: targetLabel,
+        confidence: score,
+        boundingBox: clampedBox,
+        rawCategory: catName,
+        timestamp: now,
+      });
     }
 
     const totalLivestock = count_goats + count_sheep;
@@ -372,7 +397,7 @@ export async function detectLiveFrameLocally(
       primaryTarget = detections[0];
     }
 
-    // Compose user-facing Filipino status message
+    // Compose user-facing Filipino status message (Zero ML jargon)
     let statusMessage = 'Tinitingnan ang camera...';
     if (multiple_targets) {
       statusMessage = 'Maraming hayop ang nakita. Itapat ang camera sa isang hayop.';
@@ -380,10 +405,10 @@ export async function detectLiveFrameLocally(
       statusMessage = `${primaryTarget.label}: Handa nang i-scan • Manatiling nakatutok...`;
     } else if (count_persons > 0) {
       statusMessage = 'TAO — Hindi kambing o tupa';
-    } else if (count_others > 0) {
-      statusMessage = 'HAYOP — Hindi kambing o tupa';
-    } else if (detections.some((d) => d.type === 'OBJECT')) {
-      statusMessage = 'BAGAY — Itapat ang camera sa kambing o tupa';
+    } else if (count_others > 0 && primaryTarget) {
+      statusMessage = `${primaryTarget.label} — Hindi kambing o tupa`;
+    } else if (primaryTarget && primaryTarget.type === 'OBJECT') {
+      statusMessage = `${primaryTarget.label} — Itapat ang camera sa kambing o tupa`;
     } else {
       statusMessage = 'Tinitingnan ang camera...';
     }
@@ -419,5 +444,195 @@ export async function detectLiveFrameLocally(
       primaryTarget: null,
       statusMessage: 'Hindi malinaw ang live detection.',
     };
+  }
+}
+
+/**
+ * Renders live bounding boxes and labels directly onto an overlay canvas.
+ *
+ * Requirements satisfied:
+ * - Clear canvas completely before every frame (ctx.clearRect).
+ * - Empty detections list immediately clears the canvas (no ghost boxes).
+ * - Correctly transforms video coordinates accounting for object-fit: cover scaling/cropping.
+ * - Renders crisp, readable rounded badge with high contrast on any background.
+ * - Zero ML jargon displayed (pure farmer-facing labels: TAO, KAMBING, TUPA, ASO, PUSA, etc.).
+ */
+export function renderLiveDetectionsToCanvas(
+  canvas: HTMLCanvasElement | null,
+  video: HTMLVideoElement | null,
+  detections: (ClientDetectedObject | LiveDetectedObject)[]
+): void {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Sync internal resolution with CSS display dimensions
+  if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+  }
+
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // RULE 5: Clear canvas before rendering every frame
+  ctx.clearRect(0, 0, W, H);
+
+  // If no detections or video not ready, leave canvas completely clear
+  if (!detections || detections.length === 0 || !video || video.videoWidth === 0) {
+    return;
+  }
+
+  const vW = video.videoWidth;
+  const vH = video.videoHeight;
+
+  // RULE 11: Calculate object-fit: cover scaling & cropping offset
+  let scale = 1;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (W / H > vW / vH) {
+    scale = W / vW;
+    offsetY = (H - vH * scale) / 2;
+  } else {
+    scale = H / vH;
+    offsetX = (W - vW * scale) / 2;
+  }
+
+  for (const d of detections) {
+    const rawBox = d.boundingBox;
+    if (!rawBox) continue;
+
+    // Convert video-normalized box [0, 1] to video pixels, then scale to canvas
+    const vidX = rawBox.x * vW;
+    const vidY = rawBox.y * vH;
+    const vidW = rawBox.width * vW;
+    const vidH = rawBox.height * vH;
+
+    const bx = vidX * scale + offsetX;
+    const by = vidY * scale + offsetY;
+    const bw = Math.max(30, vidW * scale);
+    const bh = Math.max(30, vidH * scale);
+
+    // Keep box bounded within canvas
+    const drawX = Math.max(2, Math.min(W - bw - 2, bx));
+    const drawY = Math.max(2, Math.min(H - bh - 2, by));
+
+    const isGoat = d.type === 'GOAT';
+    const isSheep = d.type === 'SHEEP';
+    const isTarget = isGoat || isSheep;
+    const isPerson = d.type === 'PERSON';
+    const isDog = d.label === 'ASO';
+    const isCat = d.label === 'PUSA';
+
+    // Distinct, high-contrast color palette
+    let strokeColor = '#94A3B8';
+    let fillColor = 'rgba(148, 163, 184, 0.08)';
+    let badgeBg = '#475569';
+
+    if (isTarget) {
+      strokeColor = '#16A34A';
+      fillColor = 'rgba(22, 163, 74, 0.14)';
+      badgeBg = '#16A34A';
+    } else if (isPerson) {
+      strokeColor = '#2563EB';
+      fillColor = 'rgba(37, 99, 235, 0.12)';
+      badgeBg = '#2563EB';
+    } else if (isDog) {
+      strokeColor = '#D97706';
+      fillColor = 'rgba(217, 119, 6, 0.14)';
+      badgeBg = '#D97706';
+    } else if (isCat) {
+      strokeColor = '#7C3AED';
+      fillColor = 'rgba(124, 58, 237, 0.14)';
+      badgeBg = '#7C3AED';
+    } else if (d.type === 'OTHER_ANIMAL') {
+      strokeColor = '#EA580C';
+      fillColor = 'rgba(234, 88, 12, 0.14)';
+      badgeBg = '#EA580C';
+    }
+
+    // 1. Draw Bounding Box Fill
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(drawX, drawY, bw, bh);
+
+    // 2. Draw Bounding Box Border
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = isTarget ? 3 : 2;
+    if (d.type === 'OBJECT') {
+      ctx.setLineDash([5, 5]);
+    } else {
+      ctx.setLineDash([]);
+    }
+    ctx.strokeRect(drawX, drawY, bw, bh);
+    ctx.setLineDash([]);
+
+    // 3. Draw Corner Accents (High-tech visual feedback)
+    const cornerSize = Math.min(20, bw * 0.25, bh * 0.25);
+    ctx.strokeStyle = isTarget ? '#4ADE80' : strokeColor;
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+
+    // Top-left
+    ctx.beginPath();
+    ctx.moveTo(drawX, drawY + cornerSize);
+    ctx.lineTo(drawX, drawY);
+    ctx.lineTo(drawX + cornerSize, drawY);
+    ctx.stroke();
+
+    // Top-right
+    ctx.beginPath();
+    ctx.moveTo(drawX + bw - cornerSize, drawY);
+    ctx.lineTo(drawX + bw, drawY);
+    ctx.lineTo(drawX + bw, drawY + cornerSize);
+    ctx.stroke();
+
+    // Bottom-left
+    ctx.beginPath();
+    ctx.moveTo(drawX, drawY + bh - cornerSize);
+    ctx.lineTo(drawX, drawY + bh);
+    ctx.lineTo(drawX + cornerSize, drawY + bh);
+    ctx.stroke();
+
+    // Bottom-right
+    ctx.beginPath();
+    ctx.moveTo(drawX + bw - cornerSize, drawY + bh);
+    ctx.lineTo(drawX + bw, drawY + bh);
+    ctx.lineTo(drawX + bw, drawY + bh - cornerSize);
+    ctx.stroke();
+
+    // 4. Draw Label Badge (Requirement 6: Clear, rounded, high contrast)
+    const labelText = d.label;
+    ctx.font = 'bold 12px Plus Jakarta Sans, Inter, system-ui, -apple-system, sans-serif';
+    const textMetrics = ctx.measureText(labelText);
+    const badgePadX = 10;
+    const badgeH = 24;
+    const badgeW = textMetrics.width + badgePadX * 2;
+
+    // Position directly above box, or inside top if near top of screen
+    let labelX = Math.max(4, Math.min(W - badgeW - 4, drawX));
+    let labelY = drawY - badgeH - 4;
+    if (labelY < 4) {
+      labelY = drawY + 4;
+    }
+
+    // Badge Shadow & Rounded Pill
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = badgeBg;
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(labelX, labelY, badgeW, badgeH, 6);
+    } else {
+      ctx.rect(labelX, labelY, badgeW, badgeH);
+    }
+    ctx.fill();
+    ctx.restore();
+
+    // Badge Text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(labelText, labelX + badgePadX, labelY + 16);
   }
 }

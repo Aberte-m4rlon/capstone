@@ -33,7 +33,10 @@ import {
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../ui/Modal';
 import { captureVideoFrame, LiveDetectedObject } from '../../../lib/cameraUtils';
 import { scanAnimalWithGemini } from '../../../lib/geminiScanner';
-import { detectLiveFrameLocally } from '../../../lib/clientObjectDetector';
+import {
+  detectLiveFrameLocally,
+  renderLiveDetectionsToCanvas,
+} from '../../../lib/clientObjectDetector';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../lib/toast';
 import { createNotification } from '../../../lib/recommendations';
@@ -143,6 +146,7 @@ export function CameraFirstHealthModal({
 
   // ── Refs ──
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isMountedRef = useRef(true);
   const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -197,6 +201,9 @@ export function CameraFirstHealthModal({
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
+    }
+    if (overlayCanvasRef.current) {
+      renderLiveDetectionsToCanvas(overlayCanvasRef.current, videoRef.current, []);
     }
     setIsCameraActive(false);
     setCameraState('INITIALIZING');
@@ -298,9 +305,12 @@ export function CameraFirstHealthModal({
 
       if (!isMountedRef.current || isScanning || scanResult) return;
 
-      // Handle unready / failed detector
+      // Handle unready / failed detector or empty frame
       if (!result.success || !result.detections || result.detections.length === 0) {
         setLiveDetections([]);
+        if (overlayCanvasRef.current) {
+          renderLiveDetectionsToCanvas(overlayCanvasRef.current, video, []);
+        }
         setMultipleAnimalsDetected(false);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
@@ -309,22 +319,14 @@ export function CameraFirstHealthModal({
         return;
       }
 
-      // Strictly discard stale detections older than 250ms (Section 8)
-      const now = Date.now();
-      const freshDetections = result.detections.filter((d) => (now - (d.timestamp || 0)) <= 250);
-
-      if (freshDetections.length === 0) {
-        setLiveDetections([]);
-        setMultipleAnimalsDetected(false);
-        stableTargetCountRef.current = 0;
-        setAutoCaptureStatus('idle');
-        setCameraState('NO_DETECTION');
-        setLiveStatusText(result.statusMessage || 'Tinitingnan ang camera...');
-        return;
-      }
-
       // Immediately replace detections in state with current frame results
+      const freshDetections = result.detections;
       setLiveDetections(freshDetections);
+
+      // Render crisp bounding boxes and labels to canvas overlay immediately
+      if (overlayCanvasRef.current) {
+        renderLiveDetectionsToCanvas(overlayCanvasRef.current, video, freshDetections);
+      }
 
       const targetLivestock = freshDetections.filter(
         (d) => d.type === 'GOAT' || d.type === 'SHEEP'
@@ -370,18 +372,21 @@ export function CameraFirstHealthModal({
         const obj = freshDetections.find((d) => d.type === 'OBJECT');
 
         if (person) {
-          setLiveStatusText('TAO — Hindi kambing o tupa');
+          setLiveStatusText('TAO — Hindi ito kambing o tupa');
         } else if (otherAnimal) {
-          setLiveStatusText('HAYOP — Hindi kambing o tupa');
+          setLiveStatusText(`${otherAnimal.label} — Hindi ito kambing o tupa`);
         } else if (obj) {
-          setLiveStatusText('BAGAY');
+          setLiveStatusText(`${obj.label} — Itapat ang camera sa kambing o tupa`);
         } else {
           setLiveStatusText(result.statusMessage || 'Tinitingnan ang camera...');
         }
       }
     } catch {
-      // Clear detections on error or frame drop (Section 12)
+      // Clear detections on error or frame drop
       setLiveDetections([]);
+      if (overlayCanvasRef.current && videoRef.current) {
+        renderLiveDetectionsToCanvas(overlayCanvasRef.current, videoRef.current, []);
+      }
       setMultipleAnimalsDetected(false);
       stableTargetCountRef.current = 0;
       setAutoCaptureStatus('idle');
@@ -654,6 +659,9 @@ export function CameraFirstHealthModal({
   const handleResetScan = () => {
     setScanResult(null);
     setLiveDetections([]);
+    if (overlayCanvasRef.current && videoRef.current) {
+      renderLiveDetectionsToCanvas(overlayCanvasRef.current, videoRef.current, []);
+    }
     setMultipleAnimalsDetected(false);
     setAutoCaptureStatus('idle');
     stableTargetCountRef.current = 0;
@@ -955,112 +963,18 @@ export function CameraFirstHealthModal({
                   <SwitchCamera size={16} />
                 </button>
 
-                {/* Dynamic Live Bounding Boxes Overlay */}
-                <div
+                {/* Real-Time Live Bounding Box & Label Canvas Overlay */}
+                <canvas
+                  ref={overlayCanvasRef}
                   style={{
                     position: 'absolute',
                     inset: 0,
+                    width: '100%',
+                    height: '100%',
                     pointerEvents: 'none',
-                    overflow: 'hidden',
+                    zIndex: 4,
                   }}
-                >
-                  {liveDetections.map((detection, idx) => {
-                    const isTarget = detection.type === 'GOAT' || detection.type === 'SHEEP';
-                    const isPerson = detection.type === 'PERSON';
-                    const isOtherAnimal = detection.type === 'OTHER_ANIMAL';
-
-                    const borderColor = isTarget
-                      ? '#16A34A'
-                      : isPerson
-                      ? '#3B82F6'
-                      : isOtherAnimal
-                      ? '#F59E0B'
-                      : 'rgba(255, 255, 255, 0.6)';
-
-                    const labelBg = isTarget
-                      ? '#16A34A'
-                      : isPerson
-                      ? '#2563EB'
-                      : isOtherAnimal
-                      ? '#D97706'
-                      : 'rgba(30, 41, 59, 0.9)';
-
-                    const leftPct = Math.max(0, Math.min(92, (detection.boundingBox?.x ?? 0.1) * 100));
-                    const topPct = Math.max(0, Math.min(92, (detection.boundingBox?.y ?? 0.1) * 100));
-                    const widthPct = Math.max(8, Math.min(100 - leftPct, (detection.boundingBox?.width ?? 0.8) * 100));
-                    const heightPct = Math.max(8, Math.min(100 - topPct, (detection.boundingBox?.height ?? 0.8) * 100));
-
-                    return (
-                      <div
-                        key={`${detection.type}-${detection.label}-${idx}`}
-                        style={{
-                          position: 'absolute',
-                          left: `${leftPct}%`,
-                          top: `${topPct}%`,
-                          width: `${widthPct}%`,
-                          height: `${heightPct}%`,
-                          border: isTarget
-                            ? '2.5px solid #16A34A'
-                            : `2px ${detection.type === 'OBJECT' ? 'dashed' : 'solid'} ${borderColor}`,
-                          borderRadius: 10,
-                          boxShadow: isTarget
-                            ? '0 0 16px rgba(22, 163, 74, 0.4), inset 0 0 10px rgba(22, 163, 74, 0.1)'
-                            : isPerson
-                            ? '0 0 12px rgba(59, 130, 246, 0.35)'
-                            : '0 2px 6px rgba(0, 0, 0, 0.3)',
-                          background: isTarget ? 'rgba(22, 163, 74, 0.08)' : 'transparent',
-                          transition: 'none',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
-                          padding: 6,
-                        }}
-                      >
-                        {/* Top Label */}
-                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                          <span
-                            style={{
-                              background: labelBg,
-                              color: '#FFFFFF',
-                              fontWeight: 800,
-                              fontSize: 11,
-                              padding: '2px 8px',
-                              borderRadius: 6,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              boxShadow: '0 2px 6px rgba(0,0,0,0.35)',
-                              letterSpacing: '0.04em',
-                            }}
-                          >
-                            {isTarget && <Sparkles size={11} />}
-                            {detection.label}
-                          </span>
-                        </div>
-
-                        {/* Bottom Subtitle inside box */}
-                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 700,
-                              color: 'rgba(255, 255, 255, 0.9)',
-                              textShadow: '0 1px 3px rgba(0, 0, 0, 0.9)',
-                              letterSpacing: '0.02em',
-                              textTransform: 'lowercase',
-                              background: 'rgba(0, 0, 0, 0.45)',
-                              padding: '1px 6px',
-                              borderRadius: 4,
-                              backdropFilter: 'blur(4px)',
-                            }}
-                          >
-                            {detection.type.toLowerCase().replace('_', ' ')}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                />
 
                 {/* Subtle Viewfinder Guides when camera is idle/searching */}
                 {liveDetections.length === 0 && !isScanning && (

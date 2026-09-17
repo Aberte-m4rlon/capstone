@@ -163,7 +163,18 @@ export interface BoundingBox {
 }
 
 export type LiveTargetType = 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER_ANIMAL' | 'OBJECT';
-export type LiveTargetLabel = 'KAMBING' | 'TUPA' | 'TAO' | 'HAYOP' | 'BAGAY';
+export type LiveTargetLabel =
+  | 'KAMBING'
+  | 'TUPA'
+  | 'TAO'
+  | 'ASO'
+  | 'PUSA'
+  | 'BAKA'
+  | 'KABAYO'
+  | 'IBON'
+  | 'HAYOP'
+  | 'BAGAY'
+  | string;
 
 export interface LiveDetectedObject {
   type: LiveTargetType;

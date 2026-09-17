@@ -542,16 +542,32 @@ What are the recommended early livestock interventions, supportive veterinary ca
         const H = canvas.height;
         ctx.clearRect(0, 0, W, H);
 
+        const video = videoRef.current;
+        const vW = video && video.videoWidth > 0 ? video.videoWidth : W;
+        const vH = video && video.videoHeight > 0 ? video.videoHeight : H;
+
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (W / H > vW / vH) {
+          scale = W / vW;
+          offsetY = (H - vH * scale) / 2;
+        } else {
+          scale = H / vH;
+          offsetX = (W - vW * scale) / 2;
+        }
+
         const tracked = autoScan.trackedAnimals;
         const selectedId = autoScan.selectedTargetId;
 
         if (autoScan.state !== 'other_detected' && tracked && tracked.length > 0) {
           for (const a of tracked) {
             const [x1Norm, y1Norm, x2Norm, y2Norm] = a.smoothedBox;
-            const x = x1Norm * W;
-            const y = y1Norm * H;
-            const w = Math.max(30, (x2Norm - x1Norm) * W);
-            const h = Math.max(30, (y2Norm - y1Norm) * H);
+            const x = (x1Norm * vW) * scale + offsetX;
+            const y = (y1Norm * vH) * scale + offsetY;
+            const w = Math.max(30, ((x2Norm - x1Norm) * vW) * scale);
+            const h = Math.max(30, ((y2Norm - y1Norm) * vH) * scale);
 
             const isSelected = selectedId ? a.id === selectedId : a.isSelected;
             const strokeColor = isSelected ? '#2E7D32' : '#43A047';
@@ -650,19 +666,38 @@ What are the recommended early livestock interventions, supportive veterinary ca
             d => d.type === 'PERSON' || d.type === 'OTHER_ANIMAL' || d.type === 'OBJECT'
           );
           for (const nt of nonTargets) {
-            const bx = nt.boundingBox.x * W;
-            const by = nt.boundingBox.y * H;
-            const bw = Math.max(30, nt.boundingBox.width * W);
-            const bh = Math.max(30, nt.boundingBox.height * H);
+            const rawBox = nt.boundingBox;
+            const bx = (rawBox.x * vW) * scale + offsetX;
+            const by = (rawBox.y * vH) * scale + offsetY;
+            const bw = Math.max(30, (rawBox.width * vW) * scale);
+            const bh = Math.max(30, (rawBox.height * vH) * scale);
 
             const isPerson = nt.type === 'PERSON';
-            const isAnimal = nt.type === 'OTHER_ANIMAL';
-            const strokeColor = isPerson ? '#3B82F6' : isAnimal ? '#F59E0B' : '#94A3B8';
-            const fillColor = isPerson
-              ? 'rgba(59, 130, 246, 0.12)'
-              : isAnimal
-              ? 'rgba(245, 158, 11, 0.12)'
-              : 'rgba(148, 163, 184, 0.1)';
+            const isDog = nt.label === 'ASO';
+            const isCat = nt.label === 'PUSA';
+            const isOtherAnimal = nt.type === 'OTHER_ANIMAL';
+
+            let strokeColor = '#94A3B8';
+            let fillColor = 'rgba(148, 163, 184, 0.1)';
+            let badgeBg = '#475569';
+
+            if (isPerson) {
+              strokeColor = '#3B82F6';
+              fillColor = 'rgba(59, 130, 246, 0.12)';
+              badgeBg = '#1D4ED8';
+            } else if (isDog) {
+              strokeColor = '#D97706';
+              fillColor = 'rgba(217, 119, 6, 0.14)';
+              badgeBg = '#D97706';
+            } else if (isCat) {
+              strokeColor = '#7C3AED';
+              fillColor = 'rgba(124, 58, 237, 0.14)';
+              badgeBg = '#7C3AED';
+            } else if (isOtherAnimal) {
+              strokeColor = '#EA580C';
+              fillColor = 'rgba(234, 88, 12, 0.14)';
+              badgeBg = '#EA580C';
+            }
 
             ctx.fillStyle = fillColor;
             ctx.fillRect(bx, by, bw, bh);
@@ -681,7 +716,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
             const tagX = Math.max(8, Math.min(W - tw - 16, bx));
             const tagY = Math.max(th + 6, by - 6);
 
-            ctx.fillStyle = isPerson ? '#1D4ED8' : isAnimal ? '#B45309' : '#475569';
+            ctx.fillStyle = badgeBg;
             ctx.beginPath();
             ctx.roundRect(tagX, tagY - th, tw + 14, th, 4);
             ctx.fill();
