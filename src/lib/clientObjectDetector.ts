@@ -52,7 +52,8 @@ export interface ClientDetectorResult {
 
 // ── Constants & Configuration ─────────────────────────────────────────────────
 
-const WASM_CDN_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
+const WASM_CDN_PRIMARY = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
+const WASM_CDN_FALLBACK = 'https://unpkg.com/@mediapipe/tasks-vision@1.0.1/wasm';
 const LOCAL_MODEL_URL = '/models/efficientdet_lite0.tflite';
 const REMOTE_MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite';
@@ -126,31 +127,59 @@ const COCO_ANIMALS_SET = new Set([
 
 // ── Singleton Detector State ──────────────────────────────────────────────────
 
+export type ClientDetectorStatus = 'idle' | 'loading' | 'ready' | 'error' | 'unsupported';
+
 let _detectorPromise: Promise<ObjectDetector | null> | null = null;
 let _detectorInstance: ObjectDetector | null = null;
+let _detectorStatus: ClientDetectorStatus = 'idle';
 let _isModelReady = false;
 let _loadError: string | null = null;
 let _hasGoatClass = false;
 
+export function getClientDetectorStatus(): ClientDetectorStatus {
+  return _detectorStatus;
+}
+
 /**
  * Initializes the MediaPipe ObjectDetector singleton.
- * Loads once and caches in memory across camera sessions.
+ * Employs a robust fallback chain (Primary WASM CDN -> Secondary CDN; Local GPU -> Local CPU -> Remote GPU -> Remote CPU).
  */
 export async function initClientObjectDetector(): Promise<ObjectDetector | null> {
   if (_detectorInstance) {
+    _detectorStatus = 'ready';
     _isModelReady = true;
     return _detectorInstance;
+  }
+
+  if (typeof window !== 'undefined' && !('WebAssembly' in window)) {
+    _detectorStatus = 'unsupported';
+    _loadError = 'WebAssembly is unsupported in this browser.';
+    console.warn('[Detector] WebAssembly is unsupported in this browser environment.');
+    return null;
   }
 
   if (_detectorPromise) {
     return _detectorPromise;
   }
 
+  _detectorStatus = 'loading';
+  console.log('[Detector] Loading...');
+
   _detectorPromise = (async () => {
     try {
-      const vision = await FilesetResolver.forVisionTasks(WASM_CDN_URL);
+      // 1. Resolve WASM Fileset with CDN fallback
+      let vision;
+      try {
+        vision = await FilesetResolver.forVisionTasks(WASM_CDN_PRIMARY);
+      } catch (wasmErr) {
+        console.warn('[Detector] Primary WASM CDN failed, trying fallback CDN:', wasmErr);
+        vision = await FilesetResolver.forVisionTasks(WASM_CDN_FALLBACK);
+      }
 
-      let detector: ObjectDetector;
+      // 2. Create ObjectDetector with multi-tier execution delegate fallback
+      let detector: ObjectDetector | null = null;
+
+      // Tier 1: Local Model with WebGL/GPU
       try {
         detector = await ObjectDetector.createFromOptions(vision, {
           baseOptions: {
@@ -160,23 +189,57 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
           scoreThreshold: 0.30,
           runningMode: 'IMAGE',
         });
-      } catch {
-        // Fallback to CDN URL if local asset is unavailable
-        detector = await ObjectDetector.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: REMOTE_MODEL_URL,
-            delegate: 'GPU',
-          },
-          scoreThreshold: 0.30,
-          runningMode: 'IMAGE',
-        });
+      } catch (gpuErr) {
+        console.warn('[Detector] Local model with GPU delegate failed, falling back to CPU:', gpuErr);
+        // Tier 2: Local Model with CPU
+        try {
+          detector = await ObjectDetector.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: LOCAL_MODEL_URL,
+              delegate: 'CPU',
+            },
+            scoreThreshold: 0.30,
+            runningMode: 'IMAGE',
+          });
+        } catch (cpuErr) {
+          console.warn('[Detector] Local model with CPU delegate failed, falling back to Remote GPU:', cpuErr);
+          // Tier 3: Remote Google Cloud Storage Model with GPU
+          try {
+            detector = await ObjectDetector.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath: REMOTE_MODEL_URL,
+                delegate: 'GPU',
+              },
+              scoreThreshold: 0.30,
+              runningMode: 'IMAGE',
+            });
+          } catch (remoteGpuErr) {
+            console.warn('[Detector] Remote model with GPU failed, falling back to Remote CPU:', remoteGpuErr);
+            // Tier 4: Remote Google Cloud Storage Model with CPU
+            detector = await ObjectDetector.createFromOptions(vision, {
+              baseOptions: {
+                modelAssetPath: REMOTE_MODEL_URL,
+                delegate: 'CPU',
+              },
+              scoreThreshold: 0.30,
+              runningMode: 'IMAGE',
+            });
+          }
+        }
+      }
+
+      if (!detector) {
+        throw new Error('Could not instantiate ObjectDetector with any delegate or asset path.');
       }
 
       _detectorInstance = detector;
+      _detectorStatus = 'ready';
       _isModelReady = true;
+      _loadError = null;
 
-      // Audit model classes
+      // Model taxonomy check (COCO-80 has genuine sheep, cow, horse, dog, cat, person)
       _hasGoatClass = false;
+      console.log('[Detector] Ready');
       console.log(
         '[ClientObjectDetector] EfficientDet-Lite0 initialized successfully. ' +
         'Genuine classes: person, sheep, cow, horse, dog, cat, etc. ' +
@@ -185,9 +248,12 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
 
       return detector;
     } catch (err: any) {
-      console.error('[ClientObjectDetector] MediaPipe ObjectDetector initialization failed:', err?.message || err);
-      _loadError = err?.message || 'Model load failed';
+      const errMsg = err?.message || String(err);
+      console.error('[Detector] Failed to initialize:', errMsg);
+      _loadError = errMsg;
+      _detectorStatus = 'error';
       _isModelReady = false;
+      _detectorPromise = null; // Allow retry on subsequent calls
       return null;
     }
   })();
@@ -196,7 +262,7 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
 }
 
 export function isClientDetectorReady(): boolean {
-  return _isModelReady;
+  return _detectorStatus === 'ready' && _isModelReady;
 }
 
 export function hasGenuineGoatClass(): boolean {
@@ -274,7 +340,7 @@ export async function detectLiveFrameLocally(
   }
 
   // Ensure MediaPipe ObjectDetector is initialized
-  if (!_detectorInstance) {
+  if (!_detectorInstance && _detectorStatus !== 'error' && _detectorStatus !== 'unsupported') {
     try {
       await initClientObjectDetector();
     } catch {
@@ -283,6 +349,7 @@ export async function detectLiveFrameLocally(
   }
 
   if (!_detectorInstance) {
+    const isFailedOrUnsupported = _detectorStatus === 'error' || _detectorStatus === 'unsupported';
     return {
       success: false,
       modelReady: false,
@@ -295,8 +362,10 @@ export async function detectLiveFrameLocally(
       count_others: 0,
       multiple_targets: false,
       primaryTarget: null,
-      statusMessage: 'Naglo-load ang detection model...',
-      error: _loadError || 'Model not loaded',
+      statusMessage: isFailedOrUnsupported
+        ? 'Hindi available ang live detection. Maaari pa ring gamitin ang camera scan.'
+        : 'Naglo-load ang detection model...',
+      error: _loadError || (isFailedOrUnsupported ? 'Detector unavailable' : 'Model not loaded'),
     };
   }
 
@@ -387,6 +456,12 @@ export async function detectLiveFrameLocally(
     const totalLivestock = count_goats + count_sheep;
     const multiple_targets = totalLivestock > 1;
 
+    // Developer diagnostics (Requirement 28)
+    if (detections.length > 0) {
+      console.log(`[Detector] Running • Detections: ${detections.length}`);
+      detections.forEach((d) => console.log(`[Detector] Class: ${d.rawCategory || d.label}`));
+    }
+
     // Pick primary target for stability tracking
     let primaryTarget: ClientDetectedObject | null = null;
     if (totalLivestock > 0) {
@@ -398,7 +473,7 @@ export async function detectLiveFrameLocally(
     }
 
     // Compose user-facing Filipino status message (Zero ML jargon)
-    let statusMessage = 'Tinitingnan ang camera...';
+    let statusMessage = 'Handa na ang camera • Ilagay ang kambing o tupa sa loob ng frame.';
     if (multiple_targets) {
       statusMessage = 'Maraming hayop ang nakita. Itapat ang camera sa isang hayop.';
     } else if (totalLivestock === 1 && primaryTarget) {
@@ -410,7 +485,7 @@ export async function detectLiveFrameLocally(
     } else if (primaryTarget && primaryTarget.type === 'OBJECT') {
       statusMessage = `${primaryTarget.label} — Itapat ang camera sa kambing o tupa`;
     } else {
-      statusMessage = 'Tinitingnan ang camera...';
+      statusMessage = 'Handa na ang camera • Ilagay ang kambing o tupa sa loob ng frame.';
     }
 
     return {

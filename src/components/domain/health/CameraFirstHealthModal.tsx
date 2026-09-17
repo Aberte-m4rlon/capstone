@@ -36,6 +36,7 @@ import { scanAnimalWithGemini } from '../../../lib/geminiScanner';
 import {
   detectLiveFrameLocally,
   renderLiveDetectionsToCanvas,
+  initClientObjectDetector,
 } from '../../../lib/clientObjectDetector';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../lib/toast';
@@ -315,7 +316,7 @@ export function CameraFirstHealthModal({
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
         setCameraState(result.success ? 'NO_DETECTION' : 'ERROR');
-        setLiveStatusText(result.statusMessage || 'Tinitingnan ang camera...');
+        setLiveStatusText(result.statusMessage || 'Handa na ang camera • Ilagay ang kambing o tupa sa loob ng frame.');
         return;
       }
 
@@ -399,6 +400,7 @@ export function CameraFirstHealthModal({
 
   // ── Start Camera Stream ───────────────────────────────────────────────────
   const startCameraStream = useCallback(async () => {
+    console.log('[Camera] Initializing...');
     stopCameraStream();
     setCameraPermissionError(false);
     setCameraError(null);
@@ -473,6 +475,10 @@ export function CameraFirstHealthModal({
         setSelectedAnimalId(activeAnimals[0].id);
       }
       startCameraStream();
+      // Preload client detection model
+      initClientObjectDetector().catch((err) => {
+        console.error('[Detector] Failed to initialize:', err);
+      });
     } else {
       stopCameraStream();
       setScanResult(null);
@@ -493,6 +499,18 @@ export function CameraFirstHealthModal({
     if (!video || video.videoWidth === 0 || video.videoHeight === 0 || isScanning) {
       toast('Siguraduhing bukas ang camera at nakatutok sa hayop.', 'warning');
       return;
+    }
+
+    // Requirement 20: Validate that unrelated objects or humans are not submitted as goats/sheep
+    if (liveDetections.length > 0) {
+      const hasLivestock = liveDetections.some((d) => d.type === 'GOAT' || d.type === 'SHEEP');
+      const hasPerson = liveDetections.some((d) => d.type === 'PERSON');
+      if (hasPerson || !hasLivestock) {
+        const msg = 'Walang kambing o tupa na nakita. Itapat ang camera sa hayop at subukan muli.';
+        toast(msg, 'warning');
+        setLiveStatusText(msg);
+        return;
+      }
     }
 
     setIsScanning(true);
@@ -929,6 +947,9 @@ export function CameraFirstHealthModal({
                   playsInline
                   autoPlay
                   muted
+                  onLoadedMetadata={() => {
+                    console.log('[Camera] Video ready');
+                  }}
                   style={{
                     width: '100%',
                     height: '100%',
