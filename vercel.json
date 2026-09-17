@@ -3,6 +3,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/ai/animal-scan",
+      "destination": "/api/gemini/animal-scan"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
