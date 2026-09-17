@@ -1,34 +1,27 @@
 /**
- * useAutoScan.ts — Automatic Goat/Sheep Detection + Health Screening
+ * useAutoScan.ts — Automatic Livestock Detection + Gemini Vision Health Screening
  *
- * 2.5-SECOND STABILITY & VERIFICATION PIPELINE:
- *   - When the camera is pointed at an object or animal, the system initiates a
- *     smooth 2.5-second (2500ms) observation timer.
- *   - During this 2.5s window:
- *       • Shows live countdown (2.5s -> 0.0s) & progress percentage (0% -> 100%).
- *       • Confirms whether the subject is a Goat/Sheep or Non-Target (Person/Dog/Cat/Object).
- *       • If moved away before 2.5s, the timer cleanly resets.
- *   - ONLY after holding steady for 2.5 full seconds:
- *       • Goat / Sheep -> Executes full AI Health Screening scan.
- *       • Non-Target (Tao, Aso, Pusa, Bagay) -> Displays verified non-target card.
+ * FULLY STANDARDIZED WITH GEMINI VISION API:
+ *   - Samples live frames every ~1.2s to /api/gemini/detect-objects.
+ *   - Generates real normalized 2D bounding boxes and target classifications:
+ *       • KAMBING / TUPA (Green bounding box, lock & auto-capture)
+ *       • TAO (Blue bounding box, "TAO — Hindi kambing o tupa")
+ *       • HAYOP (Amber bounding box, "HAYOP — Hindi kambing o tupa")
+ *       • BAGAY (Slate dashed box)
+ *   - Prevents auto-capture when multiple animals or non-targets are in view.
+ *   - When a single goat or sheep is held steady for 2 cycles (~2.4s),
+ *     automatically executes stage 2 full Gemini Vision health analysis.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  detectGoatInFrame,
-  fallbackDetectGoat,
-  resetStableFrameCount,
-  setSelectedTargetId,
-  getSelectedTargetId,
-  SCAN_COOLDOWN_SECONDS,
-  DETECTION_INTERVAL_MS,
-  STABILITY_DURATION_MS,
   type DetectionResult,
   type TrackedAnimal,
   type LivestockAngle,
+  SCAN_COOLDOWN_SECONDS,
+  STABILITY_DURATION_MS,
 } from './goatDetector';
 import {
-  loadMobileNet,
   runHealthScan,
   captureVideoFrame,
   type ScanResult,
@@ -40,6 +33,11 @@ import {
   type RuleBasedScreeningResult,
   type CombinedScreeningAssessment,
 } from './ruleBasedScreening';
+import {
+  detectLiveObjects,
+  type LiveDetectedObject,
+} from './geminiScanner';
+import { captureLowResFrame } from './cameraUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -74,9 +72,10 @@ export interface AutoScanStatus {
   angleGuidance: string | null;
   angleClinicalFocus: string | null;
   trackedAnimals: TrackedAnimal[];
+  liveDetections: LiveDetectedObject[];
   selectedTargetId: string | null;
   stabilityProgress: number;          // 0 to 100%
-  stabilityRemainingSeconds: number;  // 2.0 to 0.0s
+  stabilityRemainingSeconds: number;  // 2.5 to 0.0s
   isObserving: boolean;               // True while counting down
 }
 
@@ -91,31 +90,36 @@ function buildMessage(
 ): string {
   switch (state) {
     case 'idle':           return 'Hindi pa bukas ang camera.';
-    case 'loading':        return 'Inihahanda ang camera scanner...';
+    case 'loading':        return 'Inihahanda ang Gemini camera scanner...';
     case 'other_detected': {
+      if (det?.nonTargetClass) {
+        return `${det.nonTargetClass.toUpperCase()} — Hindi ito kambing o tupa.`;
+      }
       return 'Hindi ito kambing o tupa. Itapat ang camera sa kambing o tupa.';
     }
     case 'detecting':
       if (!det || (!det.detected && !det.otherDetected)) {
-        return 'Naghahanap... Itapat ang camera sa kambing o tupa.';
+        return 'Naghahanap... Itapat ang camera sa isang kambing o tupa.';
       }
       if (det.detected) {
         const sp = det.detectedSpecies === 'sheep' ? 'Tupa' : 'Kambing';
-        const ang = det.angleTagalog ? ` · ${det.angleTagalog}` : '';
-        if (isObserving && remainingSec > 0) {
-          return `Nakita ang hayop: ${sp}${ang} — Huwag igalaw (${remainingSec.toFixed(1)}s)...`;
+        if (det.trackedAnimals && det.trackedAnimals.length > 1) {
+          return 'Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.';
         }
-        return `Nakita ang hayop: ${sp}${ang}`;
+        if (isObserving && remainingSec > 0) {
+          return `Naka-lock sa hayop: ${sp} — Huwag igalaw (${remainingSec.toFixed(1)}s)...`;
+        }
+        return `Nakita ang hayop: ${sp}`;
       }
       if (det.otherDetected) {
-        return 'Hindi ito kambing o tupa. Itapat ang camera sa kambing o tupa.';
+        return `${det.nonTargetClass?.toUpperCase() ?? 'BAGAY'} — Hindi ito kambing o tupa.`;
       }
       return 'Naghahanap... Itapat ang camera sa kambing o tupa.';
     case 'stable': {
       const sp = det?.detectedSpecies === 'sheep' ? 'Tupa' : 'Kambing';
-      return `Nakita ang hayop: ${sp} — Sinusuri ang kalusugan...`;
+      return `Nakita ang hayop: ${sp} — Sinusuri ang kalusugan sa Gemini Vision...`;
     }
-    case 'scanning':       return 'Sinusuri ang kalusugan ng hayop...';
+    case 'scanning':       return 'Sinusuri ang kalusugan ng hayop sa Gemini Vision...';
     case 'result':         return 'Tapos na ang pagsusuri sa kalusugan.';
     case 'cooldown':       return `Handa para sa susunod na scan sa loob ng ${cd}s...`;
     case 'error':          return 'Nagkaroon ng problema habang nagsusuri.';
@@ -141,28 +145,27 @@ export function useAutoScan(options: {
 }) {
   const { videoRef, animalId, animalName, speciesPreference = 'auto', farmContext, onResult } = options;
 
-  const [state, setState]               = useState<ScanState>('idle');
-  const [detection, setDetection]       = useState<DetectionResult | null>(null);
-  const [result, setResult]             = useState<ScanResult | null>(null);
-  const [ruleResult, setRuleResult]     = useState<RuleBasedScreeningResult | null>(null);
-  const [combinedAssessment, setCombinedAssessment] = useState<CombinedScreeningAssessment | null>(null);
-  const [capturedUrl, setCapturedUrl]   = useState<string | null>(null);
-  const [capturedCanvas, setCapturedCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const [error, setError]               = useState<string | null>(null);
-  const [modelReady, setModelReady]     = useState(false);
-  const [usingFallback, setUsingFallback] = useState(false);
-  const [detectedSpecies, setDetectedSpecies] = useState<'goat' | 'sheep' | null>(null);
-  const [stabilityProgress, setStabilityProgress] = useState(0);
+  const [state, setState]                             = useState<ScanState>('idle');
+  const [detection, setDetection]                     = useState<DetectionResult | null>(null);
+  const [liveDetections, setLiveDetections]           = useState<LiveDetectedObject[]>([]);
+  const [result, setResult]                           = useState<ScanResult | null>(null);
+  const [ruleResult, setRuleResult]                   = useState<RuleBasedScreeningResult | null>(null);
+  const [combinedAssessment, setCombinedAssessment]   = useState<CombinedScreeningAssessment | null>(null);
+  const [capturedUrl, setCapturedUrl]                 = useState<string | null>(null);
+  const [capturedCanvas, setCapturedCanvas]           = useState<HTMLCanvasElement | null>(null);
+  const [cooldownRemaining, setCooldownRemaining]     = useState(0);
+  const [error, setError]                             = useState<string | null>(null);
+  const [detectedSpecies, setDetectedSpecies]         = useState<'goat' | 'sheep' | null>(null);
+  const [stabilityProgress, setStabilityProgress]     = useState(0);
   const [stabilityRemainingSeconds, setStabilityRemainingSeconds] = useState(2.5);
-  const [isObserving, setIsObserving]   = useState(false);
+  const [isObserving, setIsObserving]                 = useState(false);
 
-  const modelRef           = useRef<any>(null);
-  const detectionTimer     = useRef<ReturnType<typeof setInterval> | null>(null);
-  const cooldownTimer      = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scanningRef        = useRef(false);
-  const stateRef           = useRef<ScanState>('idle');
-  const mountedRef         = useRef(true);
+  const detectionTimer      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cooldownTimer       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scanningRef         = useRef(false);
+  const isSamplingRef       = useRef(false);
+  const stateRef            = useRef<ScanState>('idle');
+  const mountedRef          = useRef(true);
 
   // 2.5-second stability tracking refs
   const subjectStartTimeRef = useRef<number | null>(null);
@@ -196,37 +199,6 @@ export function useAutoScan(options: {
     }
   }, []);
 
-  // ── Cooldown between scans ────────────────────────────────────────────────
-  const startCooldown = useCallback(() => {
-    stopDetection();
-    stopCooldown();
-    resetStableFrameCount();
-    resetStability();
-
-    setState('cooldown');
-    stateRef.current = 'cooldown';
-    setCooldownRemaining(SCAN_COOLDOWN_SECONDS);
-
-    let remaining = SCAN_COOLDOWN_SECONDS;
-    cooldownTimer.current = setInterval(() => {
-      remaining--;
-      setCooldownRemaining(remaining);
-      if (remaining <= 0) {
-        stopCooldown();
-        if (mountedRef.current) {
-          setState('detecting');
-          stateRef.current = 'detecting';
-          setResult(null);
-          setCapturedUrl(null);
-          setCapturedCanvas(null);
-          setDetectedSpecies(null);
-          resetStability();
-          detectionTimer.current = setInterval(detectionTick, DETECTION_INTERVAL_MS);
-        }
-      }
-    }, 1000);
-  }, [stopDetection, stopCooldown, resetStability]);
-
   // ── Run health scan on canvas ─────────────────────────────────────────────
   const runScan = useCallback(async (
     canvas: HTMLCanvasElement,
@@ -258,7 +230,7 @@ export function useAutoScan(options: {
         scanType: 'image',
       });
 
-      // Execute Rule-Based Visual Screening alongside existing ML
+      // Execute Rule-Based Visual Screening alongside Gemini Vision
       const ruleRes = runRuleBasedScreening(canvas);
       const combined = combineScreeningAssessments(scanResult, ruleRes);
 
@@ -270,7 +242,6 @@ export function useAutoScan(options: {
       if (!scanResult.goatDetected) {
         setState('other_detected');
         stateRef.current = 'other_detected';
-        // Auto-cooldown after 5s to allow retrying
         setTimeout(() => {
           if (mountedRef.current && stateRef.current === 'other_detected') {
             startCooldown();
@@ -283,12 +254,12 @@ export function useAutoScan(options: {
       stateRef.current = 'result';
       onResult?.(scanResult, canvas, species, ruleRes, combined);
 
-      // Auto-transition to cooldown after 15 s
+      // Auto-transition to cooldown after 20s
       setTimeout(() => {
         if (mountedRef.current && stateRef.current === 'result') {
           startCooldown();
         }
-      }, 15000);
+      }, 20000);
     } catch (err: any) {
       if (!mountedRef.current) { scanningRef.current = false; return; }
       setError(err?.message ?? 'Scan failed');
@@ -296,123 +267,213 @@ export function useAutoScan(options: {
     } finally {
       scanningRef.current = false;
     }
-  }, [animalId, animalName, farmContext, onResult, stopDetection, startCooldown, resetStability]);
+  }, [animalId, animalName, speciesPreference, farmContext, onResult, stopDetection, resetStability]);
 
-  // ── Detection tick with 2.5s Steady Hold Verification ─────────────────────
+  // ── Detection tick using Gemini Vision Object Detection API ──────────────
   const detectionTick = useCallback(async () => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) return;
     const cur = stateRef.current;
     if (cur !== 'detecting' && cur !== 'stable' && cur !== 'other_detected') return;
 
-    let det: DetectionResult;
-    if (modelRef.current) {
-      try {
-        det = await detectGoatInFrame(video, modelRef.current);
-      } catch {
-        det = fallbackDetectGoat(video);
-      }
-    } else {
-      det = fallbackDetectGoat(video);
-    }
+    if (isSamplingRef.current) return;
+    isSamplingRef.current = true;
 
-    if (!mountedRef.current) return;
-    setDetection(det);
+    try {
+      const sampleCanvas = captureLowResFrame(video, 480);
+      const liveRes = await detectLiveObjects(sampleCanvas);
+      if (!mountedRef.current) return;
 
-    const now = Date.now();
-    const durationLimit = STABILITY_DURATION_MS; // 2500ms
+      setLiveDetections(liveRes.detections);
 
-    // ── Case 1: Target Livestock (Goat or Sheep) in frame ───────────────────
-    if (det.detected) {
-      const sp = det.detectedSpecies!;
-      setDetectedSpecies(sp);
+      const goatSheep = liveRes.detections.filter(d => d.type === 'GOAT' || d.type === 'SHEEP');
+      const hasMultiple = liveRes.multiple_targets || goatSheep.length > 1;
 
-      // Reset timer if we were previously observing something else
-      if (subjectTypeRef.current !== 'target') {
-        subjectTypeRef.current = 'target';
-        subjectStartTimeRef.current = now;
-      }
+      // ── Case 1: Target Livestock (Goat or Sheep) in frame ───────────────────
+      if (goatSheep.length > 0) {
+        const primary = goatSheep[0];
+        const sp: 'goat' | 'sheep' = primary.type === 'SHEEP' ? 'sheep' : 'goat';
+        setDetectedSpecies(sp);
 
-      const elapsed = now - (subjectStartTimeRef.current || now);
-      const remainingSec = Math.max(0, +((durationLimit - elapsed) / 1000).toFixed(1));
-      const progress = Math.min(100, Math.round((elapsed / durationLimit) * 100));
+        const tracked: TrackedAnimal[] = goatSheep.map((d, idx) => {
+          const isSheep = d.type === 'SHEEP';
+          const animalSpecies: 'goat' | 'sheep' = isSheep ? 'sheep' : 'goat';
+          const x1 = d.boundingBox.x;
+          const y1 = d.boundingBox.y;
+          const x2 = d.boundingBox.x + d.boundingBox.width;
+          const y2 = d.boundingBox.y + d.boundingBox.height;
+          const box: [number, number, number, number] = [x1, y1, x2, y2];
+          return {
+            id: `${animalSpecies}-${idx + 1}`,
+            label: d.label,
+            species: animalSpecies,
+            confidence: 0.95,
+            box,
+            smoothedBox: box,
+            isSelected: idx === 0,
+            lastSeen: Date.now(),
+          };
+        });
 
-      setStabilityProgress(progress);
-      setStabilityRemainingSeconds(remainingSec);
-      setIsObserving(true);
+        const det: DetectionResult = {
+          detected: true,
+          otherDetected: false,
+          detectedSpecies: sp,
+          detectedAngle: 'SIDE_VIEW',
+          angleLabel: 'Side Profile',
+          angleTagalog: 'Tagiliran',
+          angleGuidance: hasMultiple
+            ? 'Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.'
+            : 'Panatilihing steady ang camera sa hayop.',
+          angleClinicalFocus: 'Gemini Vision Live Object Detection',
+          angleConfidence: 0.95,
+          nonTargetClass: null,
+          detectedEmoji: sp === 'sheep' ? '🐑' : '🐐',
+          confidence: 0.95,
+          topClass: primary.label,
+          allClasses: [],
+          trackedAnimals: tracked,
+          selectedTargetId: tracked[0]?.id || null,
+          isStable: !hasMultiple,
+          stableFrames: hasMultiple ? 0 : 2,
+        };
+        setDetection(det);
 
-      // If under 2.5 seconds, keep observing steadily
-      if (elapsed < durationLimit) {
-        if (stateRef.current !== 'detecting') {
-          setState('detecting');
-          stateRef.current = 'detecting';
+        if (hasMultiple) {
+          // Multiple animals detected - do NOT auto-capture, warn user
+          subjectStartTimeRef.current = null;
+          subjectTypeRef.current = null;
+          setStabilityProgress(0);
+          setStabilityRemainingSeconds(2.5);
+          setIsObserving(false);
+          return;
+        }
+
+        // Single target livestock - run stability counter
+        const now = Date.now();
+        const durationLimit = STABILITY_DURATION_MS; // 2500ms
+        if (subjectTypeRef.current !== 'target') {
+          subjectTypeRef.current = 'target';
+          subjectStartTimeRef.current = now;
+        }
+
+        const elapsed = now - (subjectStartTimeRef.current || now);
+        const remainingSec = Math.max(0, +((durationLimit - elapsed) / 1000).toFixed(1));
+        const progress = Math.min(100, Math.round((elapsed / durationLimit) * 100));
+
+        setStabilityProgress(progress);
+        setStabilityRemainingSeconds(remainingSec);
+        setIsObserving(true);
+
+        if (elapsed < durationLimit) {
+          if (stateRef.current !== 'detecting') {
+            setState('detecting');
+            stateRef.current = 'detecting';
+          }
+          return;
+        }
+
+        // 2.5s steady hold reached -> trigger health scan
+        if (!scanningRef.current) {
+          setState('stable');
+          stateRef.current = 'stable';
+          setIsObserving(false);
+
+          await new Promise((r) => setTimeout(r, 150));
+          if (!mountedRef.current || stateRef.current !== 'stable') return;
+
+          const canvas = captureVideoFrame(video);
+          await runScan(canvas, sp);
         }
         return;
       }
 
-      // ── 2.5s Completed & Verified → Trigger Health Scan ──────────────────
-      if (!scanningRef.current) {
-        setState('stable');
-        stateRef.current = 'stable';
+      // ── Case 2: Non-Target (PERSON, OTHER_ANIMAL, OBJECT) in frame ─────────
+      const nonTarget = liveRes.detections.find(d => d.type === 'PERSON' || d.type === 'OTHER_ANIMAL' || d.type === 'OBJECT');
+      if (nonTarget) {
+        const det: DetectionResult = {
+          detected: false,
+          otherDetected: true,
+          detectedSpecies: null,
+          detectedAngle: null,
+          angleLabel: null,
+          angleTagalog: null,
+          angleGuidance: `${nonTarget.label} — Hindi ito kambing o tupa.`,
+          angleClinicalFocus: null,
+          angleConfidence: null,
+          nonTargetClass: nonTarget.label,
+          detectedEmoji: '⚠️',
+          confidence: 0.9,
+          topClass: nonTarget.label,
+          allClasses: [],
+          trackedAnimals: [],
+          selectedTargetId: null,
+          isStable: false,
+          stableFrames: 0,
+        };
+        setDetection(det);
+        subjectStartTimeRef.current = null;
+        subjectTypeRef.current = null;
+        setStabilityProgress(0);
+        setStabilityRemainingSeconds(2.5);
         setIsObserving(false);
 
-        await new Promise((r) => setTimeout(r, 150));
-        if (!mountedRef.current || stateRef.current !== 'stable') return;
-
-        const canvas = captureVideoFrame(video);
-        await runScan(canvas, sp);
-      }
-      return;
-    }
-
-    // ── Case 2: Non-Target Object (Person, Dog, Cat, Object) in frame ───────
-    if (det.otherDetected && !det.detected) {
-      // Reset timer if we were previously observing something else
-      if (subjectTypeRef.current !== 'non_target') {
-        subjectTypeRef.current = 'non_target';
-        subjectStartTimeRef.current = now;
-      }
-
-      const elapsed = now - (subjectStartTimeRef.current || now);
-      const remainingSec = Math.max(0, +((durationLimit - elapsed) / 1000).toFixed(1));
-      const progress = Math.min(100, Math.round((elapsed / durationLimit) * 100));
-
-      setStabilityProgress(progress);
-      setStabilityRemainingSeconds(remainingSec);
-      setIsObserving(true);
-
-      // If under 2.5 seconds, keep observing steadily before making statement
-      if (elapsed < durationLimit) {
-        if (stateRef.current !== 'detecting') {
-          setState('detecting');
-          stateRef.current = 'detecting';
+        if (stateRef.current !== 'other_detected') {
+          setState('other_detected');
+          stateRef.current = 'other_detected';
         }
         return;
       }
 
-      // ── 2.5s Completed & Verified → Confirm Non-Target Card ──────────────
-      if (stateRef.current !== 'other_detected') {
-        setState('other_detected');
-        stateRef.current = 'other_detected';
-        setIsObserving(false);
+      // ── Case 3: Empty background / camera searching ────────────────────────
+      setDetection(null);
+      subjectStartTimeRef.current = null;
+      subjectTypeRef.current = null;
+      setStabilityProgress(0);
+      setStabilityRemainingSeconds(2.5);
+      setIsObserving(false);
+      if (stateRef.current === 'other_detected' || stateRef.current === 'stable') {
+        setState('detecting');
+        stateRef.current = 'detecting';
       }
-      return;
-    }
-
-    // ── Case 3: Empty background / camera moved away ────────────────────────
-    subjectStartTimeRef.current = null;
-    subjectTypeRef.current = null;
-    setStabilityProgress(0);
-    setStabilityRemainingSeconds(2.5);
-    setIsObserving(false);
-
-    if (stateRef.current === 'other_detected' || stateRef.current === 'stable') {
-      setState('detecting');
-      stateRef.current = 'detecting';
+    } catch (err) {
+      console.warn('[useAutoScan] detectionTick error:', err);
+    } finally {
+      isSamplingRef.current = false;
     }
   }, [videoRef, runScan]);
 
-  // ── Manual Instant Scan (Bypasses 2.5s countdown) ─────────────────────────
+  // ── Cooldown between scans ────────────────────────────────────────────────
+  const startCooldown = useCallback(() => {
+    stopDetection();
+    stopCooldown();
+    resetStability();
+
+    setState('cooldown');
+    stateRef.current = 'cooldown';
+    setCooldownRemaining(SCAN_COOLDOWN_SECONDS);
+
+    let remaining = SCAN_COOLDOWN_SECONDS;
+    cooldownTimer.current = setInterval(() => {
+      remaining--;
+      setCooldownRemaining(remaining);
+      if (remaining <= 0) {
+        stopCooldown();
+        if (mountedRef.current) {
+          setState('detecting');
+          stateRef.current = 'detecting';
+          setResult(null);
+          setCapturedUrl(null);
+          setCapturedCanvas(null);
+          setDetectedSpecies(null);
+          resetStability();
+          detectionTimer.current = setInterval(detectionTick, 1200);
+        }
+      }
+    }, 1000);
+  }, [stopDetection, stopCooldown, resetStability, detectionTick]);
+
+  // ── Manual Instant Scan (Bypasses steady hold countdown) ───────────────────
   const triggerManualScan = useCallback(async (customCanvas?: HTMLCanvasElement) => {
     if (scanningRef.current) return;
     let canvas = customCanvas;
@@ -437,28 +498,21 @@ export function useAutoScan(options: {
     setCapturedUrl(null);
     setCapturedCanvas(null);
     setDetection(null);
+    setLiveDetections([]);
     setDetectedSpecies(null);
-    resetStableFrameCount();
     resetStability();
 
-    const model = await loadMobileNet();
-    if (!mountedRef.current) return;
-
-    modelRef.current = model;
-    setModelReady(!!model);
-    setUsingFallback(!model);
     setState('detecting');
     stateRef.current = 'detecting';
 
     stopDetection();
-    detectionTimer.current = setInterval(detectionTick, DETECTION_INTERVAL_MS);
+    detectionTimer.current = setInterval(detectionTick, 1200);
   }, [stopDetection, detectionTick, resetStability]);
 
   // ── Stop ──────────────────────────────────────────────────────────────────
   const stopAutoScan = useCallback(() => {
     stopDetection();
     if (cooldownTimer.current) { clearInterval(cooldownTimer.current); cooldownTimer.current = null; }
-    resetStableFrameCount();
     resetStability();
     setState('idle');
     stateRef.current = 'idle';
@@ -473,14 +527,14 @@ export function useAutoScan(options: {
     setCapturedUrl(null);
     setCapturedCanvas(null);
     setDetection(null);
+    setLiveDetections([]);
     setDetectedSpecies(null);
-    resetStableFrameCount();
     resetStability();
     if (cooldownTimer.current) { clearInterval(cooldownTimer.current); cooldownTimer.current = null; }
     setState('detecting');
     stateRef.current = 'detecting';
     stopDetection();
-    detectionTimer.current = setInterval(detectionTick, DETECTION_INTERVAL_MS);
+    detectionTimer.current = setInterval(detectionTick, 1200);
   }, [stopDetection, detectionTick, resetStability]);
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -489,12 +543,10 @@ export function useAutoScan(options: {
       mountedRef.current = false;
       stopDetection();
       if (cooldownTimer.current) clearInterval(cooldownTimer.current);
-      resetStableFrameCount();
     };
   }, [stopDetection]);
 
   const setSelectedTarget = useCallback((id: string | null) => {
-    setSelectedTargetId(id);
     if (detection) {
       setDetection({
         ...detection,
@@ -512,6 +564,7 @@ export function useAutoScan(options: {
   return {
     state,
     detection,
+    liveDetections,
     result,
     ruleResult,
     combinedAssessment,
@@ -519,25 +572,24 @@ export function useAutoScan(options: {
     capturedCanvas,
     cooldownRemaining,
     error,
-    modelReady,
-    usingFallback,
+    modelReady: true,
+    usingFallback: false,
     message,
     detectedSpecies,
-    detectedAngle: detection?.detectedAngle || null,
-    angleLabel: detection?.angleLabel || null,
-    angleTagalog: detection?.angleTagalog || null,
-    angleGuidance: detection?.angleGuidance || null,
-    angleClinicalFocus: detection?.angleClinicalFocus || null,
-    trackedAnimals: detection?.trackedAnimals || [],
-    selectedTargetId: detection?.selectedTargetId || null,
-    setSelectedTarget,
+    detectedAngle: detection?.detectedAngle ?? null,
+    angleLabel: detection?.angleLabel ?? null,
+    angleTagalog: detection?.angleTagalog ?? null,
+    angleGuidance: detection?.angleGuidance ?? null,
+    angleClinicalFocus: detection?.angleClinicalFocus ?? null,
+    trackedAnimals: detection?.trackedAnimals ?? [],
+    selectedTargetId: detection?.selectedTargetId ?? null,
     stabilityProgress,
     stabilityRemainingSeconds,
     isObserving,
     startAutoScan,
     stopAutoScan,
-    rescan,
     triggerManualScan,
+    rescan,
+    setSelectedTarget,
   };
 }
-

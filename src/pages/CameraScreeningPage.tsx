@@ -612,13 +612,13 @@ What are the recommended early livestock interventions, supportive veterinary ca
               ctx.stroke();
             }
 
-            // High-legibility professional species label badge: GOAT / SHEEP (GOAT #1, GOAT #2, SHEEP #1 if multiple)
+            // High-legibility professional species label badge: KAMBING / TUPA
             const isSheep = a.species.toLowerCase() === 'sheep';
             const isMulti = tracked.length > 1;
             const animalIndex = tracked.indexOf(a) + 1;
             const badgeText = isSheep
-              ? (isMulti ? `SHEEP #${animalIndex}` : 'SHEEP')
-              : (isMulti ? `GOAT #${animalIndex}` : 'GOAT');
+              ? (isMulti ? `TUPA #${animalIndex}` : 'TUPA')
+              : (isMulti ? `KAMBING #${animalIndex}` : 'KAMBING');
 
             ctx.font = 'bold 12px Plus Jakarta Sans, Inter, system-ui, sans-serif';
             const textWidth = ctx.measureText(badgeText).width;
@@ -643,6 +643,53 @@ What are the recommended early livestock interventions, supportive veterinary ca
             ctx.fillText(badgeText, tagX + 10, tagY - 8);
           }
         }
+
+        // Render non-target bounding boxes (PERSON, OTHER_ANIMAL, OBJECT)
+        if (autoScan.liveDetections && autoScan.liveDetections.length > 0) {
+          const nonTargets = autoScan.liveDetections.filter(
+            d => d.type === 'PERSON' || d.type === 'OTHER_ANIMAL' || d.type === 'OBJECT'
+          );
+          for (const nt of nonTargets) {
+            const bx = nt.boundingBox.x * W;
+            const by = nt.boundingBox.y * H;
+            const bw = Math.max(30, nt.boundingBox.width * W);
+            const bh = Math.max(30, nt.boundingBox.height * H);
+
+            const isPerson = nt.type === 'PERSON';
+            const isAnimal = nt.type === 'OTHER_ANIMAL';
+            const strokeColor = isPerson ? '#3B82F6' : isAnimal ? '#F59E0B' : '#94A3B8';
+            const fillColor = isPerson
+              ? 'rgba(59, 130, 246, 0.12)'
+              : isAnimal
+              ? 'rgba(245, 158, 11, 0.12)'
+              : 'rgba(148, 163, 184, 0.1)';
+
+            ctx.fillStyle = fillColor;
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 2;
+            if (nt.type === 'OBJECT') ctx.setLineDash([4, 4]);
+            else ctx.setLineDash([]);
+            ctx.strokeRect(bx, by, bw, bh);
+            ctx.setLineDash([]);
+
+            // Badge
+            ctx.font = 'bold 11px Plus Jakarta Sans, Inter, system-ui, sans-serif';
+            const badgeLabel = nt.label;
+            const tw = ctx.measureText(badgeLabel).width;
+            const th = 22;
+            const tagX = Math.max(8, Math.min(W - tw - 16, bx));
+            const tagY = Math.max(th + 6, by - 6);
+
+            ctx.fillStyle = isPerson ? '#1D4ED8' : isAnimal ? '#B45309' : '#475569';
+            ctx.beginPath();
+            ctx.roundRect(tagX, tagY - th, tw + 14, th, 4);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillText(badgeLabel, tagX + 7, tagY - 6);
+          }
+        }
       }
       animFrameRef.current = requestAnimationFrame(renderOverlay);
     };
@@ -652,7 +699,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
       isRunning = false;
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [autoScan.trackedAnimals, autoScan.selectedTargetId, autoScan.state, permission]);
+  }, [autoScan.trackedAnimals, autoScan.liveDetections, autoScan.selectedTargetId, autoScan.state, permission]);
 
   // Derived detection variables
   const det = autoScan.detection;
@@ -1172,6 +1219,37 @@ What are the recommended early livestock interventions, supportive veterinary ca
           </div>
         )}
 
+        {/* ── STATE 3.5: MULTIPLE ANIMALS DETECTED WARNING BANNER ── */}
+        {permission === 'granted' && autoScan.trackedAnimals && autoScan.trackedAnimals.length > 1 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 76,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(217, 119, 6, 0.95)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1.5px solid #FDE68A',
+              borderRadius: 14,
+              padding: '10px 20px',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              boxShadow: '0 8px 24px rgba(217, 119, 6, 0.45)',
+              zIndex: 25,
+              maxWidth: 'calc(100% - 32px)',
+              textAlign: 'center',
+            }}
+          >
+            <AlertTriangle size={20} color="#FDE68A" />
+            <span style={{ fontSize: 13, fontWeight: 800 }}>
+              Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.
+            </span>
+          </div>
+        )}
+
         {/* ── STATE 4: WRONG OBJECT BANNER (MANDATE 11) ── */}
         {permission === 'granted' && autoScan.state === 'other_detected' && (
           <div
@@ -1198,7 +1276,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <ShieldAlert size={20} color="#FFFFFF" />
             <span style={{ fontSize: 13, fontWeight: 800 }}>
-              Parang hindi kambing o tupa ang nasa camera. Iposisyon nang maayos ang hayop sa gitna ng camera.
+              {autoScan.detection?.nonTargetClass ? `${autoScan.detection.nonTargetClass.toUpperCase()} — Hindi ito kambing o tupa.` : 'Parang hindi kambing o tupa ang nasa camera.'} Iposisyon nang maayos ang hayop sa gitna ng camera.
             </span>
           </div>
         )}

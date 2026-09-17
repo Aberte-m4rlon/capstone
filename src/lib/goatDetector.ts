@@ -504,18 +504,8 @@ function extractSpatialBoxes(
     // ignore canvas errors
   }
 
-  // Default framed portrait box
-  const defaultBox: [number, number, number, number] = [0.12, 0.16, 0.88, 0.82];
-  return [{
-    id: `${species}-1`,
-    label: `${species.toUpperCase()} #1`,
-    species,
-    confidence,
-    box: defaultBox,
-    smoothedBox: defaultBox,
-    isSelected: true,
-    lastSeen: Date.now(),
-  }];
+  // Return empty array if no animal was spatially localized
+  return [];
 }
 
 /**

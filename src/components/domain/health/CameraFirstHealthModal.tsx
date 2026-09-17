@@ -98,10 +98,34 @@ export function CameraFirstHealthModal({
   const [scanResult, setScanResult] = useState<HealthScanResult | null>(null);
 
   // ── Selected Animal & Form Fields ──
-  const [selectedAnimalId, setSelectedAnimalId] = useState<string>('');
+  const [selectedAnimalId, setSelectedAnimalId] = useState<string>(preselectedAnimalId || '');
+  const [dbAnimals, setDbAnimals] = useState<Animal[]>([]);
   const [notes, setNotes] = useState<string>('');
   const [manualMedId, setManualMedId] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
+
+  // Sync preselectedAnimalId
+  useEffect(() => {
+    if (preselectedAnimalId) {
+      setSelectedAnimalId(preselectedAnimalId);
+    }
+  }, [preselectedAnimalId]);
+
+  // If farmAnimals is empty or missing, fetch active animals from Supabase
+  useEffect(() => {
+    if (open && (!farmAnimals || farmAnimals.length <= 1)) {
+      supabase
+        .from('animals')
+        .select('*')
+        .eq('archived', false)
+        .order('name', { ascending: true })
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setDbAnimals(data as Animal[]);
+          }
+        });
+    }
+  }, [open, farmAnimals]);
 
   // ── Refs ──
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -113,10 +137,11 @@ export function CameraFirstHealthModal({
   const stableTargetCountRef = useRef(0);
   const handlePerformScanRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
-  // Filter active farm animals
+  // Combined active farm animals list
   const activeAnimals = useMemo(() => {
-    return farmAnimals.filter((a) => !a.archived && !(a as any).is_sold);
-  }, [farmAnimals]);
+    const list = (farmAnimals && farmAnimals.length > 0) ? farmAnimals : dbAnimals;
+    return list.filter((a) => !a.archived && !(a as any).is_sold);
+  }, [farmAnimals, dbAnimals]);
 
   // Selected animal object
   const selectedAnimal = useMemo(() => {
