@@ -82,6 +82,7 @@ export type CameraLifecycleState =
   | 'GOAT_DETECTED'
   | 'SHEEP_DETECTED'
   | 'OTHER_DETECTED'
+  | 'UNCERTAIN'
   | 'NO_DETECTION'
   | 'CAPTURING'
   | 'ANALYZING'
@@ -332,10 +333,17 @@ export function CameraFirstHealthModal({
       const targetLivestock = freshDetections.filter(
         (d) => d.type === 'GOAT' || d.type === 'SHEEP'
       );
+      const uncertains = freshDetections.filter((d) => d.type === 'UNCERTAIN');
       const totalLivestock =
         (result.count_goats || 0) + (result.count_sheep || 0) || targetLivestock.length;
 
-      if (result.multiple_targets || totalLivestock > 1) {
+      if (uncertains.length > 0 || (result.count_uncertain || 0) > 0) {
+        setMultipleAnimalsDetected(false);
+        stableTargetCountRef.current = 0;
+        setAutoCaptureStatus('idle');
+        setCameraState('UNCERTAIN');
+        setLiveStatusText(result.statusMessage || 'Hindi malinaw ang hayop. Ilapit o ayusin ang camera at subukan muli.');
+      } else if (result.multiple_targets || totalLivestock > 1) {
         setMultipleAnimalsDetected(true);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
@@ -352,7 +360,7 @@ export function CameraFirstHealthModal({
 
         if (stableTargetCountRef.current === 1) {
           setAutoCaptureStatus('holding');
-          setLiveStatusText(`${targetName}: Handa nang i-scan • Manatiling nakatutok...`);
+          setLiveStatusText(result.statusMessage || `${targetName}: Handa nang i-scan • Manatiling nakatutok...`);
         } else if (stableTargetCountRef.current >= 3) {
           setCameraState('CAPTURING');
           setAutoCaptureStatus('capturing');
@@ -501,16 +509,30 @@ export function CameraFirstHealthModal({
       return;
     }
 
-    // Requirement 20: Validate that unrelated objects or humans are not submitted as goats/sheep
-    if (liveDetections.length > 0) {
-      const hasLivestock = liveDetections.some((d) => d.type === 'GOAT' || d.type === 'SHEEP');
-      const hasPerson = liveDetections.some((d) => d.type === 'PERSON');
-      if (hasPerson || !hasLivestock) {
-        const msg = 'Walang kambing o tupa na nakita. Itapat ang camera sa hayop at subukan muli.';
+    // Strict Species Gate (Sections 14, 20 & 21)
+    const validLivestock = liveDetections.filter(
+      (d) => d.type === 'GOAT' || d.type === 'SHEEP'
+    );
+    const hasUncertain = liveDetections.some((d) => d.type === 'UNCERTAIN');
+    const hasPerson = liveDetections.some((d) => d.type === 'PERSON');
+
+    if (validLivestock.length === 0) {
+      if (hasUncertain) {
+        const msg = 'Hindi malinaw ang hayop. Ilapit o ayusin ang camera at subukan muli.';
         toast(msg, 'warning');
         setLiveStatusText(msg);
         return;
       }
+      if (hasPerson) {
+        const msg = 'Tao ang nakita sa camera. Itapat ang camera sa kambing o tupa.';
+        toast(msg, 'warning');
+        setLiveStatusText(msg);
+        return;
+      }
+      const msg = 'Walang kambing o tupa na nakita. Itapat ang camera sa hayop at subukan muli.';
+      toast(msg, 'warning');
+      setLiveStatusText(msg);
+      return;
     }
 
     setIsScanning(true);

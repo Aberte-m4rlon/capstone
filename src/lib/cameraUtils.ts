@@ -162,16 +162,14 @@ export interface BoundingBox {
   height: number;  // 0.0 to 1.0 (height percentage)
 }
 
-export type LiveTargetType = 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER_ANIMAL' | 'OBJECT';
+export type LiveTargetType = 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER_ANIMAL' | 'OBJECT' | 'UNCERTAIN';
 export type LiveTargetLabel =
   | 'KAMBING'
   | 'TUPA'
   | 'TAO'
   | 'ASO'
   | 'PUSA'
-  | 'BAKA'
-  | 'KABAYO'
-  | 'IBON'
+  | 'HINDI MALINAW'
   | 'HAYOP'
   | 'BAGAY'
   | string;

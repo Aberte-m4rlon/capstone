@@ -20,6 +20,7 @@ myai_service/models/*.joblib
 myai_service/models/*.pkl
 *.pt
 *.onnx
+!public/models/*.onnx
 *.weights
 *.tar.xz
 4skwhnrscr-2/
