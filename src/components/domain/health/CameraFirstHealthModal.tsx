@@ -303,13 +303,14 @@ export function CameraFirstHealthModal({
     }
   }, [isScanning, matchAnimalFromText]);
 
-  // ── Live Object Detection & Bounding Box Sampling (100% Client-Side) ──────
+  // ── Live Object Detection & Bounding Box Sampling (Gemini Vision API) ──────
   const runLiveObjectDetection = useCallback(async () => {
     const video = videoRef.current;
     if (
       !video ||
       video.videoWidth === 0 ||
       video.videoHeight === 0 ||
+      video.readyState < 2 ||
       isScanning ||
       scanResult ||
       isSamplingRef.current ||
@@ -320,7 +321,8 @@ export function CameraFirstHealthModal({
 
     isSamplingRef.current = true;
     try {
-      const frameCanvas = captureLowResFrame(video, 480);
+      console.log(`[Camera] Capturing frame for live detection: ${video.videoWidth}x${video.videoHeight}`);
+      const frameCanvas = captureLowResFrame(video, 640);
       const abortCtrl = new AbortController();
       detectAbortControllerRef.current = abortCtrl;
 
@@ -328,8 +330,15 @@ export function CameraFirstHealthModal({
 
       if (!isMountedRef.current || isScanning || scanResult) return;
 
-      // Handle unready / failed detector or empty frame
-      if (!result.success || !result.detections || result.detections.length === 0) {
+      // Handle unready / busy / failed API call
+      if (!result.success) {
+        setCameraState('DETECTING');
+        setLiveStatusText(result.status_message || 'Kumokonekta sa Gemini Vision...');
+        return;
+      }
+
+      // Handle empty detections
+      if (!result.detections || result.detections.length === 0) {
         setLiveDetections([]);
         if (overlayCanvasRef.current) {
           renderLiveDetectionsToCanvas(overlayCanvasRef.current, video, []);
@@ -337,7 +346,7 @@ export function CameraFirstHealthModal({
         setMultipleAnimalsDetected(false);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
-        setCameraState(result.success ? 'NO_DETECTION' : 'ERROR');
+        setCameraState('NO_DETECTION');
         setLiveStatusText('Walang kambing o tupa na nakita');
         return;
       }
@@ -411,24 +420,19 @@ export function CameraFirstHealthModal({
         if (person) {
           setLiveStatusText('Tao — Hindi ito kambing o tupa');
         } else if (otherAnimal) {
-          setLiveStatusText('Ibang Bagay — Hindi ito kambing o tupa');
+          setLiveStatusText('Ibang Hayop — Hindi ito kambing o tupa');
         } else if (obj) {
           setLiveStatusText('Ibang Bagay — Hindi ito kambing o tupa');
         } else {
           setLiveStatusText('Walang kambing o tupa na nakita');
         }
       }
-    } catch {
-      // Clear detections on error or frame drop
-      setLiveDetections([]);
-      if (overlayCanvasRef.current && videoRef.current) {
-        renderLiveDetectionsToCanvas(overlayCanvasRef.current, videoRef.current, []);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.warn('[Camera] Live detection loop exception:', err?.message);
+        setCameraState('DETECTING');
+        setLiveStatusText('Kumokonekta sa Gemini Vision...');
       }
-      setMultipleAnimalsDetected(false);
-      stableTargetCountRef.current = 0;
-      setAutoCaptureStatus('idle');
-      setCameraState('ERROR');
-      setLiveStatusText('Walang kambing o tupa na nakita');
     } finally {
       detectAbortControllerRef.current = null;
       isSamplingRef.current = false;
@@ -624,20 +628,14 @@ export function CameraFirstHealthModal({
 
     if (validLivestock.length === 0) {
       if (hasUncertain) {
-        const msg = 'Hindi malinaw ang hayop. Ilapit o ayusin ang camera at subukan muli.';
-        toast(msg, 'warning');
-        setLiveStatusText(msg);
+        setLiveStatusText('Hindi malinaw ang hayop. Ilapit o ayusin ang camera at subukan muli.');
         return;
       }
       if (hasPerson) {
-        const msg = 'Tao ang nakita sa camera. Itapat ang camera sa kambing o tupa.';
-        toast(msg, 'warning');
-        setLiveStatusText(msg);
+        setLiveStatusText('Tao ang nakita sa camera. Itapat ang camera sa kambing o tupa.');
         return;
       }
-      const msg = 'Walang kambing o tupa na nakita. Itapat ang camera sa hayop at subukan muli.';
-      toast(msg, 'warning');
-      setLiveStatusText(msg);
+      setLiveStatusText('Walang kambing o tupa na nakita. Itapat ang camera sa hayop at subukan muli.');
       return;
     }
 
@@ -794,12 +792,17 @@ export function CameraFirstHealthModal({
       clearInterval(detectionIntervalRef.current);
     }
 
-    // Run periodic live detection snapshot every 1200ms via Gemini Vision API
+    const initialTimer = setTimeout(() => {
+      runLiveObjectDetectionRef.current();
+    }, 500);
+
+    // Run periodic live detection snapshot every 2800ms via Gemini Vision API to prevent 429 quota exhaustion
     detectionIntervalRef.current = setInterval(() => {
       runLiveObjectDetectionRef.current();
-    }, 1200);
+    }, 2800);
 
     return () => {
+      clearTimeout(initialTimer);
       if (detectionIntervalRef.current) {
         clearInterval(detectionIntervalRef.current);
         detectionIntervalRef.current = null;
@@ -1121,8 +1124,8 @@ export function CameraFirstHealthModal({
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                transform: 'scaleX(1)',
-                WebkitTransform: 'scaleX(1)',
+                transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)',
+                WebkitTransform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)',
               }}
             />
 
@@ -1136,8 +1139,8 @@ export function CameraFirstHealthModal({
                 height: '100%',
                 pointerEvents: 'none',
                 zIndex: 4,
-                transform: 'scaleX(1)',
-                WebkitTransform: 'scaleX(1)',
+                transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)',
+                WebkitTransform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)',
               }}
             />
 
@@ -1460,27 +1463,35 @@ export function CameraFirstHealthModal({
                   fontSize: 14,
                   fontWeight: 700,
                   borderRadius: 12,
-                  background: '#16A34A',
-                  borderColor: '#16A34A',
-                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
+                  background: validLivestock.length > 0 ? '#16A34A' : '#94A3B8',
+                  borderColor: validLivestock.length > 0 ? '#16A34A' : '#94A3B8',
+                  boxShadow: validLivestock.length > 0 ? '0 2px 8px rgba(22, 163, 74, 0.25)' : 'none',
+                  cursor: validLivestock.length > 0 && !isScanning ? 'pointer' : 'not-allowed',
+                  opacity: validLivestock.length > 0 ? 1 : 0.75,
+                  transition: 'all 0.2s ease',
                 }}
                 onClick={handlePerformScan}
-                disabled={isScanning || !isCameraActive}
+                disabled={isScanning || !isCameraActive || validLivestock.length === 0}
               >
                 {isScanning ? (
                   <>
                     <RefreshCw size={16} className="animate-spin" />
-                    <span>Sinusuri ang hayop sa Gemini Vision...</span>
+                    <span>Sinusuri ang kalagayan ng hayop...</span>
+                  </>
+                ) : validLivestock.length === 0 ? (
+                  <>
+                    <Camera size={18} />
+                    <span>Hintayin ang detection</span>
                   </>
                 ) : (
                   <>
                     <Camera size={18} />
                     <span>
                       {validLivestock.length > 1
-                        ? `I-scan ang Napili (${(validLivestock[selectedTargetIndex] || validLivestock[0])?.type === 'SHEEP' ? 'Tupa' : 'Kambing'})`
+                        ? `Suriin ang Napili (${(validLivestock[selectedTargetIndex] || validLivestock[0])?.type === 'SHEEP' ? 'Tupa' : 'Kambing'})`
                         : validLivestock.length === 1
-                        ? (validLivestock[0]?.type === 'SHEEP' ? 'I-scan ang Tupa' : 'I-scan ang Kambing')
-                        : 'I-scan ang Hayop'}
+                        ? (validLivestock[0]?.type === 'SHEEP' ? 'Suriin ang Tupa' : 'Suriin ang Kambing')
+                        : 'Suriin ang Hayop'}
                     </span>
                   </>
                 )}

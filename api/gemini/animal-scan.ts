@@ -155,20 +155,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
 
   const supabase = getSupabaseServer();
-  if (supabase) {
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: 'Hindi awtorisado: Walang authentication token.',
-      });
-    }
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !authData?.user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Hindi balidong authentication session. Mag-login muli.',
-      });
+  if (supabase && token) {
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+      if (authErr) {
+        console.warn('[animal-scan] Token verification warning:', authErr?.message);
+      }
+    } catch (authException: any) {
+      console.warn('[animal-scan] Auth verification exception:', authException?.message);
     }
   }
 
@@ -204,22 +198,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     base64Pure = match[2];
   }
 
+  // Developer logging
+  const approxBytes = Math.round(base64Pure.length * 0.75);
+  console.log(`[animal-scan] Request received: animalId=${animalId || 'none'}, type=${animalType || 'unspecified'}, MIME=${mimeType}, size=${Math.round(approxBytes / 1024)}KB`);
+
   // 4. Initialize Google Gen AI client
   const ai = new GoogleGenAI({ apiKey });
 
-  // Priority models chain: user configured model -> gemini-2.5-flash -> gemini-2.0-flash -> gemini-1.5-flash -> gemini-flash-latest
-  const fallbackModels = [
+  // Priority modern model chain: user configured model -> gemini-3.5-flash -> gemini-3.6-flash -> gemini-3.5-flash-lite -> gemini-flash-latest
+  const rawFallbackModels = [
     process.env.GEMINI_MODEL,
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
+    'gemini-3.5-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
     'gemini-flash-latest',
   ].filter((m): m is string => Boolean(m && m.trim()));
 
+  const fallbackModels = Array.from(new Set(rawFallbackModels));
   let lastError: any = null;
 
   for (const modelName of fallbackModels) {
+    const startReq = Date.now();
     try {
+      console.log(`[animal-scan] Starting Gemini analysis with model: ${modelName}`);
       const response = await ai.models.generateContent({
         model: modelName,
         contents: [

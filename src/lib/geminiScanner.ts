@@ -166,11 +166,16 @@ export async function detectLiveObjects(
   }
 
   isDetectingLive = true;
+  const startMs = Date.now();
   try {
     const dataUrl =
       typeof input === 'string'
         ? input
-        : input.toDataURL('image/jpeg', 0.65);
+        : input.toDataURL('image/jpeg', 0.70);
+
+    const charLen = dataUrl.length;
+    const approxBytes = Math.round(charLen * 0.75);
+    console.log(`[GeminiScanner] Sampling frame sent to /api/gemini/detect-objects: ${Math.round(approxBytes / 1024)}KB`);
 
     let authHeader: Record<string, string> = {};
     try {
@@ -193,10 +198,12 @@ export async function detectLiveObjects(
     });
 
     if (!res.ok) {
+      console.warn(`[GeminiScanner] detect-objects returned HTTP ${res.status}`);
       throw new Error(`Detection HTTP ${res.status}`);
     }
 
     const data: LiveObjectDetectionResult = await res.json();
+    console.log(`[GeminiScanner] Frame detection returned in ${Date.now() - startMs}ms: count=${data.detections?.length || 0}, goats=${data.count_goats}, sheep=${data.count_sheep}`);
     return data;
   } catch (err: any) {
     if (err?.name === 'AbortError') {
@@ -209,13 +216,14 @@ export async function detectLiveObjects(
         status_message: 'Kinansela ang pag-detect.',
       };
     }
+    console.warn(`[GeminiScanner] Detection failed (${Date.now() - startMs}ms):`, err?.message);
     return {
       success: false,
       detections: [],
       count_goats: 0,
       count_sheep: 0,
       multiple_targets: false,
-      status_message: 'Tinitingnan ang camera...',
+      status_message: 'Kumokonekta sa Gemini Vision...',
       error: err?.message,
     };
   } finally {
