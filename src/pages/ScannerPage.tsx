@@ -155,7 +155,7 @@ export function ScannerPage() {
               fps: 15,
               qrbox: { width: 260, height: 260 },
               aspectRatio: 1.0,
-              disableFlip: false,
+              disableFlip: true,
             },
             (decoded) => handleDecoded(decoded),
             () => { /* ignore scan errors (not-found frames) */ },

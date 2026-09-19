@@ -332,7 +332,7 @@ export function AnimalCameraScanModal({
               {
                 fps: 15,
                 qrbox: { width: 250, height: 250 },
-                disableFlip: false,
+                disableFlip: true,
               },
               (decoded) => handleDecodedRef.current(decoded),
               () => {

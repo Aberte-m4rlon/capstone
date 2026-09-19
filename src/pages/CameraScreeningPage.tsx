@@ -956,6 +956,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
             display: 'block',
             zIndex: 1,
             background: '#000000',
+            transform: 'scaleX(1)',
+            WebkitTransform: 'scaleX(1)',
           }}
         />
 
@@ -970,6 +972,8 @@ What are the recommended early livestock interventions, supportive veterinary ca
             pointerEvents: 'none',
             zIndex: 10,
             display: permission === 'granted' ? 'block' : 'none',
+            transform: 'scaleX(1)',
+            WebkitTransform: 'scaleX(1)',
           }}
         />
 

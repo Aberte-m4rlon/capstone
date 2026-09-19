@@ -1105,6 +1105,8 @@ export function CameraFirstHealthModal({
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
+                    transform: 'scaleX(1)',
+                    WebkitTransform: 'scaleX(1)',
                   }}
                 />
 
@@ -1145,6 +1147,8 @@ export function CameraFirstHealthModal({
                     height: '100%',
                     pointerEvents: 'none',
                     zIndex: 4,
+                    transform: 'scaleX(1)',
+                    WebkitTransform: 'scaleX(1)',
                   }}
                 />
 
