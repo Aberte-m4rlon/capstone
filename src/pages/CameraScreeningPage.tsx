@@ -1311,7 +1311,7 @@ What are the recommended early livestock interventions, supportive veterinary ca
           >
             <ShieldAlert size={20} color="#FFFFFF" />
             <span style={{ fontSize: 13, fontWeight: 800 }}>
-              {autoScan.detection?.nonTargetClass ? `${autoScan.detection.nonTargetClass.toUpperCase()} — Hindi ito kambing o tupa.` : 'Parang hindi kambing o tupa ang nasa camera.'} Iposisyon nang maayos ang hayop sa gitna ng camera.
+              {autoScan.detection?.nonTargetClass ? `${autoScan.detection.nonTargetClass.toUpperCase()} — Hindi ito kambing o tupa.` : 'Walang kambing o tupa na nakita.'} Itapat nang maayos ang camera sa hayop at subukan muli.
             </span>
           </div>
         )}
@@ -2266,10 +2266,10 @@ function ScanResultCard({
             <ShieldAlert size={44} color="#DC2626" />
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#DC2626', marginBottom: 6 }}>
-            Parang hindi kambing o tupa ang nasa camera.
+            Walang kambing o tupa na nakita sa camera.
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary, #4B5563)', lineHeight: 1.6, marginBottom: 20 }}>
-            Iposisyon nang maayos ang hayop sa gitna ng camera bago mag-scan.
+            Itapat nang maayos ang camera sa hayop at subukan muli.
           </div>
           <button
             onClick={onRescan}

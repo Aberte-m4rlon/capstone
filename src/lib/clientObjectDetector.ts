@@ -83,8 +83,8 @@ const GOAT_ONNX_MODEL_URL = '/models/goat_yolov8n.onnx';
 
 // Thresholds for genuine classes
 export const CONFIDENCE_THRESHOLDS = {
-  GOAT: 0.35,         // Specialized YOLOv8 Nano model threshold
-  SHEEP: 0.38,        // MediaPipe genuine sheep threshold
+  GOAT: 0.25,         // Specialized YOLOv8 Nano model threshold (empirically tuned for angled/frontal goats)
+  SHEEP: 0.35,        // MediaPipe genuine sheep threshold
   PERSON: 0.38,       // MediaPipe genuine human threshold
   OTHER_ANIMAL: 0.50, // Domestic animals (ASO, PUSA) only if genuine
   OBJECT: 0.50,       // Farm/household objects
@@ -366,9 +366,20 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     const ctx = _offscreenCtx;
     if (!ctx) return [];
 
-    // Draw video frame scaled to 416x416
-    ctx.drawImage(video, 0, 0, 416, 416);
-    const imgData = ctx.getImageData(0, 0, 416, 416);
+    const vW = video.videoWidth || 640;
+    const vH = video.videoHeight || 480;
+    const targetSize = 416;
+    const scale = Math.min(targetSize / vW, targetSize / vH);
+    const scaledW = Math.round(vW * scale);
+    const scaledH = Math.round(vH * scale);
+    const padX = Math.floor((targetSize - scaledW) / 2);
+    const padY = Math.floor((targetSize - scaledH) / 2);
+
+    // Letterbox padding with standard 114 gray to preserve aspect ratio (prevents squishing edge goats)
+    ctx.fillStyle = '#727272';
+    ctx.fillRect(0, 0, targetSize, targetSize);
+    ctx.drawImage(video, 0, 0, vW, vH, padX, padY, scaledW, scaledH);
+    const imgData = ctx.getImageData(0, 0, targetSize, targetSize);
     const data = imgData.data;
 
     // Convert RGBA uint8 to planar RGB Float32Array [1, 3, 416, 416] and compute frame brightness
@@ -423,10 +434,11 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
       const w = outData[2 * numAnchors + a];
       const h = outData[3 * numAnchors + a];
 
-      const x = Math.max(0, (cx - w / 2) / 416);
-      const y = Math.max(0, (cy - h / 2) / 416);
-      const width = Math.min(1 - x, w / 416);
-      const height = Math.min(1 - y, h / 416);
+      // Un-pad and un-scale back to normalized video frame [0, 1]
+      const x = Math.max(0, Math.min(1, ((cx - w / 2) - padX) / scaledW));
+      const y = Math.max(0, Math.min(1, ((cy - h / 2) - padY) / scaledH));
+      const width = Math.max(0, Math.min(1 - x, w / scaledW));
+      const height = Math.max(0, Math.min(1 - y, h / scaledH));
 
       const rawBox = { x, y, width, height };
       if (!isValidBoundingBox(rawBox)) continue;
@@ -585,8 +597,8 @@ function applyTemporalStabilityAndQuality(
         finalLabel = 'HINDI MALINAW';
         console.log('[Detector] Status: UNCERTAIN - Classification fluctuating across frames');
       }
-    } else if (finalConfidence < 0.42 && (finalType === 'GOAT' || finalType === 'SHEEP')) {
-      // Low confidence livestock classification
+    } else if (finalConfidence < 0.20 && (finalType === 'GOAT' || finalType === 'SHEEP')) {
+      // Extremely low confidence livestock classification
       finalClass = 'uncertain';
       finalType = 'UNCERTAIN';
       finalLabel = 'HINDI MALINAW';
@@ -627,7 +639,7 @@ function applyTemporalStabilityAndQuality(
     });
   }
 
-  // 5. Generate Farmer-Facing Status Message
+  // 5. Generate Farmer-Facing Status Message (Requirement 12)
   let overallStatusMessage = 'Handa na ang camera • Ilagay ang kambing o tupa sa loob ng frame.';
   const goats = stableDetections.filter((d) => d.type === 'GOAT');
   const sheep = stableDetections.filter((d) => d.type === 'SHEEP');
@@ -642,17 +654,25 @@ function applyTemporalStabilityAndQuality(
   } else if (detectedQualityIssue === 'occluded' && totalLivestock > 0) {
     overallStatusMessage = 'Hindi malinaw ang buong hayop. Ilipat nang kaunti ang camera.';
   } else if (uncertains.length > 0) {
-    overallStatusMessage = 'Hindi malinaw ang hayop. Ilapit o ayusin ang camera at subukan muli.';
+    overallStatusMessage = 'Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.';
+  } else if (goats.length > 0 && sheep.length > 0) {
+    // Both goat and sheep detected (Requirement 12)
+    overallStatusMessage = 'May kambing at tupa na nakita. Piliin ang hayop na gusto mong i-scan.';
   } else if (totalLivestock > 1) {
-    overallStatusMessage = 'Maraming hayop ang nakita. Itapat ang camera sa isang hayop.';
+    // Multiple of same species
+    overallStatusMessage = goats.length > 1
+      ? 'May mga kambing na nakita. Piliin ang hayop na gusto mong i-scan.'
+      : 'May mga tupa na nakita. Piliin ang hayop na gusto mong i-scan.';
   } else if (goats.length === 1 && sheep.length === 0) {
-    overallStatusMessage = 'Kambing: Handa nang i-scan • Manatiling nakatutok...';
+    overallStatusMessage = 'KAMBING: Handa nang i-scan • Manatiling nakatutok...';
   } else if (sheep.length === 1 && goats.length === 0) {
-    overallStatusMessage = 'Tupa: Handa nang i-scan • Manatiling nakatutok...';
+    overallStatusMessage = 'TUPA: Handa nang i-scan • Manatiling nakatutok...';
   } else if (persons.length > 0 && totalLivestock === 0) {
     overallStatusMessage = 'TAO — Hindi ito kambing o tupa';
   } else if (stableDetections.length > 0) {
     overallStatusMessage = `${stableDetections[0].label} — Hindi ito kambing o tupa`;
+  } else {
+    overallStatusMessage = 'Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.';
   }
 
   return {
@@ -725,7 +745,7 @@ export async function detectLiveFrameLocally(
       multiple_targets: false,
       primaryTarget: null,
       statusMessage: isFailedOrUnsupported
-        ? 'Hindi available ang live detection. Maaari pa ring gamitin ang camera scan.'
+        ? 'Hindi ma-load ang camera detector. Subukang muli.'
         : 'Naglo-load ang detection model...',
       error: _loadError || 'Model not loaded',
     };
@@ -987,7 +1007,8 @@ export async function detectLiveFrameLocally(
 export function renderLiveDetectionsToCanvas(
   canvas: HTMLCanvasElement | null,
   video: HTMLVideoElement | null,
-  detections: (ClientDetectedObject | LiveDetectedObject)[]
+  detections: (ClientDetectedObject | LiveDetectedObject)[],
+  selectedTargetIndex: number = 0
 ): void {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -1026,6 +1047,8 @@ export function renderLiveDetectionsToCanvas(
     offsetX = (W - vW * scale) / 2;
   }
 
+  let targetCounter = 0;
+
   for (const d of detections) {
     const rawBox = d.boundingBox;
     if (!rawBox) continue;
@@ -1053,37 +1076,57 @@ export function renderLiveDetectionsToCanvas(
     const isDog = d.label === 'ASO';
     const isCat = d.label === 'PUSA';
 
+    let isSelectedTarget = false;
+    if (isTarget) {
+      isSelectedTarget = (targetCounter === selectedTargetIndex);
+      targetCounter++;
+    }
+
     // High-contrast color palette
     let strokeColor = '#94A3B8';
     let fillColor = 'rgba(148, 163, 184, 0.08)';
     let badgeBg = '#475569';
     let accentColor = '#CBD5E1';
+    let labelText = d.label;
 
     if (isTarget) {
-      strokeColor = '#16A34A';
-      fillColor = 'rgba(22, 163, 74, 0.14)';
-      badgeBg = '#16A34A';
-      accentColor = '#4ADE80';
+      if (isSelectedTarget) {
+        strokeColor = '#22C55E';
+        fillColor = 'rgba(34, 197, 94, 0.20)';
+        badgeBg = '#16A34A';
+        accentColor = '#4ADE80';
+        labelText = isGoat ? 'NAPILI: KAMBING' : 'NAPILI: TUPA';
+      } else {
+        strokeColor = 'rgba(22, 163, 74, 0.85)';
+        fillColor = 'rgba(22, 163, 74, 0.10)';
+        badgeBg = '#15803D';
+        accentColor = '#22C55E';
+        labelText = isGoat ? 'KAMBING' : 'TUPA';
+      }
     } else if (isUncertain) {
       strokeColor = '#D97706';
       fillColor = 'rgba(217, 119, 6, 0.15)';
       badgeBg = '#D97706';
       accentColor = '#FBBF24';
+      labelText = 'HINDI MALINAW';
     } else if (isPerson) {
       strokeColor = '#2563EB';
       fillColor = 'rgba(37, 99, 235, 0.12)';
       badgeBg = '#2563EB';
       accentColor = '#60A5FA';
+      labelText = 'TAO';
     } else if (isDog) {
       strokeColor = '#EA580C';
       fillColor = 'rgba(234, 88, 12, 0.14)';
       badgeBg = '#EA580C';
       accentColor = '#FB923C';
+      labelText = 'ASO';
     } else if (isCat) {
       strokeColor = '#7C3AED';
       fillColor = 'rgba(124, 58, 237, 0.14)';
       badgeBg = '#7C3AED';
       accentColor = '#A78BFA';
+      labelText = 'PUSA';
     }
 
     // 1. Draw Bounding Box Fill
@@ -1092,14 +1135,14 @@ export function renderLiveDetectionsToCanvas(
 
     // 2. Draw Bounding Box Border
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = isTarget || isUncertain ? 3 : 2;
+    ctx.lineWidth = isSelectedTarget ? 4 : (isTarget || isUncertain ? 3 : 2);
     ctx.setLineDash([]);
     ctx.strokeRect(drawX, drawY, bw, bh);
 
     // 3. Draw Corner Accents
     const cornerSize = Math.min(20, bw * 0.25, bh * 0.25);
     ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = isSelectedTarget ? 4.5 : 3.5;
     ctx.lineCap = 'round';
 
     // Top-left
@@ -1131,7 +1174,6 @@ export function renderLiveDetectionsToCanvas(
     ctx.stroke();
 
     // 4. Draw Label Badge (Directly above box or inside top if near top)
-    const labelText = d.label;
     ctx.font = 'bold 12px Plus Jakarta Sans, Inter, system-ui, -apple-system, sans-serif';
     const textMetrics = ctx.measureText(labelText);
     const badgePadX = 10;

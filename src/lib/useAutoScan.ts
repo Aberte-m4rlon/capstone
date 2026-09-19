@@ -103,7 +103,12 @@ function buildMessage(
       if (det.detected) {
         const sp = det.detectedSpecies === 'sheep' ? 'Tupa' : 'Kambing';
         if (det.trackedAnimals && det.trackedAnimals.length > 1) {
-          return 'Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.';
+          const hasGoat = det.trackedAnimals.some((a) => a.species === 'goat');
+          const hasSheep = det.trackedAnimals.some((a) => a.species === 'sheep');
+          if (hasGoat && hasSheep) {
+            return 'May kambing at tupa na nakita. Piliin ang hayop na gusto mong i-scan.';
+          }
+          return 'Maraming hayop ang nakita. Piliin ang hayop na gusto mong i-scan.';
         }
         if (isObserving && remainingSec > 0) {
           return `Naka-lock sa hayop: ${sp} — Huwag igalaw (${remainingSec.toFixed(1)}s)...`;

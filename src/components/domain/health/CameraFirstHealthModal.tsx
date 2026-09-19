@@ -110,6 +110,8 @@ export function CameraFirstHealthModal({
   const [liveStatusText, setLiveStatusText] = useState('Tinitingnan ang camera...');
   const [liveDetections, setLiveDetections] = useState<LiveDetectedObject[]>([]);
   const [multipleAnimalsDetected, setMultipleAnimalsDetected] = useState(false);
+  const [selectedTargetIndex, setSelectedTargetIndex] = useState<number>(0);
+  const [detectorStatus, setDetectorStatus] = useState<'LOADING' | 'READY' | 'ERROR'>('LOADING');
   const [autoCaptureStatus, setAutoCaptureStatus] = useState<'idle' | 'holding' | 'capturing'>('idle');
 
   // ── Scan Evaluation State ──
@@ -129,6 +131,24 @@ export function CameraFirstHealthModal({
       setSelectedAnimalId(preselectedAnimalId);
     }
   }, [preselectedAnimalId]);
+
+  // Preload detection model once when modal opens (Requirements 14 & 15)
+  useEffect(() => {
+    if (open) {
+      setDetectorStatus('LOADING');
+      initClientObjectDetector()
+        .then((ready) => {
+          if (ready) {
+            setDetectorStatus('READY');
+          } else {
+            setDetectorStatus('ERROR');
+          }
+        })
+        .catch(() => {
+          setDetectorStatus('ERROR');
+        });
+    }
+  }, [open]);
 
   // If farmAnimals is empty or missing, fetch active animals from Supabase
   useEffect(() => {
@@ -153,6 +173,7 @@ export function CameraFirstHealthModal({
   const isMountedRef = useRef(true);
   const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const selectedTargetIndexRef = useRef<number>(0);
   const isSamplingRef = useRef(false);
   const stableTargetCountRef = useRef(0);
   const handlePerformScanRef = useRef<() => Promise<void>>(() => Promise.resolve());
@@ -325,30 +346,51 @@ export function CameraFirstHealthModal({
       const freshDetections = result.detections;
       setLiveDetections(freshDetections);
 
-      // Render crisp bounding boxes and labels to canvas overlay immediately
-      if (overlayCanvasRef.current) {
-        renderLiveDetectionsToCanvas(overlayCanvasRef.current, video, freshDetections);
-      }
-
       const targetLivestock = freshDetections.filter(
         (d) => d.type === 'GOAT' || d.type === 'SHEEP'
       );
+      const goats = freshDetections.filter((d) => d.type === 'GOAT');
+      const sheep = freshDetections.filter((d) => d.type === 'SHEEP');
       const uncertains = freshDetections.filter((d) => d.type === 'UNCERTAIN');
-      const totalLivestock =
-        (result.count_goats || 0) + (result.count_sheep || 0) || targetLivestock.length;
+      const totalLivestock = targetLivestock.length;
 
-      if (uncertains.length > 0 || (result.count_uncertain || 0) > 0) {
+      let currentSelectedIdx = selectedTargetIndexRef.current;
+      if (currentSelectedIdx >= totalLivestock) {
+        currentSelectedIdx = 0;
+        selectedTargetIndexRef.current = 0;
+        setSelectedTargetIndex(0);
+      }
+
+      // Render crisp bounding boxes and labels to canvas overlay immediately
+      if (overlayCanvasRef.current) {
+        renderLiveDetectionsToCanvas(
+          overlayCanvasRef.current,
+          video,
+          freshDetections,
+          currentSelectedIdx
+        );
+      }
+
+      if (uncertains.length > 0 && totalLivestock === 0) {
         setMultipleAnimalsDetected(false);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
         setCameraState('UNCERTAIN');
-        setLiveStatusText(result.statusMessage || 'Hindi malinaw ang hayop. Ilapit o ayusin ang camera at subukan muli.');
-      } else if (result.multiple_targets || totalLivestock > 1) {
+        setLiveStatusText(result.statusMessage || 'Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.');
+      } else if (totalLivestock > 1) {
         setMultipleAnimalsDetected(true);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
-        setCameraState('OTHER_DETECTED');
-        setLiveStatusText('Maraming hayop ang nakita. Itapat ang camera sa isang hayop.');
+        const activeTarget = targetLivestock[currentSelectedIdx] || targetLivestock[0];
+        setCameraState(activeTarget.type === 'SHEEP' ? 'SHEEP_DETECTED' : 'GOAT_DETECTED');
+
+        if (goats.length > 0 && sheep.length > 0) {
+          setLiveStatusText('May kambing at tupa na nakita. Piliin ang hayop na gusto mong i-scan.');
+        } else if (goats.length > 1) {
+          setLiveStatusText('May mga kambing na nakita. Piliin ang hayop na gusto mong i-scan.');
+        } else {
+          setLiveStatusText('May mga tupa na nakita. Piliin ang hayop na gusto mong i-scan.');
+        }
       } else if (totalLivestock === 1) {
         setMultipleAnimalsDetected(false);
         const singleTarget = targetLivestock[0];
@@ -360,8 +402,8 @@ export function CameraFirstHealthModal({
 
         if (stableTargetCountRef.current === 1) {
           setAutoCaptureStatus('holding');
-          setLiveStatusText(result.statusMessage || `${targetName}: Handa nang i-scan • Manatiling nakatutok...`);
-        } else if (stableTargetCountRef.current >= 3) {
+          setLiveStatusText(isGoat ? 'KAMBING: Handa nang i-scan • Manatiling nakatutok...' : 'TUPA: Handa nang i-scan • Manatiling nakatutok...');
+        } else if (stableTargetCountRef.current >= 4) {
           setCameraState('CAPTURING');
           setAutoCaptureStatus('capturing');
           setLiveStatusText(`Kinukunan ang ${targetName.toLowerCase()}...`);
@@ -387,7 +429,7 @@ export function CameraFirstHealthModal({
         } else if (obj) {
           setLiveStatusText(`${obj.label} — Itapat ang camera sa kambing o tupa`);
         } else {
-          setLiveStatusText(result.statusMessage || 'Tinitingnan ang camera...');
+          setLiveStatusText(result.statusMessage || 'Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.');
         }
       }
     } catch {
@@ -400,7 +442,7 @@ export function CameraFirstHealthModal({
       stableTargetCountRef.current = 0;
       setAutoCaptureStatus('idle');
       setCameraState('ERROR');
-      setLiveStatusText('Tinitingnan ang camera...');
+      setLiveStatusText('Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.');
     } finally {
       isSamplingRef.current = false;
     }
@@ -450,6 +492,9 @@ export function CameraFirstHealthModal({
 
       if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
       qrIntervalRef.current = setInterval(runLiveQRCheck, 600);
+
+      if (detectionIntervalRef.current) clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = setInterval(runLiveObjectDetection, 220);
     } catch (err: any) {
       if (!isMountedRef.current) return;
       setIsCameraActive(false);
@@ -464,7 +509,7 @@ export function CameraFirstHealthModal({
         setCameraError('Hindi mabuksan ang camera. Siguraduhing may camera permission ang browser.');
       }
     }
-  }, [facingMode, runLiveQRCheck, stopCameraStream]);
+  }, [facingMode, runLiveObjectDetection, runLiveQRCheck, stopCameraStream]);
 
   // Flip camera between front & back
   const toggleFacingMode = () => {
@@ -535,9 +580,12 @@ export function CameraFirstHealthModal({
       return;
     }
 
+    const currentSelectedTarget = validLivestock[selectedTargetIndexRef.current] || validLivestock[0];
+    const targetSpecies = currentSelectedTarget.type === 'SHEEP' ? 'sheep' : 'goat';
+
     setIsScanning(true);
     setCameraState('ANALYZING');
-    setLiveStatusText('Sinusuri ang kalagayan ng hayop...');
+    setLiveStatusText(`Sinusuri ang kalagayan ng ${targetSpecies === 'sheep' ? 'tupa' : 'kambing'}...`);
 
     try {
       const frameCanvas = captureVideoFrame(video);
@@ -547,6 +595,7 @@ export function CameraFirstHealthModal({
       const geminiRes = await scanAnimalWithGemini(frameCanvas, {
         context: 'health_scan',
         animalId: selectedAnimalId,
+        animalType: targetSpecies,
       });
 
       const raw = geminiRes.rawResponse;
@@ -875,9 +924,91 @@ export function CameraFirstHealthModal({
   const isGoat = scanResult?.detectedSpecies === 'Goat';
   const isSheep = scanResult?.detectedSpecies === 'Sheep';
 
+  const validLivestock = useMemo(
+    () => liveDetections.filter((d) => d.type === 'GOAT' || d.type === 'SHEEP'),
+    [liveDetections]
+  );
   const liveGoatDetected = liveDetections.some((d) => d.type === 'GOAT');
   const liveSheepDetected = liveDetections.some((d) => d.type === 'SHEEP');
   const liveTargetDetected = liveGoatDetected || liveSheepDetected;
+
+  // Viewport tap / click handler to select target animal (Requirements 10 & 20)
+  const handleViewportClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isScanning || scanResult || validLivestock.length <= 1) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const cW = rect.width;
+    const cH = rect.height;
+
+    const video = videoRef.current;
+    const vW = video?.videoWidth || cW;
+    const vH = video?.videoHeight || cH;
+
+    const rC = cW / cH;
+    const rV = vW / vH;
+    let scale = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (rC > rV) {
+      scale = cW / vW;
+      offsetY = (cH - vH * scale) / 2;
+    } else {
+      scale = cH / vH;
+      offsetX = (cW - vW * scale) / 2;
+    }
+
+    let hitIndex = -1;
+    let minDistance = Infinity;
+
+    validLivestock.forEach((item, idx) => {
+      const b = item.boundingBox;
+      if (!b) return;
+
+      const screenX = b.x * vW * scale + offsetX;
+      const screenY = b.y * vH * scale + offsetY;
+      const screenW = b.width * vW * scale;
+      const screenH = b.height * vH * scale;
+
+      // Inside bounding box check
+      if (
+        clickX >= screenX &&
+        clickX <= screenX + screenW &&
+        clickY >= screenY &&
+        clickY <= screenY + screenH
+      ) {
+        hitIndex = idx;
+      }
+
+      // Proximity distance check
+      const centerX = screenX + screenW / 2;
+      const centerY = screenY + screenH / 2;
+      const dist = Math.hypot(clickX - centerX, clickY - centerY);
+      if (dist < minDistance) {
+        minDistance = dist;
+        if (hitIndex === -1 && dist < 120) {
+          hitIndex = idx;
+        }
+      }
+    });
+
+    if (hitIndex !== -1) {
+      setSelectedTargetIndex(hitIndex);
+      selectedTargetIndexRef.current = hitIndex;
+      if (overlayCanvasRef.current && videoRef.current) {
+        renderLiveDetectionsToCanvas(
+          overlayCanvasRef.current,
+          videoRef.current,
+          liveDetections,
+          hitIndex
+        );
+      }
+      const chosen = validLivestock[hitIndex];
+      toast(`Napili: ${chosen.type === 'SHEEP' ? 'Tupa' : 'Kambing'}`, 'info');
+    }
+  };
 
   return (
     <Modal open={open} onClose={handleModalClose} size="lg">
@@ -887,6 +1018,7 @@ export function CameraFirstHealthModal({
         <div className="modal-inner-flow" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* ── 1. CAMERA VIEWPORT SECTION ── */}
           <div
+            onClick={handleViewportClick}
             style={{
               position: 'relative',
               width: '100%',
@@ -900,6 +1032,7 @@ export function CameraFirstHealthModal({
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+              cursor: validLivestock.length > 1 ? 'pointer' : 'default',
             }}
           >
             {cameraPermissionError ? (
@@ -1139,7 +1272,7 @@ export function CameraFirstHealthModal({
                     {multipleAnimalsDetected ? (
                       <>
                         <AlertTriangle size={13} color="#FFFFFF" />
-                        <span>Maraming hayop ang nakita.</span>
+                        <span>{liveStatusText}</span>
                       </>
                     ) : liveTargetDetected ? (
                       <>
@@ -1190,6 +1323,70 @@ export function CameraFirstHealthModal({
               </>
             )}
           </div>
+
+          {/* Target Livestock Selector Chips (Requirement 10 & 20) */}
+          {validLivestock.length > 1 && !scanResult && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: 'rgba(22, 163, 74, 0.08)',
+                border: '1.5px solid rgba(22, 163, 74, 0.25)',
+                borderRadius: 12,
+                gap: 8,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Piliin ang Hayop na I-scan:
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {validLivestock.map((item, idx) => {
+                  const isSelected = idx === selectedTargetIndex;
+                  const isGoat = item.type === 'GOAT';
+                  const label = isGoat ? 'Kambing' : 'Tupa';
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTargetIndex(idx);
+                        selectedTargetIndexRef.current = idx;
+                        if (overlayCanvasRef.current && videoRef.current) {
+                          renderLiveDetectionsToCanvas(
+                            overlayCanvasRef.current,
+                            videoRef.current,
+                            liveDetections,
+                            idx
+                          );
+                        }
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        padding: '5px 12px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        border: isSelected ? '2px solid #16A34A' : '1px solid rgba(0,0,0,0.15)',
+                        background: isSelected ? '#16A34A' : 'var(--surface, #FFFFFF)',
+                        color: isSelected ? '#FFFFFF' : 'var(--text-primary)',
+                        cursor: 'pointer',
+                        boxShadow: isSelected ? '0 2px 8px rgba(22, 163, 74, 0.3)' : 'none',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {isSelected && <CheckCircle2 size={13} color="#FFFFFF" />}
+                      <span>{isSelected ? `Napili: ${label}` : label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Primary Action Button directly below the Camera */}
           <div style={{ display: 'flex', gap: 10 }}>
@@ -1244,7 +1441,11 @@ export function CameraFirstHealthModal({
                 ) : (
                   <>
                     <Camera size={18} />
-                    <span>I-scan ang Hayop</span>
+                    <span>
+                      {validLivestock.length > 1
+                        ? `I-scan ang Napili (${(validLivestock[selectedTargetIndex] || validLivestock[0])?.type === 'SHEEP' ? 'Tupa' : 'Kambing'})`
+                        : 'I-scan ang Hayop'}
+                    </span>
                   </>
                 )}
               </button>

@@ -221,6 +221,7 @@ export async function scanAnimalWithGemini(
     context?: 'health_scan' | 'animal_add' | 'camera_live';
     animalId?: string;
     farmId?: string;
+    animalType?: 'goat' | 'sheep';
   },
 ): Promise<GeminiScanResult> {
   const now = Date.now();
@@ -259,6 +260,7 @@ export async function scanAnimalWithGemini(
         image: optimizedDataUrl,
         animalId: options?.animalId,
         farmId: options?.farmId,
+        animalType: options?.animalType,
         context: options?.context || 'health_scan',
       }),
     });
