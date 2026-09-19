@@ -38,9 +38,8 @@ import { supabase } from '../lib/supabase';
 import { useMLHealthSummary, useEnhancedHealthModel } from '../lib/useMLHealth';
 
 // ── Service client ─────────────────────────────────────────────────────────────
-// Requires VITE_SUPABASE_SERVICE_KEY in Vercel environment variables.
-// This key bypasses RLS — safe because it's only used server-rendered admin ops.
-const SERVICE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
+// Uses anon key with authenticated admin session
+const SERVICE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const svcClient = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   SERVICE_KEY,
@@ -122,7 +121,7 @@ export function SuperAdminPage() {
     setLoadError(null);
 
     if (!SERVICE_KEY) {
-      setLoadError('VITE_SUPABASE_SERVICE_KEY is not set. Add it to Vercel environment variables and redeploy.');
+      setLoadError('Database client is not configured. Siguraduhing naka-set ang VITE_SUPABASE_URL at VITE_SUPABASE_ANON_KEY.');
       setLoading(false);
       return;
     }
@@ -592,8 +591,8 @@ export function SuperAdminPage() {
               <span><strong>Kabuuang profiles:</strong> {loading ? '…' : users.length}</span>
             </div>
             <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 12, lineHeight: 1.6 }}>
-              Siguraduhing naka-set ang <code>VITE_SUPABASE_SERVICE_KEY</code> sa Vercel environment variables para sa
-              auth.admin APIs (pagbura ng user, listahan ng auth). Gumagana ang profiles table gamit ang anon key.
+              Siguraduhing naka-set ang <code>SUPABASE_SERVICE_ROLE_KEY</code> sa server environment variables para sa
+              serverless admin APIs (auth.admin operations). Gumagana ang browser profiles table gamit ang anon key.
             </p>
           </Card>
 

@@ -7,7 +7,7 @@
  * - Identifies non-targets, poor image quality, multiple animals
  * - Observational health screening without medical diagnosis
  * - ZERO FAKE VITALS: Temperature is strictly null / not_measured (handled in server normalizer)
- * - ZERO NULL TYPES in Gemini responseSchema (fixes "type: null can not be the only possible type")
+ * - ZERO NULLABLE-ONLY TYPES in Gemini responseSchema (fixes invalid nullable field schema error)
  * - Authenticated with Supabase user token
  * - Secure server-side execution: GEMINI_API_KEY is never exposed to browser
  */
@@ -207,12 +207,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 4. Initialize Google Gen AI client
   const ai = new GoogleGenAI({ apiKey });
 
-  // Fallback models chain: gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-flash-latest
+  // Priority models chain: user configured model -> gemini-2.5-flash -> gemini-2.0-flash -> gemini-1.5-flash -> gemini-flash-latest
   const fallbackModels = [
     process.env.GEMINI_MODEL,
-    'gemini-3.8-flash',
-    'gemini-3.6-flash',
-    'gemini-3.5-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
     'gemini-flash-latest',
   ].filter((m): m is string => Boolean(m && m.trim()));
 

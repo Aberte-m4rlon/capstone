@@ -151,7 +151,8 @@ let isDetectingLive = false;
  * Calls POST /api/gemini/detect-objects. Never exposes API key to client.
  */
 export async function detectLiveObjects(
-  input: HTMLCanvasElement | string
+  input: HTMLCanvasElement | string,
+  options?: { signal?: AbortSignal }
 ): Promise<LiveObjectDetectionResult> {
   if (isDetectingLive) {
     return {
@@ -169,7 +170,7 @@ export async function detectLiveObjects(
     const dataUrl =
       typeof input === 'string'
         ? input
-        : input.toDataURL('image/jpeg', 0.70);
+        : input.toDataURL('image/jpeg', 0.65);
 
     let authHeader: Record<string, string> = {};
     try {
@@ -188,6 +189,7 @@ export async function detectLiveObjects(
         ...authHeader,
       },
       body: JSON.stringify({ image: dataUrl }),
+      signal: options?.signal,
     });
 
     if (!res.ok) {
@@ -197,6 +199,16 @@ export async function detectLiveObjects(
     const data: LiveObjectDetectionResult = await res.json();
     return data;
   } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      return {
+        success: false,
+        detections: [],
+        count_goats: 0,
+        count_sheep: 0,
+        multiple_targets: false,
+        status_message: 'Kinansela ang pag-detect.',
+      };
+    }
     return {
       success: false,
       detections: [],
@@ -222,6 +234,7 @@ export async function scanAnimalWithGemini(
     animalId?: string;
     farmId?: string;
     animalType?: 'goat' | 'sheep';
+    targetBoundingBox?: BoundingBox;
   },
 ): Promise<GeminiScanResult> {
   const now = Date.now();
@@ -294,13 +307,26 @@ export async function scanAnimalWithGemini(
             id: 'animal-1',
             species: isSheep ? 'sheep' : 'goat',
             label: speciesLabel,
-            boundingBox: {
-              x: 0.1,
-              y: 0.1,
-              width: 0.8,
-              height: 0.8,
-              rawBox: [100, 100, 900, 900],
-            },
+            boundingBox: options?.targetBoundingBox
+              ? {
+                  x: options.targetBoundingBox.x,
+                  y: options.targetBoundingBox.y,
+                  width: options.targetBoundingBox.width,
+                  height: options.targetBoundingBox.height,
+                  rawBox: [
+                    Math.round(options.targetBoundingBox.y * 1000),
+                    Math.round(options.targetBoundingBox.x * 1000),
+                    Math.round((options.targetBoundingBox.y + options.targetBoundingBox.height) * 1000),
+                    Math.round((options.targetBoundingBox.x + options.targetBoundingBox.width) * 1000),
+                  ],
+                }
+              : {
+                  x: 0.1,
+                  y: 0.1,
+                  width: 0.8,
+                  height: 0.8,
+                  rawBox: [100, 100, 900, 900],
+                },
             bodyOrientation: 'nakatayo',
             visualObservations: apiData.observations,
             possibleHealthConcerns: apiData.possible_concerns,

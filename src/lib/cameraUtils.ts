@@ -224,3 +224,210 @@ export function captureLowResFrame(
   }
   return canvas;
 }
+
+/**
+ * Render real-time high-contrast bounding boxes & labels to the camera overlay canvas
+ */
+export function renderLiveDetectionsToCanvas(
+  canvas: HTMLCanvasElement | null,
+  video: HTMLVideoElement | null,
+  detections: LiveDetectedObject[],
+  selectedTargetIndex: number = 0
+): void {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Sync canvas internal resolution with display size
+  if (canvas.clientWidth > 0 && canvas.clientHeight > 0 &&
+      (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight)) {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+  }
+
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // Clear canvas before rendering every frame
+  ctx.clearRect(0, 0, W, H);
+
+  // If no detections or video not ready, leave canvas completely clear
+  if (!detections || detections.length === 0 || !video || video.videoWidth === 0) {
+    return;
+  }
+
+  const vW = video.videoWidth;
+  const vH = video.videoHeight;
+
+  // Calculate object-fit: cover scaling & cropping offset
+  let scale = 1;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (W / H > vW / vH) {
+    scale = W / vW;
+    offsetY = (H - vH * scale) / 2;
+  } else {
+    scale = H / vH;
+    offsetX = (W - vW * scale) / 2;
+  }
+
+  let targetCounter = 0;
+
+  for (const d of detections) {
+    const rawBox = d.boundingBox;
+    if (!rawBox) continue;
+
+    // Convert video-normalized box [0, 1] to video pixels, then scale to canvas
+    const vidX = rawBox.x * vW;
+    const vidY = rawBox.y * vH;
+    const vidW = rawBox.width * vW;
+    const vidH = rawBox.height * vH;
+
+    const bx = vidX * scale + offsetX;
+    const by = vidY * scale + offsetY;
+    const bw = Math.max(30, vidW * scale);
+    const bh = Math.max(30, vidH * scale);
+
+    // Keep box bounded within canvas
+    const drawX = Math.max(2, Math.min(W - bw - 2, bx));
+    const drawY = Math.max(2, Math.min(H - bh - 2, by));
+
+    const isGoat = d.type === 'GOAT';
+    const isSheep = d.type === 'SHEEP';
+    const isTarget = isGoat || isSheep;
+    const isUncertain = d.type === 'UNCERTAIN';
+    const isPerson = d.type === 'PERSON';
+    const isDog = d.label === 'ASO';
+    const isCat = d.label === 'PUSA';
+
+    let isSelectedTarget = false;
+    if (isTarget) {
+      isSelectedTarget = (targetCounter === selectedTargetIndex);
+      targetCounter++;
+    }
+
+    // High-contrast color palette
+    let strokeColor = '#94A3B8';
+    let fillColor = 'rgba(148, 163, 184, 0.08)';
+    let badgeBg = '#475569';
+    let accentColor = '#CBD5E1';
+    let labelText = d.label;
+
+    if (isTarget) {
+      if (isSelectedTarget) {
+        strokeColor = '#22C55E';
+        fillColor = 'rgba(34, 197, 94, 0.20)';
+        badgeBg = '#16A34A';
+        accentColor = '#4ADE80';
+        labelText = isGoat ? 'NAPILI: KAMBING' : 'NAPILI: TUPA';
+      } else {
+        strokeColor = 'rgba(22, 163, 74, 0.85)';
+        fillColor = 'rgba(22, 163, 74, 0.10)';
+        badgeBg = '#15803D';
+        accentColor = '#22C55E';
+        labelText = isGoat ? 'KAMBING' : 'TUPA';
+      }
+    } else if (isUncertain) {
+      strokeColor = '#D97706';
+      fillColor = 'rgba(217, 119, 6, 0.15)';
+      badgeBg = '#D97706';
+      accentColor = '#FBBF24';
+      labelText = 'HINDI MALINAW';
+    } else if (isPerson) {
+      strokeColor = '#2563EB';
+      fillColor = 'rgba(37, 99, 235, 0.12)';
+      badgeBg = '#2563EB';
+      accentColor = '#60A5FA';
+      labelText = 'TAO';
+    } else if (isDog) {
+      strokeColor = '#EA580C';
+      fillColor = 'rgba(234, 88, 12, 0.14)';
+      badgeBg = '#EA580C';
+      accentColor = '#FB923C';
+      labelText = 'ASO';
+    } else if (isCat) {
+      strokeColor = '#7C3AED';
+      fillColor = 'rgba(124, 58, 237, 0.14)';
+      badgeBg = '#7C3AED';
+      accentColor = '#A78BFA';
+      labelText = 'PUSA';
+    }
+
+    // 1. Draw Bounding Box Fill
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(drawX, drawY, bw, bh);
+
+    // 2. Draw Bounding Box Border
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = isSelectedTarget ? 4 : (isTarget || isUncertain ? 3 : 2);
+    ctx.setLineDash([]);
+    ctx.strokeRect(drawX, drawY, bw, bh);
+
+    // 3. Draw Corner Accents
+    const cornerSize = Math.min(20, bw * 0.25, bh * 0.25);
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = isSelectedTarget ? 4.5 : 3.5;
+    ctx.lineCap = 'round';
+
+    // Top-left
+    ctx.beginPath();
+    ctx.moveTo(drawX, drawY + cornerSize);
+    ctx.lineTo(drawX, drawY);
+    ctx.lineTo(drawX + cornerSize, drawY);
+    ctx.stroke();
+
+    // Top-right
+    ctx.beginPath();
+    ctx.moveTo(drawX + bw - cornerSize, drawY);
+    ctx.lineTo(drawX + bw, drawY);
+    ctx.lineTo(drawX + bw, drawY + cornerSize);
+    ctx.stroke();
+
+    // Bottom-left
+    ctx.beginPath();
+    ctx.moveTo(drawX, drawY + bh - cornerSize);
+    ctx.lineTo(drawX, drawY + bh);
+    ctx.lineTo(drawX + cornerSize, drawY + bh);
+    ctx.stroke();
+
+    // Bottom-right
+    ctx.beginPath();
+    ctx.moveTo(drawX + bw - cornerSize, drawY + bh);
+    ctx.lineTo(drawX + bw, drawY + bh);
+    ctx.lineTo(drawX + bw, drawY + bh - cornerSize);
+    ctx.stroke();
+
+    // 4. Draw Label Badge (Directly above box or inside top if near top)
+    ctx.font = 'bold 12px Plus Jakarta Sans, Inter, system-ui, -apple-system, sans-serif';
+    const textMetrics = ctx.measureText(labelText);
+    const badgePadX = 10;
+    const badgeH = 24;
+    const badgeW = textMetrics.width + badgePadX * 2;
+
+    let labelX = Math.max(4, Math.min(W - badgeW - 4, drawX));
+    let labelY = drawY - badgeH - 4;
+    if (labelY < 4) {
+      labelY = drawY + 4;
+    }
+
+    // Badge Shadow & Rounded Pill
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = badgeBg;
+    ctx.beginPath();
+    if (typeof (ctx as any).roundRect === 'function') {
+      (ctx as any).roundRect(labelX, labelY, badgeW, badgeH, 6);
+    } else {
+      ctx.rect(labelX, labelY, badgeW, badgeH);
+    }
+    ctx.fill();
+    ctx.restore();
+
+    // Badge Text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(labelText, labelX + badgePadX, labelY + 16);
+  }
+}

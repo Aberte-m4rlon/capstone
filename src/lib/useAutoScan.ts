@@ -34,9 +34,12 @@ import {
   type CombinedScreeningAssessment,
 } from './ruleBasedScreening';
 import {
-  detectLiveFrameLocally,
-} from './clientObjectDetector';
-import type { LiveDetectedObject } from './cameraUtils';
+  captureLowResFrame,
+  type LiveDetectedObject,
+} from './cameraUtils';
+import {
+  detectLiveObjects,
+} from './geminiScanner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -284,7 +287,8 @@ export function useAutoScan(options: {
     isSamplingRef.current = true;
 
     try {
-      const liveRes = await detectLiveFrameLocally(video);
+      const frameCanvas = captureLowResFrame(video, 480);
+      const liveRes = await detectLiveObjects(frameCanvas);
       if (!mountedRef.current) return;
 
       setLiveDetections(liveRes.detections);
@@ -511,7 +515,7 @@ export function useAutoScan(options: {
     stateRef.current = 'detecting';
 
     stopDetection();
-    detectionTimer.current = setInterval(detectionTick, 150);
+    detectionTimer.current = setInterval(detectionTick, 1000);
   }, [stopDetection, detectionTick, resetStability]);
 
   // ── Stop ──────────────────────────────────────────────────────────────────

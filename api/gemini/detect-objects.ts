@@ -185,12 +185,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 4. Initialize Google Gen AI client
   const ai = new GoogleGenAI({ apiKey });
 
-  // Priority models: gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-flash-latest
+  // Priority models chain: user configured model -> gemini-2.5-flash -> gemini-2.0-flash -> gemini-1.5-flash -> gemini-flash-latest
   const modelsToTry = [
     process.env.GEMINI_MODEL,
-    'gemini-3.8-flash',
-    'gemini-3.6-flash',
-    'gemini-3.5-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
     'gemini-flash-latest',
   ].filter((m): m is string => Boolean(m && m.trim()));
 
@@ -247,10 +247,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           else if (type === 'PERSON') defaultLabel = 'TAO';
           else if (type === 'OTHER_ANIMAL') defaultLabel = 'HAYOP';
 
-          const x = Math.max(0, Math.min(0.95, Number(d.x) || 0));
-          const y = Math.max(0, Math.min(0.95, Number(d.y) || 0));
-          const width = Math.max(0.04, Math.min(1 - x, Number(d.width) || 0.1));
-          const height = Math.max(0.04, Math.min(1 - y, Number(d.height) || 0.1));
+          let rawX = Number(d.x ?? d.boundingBox?.x ?? d.box_2d?.ymin ?? 0);
+          let rawY = Number(d.y ?? d.boundingBox?.y ?? d.box_2d?.xmin ?? 0);
+          let rawW = Number(d.width ?? d.boundingBox?.width ?? 0);
+          let rawH = Number(d.height ?? d.boundingBox?.height ?? 0);
+
+          // Support 0-1000 scale if returned by vision model
+          if (rawX > 1 || rawY > 1 || rawW > 1 || rawH > 1) {
+            rawX /= 1000;
+            rawY /= 1000;
+            rawW /= 1000;
+            rawH /= 1000;
+          }
+
+          const x = Math.max(0, Math.min(0.95, rawX || 0));
+          const y = Math.max(0, Math.min(0.95, rawY || 0));
+          const width = Math.max(0.04, Math.min(1 - x, rawW || 0.1));
+          const height = Math.max(0.04, Math.min(1 - y, rawH || 0.1));
 
           return {
             type,

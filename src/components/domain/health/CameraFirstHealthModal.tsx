@@ -31,13 +31,16 @@ import {
   X,
 } from 'lucide-react';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../ui/Modal';
-import { captureVideoFrame, LiveDetectedObject } from '../../../lib/cameraUtils';
-import { scanAnimalWithGemini } from '../../../lib/geminiScanner';
 import {
-  detectLiveFrameLocally,
+  captureVideoFrame,
+  captureLowResFrame,
   renderLiveDetectionsToCanvas,
-  initClientObjectDetector,
-} from '../../../lib/clientObjectDetector';
+  type LiveDetectedObject,
+} from '../../../lib/cameraUtils';
+import {
+  detectLiveObjects,
+  scanAnimalWithGemini,
+} from '../../../lib/geminiScanner';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../lib/toast';
 import { createNotification } from '../../../lib/recommendations';
@@ -132,21 +135,10 @@ export function CameraFirstHealthModal({
     }
   }, [preselectedAnimalId]);
 
-  // Preload detection model once when modal opens (Requirements 14 & 15)
+  // Live detector is powered by server-side Gemini Vision API
   useEffect(() => {
     if (open) {
-      setDetectorStatus('LOADING');
-      initClientObjectDetector()
-        .then((ready) => {
-          if (ready) {
-            setDetectorStatus('READY');
-          } else {
-            setDetectorStatus('ERROR');
-          }
-        })
-        .catch(() => {
-          setDetectorStatus('ERROR');
-        });
+      setDetectorStatus('READY');
     }
   }, [open]);
 
@@ -173,6 +165,7 @@ export function CameraFirstHealthModal({
   const isMountedRef = useRef(true);
   const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const detectAbortControllerRef = useRef<AbortController | null>(null);
   const selectedTargetIndexRef = useRef<number>(0);
   const isSamplingRef = useRef(false);
   const stableTargetCountRef = useRef(0);
@@ -209,6 +202,10 @@ export function CameraFirstHealthModal({
     if (detectionIntervalRef.current) {
       clearInterval(detectionIntervalRef.current);
       detectionIntervalRef.current = null;
+    }
+    if (detectAbortControllerRef.current) {
+      detectAbortControllerRef.current.abort();
+      detectAbortControllerRef.current = null;
     }
     isSamplingRef.current = false;
     stableTargetCountRef.current = 0;
@@ -324,7 +321,11 @@ export function CameraFirstHealthModal({
 
     isSamplingRef.current = true;
     try {
-      const result = await detectLiveFrameLocally(video);
+      const frameCanvas = captureLowResFrame(video, 480);
+      const abortCtrl = new AbortController();
+      detectAbortControllerRef.current = abortCtrl;
+
+      const result = await detectLiveObjects(frameCanvas, { signal: abortCtrl.signal });
 
       if (!isMountedRef.current || isScanning || scanResult) return;
 
@@ -338,7 +339,7 @@ export function CameraFirstHealthModal({
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
         setCameraState(result.success ? 'NO_DETECTION' : 'ERROR');
-        setLiveStatusText(result.statusMessage || 'Handa na ang camera • Ilagay ang kambing o tupa sa loob ng frame.');
+        setLiveStatusText(result.status_message || 'Handa na ang camera • Ilagay ang kambing o tupa sa loob ng frame.');
         return;
       }
 
@@ -376,7 +377,7 @@ export function CameraFirstHealthModal({
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
         setCameraState('UNCERTAIN');
-        setLiveStatusText(result.statusMessage || 'Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.');
+        setLiveStatusText(result.status_message || 'Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.');
       } else if (totalLivestock > 1) {
         setMultipleAnimalsDetected(true);
         stableTargetCountRef.current = 0;
@@ -403,7 +404,7 @@ export function CameraFirstHealthModal({
         if (stableTargetCountRef.current === 1) {
           setAutoCaptureStatus('holding');
           setLiveStatusText(isGoat ? 'KAMBING: Handa nang i-scan • Manatiling nakatutok...' : 'TUPA: Handa nang i-scan • Manatiling nakatutok...');
-        } else if (stableTargetCountRef.current >= 4) {
+        } else if (stableTargetCountRef.current >= 3) {
           setCameraState('CAPTURING');
           setAutoCaptureStatus('capturing');
           setLiveStatusText(`Kinukunan ang ${targetName.toLowerCase()}...`);
@@ -429,7 +430,7 @@ export function CameraFirstHealthModal({
         } else if (obj) {
           setLiveStatusText(`${obj.label} — Itapat ang camera sa kambing o tupa`);
         } else {
-          setLiveStatusText(result.statusMessage || 'Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.');
+          setLiveStatusText(result.status_message || 'Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.');
         }
       }
     } catch {
@@ -444,6 +445,7 @@ export function CameraFirstHealthModal({
       setCameraState('ERROR');
       setLiveStatusText('Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.');
     } finally {
+      detectAbortControllerRef.current = null;
       isSamplingRef.current = false;
     }
   }, [isScanning, scanResult]);
@@ -492,9 +494,6 @@ export function CameraFirstHealthModal({
 
       if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
       qrIntervalRef.current = setInterval(runLiveQRCheck, 600);
-
-      if (detectionIntervalRef.current) clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = setInterval(runLiveObjectDetection, 220);
     } catch (err: any) {
       if (!isMountedRef.current) return;
       setIsCameraActive(false);
@@ -528,10 +527,6 @@ export function CameraFirstHealthModal({
         setSelectedAnimalId(activeAnimals[0].id);
       }
       startCameraStream();
-      // Preload client detection model
-      initClientObjectDetector().catch((err) => {
-        console.error('[Detector] Failed to initialize:', err);
-      });
     } else {
       stopCameraStream();
       setScanResult(null);
@@ -596,6 +591,7 @@ export function CameraFirstHealthModal({
         context: 'health_scan',
         animalId: selectedAnimalId,
         animalType: targetSpecies,
+        targetBoundingBox: currentSelectedTarget.boundingBox,
       });
 
       const raw = geminiRes.rawResponse;
@@ -732,10 +728,10 @@ export function CameraFirstHealthModal({
       clearInterval(detectionIntervalRef.current);
     }
 
-    // Run fast client-side frame detection every 120ms (~8 FPS) for smooth real-time tracking
+    // Run periodic live detection snapshot every 1000ms via Gemini Vision API
     detectionIntervalRef.current = setInterval(() => {
       runLiveObjectDetection();
-    }, 120);
+    }, 1000);
 
     return () => {
       if (detectionIntervalRef.current) {
@@ -1444,6 +1440,8 @@ export function CameraFirstHealthModal({
                     <span>
                       {validLivestock.length > 1
                         ? `I-scan ang Napili (${(validLivestock[selectedTargetIndex] || validLivestock[0])?.type === 'SHEEP' ? 'Tupa' : 'Kambing'})`
+                        : validLivestock.length === 1
+                        ? (validLivestock[0]?.type === 'SHEEP' ? 'I-scan ang Tupa' : 'I-scan ang Kambing')
                         : 'I-scan ang Hayop'}
                     </span>
                   </>

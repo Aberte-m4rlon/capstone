@@ -20,7 +20,7 @@ export const ADMIN_EMAILS = ['marlonaberte00@gmail.com'];
 
 const adminSupabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_SERVICE_KEY,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 

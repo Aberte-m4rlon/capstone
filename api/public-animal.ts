@@ -29,7 +29,6 @@ function resolveCredentials(): { url: string; key: string } {
   const serviceRoleCandidates = [
     process.env.SUPABASE_SERVICE_ROLE_KEY,
     process.env.SUPABASE_SERVICE_KEY,
-    process.env.VITE_SUPABASE_SERVICE_KEY,
     KNOWN_SERVICE_KEY,
   ].filter(Boolean) as string[];
 
