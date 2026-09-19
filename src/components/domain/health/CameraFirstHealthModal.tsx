@@ -169,7 +169,6 @@ export function CameraFirstHealthModal({
   const selectedTargetIndexRef = useRef<number>(0);
   const isSamplingRef = useRef(false);
   const stableTargetCountRef = useRef(0);
-  const handlePerformScanRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Combined active farm animals list
   const activeAnimals = useMemo(() => {
@@ -339,7 +338,7 @@ export function CameraFirstHealthModal({
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
         setCameraState(result.success ? 'NO_DETECTION' : 'ERROR');
-        setLiveStatusText(result.status_message || 'Handa na ang camera • Ilagay ang kambing o tupa sa loob ng frame.');
+        setLiveStatusText('Walang kambing o tupa na nakita');
         return;
       }
 
@@ -377,7 +376,7 @@ export function CameraFirstHealthModal({
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
         setCameraState('UNCERTAIN');
-        setLiveStatusText(result.status_message || 'Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.');
+        setLiveStatusText('Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.');
       } else if (totalLivestock > 1) {
         setMultipleAnimalsDetected(true);
         stableTargetCountRef.current = 0;
@@ -386,32 +385,18 @@ export function CameraFirstHealthModal({
         setCameraState(activeTarget.type === 'SHEEP' ? 'SHEEP_DETECTED' : 'GOAT_DETECTED');
 
         if (goats.length > 0 && sheep.length > 0) {
-          setLiveStatusText('May kambing at tupa na nakita. Piliin ang hayop na gusto mong i-scan.');
+          setLiveStatusText('May kambing at tupa na nakita. Piliin ang hayop.');
         } else if (goats.length > 1) {
-          setLiveStatusText('May mga kambing na nakita. Piliin ang hayop na gusto mong i-scan.');
+          setLiveStatusText('May mga kambing na nakita. Piliin ang hayop.');
         } else {
-          setLiveStatusText('May mga tupa na nakita. Piliin ang hayop na gusto mong i-scan.');
+          setLiveStatusText('May mga tupa na nakita. Piliin ang hayop.');
         }
       } else if (totalLivestock === 1) {
         setMultipleAnimalsDetected(false);
         const singleTarget = targetLivestock[0];
         const isGoat = singleTarget.type === 'GOAT';
         setCameraState(isGoat ? 'GOAT_DETECTED' : 'SHEEP_DETECTED');
-        const targetName = singleTarget.label === 'TUPA' ? 'Tupa' : 'Kambing';
-
-        stableTargetCountRef.current += 1;
-
-        if (stableTargetCountRef.current === 1) {
-          setAutoCaptureStatus('holding');
-          setLiveStatusText(isGoat ? 'KAMBING: Handa nang i-scan • Manatiling nakatutok...' : 'TUPA: Handa nang i-scan • Manatiling nakatutok...');
-        } else if (stableTargetCountRef.current >= 3) {
-          setCameraState('CAPTURING');
-          setAutoCaptureStatus('capturing');
-          setLiveStatusText(`Kinukunan ang ${targetName.toLowerCase()}...`);
-          stableTargetCountRef.current = 0;
-          // Auto-capture Stage 2 health analysis
-          handlePerformScanRef.current();
-        }
+        setLiveStatusText(isGoat ? 'Kambing ang nakita' : 'Tupa ang nakita');
       } else {
         // 0 goats or sheep: Person, Other Animal, Object, or Nothing
         setMultipleAnimalsDetected(false);
@@ -424,13 +409,13 @@ export function CameraFirstHealthModal({
         const obj = freshDetections.find((d) => d.type === 'OBJECT');
 
         if (person) {
-          setLiveStatusText('TAO — Hindi ito kambing o tupa');
+          setLiveStatusText('Tao — Hindi ito kambing o tupa');
         } else if (otherAnimal) {
-          setLiveStatusText(`${otherAnimal.label} — Hindi ito kambing o tupa`);
+          setLiveStatusText('Ibang Bagay — Hindi ito kambing o tupa');
         } else if (obj) {
-          setLiveStatusText(`${obj.label} — Itapat ang camera sa kambing o tupa`);
+          setLiveStatusText('Ibang Bagay — Hindi ito kambing o tupa');
         } else {
-          setLiveStatusText(result.status_message || 'Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.');
+          setLiveStatusText('Walang kambing o tupa na nakita');
         }
       }
     } catch {
@@ -443,7 +428,7 @@ export function CameraFirstHealthModal({
       stableTargetCountRef.current = 0;
       setAutoCaptureStatus('idle');
       setCameraState('ERROR');
-      setLiveStatusText('Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.');
+      setLiveStatusText('Walang kambing o tupa na nakita');
     } finally {
       detectAbortControllerRef.current = null;
       isSamplingRef.current = false;
@@ -452,29 +437,60 @@ export function CameraFirstHealthModal({
 
   // ── Start Camera Stream ───────────────────────────────────────────────────
   const startCameraStream = useCallback(async () => {
-    console.log('[Camera] Initializing...');
+    console.log('[Camera] Initializing stream...');
     stopCameraStream();
     setCameraPermissionError(false);
     setCameraError(null);
+    setLiveStatusText('Naghahanap ng kambing o tupa...');
+
+    // 1. Verify HTTPS / Secure Context (Requirement 4)
+    if (
+      typeof window !== 'undefined' &&
+      !window.isSecureContext &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'
+    ) {
+      console.error('[Camera] Insecure context: camera access requires HTTPS');
+      setCameraError('Kailangan ng secure connection para magamit ang camera.');
+      setIsCameraActive(false);
+      return;
+    }
+
+    // 2. Check navigator.mediaDevices support
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      console.error('[Camera] navigator.mediaDevices.getUserMedia is not supported');
+      setCameraError('Walang camera na nakita sa device.');
+      setIsCameraActive(false);
+      return;
+    }
 
     try {
-      const constraints: MediaStreamConstraints = {
+      // 3. UserMedia constraints: prefer rear camera on mobile (Requirement 2)
+      const primaryConstraints: MediaStreamConstraints = {
         audio: false,
         video: {
           facingMode: { ideal: facingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
         },
       };
 
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream = await navigator.mediaDevices.getUserMedia(primaryConstraints);
       } catch (firstErr: any) {
-        if (firstErr?.name === 'OverconstrainedError' || firstErr?.name === 'ConstraintNotSatisfiedError') {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        } else {
-          throw firstErr;
+        console.warn('[Camera] Primary constraint failed:', firstErr?.name, firstErr?.message);
+        // Fallback 1: exact facingMode string
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: { facingMode: facingMode === 'environment' ? 'environment' : 'user' },
+          });
+        } catch (secondErr: any) {
+          console.warn('[Camera] Facing mode fallback failed:', secondErr?.name, secondErr?.message);
+          // Fallback 2: most permissive constraint (video: true)
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: true,
+          });
         }
       }
 
@@ -484,36 +500,84 @@ export function CameraFirstHealthModal({
       }
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(() => {});
-      }
-      setIsCameraActive(true);
-      setCameraState('DETECTING');
-      setLiveStatusText('Handa nang mag-scan • Ilagay ang kambing o tupa sa loob ng frame.');
 
+      // 4. Attach stream to video element
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        try {
+          await video.play();
+        } catch (playErr: any) {
+          console.warn('[Camera] video.play() error:', playErr?.name, playErr?.message);
+        }
+      }
+
+      setIsCameraActive(true);
+      setCameraPermissionError(false);
+      setCameraError(null);
+      setCameraState('DETECTING');
+      setLiveStatusText('Naghahanap ng kambing o tupa...');
+
+      // QR detection check
       if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
       qrIntervalRef.current = setInterval(runLiveQRCheck, 600);
     } catch (err: any) {
+      const errName = err?.name || '';
+      const errMsg = err?.message || '';
+      console.error('[Camera]', errName, errMsg);
+
       if (!isMountedRef.current) return;
       setIsCameraActive(false);
-      const lower = String(err?.message || err?.name || '').toLowerCase();
-      if (lower.includes('notallowed') || lower.includes('permission') || err?.name === 'NotAllowedError') {
+
+      if (
+        errName === 'NotAllowedError' ||
+        errName === 'PermissionDeniedError' ||
+        /permission|not\s*allowed/i.test(errMsg)
+      ) {
         setCameraPermissionError(true);
-      } else if (lower.includes('notfound') || lower.includes('device') || err?.name === 'NotFoundError') {
-        setCameraError('Walang nakitang camera sa device na ito. Maaari mong piliin ang hayop mula sa listahan.');
-      } else if (lower.includes('notreadable') || lower.includes('in use')) {
-        setCameraError('Ginagamit pa ng ibang application o tab ang camera. Paki-refresh o isara ang ibang tab.');
+        setCameraError('Hindi pinayagan ang camera. I-enable ang Camera permission sa browser.');
+      } else if (
+        errName === 'NotFoundError' ||
+        errName === 'DevicesNotFoundError' ||
+        /not\s*found|no\s*camera/i.test(errMsg)
+      ) {
+        setCameraError('Walang camera na nakita sa device.');
+      } else if (
+        errName === 'NotReadableError' ||
+        errName === 'TrackStartError' ||
+        /busy|in\s*use|readable/i.test(errMsg)
+      ) {
+        setCameraError('Ginagamit ng ibang app ang camera. Isara muna ito at subukan muli.');
+      } else if (errName === 'SecurityError' || (typeof window !== 'undefined' && !window.isSecureContext)) {
+        setCameraError('Kailangan ng secure connection para magamit ang camera.');
       } else {
-        setCameraError('Hindi mabuksan ang camera. Siguraduhing may camera permission ang browser.');
+        setCameraError('Hindi mabuksan ang camera. Subukan muli.');
       }
     }
-  }, [facingMode, runLiveObjectDetection, runLiveQRCheck, stopCameraStream]);
+  }, [facingMode, runLiveQRCheck, stopCameraStream]);
 
   // Flip camera between front & back
   const toggleFacingMode = () => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
   };
+
+  // Video element synchronization hook (guarantees stream attaches even after re-renders)
+  useEffect(() => {
+    if (open && isCameraActive && streamRef.current && videoRef.current) {
+      if (videoRef.current.srcObject !== streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('webkit-playsinline', 'true');
+        videoRef.current.play().catch((e) => console.warn('[Camera] sync play error:', e));
+      }
+    }
+  }, [open, isCameraActive]);
 
   // ── Open / Mount Camera Lifecycle ─────────────────────────────────────────
   useEffect(() => {
@@ -533,13 +597,15 @@ export function CameraFirstHealthModal({
       setNotes('');
       setManualMedId('');
       setSaving(false);
+      setCameraError(null);
+      setCameraPermissionError(false);
     }
 
     return () => {
       isMountedRef.current = false;
       stopCameraStream();
     };
-  }, [open, preselectedAnimalId, startCameraStream, stopCameraStream]);
+  }, [open, preselectedAnimalId, facingMode]);
 
   // ── Trigger High-Resolution Scan ──────────────────────────────────────────
   const handlePerformScan = async () => {
@@ -674,8 +740,8 @@ export function CameraFirstHealthModal({
           `Hayop: ${detectedAnimalMatch.name || detectedAnimalMatch.tag_id} (${detectedAnimalMatch.tag_id})`
         );
       }
-      notesLines.push(`Mga Napansin: ${visualObservations.join(', ')}`);
-      notesLines.push(`Payo: ${rec}`);
+      notesLines.push(`Napansin: ${visualObservations.join(', ')}`);
+      notesLines.push(`Gawin: ${rec}`);
       notesLines.push('Temperatura: Hindi nasukat (walang thermometer sensor)');
 
       const result: HealthScanResult = {
@@ -701,20 +767,20 @@ export function CameraFirstHealthModal({
       setLiveStatusText(`${speciesTagalog} ang nakita • Katayuan: ${healthStatusLabel}`);
       toast(`Naisagawa ang pagsusuri sa ${speciesTagalog.toLowerCase()} gamit ang Gemini Vision.`, 'success');
     } catch (err: any) {
-      console.error('Gemini Scan failed:', err);
-      setCameraState('ERROR');
-      toast(err.message || 'Hindi nagtagumpay ang scan. Pakisubukang itapat muli ang camera.', 'error');
+      console.error('[Health Analysis] Error:', err);
+      toast(err?.message || 'Hindi natapos ang pagsusuri. Subukan muli.', 'error');
     } finally {
       setIsScanning(false);
     }
   };
 
-  // Keep handlePerformScan ref synced
+  // ── Periodic Object Detection Loop ──  // Keep live detection callback ref synced to avoid recreation
+  const runLiveObjectDetectionRef = useRef(runLiveObjectDetection);
   useEffect(() => {
-    handlePerformScanRef.current = handlePerformScan;
+    runLiveObjectDetectionRef.current = runLiveObjectDetection;
   });
 
-  // ── Periodic Object Detection Loop ──
+  // Periodic object detection loop (~1200ms)
   useEffect(() => {
     if (!open || !isCameraActive || isScanning || scanResult) {
       if (detectionIntervalRef.current) {
@@ -728,10 +794,10 @@ export function CameraFirstHealthModal({
       clearInterval(detectionIntervalRef.current);
     }
 
-    // Run periodic live detection snapshot every 1000ms via Gemini Vision API
+    // Run periodic live detection snapshot every 1200ms via Gemini Vision API
     detectionIntervalRef.current = setInterval(() => {
-      runLiveObjectDetection();
-    }, 1000);
+      runLiveObjectDetectionRef.current();
+    }, 1200);
 
     return () => {
       if (detectionIntervalRef.current) {
@@ -739,7 +805,7 @@ export function CameraFirstHealthModal({
         detectionIntervalRef.current = null;
       }
     };
-  }, [open, isCameraActive, isScanning, scanResult, runLiveObjectDetection]);
+  }, [open, isCameraActive, isScanning, !!scanResult]);
 
   const handleResetScan = () => {
     setScanResult(null);
@@ -751,7 +817,7 @@ export function CameraFirstHealthModal({
     setAutoCaptureStatus('idle');
     stableTargetCountRef.current = 0;
     setCameraState('DETECTING');
-    setLiveStatusText('Tinitingnan ang camera...');
+    setLiveStatusText('Naghahanap ng kambing o tupa...');
   };
 
   // ── Save Health Check Record to Supabase ──────────────────────────────────
@@ -913,6 +979,10 @@ export function CameraFirstHealthModal({
 
   const handleModalClose = () => {
     stopCameraStream();
+    setScanResult(null);
+    setLiveDetections([]);
+    setCameraError(null);
+    setCameraPermissionError(false);
     onClose();
   };
 
@@ -1010,7 +1080,14 @@ export function CameraFirstHealthModal({
     <Modal open={open} onClose={handleModalClose} size="lg">
       <ModalHeader title="Health Check" onClose={handleModalClose} />
 
-      <ModalBody>
+      <ModalBody
+        style={{
+          maxHeight: 'calc(100dvh - 120px)',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          minHeight: 0,
+        }}
+      >
         <div className="modal-inner-flow" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* ── 1. CAMERA VIEWPORT SECTION ── */}
           <div
@@ -1031,210 +1108,169 @@ export function CameraFirstHealthModal({
               cursor: validLivestock.length > 1 ? 'pointer' : 'default',
             }}
           >
-            {cameraPermissionError ? (
+            {/* Live Video Element - ALWAYS Mounted to prevent null ref */}
+            <video
+              ref={videoRef}
+              playsInline
+              autoPlay
+              muted
+              onLoadedMetadata={() => {
+                console.log('[Camera] Video ready');
+              }}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transform: 'scaleX(1)',
+                WebkitTransform: 'scaleX(1)',
+              }}
+            />
+
+            {/* Real-Time Live Bounding Box & Label Canvas Overlay - ALWAYS Mounted */}
+            <canvas
+              ref={overlayCanvasRef}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: 4,
+                transform: 'scaleX(1)',
+                WebkitTransform: 'scaleX(1)',
+              }}
+            />
+
+            {/* Flip camera button */}
+            {isCameraActive && (
+              <button
+                type="button"
+                onClick={toggleFacingMode}
+                title="Palitan ang Camera"
+                aria-label="Palitan ang Camera"
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  background: 'rgba(15, 23, 42, 0.65)',
+                  backdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  borderRadius: '50%',
+                  width: 36,
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                  zIndex: 10,
+                }}
+              >
+                <SwitchCamera size={16} />
+              </button>
+            )}
+
+            {/* Camera Error / Permission Overlay */}
+            {(cameraError || cameraPermissionError) && (
               <div
                 style={{
+                  position: 'absolute',
+                  inset: 0,
+                  backgroundColor: '#0F172A',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   textAlign: 'center',
-                  padding: '20px',
+                  padding: '24px',
                   color: '#FFFFFF',
-                  gap: 10,
+                  gap: 12,
+                  zIndex: 25,
                 }}
               >
-                <AlertCircle size={36} color="#EF4444" />
-                <div style={{ fontSize: 15, fontWeight: 700 }}>
-                  Hindi mabuksan ang camera
-                </div>
-                <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.75)', maxWidth: 320 }}>
-                  Siguraduhing may camera permission ang browser para magamit ang scanner.
+                {cameraPermissionError ? (
+                  <AlertCircle size={40} color="#EF4444" />
+                ) : (
+                  <AlertTriangle size={40} color="#D97706" />
+                )}
+                <div style={{ fontSize: 15, fontWeight: 700, maxWidth: 300, lineHeight: 1.4 }}>
+                  {cameraError || 'Hindi mabuksan ang camera. Subukan muli.'}
                 </div>
                 <button
                   type="button"
                   className="btn btn-primary"
                   style={{
                     borderRadius: 10,
-                    padding: '8px 16px',
+                    padding: '9px 20px',
                     fontSize: 13,
+                    fontWeight: 700,
                     background: '#16A34A',
                     borderColor: '#16A34A',
                     marginTop: 6,
                   }}
                   onClick={startCameraStream}
                 >
-                  Subukan Ulit
-                </button>
-              </div>
-            ) : cameraError ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  padding: '20px',
-                  color: '#FFFFFF',
-                  gap: 10,
-                }}
-              >
-                <AlertTriangle size={36} color="#D97706" />
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{cameraError}</div>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  style={{ borderRadius: 10, padding: '8px 16px', fontSize: 13, color: '#FFFFFF', borderColor: 'rgba(255,255,255,0.3)' }}
-                  onClick={startCameraStream}
-                >
                   Subukan Muli
                 </button>
               </div>
-            ) : (
-              <>
-                <video
-                  ref={videoRef}
-                  playsInline
-                  autoPlay
-                  muted
-                  onLoadedMetadata={() => {
-                    console.log('[Camera] Video ready');
-                  }}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    transform: 'scaleX(1)',
-                    WebkitTransform: 'scaleX(1)',
-                  }}
-                />
+            )}
 
-                {/* Flip camera button */}
-                <button
-                  type="button"
-                  onClick={toggleFacingMode}
-                  title="Palitan ang Camera"
-                  aria-label="Palitan ang Camera"
+            {/* Subtle Viewfinder Guides when camera is idle/searching */}
+            {isCameraActive && !cameraError && !cameraPermissionError && liveDetections.length === 0 && !isScanning && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: '12% 10%',
+                  border: '1.5px dashed rgba(255, 255, 255, 0.3)',
+                  borderRadius: 14,
+                  pointerEvents: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <span
                   style={{
-                    position: 'absolute',
-                    top: 10,
-                    right: 10,
                     background: 'rgba(15, 23, 42, 0.65)',
-                    backdropFilter: 'blur(6px)',
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    borderRadius: '50%',
-                    width: 36,
-                    height: 36,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    zIndex: 10,
+                    backdropFilter: 'blur(4px)',
+                    color: 'rgba(255, 255, 255, 0.75)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: '3px 10px',
+                    borderRadius: 8,
                   }}
                 >
-                  <SwitchCamera size={16} />
-                </button>
+                  Itapat ang camera sa kambing o tupa
+                </span>
+              </div>
+            )}
 
-                {/* Real-Time Live Bounding Box & Label Canvas Overlay */}
-                <canvas
-                  ref={overlayCanvasRef}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 4,
-                    transform: 'scaleX(1)',
-                    WebkitTransform: 'scaleX(1)',
-                  }}
-                />
-
-                {/* Subtle Viewfinder Guides when camera is idle/searching */}
-                {liveDetections.length === 0 && !isScanning && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: '12% 10%',
-                      border: '1.5px dashed rgba(255, 255, 255, 0.3)',
-                      borderRadius: 14,
-                      pointerEvents: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <span
-                      style={{
-                        background: 'rgba(15, 23, 42, 0.65)',
-                        backdropFilter: 'blur(4px)',
-                        color: 'rgba(255, 255, 255, 0.75)',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: '3px 10px',
-                        borderRadius: 8,
-                      }}
-                    >
-                      Itapat ang camera sa kambing o tupa
-                    </span>
-                  </div>
-                )}
-
-                {/* Multiple Animals Detected Warning Banner */}
-                {multipleAnimalsDetected && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 10,
-                      left: 10,
-                      right: 54,
-                      background: 'rgba(217, 119, 6, 0.95)',
-                      backdropFilter: 'blur(6px)',
-                      color: '#FFFFFF',
-                      padding: '6px 12px',
-                      borderRadius: 8,
-                      fontSize: 11.5,
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-                      zIndex: 12,
-                    }}
-                  >
-                    <AlertTriangle size={14} color="#FFFFFF" />
-                    <span>Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.</span>
-                  </div>
-                )}
-
-                {/* Auto-Capture Steady Indicator */}
-                {autoCaptureStatus === 'holding' && !multipleAnimalsDetected && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 10,
-                      left: 10,
-                      right: 54,
-                      background: 'rgba(22, 163, 74, 0.95)',
-                      backdropFilter: 'blur(6px)',
-                      color: '#FFFFFF',
-                      padding: '6px 12px',
-                      borderRadius: 8,
-                      fontSize: 11.5,
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-                      zIndex: 12,
-                    }}
-                  >
-                    <Sparkles size={14} color="#FFFFFF" />
-                    <span>Naka-lock sa hayop • Kinukunan nang kusa...</span>
-                  </div>
-                )}
+            {/* Multiple Animals Detected Warning Banner */}
+            {multipleAnimalsDetected && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  left: 10,
+                  right: 54,
+                  background: 'rgba(217, 119, 6, 0.95)',
+                  backdropFilter: 'blur(6px)',
+                  color: '#FFFFFF',
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                  zIndex: 12,
+                }}
+              >
+                <AlertTriangle size={14} color="#FFFFFF" />
+                <span>Maraming hayop ang nakita. Piliin ang hayop na susuriin.</span>
+              </div>
+            )}
 
                 {/* Live Status Pill at Bottom of Viewport */}
                 <div
@@ -1320,8 +1356,6 @@ export function CameraFirstHealthModal({
                     </div>
                   </div>
                 )}
-              </>
-            )}
           </div>
 
           {/* Target Livestock Selector Chips (Requirement 10 & 20) */}
@@ -1503,8 +1537,8 @@ export function CameraFirstHealthModal({
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Resulta ng Health Check
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginTop: 2 }}>
-                    Nakuha bandang {scanResult.scannedAt}
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>
+                    Kalagayan:
                   </div>
                 </div>
 
@@ -1629,10 +1663,10 @@ export function CameraFirstHealthModal({
                 )}
               </div>
 
-              {/* Mga Napansin (Bulleted Observations) */}
+              {/* Napansin (Bulleted Observations) */}
               <div>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                  Mga Napansin:
+                  Napansin:
                 </span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {scanResult.visualObservations.map((obs, idx) => (
@@ -1653,7 +1687,7 @@ export function CameraFirstHealthModal({
                 </div>
               </div>
 
-              {/* Payo / Rekomendasyon */}
+              {/* Gawin */}
               <div
                 style={{
                   background: 'var(--surface-sunken)',
@@ -1663,7 +1697,7 @@ export function CameraFirstHealthModal({
                 }}
               >
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                  Payo:
+                  Gawin:
                 </span>
                 <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.45 }}>
                   {scanResult.recommendation}

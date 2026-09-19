@@ -118,7 +118,7 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
       title: 'AI Health Scanner',
       subtitle: 'Suriin ang kalusugan ng hayop gamit ang camera',
       icon: <Camera size={22} color="#238B45" strokeWidth={2.2} />,
-      to: '/camera-screening',
+      to: '/health?action=check',
       color: '#238B45',
       bgColor: '#EAF6ED',
     },

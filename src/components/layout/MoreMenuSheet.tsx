@@ -152,7 +152,7 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
         icon: <HeartPulse size={20} color="#238B45" />,
       },
       {
-        to: '/camera-screening',
+        to: '/health?action=check',
         label: 'AI Health Scanner',
         description: 'Itutok ang camera sa kambing o tupa para sa screening',
         icon: <Camera size={20} color="#238B45" />,

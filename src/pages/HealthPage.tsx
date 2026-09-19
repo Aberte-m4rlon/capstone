@@ -714,7 +714,7 @@ export function HealthPage() {
                     <button
                       type="button"
                       className="priority-animal-check-btn"
-                      onClick={() => navigate('/camera-screening?animalId=' + item.animal.id)}
+                      onClick={() => openPredictionModal(item.animal.id)}
                     >
                       <Camera size={14} />
                       <span>Suriin ang Hayop</span>
