@@ -402,7 +402,13 @@ export function LiveObjectDetectionCamera({
     } finally {
       isDetectingRef.current = false;
     }
-  }, [isScanning, showResultSheet, computeDetectionStatus]);
+  }, [
+    isScanning,
+    showResultSheet,
+    computeDetectionStatus,
+    preselectedAnimalId,
+    selectedAnimal?.species,
+  ]);
 
   // Setup periodic detection interval (~120ms cadence = ~8-9 FPS)
   useEffect(() => {
@@ -599,9 +605,14 @@ export function LiveObjectDetectionCamera({
             setLastCapturedThumbnail(dataUrl);
 
             // Run Gemini Vision
+            const selectedSpecies = selectedAnimal?.species?.toLowerCase();
+            const expectedSpecies = selectedSpecies === 'sheep' || selectedSpecies === 'goat'
+              ? selectedSpecies
+              : undefined;
+
             const result = await scanAnimalWithGemini(canvas, {
               context: 'health_scan',
-              animalType: selectedAnimal?.species?.toLowerCase() === 'sheep' ? 'sheep' : 'goat',
+              animalType: expectedSpecies,
             });
 
             if (!result.success || !result.detected) {
@@ -610,7 +621,8 @@ export function LiveObjectDetectionCamera({
               return;
             }
 
-            const verifiedSpecies = result.animals?.[0]?.species === 'sheep' ? 'sheep' : 'goat';
+            const detectedSpecies = result.animals?.[0]?.species;
+            const verifiedSpecies = expectedSpecies || (detectedSpecies === 'sheep' ? 'sheep' : 'goat');
             const verifiedLabel = verifiedSpecies === 'sheep' ? 'TUPA' : 'KAMBING';
 
             setScanResult({
