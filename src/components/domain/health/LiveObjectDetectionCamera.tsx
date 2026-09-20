@@ -356,8 +356,29 @@ export function LiveObjectDetectionCamera({
 
       const tracker = trackerRef.current;
 
+      // Registered-animal safeguard: when this Health Check was opened for a
+      // specific goat, do not allow the generic COCO sheep detector to relabel
+      // that selected goat as Tupa. The camera detector remains authoritative
+      // for the actual box, while the selected record provides the species prior.
+      const detectorDetections = (result.detections || []).map((d) => {
+        if (
+          preselectedAnimalId &&
+          selectedAnimal?.species === 'Goat' &&
+          d.type === 'SHEEP'
+        ) {
+          return {
+            ...d,
+            type: 'GOAT' as const,
+            label: 'KAMBING' as const,
+            className: 'goat',
+            rawCategory: d.rawCategory || 'sheep',
+          };
+        }
+        return d;
+      });
+
       // Extract genuine detections: GOAT, SHEEP, PERSON
-      const rawLivestock: RawLivestockDetection[] = (result.detections || [])
+      const rawLivestock: RawLivestockDetection[] = detectorDetections
         .filter((d) => d.type === 'GOAT' || d.type === 'SHEEP' || d.type === 'PERSON')
         .map((d) => ({
           species: (d.type === 'PERSON' ? 'person' : d.type === 'SHEEP' ? 'sheep' : 'goat') as LivestockSpecies,
