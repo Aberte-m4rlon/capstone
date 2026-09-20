@@ -507,7 +507,27 @@ export function LiveObjectDetectionCamera({
         return;
       }
 
-      setScanResult(result);
+      // Keep species identity from the selected local camera track.
+      // Gemini supplies health observations; it must not reclassify GOAT as SHEEP.
+      const verifiedSpecies = selected.species === 'sheep' ? 'sheep' : 'goat';
+      const verifiedLabel = verifiedSpecies === 'sheep' ? 'TUPA' : 'KAMBING';
+      const verifiedResult: GeminiScanResult = {
+        ...result,
+        animals: (result.animals || []).map((animal) => ({
+          ...animal,
+          species: verifiedSpecies,
+          label: verifiedLabel,
+        })),
+        rawResponse: result.rawResponse
+          ? {
+              ...result.rawResponse,
+              animal_type: verifiedSpecies,
+              animal_label: verifiedSpecies === 'sheep' ? 'Tupa' : 'Kambing',
+            }
+          : result.rawResponse,
+      };
+
+      setScanResult(verifiedResult);
       setShowResultSheet(true);
 
       // Auto-match preselected animal or first matching species
