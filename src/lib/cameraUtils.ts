@@ -153,6 +153,54 @@ export async function optimizeImageForAI(
   return srcCanvas.toDataURL('image/jpeg', quality);
 }
 
+/**
+ * Crop a canvas to a specific normalized bounding box with padding.
+ * Isolates the selected animal from background animals/objects for focused health screening.
+ */
+export function cropCanvasToBoundingBox(
+  sourceCanvas: HTMLCanvasElement,
+  bbox: { x: number; y: number; width: number; height: number },
+  paddingFactor = 0.12
+): HTMLCanvasElement {
+  const sw = sourceCanvas.width;
+  const sh = sourceCanvas.height;
+
+  // Normalize if coordinates are on 0..1000 scale
+  let nx = bbox.x > 1 ? bbox.x / 1000 : bbox.x;
+  let ny = bbox.y > 1 ? bbox.y / 1000 : bbox.y;
+  let nw = bbox.width > 1 ? bbox.width / 1000 : bbox.width;
+  let nh = bbox.height > 1 ? bbox.height / 1000 : bbox.height;
+
+  // Convert normalized to pixels
+  const rawX = nx * sw;
+  const rawY = ny * sh;
+  const rawW = nw * sw;
+  const rawH = nh * sh;
+
+  // Add padding margin around animal
+  const padX = rawW * paddingFactor;
+  const padY = rawH * paddingFactor;
+
+  const cropX = Math.max(0, Math.floor(rawX - padX));
+  const cropY = Math.max(0, Math.floor(rawY - padY));
+  const cropW = Math.min(sw - cropX, Math.ceil(rawW + padX * 2));
+  const cropH = Math.min(sh - cropY, Math.ceil(rawH + padY * 2));
+
+  // If crop is too small or invalid, return original canvas
+  if (cropW < 50 || cropH < 50) {
+    return sourceCanvas;
+  }
+
+  const croppedCanvas = document.createElement('canvas');
+  croppedCanvas.width = cropW;
+  croppedCanvas.height = cropH;
+  const ctx = croppedCanvas.getContext('2d');
+  if (!ctx) return sourceCanvas;
+
+  ctx.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+  return croppedCanvas;
+}
+
 // ── Live Object Detection & Bounding Box Types ───────────────────────────────
 
 export interface BoundingBox {

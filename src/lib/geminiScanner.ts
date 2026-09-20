@@ -13,6 +13,7 @@ import { supabase } from './supabase';
 import {
   optimizeImageForAI,
   captureLowResFrame,
+  cropCanvasToBoundingBox,
   BoundingBox,
   LiveDetectedObject,
   LiveObjectDetectionResult,
@@ -23,6 +24,7 @@ import {
 export {
   optimizeImageForAI,
   captureLowResFrame,
+  cropCanvasToBoundingBox,
 };
 
 export type {
@@ -33,17 +35,28 @@ export type {
   LiveTargetLabel,
 };
 
+export interface StructuredObservation {
+  category: string;
+  finding: string;
+  visibility: 'visible' | 'limited' | 'not_visible';
+}
+
 export interface GeminiAnimalScanResponse {
   success: boolean;
   detected: boolean;
   animal_type: 'goat' | 'sheep' | 'unknown';
   animal_label: string;
+  condition: 'Maayos' | 'Bantayan' | 'Kailangan ng Atensyon' | 'Kailangan ng Gamot';
+  condition_summary: string;
+  observations: StructuredObservation[];
+  visual_observations: string[];
+  action: string;
+  limitations: string[];
+  recommendation: string;
   image_quality: 'good' | 'poor';
   multiple_animals: boolean;
   health_status: 'healthy' | 'monitor' | 'needs_attention' | 'needs_medication' | 'unknown';
-  observations: string[];
   possible_concerns: string[];
-  recommendation: string;
   needs_attention: boolean;
   needs_medication: boolean;
   temperature: null;
@@ -298,6 +311,8 @@ export async function scanAnimalWithGemini(
   options?: {
     context?: 'health_scan' | 'animal_add' | 'camera_live';
     animalId?: string;
+    animalTag?: string;
+    animalName?: string;
     farmId?: string;
     animalType?: 'goat' | 'sheep';
     targetBoundingBox?: BoundingBox;
@@ -316,7 +331,11 @@ export async function scanAnimalWithGemini(
   lastScanTimestamp = Date.now();
 
   try {
-    const optimizedDataUrl = await optimizeImageForAI(input, 1280, 0.85);
+    let scanInput = input;
+    if (input instanceof HTMLCanvasElement && options?.targetBoundingBox) {
+      scanInput = cropCanvasToBoundingBox(input, options.targetBoundingBox);
+    }
+    const optimizedDataUrl = await optimizeImageForAI(scanInput, 1280, 0.85);
 
     // Get current auth session token
     let authHeader: Record<string, string> = {};
@@ -338,6 +357,8 @@ export async function scanAnimalWithGemini(
       body: JSON.stringify({
         image: optimizedDataUrl,
         animalId: options?.animalId,
+        animalTag: options?.animalTag,
+        animalName: options?.animalName,
         farmId: options?.farmId,
         animalType: options?.animalType,
         context: options?.context || 'health_scan',
@@ -367,6 +388,12 @@ export async function scanAnimalWithGemini(
         ? 'monitor'
         : 'healthy';
 
+    const obsList: string[] = Array.isArray(apiData.visual_observations) && apiData.visual_observations.length > 0
+      ? apiData.visual_observations
+      : Array.isArray(apiData.observations)
+      ? apiData.observations.map((o: any) => typeof o === 'string' ? o : `${o.category} — ${o.finding}`)
+      : [];
+
     const detectedAnimals: GeminiDetectedAnimal[] = apiData.detected
       ? [
           {
@@ -394,8 +421,8 @@ export async function scanAnimalWithGemini(
                   rawBox: [100, 100, 900, 900],
                 },
             bodyOrientation: 'nakatayo',
-            visualObservations: apiData.observations,
-            possibleHealthConcerns: apiData.possible_concerns,
+            visualObservations: obsList,
+            possibleHealthConcerns: apiData.possible_concerns || [],
             needsManualCheck: apiData.needs_attention || apiData.needs_medication,
             healthStatus: healthStatusMapped,
           },

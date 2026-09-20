@@ -68,11 +68,15 @@ export interface HealthScanResult {
   detectedSpecies: 'Goat' | 'Sheep' | 'Unknown';
   speciesLabelTagalog: string;
   matchedAnimal: Animal | null;
+  condition?: 'Maayos' | 'Bantayan' | 'Kailangan ng Atensyon' | 'Kailangan ng Gamot';
+  conditionSummary?: string;
+  structuredObservations?: { category: string; finding: string; visibility: 'visible' | 'limited' | 'not_visible' }[];
   visualObservations: string[];
   suggestedConditions: string[];
   healthStatus: 'healthy' | 'monitor' | 'attention' | 'medication';
   healthStatusLabel: string;
   recommendation: string;
+  limitations?: string[];
   temperatureDisplay: string;
   notesSnippet: string;
   capturedImageUrl?: string;
@@ -663,12 +667,14 @@ export function CameraFirstHealthModal({
       // Call Google Gemini Vision API via serverless backend (/api/gemini/animal-scan)
       const geminiRes = await scanAnimalWithGemini(frameCanvas, {
         context: 'health_scan',
-        animalId: selectedAnimalId,
+        animalId: selectedAnimal?.id || selectedAnimalId,
+        animalTag: selectedAnimal?.tag_id,
+        animalName: selectedAnimal?.name,
         animalType: targetSpecies,
         targetBoundingBox: currentSelectedTarget.boundingBox,
       });
 
-      const raw = geminiRes.rawResponse;
+      const raw = geminiRes.rawResponse as any;
 
       if (!geminiRes.detected || !raw?.detected) {
         let msg = 'Walang nakitang kambing o tupa sa litrato.';
@@ -706,23 +712,49 @@ export function CameraFirstHealthModal({
         } catch {}
       }
 
-      // Observations & Concerns
-      const visualObservations = raw.observations && raw.observations.length > 0
+      // Condition and Condition Summary
+      const condition: 'Maayos' | 'Bantayan' | 'Kailangan ng Atensyon' | 'Kailangan ng Gamot' =
+        raw.condition || 'Maayos';
+      const conditionSummary: string = raw.condition_summary || (
+        condition === 'Bantayan'
+          ? `Bantayan — may ilang nakikitang bagay sa itsura ng ${speciesTagalog.toLowerCase()} na kailangan obserbahan.`
+          : condition === 'Kailangan ng Atensyon'
+          ? `Kailangan ng Atensyon — may nakitang senyales na dapat masusing obserbahan at kung kinakailangan ay ipasuri sa beterinaryo.`
+          : condition === 'Kailangan ng Gamot'
+          ? `Kailangan ng Gamot — may nakitang senyales na nangangailangan ng gamot o agarang pagsusuri ng beterinaryo.`
+          : `Maayos — walang malinaw na nakitang kakaibang senyales sa larawan.`
+      );
+
+      const structuredObservations = Array.isArray(raw.observations)
         ? raw.observations
-        : ['Normal ang tindig at kilos', 'Walang napansing obvious concern sa balahibo o mata'];
+        : [];
+
+      const visualObservations: string[] = Array.isArray(raw.visual_observations) && raw.visual_observations.length > 0
+        ? raw.visual_observations
+        : structuredObservations.length > 0
+        ? structuredObservations.map((o: any) => `${o.category} — ${o.finding}`)
+        : ['Mata — Mukhang malinaw at walang muta', 'Tindig — Maayos at alerto', 'Balahibo/Balat — Pantay at walang sugat'];
+
       const suggestedConditions = raw.possible_concerns || [];
+      const action = raw.action || raw.recommendation || 'Ipagpatuloy ang regular na pagmamasid at normal na pag-aalaga.';
+      const limitations: string[] = Array.isArray(raw.limitations) && raw.limitations.length > 0
+        ? raw.limitations
+        : [
+            'Ang ordinaryong camera ay hindi nakakapagsukat ng temperatura ng katawan ng hayop.',
+            'Ang resulta ay visual screening lamang at hindi kapalit ng pormal na pagsusuri ng lisensyadong beterinaryo.',
+          ];
 
       // Farmer-friendly Health Status
       let healthStatus: 'healthy' | 'monitor' | 'attention' | 'medication' = 'healthy';
-      let healthStatusLabel = 'Maayos';
+      let healthStatusLabel = condition;
 
-      if (raw.needs_medication || raw.health_status === 'needs_medication') {
+      if (condition === 'Kailangan ng Gamot' || raw.needs_medication) {
         healthStatus = 'medication';
         healthStatusLabel = 'Kailangan ng Gamot';
-      } else if (raw.needs_attention || raw.health_status === 'needs_attention') {
+      } else if (condition === 'Kailangan ng Atensyon' || raw.needs_attention) {
         healthStatus = 'attention';
         healthStatusLabel = 'Kailangan ng Atensyon';
-      } else if (raw.health_status === 'monitor' || suggestedConditions.length > 0) {
+      } else if (condition === 'Bantayan' || raw.health_status === 'monitor') {
         healthStatus = 'monitor';
         healthStatusLabel = 'Bantayan';
       } else {
@@ -730,37 +762,32 @@ export function CameraFirstHealthModal({
         healthStatusLabel = 'Maayos';
       }
 
-      // Recommendation (Farmer-friendly advice, zero medical diagnosis claims)
-      const rec = raw.recommendation || (
-        healthStatus === 'medication'
-          ? 'Kailangan ng gamot o pagsusuri ng lisensyadong beterinaryo.'
-          : healthStatus === 'attention'
-          ? 'May napansing kondisyon na kailangan bantayan. Obserbahan ang pagkain, galaw, at kalusugan.'
-          : healthStatus === 'monitor'
-          ? 'Obserbahan ang hayop sa susunod na 24–48 oras.'
-          : 'Normal at malusog ang kalagayan ng hayop.'
-      );
-
       const notesLines: string[] = [];
-      notesLines.push(`[Camera Scan: ${speciesTagalog.toUpperCase()}]`);
+      notesLines.push(`[Camera Visual Screening: ${speciesTagalog.toUpperCase()}]`);
       if (detectedAnimalMatch) {
         notesLines.push(
-          `Hayop: ${detectedAnimalMatch.name || detectedAnimalMatch.tag_id} (${detectedAnimalMatch.tag_id})`
+          `Hayop: ${detectedAnimalMatch.species === 'Sheep' ? 'Tupa' : 'Kambing'} — ${detectedAnimalMatch.tag_id}${detectedAnimalMatch.name && detectedAnimalMatch.name !== detectedAnimalMatch.tag_id ? ` (${detectedAnimalMatch.name})` : ''}`
         );
       }
-      notesLines.push(`Napansin: ${visualObservations.join(', ')}`);
-      notesLines.push(`Gawin: ${rec}`);
-      notesLines.push('Temperatura: Hindi nasukat (walang thermometer sensor)');
+      notesLines.push(`Kalagayan: ${healthStatusLabel}`);
+      notesLines.push(`Paliwanag: ${conditionSummary}`);
+      notesLines.push(`Napansin: ${visualObservations.join(' | ')}`);
+      notesLines.push(`Gawin: ${action}`);
+      notesLines.push('Temperatura: Hindi nasukat (walang sensor ang ordinaryong camera)');
 
       const result: HealthScanResult = {
         detectedSpecies,
         speciesLabelTagalog: speciesTagalog,
         matchedAnimal: detectedAnimalMatch,
+        condition,
+        conditionSummary,
+        structuredObservations,
         visualObservations,
         suggestedConditions,
         healthStatus,
         healthStatusLabel,
-        recommendation: rec,
+        recommendation: action,
+        limitations,
         temperatureDisplay: 'Hindi nasukat', // ZERO fake vitals
         notesSnippet: notesLines.join('\n'),
         capturedImageUrl: snapshotUrl,
@@ -903,9 +930,15 @@ export function CameraFirstHealthModal({
       }
 
       const reasonsSummary = scanResult.visualObservations.join('; ');
-      const finalNotes = (notes.trim() || scanResult.notesSnippet).trim();
+      const notesParts = [notes.trim() || scanResult.notesSnippet];
+      if (medName) {
+        notesParts.push(`Gamot/Lunas: ${medName}`);
+      }
+      const finalNotes = notesParts.filter(Boolean).join('\n');
 
       // 1. Insert into health_records
+      // NOTE: health_records table does NOT have a 'medication' column.
+      // Medication information is appended to notes.
       const healthPayload = {
         user_id: currentUserId,
         animal_id: selectedAnimal.id,
@@ -930,7 +963,6 @@ export function CameraFirstHealthModal({
         reasons: reasonsSummary,
         recommendation: scanResult.recommendation,
         detected_conditions: scanResult.suggestedConditions.join('; ') || null,
-        medication: medName,
         notes: finalNotes,
       };
 
@@ -1544,60 +1576,80 @@ export function CameraFirstHealthModal({
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
               }}
             >
-              {/* Result Header with Status Badge */}
+              {/* Result Header & Kalagayan */}
               <div
                 style={{
+                  background: 'var(--surface-sunken)',
+                  padding: '14px',
+                  borderRadius: 12,
+                  border: '1px solid var(--border)',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  borderBottom: '1px solid var(--border)',
-                  paddingBottom: 10,
+                  flexDirection: 'column',
+                  gap: 10,
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Resulta ng Health Check
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>
-                    Kalagayan:
-                  </div>
-                </div>
-
-                <span
+                <div
                   style={{
-                    fontSize: 13,
-                    fontWeight: 800,
-                    padding: '4px 12px',
-                    borderRadius: 8,
-                    background:
-                      scanResult.healthStatus === 'healthy'
-                        ? 'rgba(22, 163, 74, 0.12)'
-                        : scanResult.healthStatus === 'monitor'
-                        ? 'rgba(217, 119, 6, 0.12)'
-                        : scanResult.healthStatus === 'attention'
-                        ? 'rgba(234, 88, 12, 0.12)'
-                        : 'rgba(220, 38, 38, 0.12)',
-                    color:
-                      scanResult.healthStatus === 'healthy'
-                        ? '#16A34A'
-                        : scanResult.healthStatus === 'monitor'
-                        ? '#D97706'
-                        : scanResult.healthStatus === 'attention'
-                        ? '#EA580C'
-                        : '#DC2626',
-                    border: `1px solid ${
-                      scanResult.healthStatus === 'healthy'
-                        ? 'rgba(22, 163, 74, 0.25)'
-                        : scanResult.healthStatus === 'monitor'
-                        ? 'rgba(217, 119, 6, 0.25)'
-                        : scanResult.healthStatus === 'attention'
-                        ? 'rgba(234, 88, 12, 0.25)'
-                        : 'rgba(220, 38, 38, 0.25)'
-                    }`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 8,
                   }}
                 >
-                  ● {scanResult.healthStatusLabel}
-                </span>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Kalagayan
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 800,
+                      padding: '4px 12px',
+                      borderRadius: 8,
+                      background:
+                        scanResult.healthStatus === 'healthy'
+                          ? 'rgba(22, 163, 74, 0.12)'
+                          : scanResult.healthStatus === 'monitor'
+                          ? 'rgba(217, 119, 6, 0.12)'
+                          : scanResult.healthStatus === 'attention'
+                          ? 'rgba(234, 88, 12, 0.12)'
+                          : 'rgba(220, 38, 38, 0.12)',
+                      color:
+                        scanResult.healthStatus === 'healthy'
+                          ? '#16A34A'
+                          : scanResult.healthStatus === 'monitor'
+                          ? '#D97706'
+                          : scanResult.healthStatus === 'attention'
+                          ? '#EA580C'
+                          : '#DC2626',
+                      border: `1px solid ${
+                        scanResult.healthStatus === 'healthy'
+                          ? 'rgba(22, 163, 74, 0.25)'
+                          : scanResult.healthStatus === 'monitor'
+                          ? 'rgba(217, 119, 6, 0.25)'
+                          : scanResult.healthStatus === 'attention'
+                          ? 'rgba(234, 88, 12, 0.25)'
+                          : 'rgba(220, 38, 38, 0.25)'
+                      }`,
+                    }}
+                  >
+                    ● {scanResult.healthStatusLabel}
+                  </span>
+                </div>
+
+                {/* Kalagayan Explanation Sentence */}
+                <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, fontWeight: 500 }}>
+                  {scanResult.conditionSummary || (
+                    scanResult.healthStatus === 'monitor'
+                      ? 'Bantayan — may ilang nakikitang bagay sa itsura ng hayop na kailangan obserbahan.'
+                      : scanResult.healthStatus === 'attention'
+                      ? 'Kailangan ng Atensyon — may nakitang senyales na dapat masusing obserbahan at kung kinakailangan ay ipasuri sa beterinaryo.'
+                      : scanResult.healthStatus === 'medication'
+                      ? 'Kailangan ng Gamot — may nakitang senyales na nangangailangan ng gamot o pagsusuri ng beterinaryo.'
+                      : 'Maayos — walang malinaw na nakitang kakaibang senyales sa larawan.'
+                  )}
+                </div>
               </div>
 
               {/* Animal Tag & Name Identification */}
@@ -1629,7 +1681,7 @@ export function CameraFirstHealthModal({
                           color: '#16A34A',
                         }}
                       >
-                        Natukoy na Hayop
+                        Sini-screen na Hayop
                       </span>
                     </div>
 
@@ -1684,27 +1736,68 @@ export function CameraFirstHealthModal({
                 )}
               </div>
 
-              {/* Napansin (Bulleted Observations) */}
-              <div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+              {/* Napansin (Bulleted Observations with bold categories) */}
+              <div
+                style={{
+                  background: 'var(--surface-sunken)',
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Napansin:
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {scanResult.visualObservations.map((obs, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        fontSize: 13,
-                        color: 'var(--text)',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 6,
-                      }}
-                    >
-                      <span style={{ color: '#16A34A', fontWeight: 800 }}>•</span>
-                      <span>{obs}</span>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {scanResult.structuredObservations && scanResult.structuredObservations.length > 0 ? (
+                    scanResult.structuredObservations.map((obs, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          fontSize: 13,
+                          color: 'var(--text)',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 8,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        <span style={{ color: '#16A34A', fontWeight: 800 }}>•</span>
+                        <div>
+                          <strong style={{ color: 'var(--text)', fontWeight: 700 }}>{obs.category}:</strong>{' '}
+                          <span style={{ color: obs.finding.toLowerCase().includes('hindi matiyak') ? 'var(--text-secondary)' : 'var(--text)' }}>
+                            {obs.finding}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    scanResult.visualObservations.map((obs, idx) => {
+                      const parts = obs.split(/[:—–-]\s*/);
+                      const hasCategory = parts.length > 1;
+                      const cat = hasCategory ? parts[0].trim() : null;
+                      const text = hasCategory ? parts.slice(1).join(' — ').trim() : obs;
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            fontSize: 13,
+                            color: 'var(--text)',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 8,
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          <span style={{ color: '#16A34A', fontWeight: 800 }}>•</span>
+                          <div>
+                            {cat ? <strong style={{ color: 'var(--text)', fontWeight: 700 }}>{cat}: </strong> : null}
+                            <span>{text}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
@@ -1712,35 +1805,44 @@ export function CameraFirstHealthModal({
               <div
                 style={{
                   background: 'var(--surface-sunken)',
-                  padding: '10px 14px',
+                  padding: '12px 14px',
                   borderRadius: 10,
                   border: '1px solid var(--border)',
                 }}
               >
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   Gawin:
                 </span>
-                <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.45 }}>
+                <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, fontWeight: 500 }}>
                   {scanResult.recommendation}
                 </div>
               </div>
 
-              {/* Temperatura: Strictly "Hindi nasukat" */}
+              {/* Paalala & Temperatura (Screening limits) */}
               <div
                 style={{
+                  background: 'rgba(59, 130, 246, 0.06)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: 10,
+                  padding: '10px 14px',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'var(--surface-sunken)',
-                  padding: '8px 12px',
-                  borderRadius: 8,
+                  flexDirection: 'column',
+                  gap: 4,
                   fontSize: 12,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.45,
                 }}
               >
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Temperatura:</span>
-                <span style={{ fontWeight: 700, color: 'var(--text)' }}>
-                  {scanResult.temperatureDisplay}
-                </span>
+                <div style={{ fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <Info size={14} style={{ color: '#2563EB', flexShrink: 0 }} />
+                  <span>Mahalagang Paalala:</span>
+                </div>
+                <div>
+                  • <strong>Temperatura: Hindi nasukat</strong> — ang karaniwang RGB camera ay walang thermal sensor at hindi nakakasukat ng temperatura ng katawan.
+                </div>
+                <div>
+                  • Ang resulta ay <strong>visual screening lamang</strong> at hindi nito mapapalitan ang pormal na pagsusuri ng lisensyadong beterinaryo.
+                </div>
               </div>
 
               {/* Optional: Gamot mula sa Imbentaryo if Kailangan ng Gamot */}

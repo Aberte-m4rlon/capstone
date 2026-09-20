@@ -259,7 +259,13 @@ export function InlineAnimalCameraScanner({
       let geminiStatus: 'healthy' | 'monitor' | 'attention' = 'healthy';
 
       try {
-        const geminiRes = await scanAnimalWithGemini(frameCanvas, { context: 'health_scan' });
+        const geminiRes = await scanAnimalWithGemini(frameCanvas, {
+          context: 'health_scan',
+          animalId: matchedAnimal?.id,
+          animalTag: matchedAnimal?.tag_id,
+          animalName: matchedAnimal?.name,
+          animalType: matchedAnimal?.species?.toLowerCase() === 'sheep' ? 'sheep' : 'goat',
+        });
         if (geminiRes.detected && geminiRes.animals && geminiRes.animals.length > 0) {
           const primary = geminiRes.animals[0];
           geminiObservations = primary.visualObservations || [];
