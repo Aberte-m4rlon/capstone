@@ -330,23 +330,51 @@ export function verifyLivestockSpeciesFromCrop(
     const cropW = Math.max(10, Math.min(vW - cropX, Math.floor(box.width * vW)));
     const cropH = Math.max(10, Math.min(vH - cropY, Math.floor(box.height * vH)));
 
+    // Preserve true aspect ratio of the livestock crop
+    const targetW = 128;
+    const targetH = Math.max(32, Math.min(256, Math.round(128 * (cropH / cropW))));
+
     if (!_cropCanvas) {
       _cropCanvas = document.createElement('canvas');
-      _cropCanvas.width = 128;
-      _cropCanvas.height = 128;
+      _cropCanvas.width = targetW;
+      _cropCanvas.height = targetH;
+      _cropCtx = _cropCanvas.getContext('2d', { willReadFrequently: true });
+    } else if (_cropCanvas.width !== targetW || _cropCanvas.height !== targetH) {
+      _cropCanvas.width = targetW;
+      _cropCanvas.height = targetH;
       _cropCtx = _cropCanvas.getContext('2d', { willReadFrequently: true });
     }
+
     if (_cropCtx) {
-      _cropCtx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, 128, 128);
+      _cropCtx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, targetW, targetH);
       const features = extractMultiAngleFeatures(_cropCanvas);
       const angleResult = classifyLivestockAngle(features);
-      if (angleResult && angleResult.species === 'sheep') {
-        return {
-          species: 'sheep',
-          confidence: Math.max(0.75, angleResult.confidence),
-          label: 'TUPA',
-          type: 'SHEEP',
-        };
+
+      if (angleResult && angleResult.angleScores) {
+        let bestGoatScore = 0;
+        let bestSheepScore = 0;
+        for (const [key, score] of Object.entries(angleResult.angleScores)) {
+          if (key.startsWith('goat_') && score > bestGoatScore) bestGoatScore = score;
+          if (key.startsWith('sheep_') && score > bestSheepScore) bestSheepScore = score;
+        }
+
+        // MediaPipe lacks a goat class (COCO 80 only has class 18: sheep).
+        // It systematically misidentifies goats as sheep.
+        // We ONLY classify as sheep (TUPA) if there is overwhelming fleece evidence
+        // (bestSheepScore > bestGoatScore + 0.12 and fleece whiteness feature >= 0.55).
+        const fleeceWhiteness = features[72] || 0;
+        if (
+          bestSheepScore > bestGoatScore + 0.12 &&
+          bestSheepScore >= 0.80 &&
+          fleeceWhiteness >= 0.55
+        ) {
+          return {
+            species: 'sheep',
+            confidence: Math.max(0.78, angleResult.confidence),
+            label: 'TUPA',
+            type: 'SHEEP',
+          };
+        }
       }
     }
   } catch (e) {
@@ -712,8 +740,8 @@ function applyTemporalStabilityAndQuality(
     });
   }
 
-  // 5. Generate Farmer-Facing Status Message (Requirement 12)
-  let overallStatusMessage = 'Handa na ang camera • Ilagay ang kambing o tupa sa loob ng frame.';
+  // 5. Generate Farmer-Facing Status Message (Directive K)
+  let overallStatusMessage = 'Naghahanap ng kambing o tupa...';
   const goats = stableDetections.filter((d) => d.type === 'GOAT');
   const sheep = stableDetections.filter((d) => d.type === 'SHEEP');
   const uncertains = stableDetections.filter((d) => d.type === 'UNCERTAIN');
@@ -727,25 +755,23 @@ function applyTemporalStabilityAndQuality(
   } else if (detectedQualityIssue === 'occluded' && totalLivestock > 0) {
     overallStatusMessage = 'Hindi malinaw ang buong kambing o tupa. Ilipat nang kaunti ang camera.';
   } else if (uncertains.length > 0) {
-    overallStatusMessage = 'Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.';
+    overallStatusMessage = 'Hindi matukoy ang hayop.';
   } else if (goats.length > 0 && sheep.length > 0) {
-    // Both goat and sheep detected (Requirement 12)
     overallStatusMessage = 'May kambing at tupa na nakita. Piliin kung alin ang gusto mong i-scan.';
   } else if (totalLivestock > 1) {
-    // Multiple of same species
     overallStatusMessage = goats.length > 1
-      ? 'May mga kambing na nakita. Piliin ang kambing na gusto mong i-scan.'
-      : 'May mga tupa na nakita. Piliin ang tupa na gusto mong i-scan.';
+      ? `${goats.length} kambing ang nakita. Piliin ang i-scan.`
+      : `${sheep.length} tupa ang nakita. Piliin ang i-scan.`;
   } else if (goats.length === 1 && sheep.length === 0) {
-    overallStatusMessage = 'KAMBING: Handa nang i-scan • Manatiling nakatutok...';
+    overallStatusMessage = 'Kambing na-detect.';
   } else if (sheep.length === 1 && goats.length === 0) {
-    overallStatusMessage = 'TUPA: Handa nang i-scan • Manatiling nakatutok...';
+    overallStatusMessage = 'Tupa na-detect.';
   } else if (persons.length > 0 && totalLivestock === 0) {
-    overallStatusMessage = 'TAO — Hindi ito kambing o tupa';
+    overallStatusMessage = 'May taong nakita. Itutok ang camera sa kambing o tupa.';
   } else if (stableDetections.length > 0) {
-    overallStatusMessage = `${stableDetections[0].label} — Hindi ito kambing o tupa`;
+    overallStatusMessage = 'Hindi matukoy ang hayop.';
   } else {
-    overallStatusMessage = 'Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa kambing o tupa at subukan muli.';
+    overallStatusMessage = 'Naghahanap ng kambing o tupa...';
   }
 
   return {

@@ -673,13 +673,23 @@ export function renderTrackedAnimalsToCanvas(
         labelText = 'TAO';
       }
     } else if (isSelected) {
-      labelText = isGoat ? '✓ NAPILING KAMBING' : '✓ NAPILING TUPA';
+      if (isGoat) {
+        labelText = '✓ NAPILING KAMBING';
+      } else if (isSheep) {
+        labelText = '✓ NAPILING TUPA';
+      } else {
+        labelText = '✓ NAPILING HAYOP';
+      }
     } else {
       const sameSpeciesCount = tracks.filter((t) => t.species === track.species).length;
       if (sameSpeciesCount > 1 && track.displayNumber > 0) {
-        labelText = isGoat ? `KAMBING #${track.displayNumber}` : `TUPA #${track.displayNumber}`;
+        if (isGoat) labelText = `KAMBING #${track.displayNumber}`;
+        else if (isSheep) labelText = `TUPA #${track.displayNumber}`;
+        else labelText = `HAYOP #${track.displayNumber}`;
       } else {
-        labelText = isGoat ? 'KAMBING' : 'TUPA';
+        if (isGoat) labelText = 'KAMBING';
+        else if (isSheep) labelText = 'TUPA';
+        else labelText = 'HAYOP';
       }
     }
 
