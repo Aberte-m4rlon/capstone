@@ -83,7 +83,7 @@ const GOAT_ONNX_MODEL_URL = '/models/goat_yolov8n.onnx';
 
 // Thresholds for genuine classes
 export const CONFIDENCE_THRESHOLDS = {
-  GOAT: 0.25,         // Specialized YOLOv8 Nano model threshold (empirically tuned for angled/frontal goats)
+  GOAT: 0.12,         // Lower gate so valid goats are not lost before sheep verification can run
   SHEEP: 0.35,        // MediaPipe genuine sheep threshold
   PERSON: 0.38,       // MediaPipe genuine human threshold
   OTHER_ANIMAL: 0.50, // Domestic animals (ASO, PUSA) only if genuine
@@ -356,19 +356,32 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
 
   _isYoloInferencing = true;
   try {
-    if (!_offscreenCanvas) {
+    const vW = video.videoWidth || 640;
+    const vH = video.videoHeight || 480;
+
+    // Match the ONNX model's real input size instead of assuming 416x416.
+    const inputMeta = (_yoloSession as any)?.inputMetadata?.[_yoloSession!.inputNames[0]];
+    const inputDims = inputMeta?.dimensions;
+    const declaredHeight = Number(inputDims?.[2]);
+    const declaredWidth = Number(inputDims?.[3]);
+    const targetSize =
+      Number.isFinite(declaredWidth) && declaredWidth > 0 &&
+      Number.isFinite(declaredHeight) && declaredHeight > 0 &&
+      declaredWidth === declaredHeight
+        ? declaredWidth
+        : 640;
+
+    if (!_offscreenCanvas || _offscreenCanvas.width !== targetSize || _offscreenCanvas.height !== targetSize) {
       _offscreenCanvas = document.createElement('canvas');
-      _offscreenCanvas.width = 416;
-      _offscreenCanvas.height = 416;
+      _offscreenCanvas.width = targetSize;
+      _offscreenCanvas.height = targetSize;
       _offscreenCtx = _offscreenCanvas.getContext('2d', { willReadFrequently: true });
     }
 
     const ctx = _offscreenCtx;
     if (!ctx) return [];
 
-    const vW = video.videoWidth || 640;
-    const vH = video.videoHeight || 480;
-    const targetSize = 416;
+    console.log('[Detector] Goat ONNX input: ' + targetSize + 'x' + targetSize);
     const scale = Math.min(targetSize / vW, targetSize / vH);
     const scaledW = Math.round(vW * scale);
     const scaledH = Math.round(vH * scale);
@@ -382,8 +395,8 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     const imgData = ctx.getImageData(0, 0, targetSize, targetSize);
     const data = imgData.data;
 
-    // Convert RGBA uint8 to planar RGB Float32Array [1, 3, 416, 416] and compute frame brightness
-    const pixels = 416 * 416;
+    // Convert RGBA uint8 to planar RGB Float32Array [1, 3, targetSize, targetSize]
+    const pixels = targetSize * targetSize;
     const float32 = new Float32Array(3 * pixels);
     const rOffset = 0;
     const gOffset = pixels;
@@ -413,7 +426,7 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
       _lastFrameLuma = totalLuma / sampleCount;
     }
 
-    const inputTensor = new ort.Tensor('float32', float32, [1, 3, 416, 416]);
+    const inputTensor = new ort.Tensor('float32', float32, [1, 3, targetSize, targetSize]);
     const feeds: Record<string, ort.Tensor> = {};
     feeds[_yoloSession.inputNames[0]] = inputTensor;
 
@@ -421,11 +434,22 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     const output = results[_yoloSession.outputNames[0]];
     const outData = output.data as Float32Array;
 
-    // Output shape: [1, 5, 3549] (cx, cy, w, h, goat_score)
-    const numAnchors = output.dims[2] || 3549;
+    // Standard Ultralytics detect output is [1, 4 + classes, anchors].
+    // The dedicated goat model must expose only one or two livestock classes.
+    // Reject incompatible COCO/anatomical models instead of treating class 0 as GOAT.
+    const dims = Array.from(output.dims || []);
+    const outputChannels = dims.length >= 3 ? Number(dims[1]) : 0;
+    const numAnchors = dims.length >= 3 ? Number(dims[2]) : 0;
+
+    if (outputChannels < 5 || numAnchors <= 0 || outputChannels > 6) {
+      console.warn('[Detector] Goat ONNX output is incompatible with the dedicated goat detector:', dims);
+      return [];
+    }
+
     const candidates: Array<{ box: BoundingBox; score: number; label: LiveTargetLabel; type: LiveTargetType }> = [];
 
     for (let a = 0; a < numAnchors; a++) {
+      // Class 0 is GOAT for the supported one-class/two-class model layouts.
       const score = outData[4 * numAnchors + a];
       if (score < CONFIDENCE_THRESHOLDS.GOAT) continue;
 
