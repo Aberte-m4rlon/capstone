@@ -154,40 +154,160 @@ export async function optimizeImageForAI(
 }
 
 /**
+ * Convert bounding box between video frame space and object-fit: cover viewport space,
+ * or vice versa.
+ */
+export function mapBoundingBoxWithObjectFitCover(
+  box: BoundingBox,
+  videoWidth: number,
+  videoHeight: number,
+  containerWidth: number,
+  containerHeight: number,
+  from: 'video_to_container' | 'container_to_video' = 'video_to_container'
+): BoundingBox {
+  if (!videoWidth || !videoHeight || !containerWidth || !containerHeight) {
+    return { ...box };
+  }
+
+  let scale = 1;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  if (containerWidth / containerHeight > videoWidth / videoHeight) {
+    scale = containerWidth / videoWidth;
+    offsetY = (containerHeight - videoHeight * scale) / 2;
+  } else {
+    scale = containerHeight / videoHeight;
+    offsetX = (containerWidth - videoWidth * scale) / 2;
+  }
+
+  if (from === 'video_to_container') {
+    const vidX = box.x * videoWidth;
+    const vidY = box.y * videoHeight;
+    const vidW = box.width * videoWidth;
+    const vidH = box.height * videoHeight;
+
+    const cx = vidX * scale + offsetX;
+    const cy = vidY * scale + offsetY;
+    const cw = vidW * scale;
+    const ch = vidH * scale;
+
+    return {
+      x: cx / containerWidth,
+      y: cy / containerHeight,
+      width: cw / containerWidth,
+      height: ch / containerHeight,
+    };
+  } else {
+    const cx = box.x * containerWidth;
+    const cy = box.y * containerHeight;
+    const cw = box.width * containerWidth;
+    const ch = box.height * containerHeight;
+
+    const vidX = (cx - offsetX) / scale;
+    const vidY = (cy - offsetY) / scale;
+    const vidW = cw / scale;
+    const vidH = ch / scale;
+
+    return {
+      x: Math.max(0, Math.min(1, vidX / videoWidth)),
+      y: Math.max(0, Math.min(1, vidY / videoHeight)),
+      width: Math.max(0, Math.min(1, vidW / videoWidth)),
+      height: Math.max(0, Math.min(1, vidH / videoHeight)),
+    };
+  }
+}
+
+export interface CropBoundingBoxOptions {
+  paddingFactor?: number;
+  videoWidth?: number;
+  videoHeight?: number;
+  containerWidth?: number;
+  containerHeight?: number;
+  isContainerCoords?: boolean;
+  minDimension?: number;
+}
+
+/**
  * Crop a canvas to a specific normalized bounding box with padding.
  * Isolates the selected animal from background animals/objects for focused health screening.
+ * 
+ * Complies with:
+ * - Convert normalized coordinates to actual canvas coordinates
+ * - Account for object-fit: cover
+ * - Add a small safe padding around the box (default 15%)
+ * - Clamp coordinates to image boundaries
+ * - Crop the selected animal
+ * - Preserve enough context (head, ears, body, hooves) to identify the animal
  */
 export function cropCanvasToBoundingBox(
   sourceCanvas: HTMLCanvasElement,
   bbox: { x: number; y: number; width: number; height: number },
-  paddingFactor = 0.12
+  paddingOrOptions: number | CropBoundingBoxOptions = 0.15,
+  legacyOptions?: CropBoundingBoxOptions
 ): HTMLCanvasElement {
   const sw = sourceCanvas.width;
   const sh = sourceCanvas.height;
 
+  const options: CropBoundingBoxOptions =
+    typeof paddingOrOptions === 'number'
+      ? { paddingFactor: paddingOrOptions, ...(legacyOptions || {}) }
+      : paddingOrOptions || {};
+
+  const paddingFactor = options.paddingFactor ?? 0.15;
+  const minDimension = options.minDimension ?? 50;
+
+  let effectiveBox: BoundingBox = {
+    x: bbox.x,
+    y: bbox.y,
+    width: bbox.width,
+    height: bbox.height,
+  };
+
   // Normalize if coordinates are on 0..1000 scale
-  let nx = bbox.x > 1 ? bbox.x / 1000 : bbox.x;
-  let ny = bbox.y > 1 ? bbox.y / 1000 : bbox.y;
-  let nw = bbox.width > 1 ? bbox.width / 1000 : bbox.width;
-  let nh = bbox.height > 1 ? bbox.height / 1000 : bbox.height;
+  if (effectiveBox.x > 1 || effectiveBox.y > 1 || effectiveBox.width > 1 || effectiveBox.height > 1) {
+    effectiveBox.x = effectiveBox.x / 1000;
+    effectiveBox.y = effectiveBox.y / 1000;
+    effectiveBox.width = effectiveBox.width / 1000;
+    effectiveBox.height = effectiveBox.height / 1000;
+  }
 
-  // Convert normalized to pixels
-  const rawX = nx * sw;
-  const rawY = ny * sh;
-  const rawW = nw * sw;
-  const rawH = nh * sh;
+  // Account for object-fit: cover if coordinates originated from container overlay
+  if (
+    options.isContainerCoords &&
+    options.videoWidth &&
+    options.videoHeight &&
+    options.containerWidth &&
+    options.containerHeight
+  ) {
+    effectiveBox = mapBoundingBoxWithObjectFitCover(
+      effectiveBox,
+      options.videoWidth,
+      options.videoHeight,
+      options.containerWidth,
+      options.containerHeight,
+      'container_to_video'
+    );
+  }
 
-  // Add padding margin around animal
+  // Convert normalized coordinates to actual canvas pixel coordinates
+  const rawX = effectiveBox.x * sw;
+  const rawY = effectiveBox.y * sh;
+  const rawW = effectiveBox.width * sw;
+  const rawH = effectiveBox.height * sh;
+
+  // Add safe padding margin around the animal to retain context
   const padX = rawW * paddingFactor;
   const padY = rawH * paddingFactor;
 
+  // Clamp coordinates firmly to image boundaries
   const cropX = Math.max(0, Math.floor(rawX - padX));
   const cropY = Math.max(0, Math.floor(rawY - padY));
   const cropW = Math.min(sw - cropX, Math.ceil(rawW + padX * 2));
   const cropH = Math.min(sh - cropY, Math.ceil(rawH + padY * 2));
 
-  // If crop is too small or invalid, return original canvas
-  if (cropW < 50 || cropH < 50) {
+  // If crop is too small or degenerate, return original canvas safely
+  if (cropW < minDimension || cropH < minDimension) {
     return sourceCanvas;
   }
 

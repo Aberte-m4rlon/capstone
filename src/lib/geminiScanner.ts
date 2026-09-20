@@ -15,6 +15,7 @@ import {
   captureLowResFrame,
   cropCanvasToBoundingBox,
   BoundingBox,
+  CropBoundingBoxOptions,
   LiveDetectedObject,
   LiveObjectDetectionResult,
   LiveTargetType,
@@ -29,6 +30,7 @@ export {
 
 export type {
   BoundingBox,
+  CropBoundingBoxOptions,
   LiveDetectedObject,
   LiveObjectDetectionResult,
   LiveTargetType,
@@ -316,6 +318,7 @@ export async function scanAnimalWithGemini(
     farmId?: string;
     animalType?: 'goat' | 'sheep';
     targetBoundingBox?: BoundingBox;
+    cropOptions?: CropBoundingBoxOptions;
   },
 ): Promise<GeminiScanResult> {
   const now = Date.now();
@@ -333,7 +336,11 @@ export async function scanAnimalWithGemini(
   try {
     let scanInput = input;
     if (input instanceof HTMLCanvasElement && options?.targetBoundingBox) {
-      scanInput = cropCanvasToBoundingBox(input, options.targetBoundingBox);
+      scanInput = cropCanvasToBoundingBox(
+        input,
+        options.targetBoundingBox,
+        options.cropOptions || 0.15
+      );
     }
     const optimizedDataUrl = await optimizeImageForAI(scanInput, 1280, 0.85);
 

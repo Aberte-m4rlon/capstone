@@ -34,6 +34,7 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from '../../ui/Modal';
 import {
   captureVideoFrame,
   captureLowResFrame,
+  cropCanvasToBoundingBox,
   renderLiveDetectionsToCanvas,
   type LiveDetectedObject,
 } from '../../../lib/cameraUtils';
@@ -80,6 +81,7 @@ export interface HealthScanResult {
   temperatureDisplay: string;
   notesSnippet: string;
   capturedImageUrl?: string;
+  croppedImageUrl?: string;
   scannedAt: string;
 }
 
@@ -400,14 +402,7 @@ export function CameraFirstHealthModal({
         setAutoCaptureStatus('idle');
         const activeTarget = targetLivestock[currentSelectedIdx] || targetLivestock[0];
         setCameraState(activeTarget.type === 'SHEEP' ? 'SHEEP_DETECTED' : 'GOAT_DETECTED');
-
-        if (goats.length > 0 && sheep.length > 0) {
-          setLiveStatusText('May kambing at tupa na nakita. Piliin ang susuriin.');
-        } else if (goats.length > 1) {
-          setLiveStatusText('May mga kambing na nakita. Piliin ang susuriin.');
-        } else {
-          setLiveStatusText('May mga tupa na nakita. Piliin ang susuriin.');
-        }
+        setLiveStatusText('Maraming hayop ang nakita. Piliin kung alin ang susuriin.');
       } else if (totalLivestock === 1) {
         setMultipleAnimalsDetected(false);
         const singleTarget = targetLivestock[0];
@@ -664,14 +659,29 @@ export function CameraFirstHealthModal({
       const frameCanvas = captureVideoFrame(video);
       const snapshotUrl = frameCanvas.toDataURL('image/jpeg', 0.85);
 
+      // Crop the selected animal from the full camera frame (Requirements 3 & 4)
+      const targetBoundingBox = currentSelectedTarget.boundingBox;
+      const croppedAnimalCanvas = cropCanvasToBoundingBox(
+        frameCanvas,
+        targetBoundingBox,
+        0.15,
+        {
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          containerWidth: overlayCanvasRef.current?.clientWidth || video.clientWidth,
+          containerHeight: overlayCanvasRef.current?.clientHeight || video.clientHeight,
+        }
+      );
+      const croppedSnapshotUrl = croppedAnimalCanvas.toDataURL('image/jpeg', 0.85);
+
       // Call Google Gemini Vision API via serverless backend (/api/gemini/animal-scan)
-      const geminiRes = await scanAnimalWithGemini(frameCanvas, {
+      // Send ONLY the cropped animal to ensure Gemini analyzes the selected animal and nothing else!
+      const geminiRes = await scanAnimalWithGemini(croppedAnimalCanvas, {
         context: 'health_scan',
         animalId: selectedAnimal?.id || selectedAnimalId,
         animalTag: selectedAnimal?.tag_id,
         animalName: selectedAnimal?.name,
         animalType: targetSpecies,
-        targetBoundingBox: currentSelectedTarget.boundingBox,
       });
 
       const raw = geminiRes.rawResponse as any;
@@ -791,6 +801,7 @@ export function CameraFirstHealthModal({
         temperatureDisplay: 'Hindi nasukat', // ZERO fake vitals
         notesSnippet: notesLines.join('\n'),
         capturedImageUrl: snapshotUrl,
+        croppedImageUrl: croppedSnapshotUrl,
         scannedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
@@ -1290,35 +1301,8 @@ export function CameraFirstHealthModal({
               </div>
             )}
 
-            {/* Multiple Animals Detected Warning Banner */}
-            {multipleAnimalsDetected && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 10,
-                  left: 10,
-                  right: 54,
-                  background: 'rgba(217, 119, 6, 0.95)',
-                  backdropFilter: 'blur(6px)',
-                  color: '#FFFFFF',
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-                  zIndex: 12,
-                }}
-              >
-                <AlertTriangle size={14} color="#FFFFFF" />
-                <span>Maraming hayop ang nakita. Piliin ang hayop na susuriin.</span>
-              </div>
-            )}
-
-                {/* Live Status Pill at Bottom of Viewport */}
-                <div
+            {/* Single inline camera status pill at bottom of viewport */}
+            <div
                   style={{
                     position: 'absolute',
                     bottom: 10,
@@ -1403,24 +1387,34 @@ export function CameraFirstHealthModal({
                 )}
           </div>
 
-          {/* Target Livestock Selector Chips (Requirement 10 & 20) */}
+          {/* Target Livestock Selector (Requirement 2: Clean up Animal Selection) */}
           {validLivestock.length > 1 && !scanResult && (
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 12px',
-                background: 'rgba(22, 163, 74, 0.08)',
-                border: '1.5px solid rgba(22, 163, 74, 0.25)',
-                borderRadius: 12,
+                flexDirection: 'column',
                 gap: 8,
+                padding: '10px 14px',
+                background: 'var(--surface-sunken, #F8FAFC)',
+                border: '1.5px solid var(--border, rgba(0,0,0,0.1))',
+                borderRadius: 12,
               }}
             >
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Piliin ang Hayop na I-scan:
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Mga Hayop na Nakita
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {validLivestock.length} nakita • Piliin ang susuriin
+                </span>
               </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {validLivestock.map((item, idx) => {
                   const isSelected = idx === selectedTargetIndex;
                   const isGoat = item.type === 'GOAT';
@@ -1445,21 +1439,41 @@ export function CameraFirstHealthModal({
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 5,
-                        padding: '5px 12px',
-                        borderRadius: 20,
-                        fontSize: 12,
+                        gap: 6,
+                        padding: '7px 14px',
+                        borderRadius: 10,
+                        fontSize: 13,
                         fontWeight: 700,
-                        border: isSelected ? '2px solid #16A34A' : '1px solid rgba(0,0,0,0.15)',
-                        background: isSelected ? '#16A34A' : 'var(--surface, #FFFFFF)',
-                        color: isSelected ? '#FFFFFF' : 'var(--text-primary)',
+                        border: isSelected
+                          ? '2px solid #16A34A'
+                          : '1.5px solid var(--border, rgba(0,0,0,0.15))',
+                        background: isSelected
+                          ? 'rgba(22, 163, 74, 0.12)'
+                          : 'var(--surface, #FFFFFF)',
+                        color: isSelected ? '#15803D' : 'var(--text-primary)',
                         cursor: 'pointer',
-                        boxShadow: isSelected ? '0 2px 8px rgba(22, 163, 74, 0.3)' : 'none',
+                        boxShadow: isSelected
+                          ? '0 2px 8px rgba(22, 163, 74, 0.2)'
+                          : 'none',
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      {isSelected && <CheckCircle2 size={13} color="#FFFFFF" />}
-                      <span>{isSelected ? `Napili: ${label}` : label}</span>
+                      {isSelected ? (
+                        <CheckCircle2 size={15} color="#16A34A" />
+                      ) : (
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: '#94A3B8',
+                          }}
+                        />
+                      )}
+                      <span>
+                        {label}
+                        {validLivestock.length > 2 ? ` #${idx + 1}` : ''}
+                      </span>
                     </button>
                   );
                 })}
@@ -1529,11 +1543,7 @@ export function CameraFirstHealthModal({
                   <>
                     <Camera size={18} />
                     <span>
-                      {validLivestock.length > 1
-                        ? `Suriin ang Napili (${(validLivestock[selectedTargetIndex] || validLivestock[0])?.type === 'SHEEP' ? 'Tupa' : 'Kambing'})`
-                        : validLivestock.length === 1
-                        ? (validLivestock[0]?.type === 'SHEEP' ? 'Suriin ang Tupa' : 'Suriin ang Kambing')
-                        : 'Suriin ang Hayop'}
+                      {`Suriin ang Napili (${(validLivestock[selectedTargetIndex] || validLivestock[0])?.type === 'SHEEP' ? 'Tupa' : 'Kambing'})`}
                     </span>
                   </>
                 )}
