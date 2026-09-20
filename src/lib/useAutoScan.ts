@@ -395,8 +395,8 @@ export function useAutoScan(options: {
         return;
       }
 
-      // ── Case 2: Non-Target (PERSON, OTHER_ANIMAL, OBJECT) in frame ─────────
-      const nonTarget = liveRes.detections.find(d => d.type === 'PERSON' || d.type === 'OTHER_ANIMAL' || d.type === 'OBJECT');
+      // ── Case 2: Non-Target (PERSON, OTHER, etc.) in frame ─────────
+      const nonTarget = liveRes.detections.find(d => d.type === 'PERSON' || d.type === 'OTHER' || (d.type as string) === 'OTHER_ANIMAL' || (d.type as string) === 'OBJECT');
       if (nonTarget) {
         const det: DetectionResult = {
           detected: false,

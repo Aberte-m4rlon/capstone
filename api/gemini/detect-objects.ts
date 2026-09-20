@@ -21,12 +21,15 @@ export interface BoundingBox {
   height: number;  // 0.0 to 1.0
 }
 
-export type TargetType = 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER_ANIMAL' | 'OBJECT';
-export type TargetLabel = 'KAMBING' | 'TUPA' | 'TAO' | 'HAYOP' | 'BAGAY';
+export type TargetType = 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER';
+export type TargetLabel = 'Kambing' | 'Tupa' | 'Tao' | 'Ibang Bagay';
+export type TargetSpecies = 'goat' | 'sheep' | 'person' | 'other';
 
 export interface ObjectDetectionItem {
   type: TargetType;
   label: TargetLabel;
+  species?: TargetSpecies;
+  confidence?: number;
   boundingBox: BoundingBox;
 }
 
@@ -40,42 +43,42 @@ export interface LiveObjectDetectionResponse {
   error?: string;
 }
 
-const SYSTEM_PROMPT = `You are an image detection system for a goat and sheep farm.
+const SYSTEM_PROMPT = `You are a strict object detector for a goat and sheep farm.
 
-Inspect the provided camera image carefully.
+Inspect the provided image carefully.
 
-Determine whether there are any visible:
-1. goats
-2. sheep
-3. people
-4. other animals/objects
+For EVERY detected object that is relevant to this camera scene, determine its specific category.
 
-A goat means an actual goat.
-A sheep means an actual sheep.
+Allowed categories:
+- goat
+- sheep
+- person
+- other
 
-Do not require the animal to be fully visible.
-A partially visible goat or sheep can still be detected if there is enough visual evidence.
+IMPORTANT:
+Only use "goat" when the object is visually an actual goat.
+Only use "sheep" when the object is visually an actual sheep.
+Use "person" only for a human person.
+Everything else must be classified as "other".
 
-If a goat is visible, return a goat detection.
-If a sheep is visible, return a sheep detection.
+Never use a generic category such as "animal".
+Do not classify a cat, dog, cow, horse, car, door, furniture, bag, machine, or other object as goat or sheep.
+If the object is not clearly identifiable as a goat or sheep, use "other".
 
-Do NOT classify a person, dog, cat, cow, or other object as a goat or sheep.
-If a person is visible, label as "person".
-If another animal (dog, cat, cow, horse, pig, bird) or prominent non-livestock object is visible, label as "other".
+For goat and sheep detections, provide an accurate bounding box around the actual animal.
 
-For every detected entity, return a bounding box covering the visible subject.
+If a person and a goat or sheep are both visible, return separate detections and separate boxes for each.
+If multiple goats or sheep are visible, return separate detections and separate boxes for each individual animal.
 
-Use normalized coordinates from 0 to 1:
-x = left (0.0 to 1.0)
-y = top (0.0 to 1.0)
-width = box width (0.0 to 1.0)
-height = box height (0.0 to 1.0)
+Use normalized coordinates [0.0 to 1.0]:
+x = left
+y = top
+width = box width
+height = box height
 
-If no goat, sheep, person, or other subject is visible (e.g. empty wall, empty room, blurry nothing), return an empty detections array: [].
+If no goat, sheep, person, or significant object is visible (e.g. empty wall, floor, blank room), return an empty detections array: [].
 
-Do not invent detections.
-
-Return only the required structured JSON.`;
+Return structured JSON only.`;
 
 // Clean, standard Gemini-compatible schema using Type enum with zero null types
 const RESPONSE_SCHEMA = {
@@ -88,7 +91,7 @@ const RESPONSE_SCHEMA = {
         properties: {
           label: {
             type: Type.STRING,
-            description: 'One of: goat, sheep, person, other',
+            description: 'Strictly one of: goat, sheep, person, other',
           },
           confidence: {
             type: Type.NUMBER,
@@ -118,68 +121,46 @@ const RESPONSE_SCHEMA = {
   required: ['detections'],
 };
 
-// Safe normalization function as specified in Requirement 8
-export function normalizeTarget(rawLabel: any, rawType?: any): { type: TargetType; label: TargetLabel; tagalog: string } {
-  const combined = `${rawLabel || ''} ${rawType || ''}`.trim().toLowerCase();
+// Safe, centralized normalization function as specified
+export function normalizeTarget(rawLabel: any, rawType?: any): { type: TargetType; label: TargetLabel; species: TargetSpecies; tagalog: string } {
+  const str = `${rawLabel || ''} ${rawType || ''}`.trim().toLowerCase();
+
+  // Explicit check: generic animal terms MUST NEVER map to goat or sheep
+  if (
+    /^(animal|hayop|mammal|livestock|farm animal|creature|object|bagay|other)$/.test(str)
+  ) {
+    return { type: 'OTHER', label: 'Ibang Bagay', species: 'other', tagalog: 'Ibang Bagay' };
+  }
 
   // 1. Goat checks (caprine)
   if (
-    combined.includes('goat') ||
-    combined.includes('kambing') ||
-    combined.includes('caprine') ||
-    combined.includes('billy') ||
-    combined.includes('nanny') ||
-    combined.includes('kid')
+    /\b(goat|goats|kambing|capra|caprine|billy|nanny|kid|buck|doe)\b/.test(str) &&
+    !/\b(not\s+goat|sheep|dog|cat|cow|person|human|other|ibang)\b/.test(str)
   ) {
-    return { type: 'GOAT', label: 'KAMBING', tagalog: 'Kambing' };
+    return { type: 'GOAT', label: 'Kambing', species: 'goat', tagalog: 'Kambing' };
   }
 
   // 2. Sheep checks (ovine)
   if (
-    combined.includes('sheep') ||
-    combined.includes('tupa') ||
-    combined.includes('ovine') ||
-    combined.includes('ram') ||
-    combined.includes('ewe') ||
-    combined.includes('lamb')
+    /\b(sheep|tupa|lamb|ram|ewe|ovis|ovine)\b/.test(str) &&
+    !/\b(not\s+sheep|goat|dog|cat|cow|person|human|other|ibang)\b/.test(str)
   ) {
-    return { type: 'SHEEP', label: 'TUPA', tagalog: 'Tupa' };
+    return { type: 'SHEEP', label: 'Tupa', species: 'sheep', tagalog: 'Tupa' };
   }
 
   // 3. Person checks
   if (
-    combined.includes('person') ||
-    combined.includes('people') ||
-    combined.includes('human') ||
-    combined.includes('man') ||
-    combined.includes('woman') ||
-    combined.includes('child') ||
-    combined.includes('farmer') ||
-    combined.includes('tao')
+    /\b(person|people|human|man|woman|child|farmer|tao)\b/.test(str) &&
+    !/\b(other|ibang)\b/.test(str)
   ) {
-    return { type: 'PERSON', label: 'TAO', tagalog: 'Tao' };
+    return { type: 'PERSON', label: 'Tao', species: 'person', tagalog: 'Tao' };
   }
 
-  // 4. Other animals (NEVER map cow/dog to goat)
-  if (
-    combined.includes('dog') ||
-    combined.includes('cat') ||
-    combined.includes('cow') ||
-    combined.includes('pig') ||
-    combined.includes('horse') ||
-    combined.includes('bird') ||
-    combined.includes('chicken') ||
-    combined.includes('aso') ||
-    combined.includes('pusa') ||
-    combined.includes('baka') ||
-    combined.includes('hayop') ||
-    combined.includes('other')
-  ) {
-    return { type: 'OTHER_ANIMAL', label: 'HAYOP', tagalog: 'Ibang Hayop' };
-  }
-
-  return { type: 'OBJECT', label: 'BAGAY', tagalog: 'Bagay' };
+  // 4. Everything else (cat, dog, cow, horse, pig, car, door, furniture, machine, etc.)
+  return { type: 'OTHER', label: 'Ibang Bagay', species: 'other', tagalog: 'Ibang Bagay' };
 }
+
+export const normalizeDetectionLabel = normalizeTarget;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS configuration
@@ -323,7 +304,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const sanitizedDetections: ObjectDetectionItem[] = rawList
         .filter((d: any) => d && typeof d === 'object')
         .map((d: any) => {
-          const { type, label } = normalizeTarget(d.label, d.type);
+          const norm = normalizeTarget(d.label, d.type);
+          const type = norm.type;
+          const label = norm.label;
+          const species = norm.species;
+          const confidence = typeof d.confidence === 'number' ? Math.max(0, Math.min(1, d.confidence)) : 0.9;
 
           let rawX = Number(d.x ?? d.boundingBox?.x ?? d.box_2d?.ymin ?? 0);
           let rawY = Number(d.y ?? d.boundingBox?.y ?? d.box_2d?.xmin ?? 0);
@@ -346,6 +331,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return {
             type,
             label,
+            species,
+            confidence,
             boundingBox: {
               x: Math.round(x * 1000) / 1000,
               y: Math.round(y * 1000) / 1000,
@@ -359,26 +346,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const countSheep = sanitizedDetections.filter(d => d.type === 'SHEEP').length;
       const multipleTargets = (countGoats + countSheep) > 1;
 
-      // Requirement 1: Developer logging
+      // Developer logging
       console.log(`[detect-objects] Parsed detections: count=${sanitizedDetections.length}, goats=${countGoats}, sheep=${countSheep}, labels=[${sanitizedDetections.map(d => d.type).join(', ')}]`);
 
-      let statusMessage = 'Tinitingnan ang camera...';
+      let statusMessage = 'Walang kambing o tupa na nakita.';
       if (multipleTargets) {
-        statusMessage = 'Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.';
+        statusMessage = 'Maraming kambing o tupa ang nakita. Piliin ang susuriin.';
       } else if (countGoats === 1) {
-        statusMessage = 'KAMBING: Handa nang i-scan';
+        statusMessage = 'Kambing ang nakita.';
       } else if (countSheep === 1) {
-        statusMessage = 'TUPA: Handa nang i-scan';
+        statusMessage = 'Tupa ang nakita.';
       } else {
         const person = sanitizedDetections.find(d => d.type === 'PERSON');
-        const otherAnimal = sanitizedDetections.find(d => d.type === 'OTHER_ANIMAL');
-        const objectItem = sanitizedDetections.find(d => d.type === 'OBJECT');
+        const other = sanitizedDetections.find(d => d.type === 'OTHER');
         if (person) {
-          statusMessage = 'TAO: Hindi kambing o tupa';
-        } else if (otherAnimal) {
-          statusMessage = 'HAYOP: Hindi kambing o tupa';
-        } else if (objectItem) {
-          statusMessage = 'BAGAY';
+          statusMessage = 'May taong nakita.';
+        } else if (other) {
+          statusMessage = 'May ibang bagay na nakita.';
         } else {
           statusMessage = 'Walang kambing o tupa na nakita.';
         }

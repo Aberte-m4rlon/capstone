@@ -162,16 +162,17 @@ export interface BoundingBox {
   height: number;  // 0.0 to 1.0 (height percentage)
 }
 
-export type LiveTargetType = 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER_ANIMAL' | 'OBJECT' | 'UNCERTAIN';
+export type LiveTargetType = 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER' | 'OTHER_ANIMAL' | 'OBJECT' | 'UNCERTAIN';
 export type LiveTargetLabel =
+  | 'Kambing'
+  | 'Tupa'
+  | 'Tao'
+  | 'Ibang Bagay'
+  | 'Hindi Malinaw'
   | 'KAMBING'
   | 'TUPA'
   | 'TAO'
-  | 'ASO'
-  | 'PUSA'
-  | 'HINDI MALINAW'
-  | 'HAYOP'
-  | 'BAGAY'
+  | 'IBANG BAGAY'
   | string;
 
 export interface LiveDetectedObject {
@@ -298,8 +299,6 @@ export function renderLiveDetectionsToCanvas(
     const isTarget = isGoat || isSheep;
     const isUncertain = d.type === 'UNCERTAIN';
     const isPerson = d.type === 'PERSON';
-    const isDog = d.label === 'ASO';
-    const isCat = d.label === 'PUSA';
 
     let isSelectedTarget = false;
     if (isTarget) {
@@ -312,7 +311,7 @@ export function renderLiveDetectionsToCanvas(
     let fillColor = 'rgba(148, 163, 184, 0.08)';
     let badgeBg = '#475569';
     let accentColor = '#CBD5E1';
-    let labelText = d.label;
+    let labelText = 'Ibang Bagay';
 
     if (isTarget) {
       if (isSelectedTarget) {
@@ -320,38 +319,33 @@ export function renderLiveDetectionsToCanvas(
         fillColor = 'rgba(34, 197, 94, 0.20)';
         badgeBg = '#16A34A';
         accentColor = '#4ADE80';
-        labelText = isGoat ? 'NAPILI: KAMBING' : 'NAPILI: TUPA';
+        labelText = isGoat ? 'Napiling Kambing' : 'Napiling Tupa';
       } else {
         strokeColor = 'rgba(22, 163, 74, 0.85)';
         fillColor = 'rgba(22, 163, 74, 0.10)';
         badgeBg = '#15803D';
         accentColor = '#22C55E';
-        labelText = isGoat ? 'KAMBING' : 'TUPA';
+        labelText = isGoat ? 'Kambing' : 'Tupa';
       }
     } else if (isUncertain) {
       strokeColor = '#D97706';
       fillColor = 'rgba(217, 119, 6, 0.15)';
       badgeBg = '#D97706';
       accentColor = '#FBBF24';
-      labelText = 'HINDI MALINAW';
+      labelText = 'Hindi Malinaw';
     } else if (isPerson) {
       strokeColor = '#2563EB';
       fillColor = 'rgba(37, 99, 235, 0.12)';
       badgeBg = '#2563EB';
       accentColor = '#60A5FA';
-      labelText = 'TAO';
-    } else if (isDog) {
-      strokeColor = '#EA580C';
-      fillColor = 'rgba(234, 88, 12, 0.14)';
-      badgeBg = '#EA580C';
-      accentColor = '#FB923C';
-      labelText = 'ASO';
-    } else if (isCat) {
-      strokeColor = '#7C3AED';
-      fillColor = 'rgba(124, 58, 237, 0.14)';
-      badgeBg = '#7C3AED';
-      accentColor = '#A78BFA';
-      labelText = 'PUSA';
+      labelText = 'Tao';
+    } else {
+      // All other items (Cat, Dog, Cow, Car, Door, Furniture, etc.) -> "Ibang Bagay"
+      strokeColor = '#94A3B8';
+      fillColor = 'rgba(148, 163, 184, 0.10)';
+      badgeBg = '#475569';
+      accentColor = '#CBD5E1';
+      labelText = 'Ibang Bagay';
     }
 
     // 1. Draw Bounding Box Fill

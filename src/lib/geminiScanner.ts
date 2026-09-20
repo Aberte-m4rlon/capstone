@@ -144,6 +144,54 @@ export function getTemperatureStatus(temp?: number | null): TemperatureStatusDet
   };
 }
 
+export type NormalizedClass = 'goat' | 'sheep' | 'person' | 'other';
+
+export interface NormalizedDetection {
+  type: 'GOAT' | 'SHEEP' | 'PERSON' | 'OTHER';
+  label: 'Kambing' | 'Tupa' | 'Tao' | 'Ibang Bagay';
+  species: NormalizedClass;
+}
+
+export function normalizeDetectionLabel(rawLabel: any, rawType?: any): NormalizedDetection {
+  const str = `${rawLabel || ''} ${rawType || ''}`.trim().toLowerCase();
+
+  // Explicit check: generic terms must NEVER map to goat or sheep
+  if (
+    /^(animal|hayop|mammal|livestock|farm animal|creature|object|bagay|other)$/.test(str)
+  ) {
+    return { type: 'OTHER', label: 'Ibang Bagay', species: 'other' };
+  }
+
+  // 1. Goat checks (caprine)
+  if (
+    /\b(goat|goats|kambing|capra|caprine|billy|nanny|kid|buck|doe)\b/.test(str) &&
+    !/\b(not\s+goat|sheep|dog|cat|cow|person|human|other|ibang)\b/.test(str)
+  ) {
+    return { type: 'GOAT', label: 'Kambing', species: 'goat' };
+  }
+
+  // 2. Sheep checks (ovine)
+  if (
+    /\b(sheep|tupa|lamb|ram|ewe|ovis|ovine)\b/.test(str) &&
+    !/\b(not\s+sheep|goat|dog|cat|cow|person|human|other|ibang)\b/.test(str)
+  ) {
+    return { type: 'SHEEP', label: 'Tupa', species: 'sheep' };
+  }
+
+  // 3. Person checks
+  if (
+    /\b(person|people|human|man|woman|child|farmer|tao)\b/.test(str) &&
+    !/\b(other|ibang)\b/.test(str)
+  ) {
+    return { type: 'PERSON', label: 'Tao', species: 'person' };
+  }
+
+  // Everything else (cat, dog, cow, car, door, furniture, etc.) -> OTHER
+  return { type: 'OTHER', label: 'Ibang Bagay', species: 'other' };
+}
+
+export const normalizeTarget = normalizeDetectionLabel;
+
 let isDetectingLive = false;
 
 /**
@@ -203,6 +251,16 @@ export async function detectLiveObjects(
     }
 
     const data: LiveObjectDetectionResult = await res.json();
+    if (data.detections && Array.isArray(data.detections)) {
+      data.detections = data.detections.map((d: any) => {
+        const norm = normalizeDetectionLabel(d.label, d.type);
+        return {
+          ...d,
+          type: norm.type,
+          label: norm.label,
+        };
+      });
+    }
     console.log(`[GeminiScanner] Frame detection returned in ${Date.now() - startMs}ms: count=${data.detections?.length || 0}, goats=${data.count_goats}, sheep=${data.count_sheep}`);
     return data;
   } catch (err: any) {

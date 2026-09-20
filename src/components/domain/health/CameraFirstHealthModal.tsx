@@ -330,28 +330,32 @@ export function CameraFirstHealthModal({
 
       if (!isMountedRef.current || isScanning || scanResult) return;
 
-      // Handle unready / busy / failed API call
+      // Handle unready / busy / failed API call — clear stale boxes
       if (!result.success) {
+        setLiveDetections([]);
+        if (overlayCanvasRef.current && video) {
+          renderLiveDetectionsToCanvas(overlayCanvasRef.current, video, []);
+        }
         setCameraState('DETECTING');
         setLiveStatusText(result.status_message || 'Kumokonekta sa Gemini Vision...');
         return;
       }
 
-      // Handle empty detections
+      // Handle empty detections — clear old boxes immediately
       if (!result.detections || result.detections.length === 0) {
         setLiveDetections([]);
-        if (overlayCanvasRef.current) {
+        if (overlayCanvasRef.current && video) {
           renderLiveDetectionsToCanvas(overlayCanvasRef.current, video, []);
         }
         setMultipleAnimalsDetected(false);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
         setCameraState('NO_DETECTION');
-        setLiveStatusText('Walang kambing o tupa na nakita');
+        setLiveStatusText('Walang kambing o tupa na nakita.');
         return;
       }
 
-      // Immediately replace detections in state with current frame results
+      // Immediately replace detections in state with current frame results (no stale boxes)
       const freshDetections = result.detections;
       setLiveDetections(freshDetections);
 
@@ -394,42 +398,43 @@ export function CameraFirstHealthModal({
         setCameraState(activeTarget.type === 'SHEEP' ? 'SHEEP_DETECTED' : 'GOAT_DETECTED');
 
         if (goats.length > 0 && sheep.length > 0) {
-          setLiveStatusText('May kambing at tupa na nakita. Piliin ang hayop.');
+          setLiveStatusText('May kambing at tupa na nakita. Piliin ang susuriin.');
         } else if (goats.length > 1) {
-          setLiveStatusText('May mga kambing na nakita. Piliin ang hayop.');
+          setLiveStatusText('May mga kambing na nakita. Piliin ang susuriin.');
         } else {
-          setLiveStatusText('May mga tupa na nakita. Piliin ang hayop.');
+          setLiveStatusText('May mga tupa na nakita. Piliin ang susuriin.');
         }
       } else if (totalLivestock === 1) {
         setMultipleAnimalsDetected(false);
         const singleTarget = targetLivestock[0];
         const isGoat = singleTarget.type === 'GOAT';
         setCameraState(isGoat ? 'GOAT_DETECTED' : 'SHEEP_DETECTED');
-        setLiveStatusText(isGoat ? 'Kambing ang nakita' : 'Tupa ang nakita');
+        setLiveStatusText(isGoat ? 'Kambing ang nakita.' : 'Tupa ang nakita.');
       } else {
-        // 0 goats or sheep: Person, Other Animal, Object, or Nothing
+        // 0 goats or sheep: Person, Other, or Nothing
         setMultipleAnimalsDetected(false);
         stableTargetCountRef.current = 0;
         setAutoCaptureStatus('idle');
         setCameraState('OTHER_DETECTED');
 
         const person = freshDetections.find((d) => d.type === 'PERSON');
-        const otherAnimal = freshDetections.find((d) => d.type === 'OTHER_ANIMAL');
-        const obj = freshDetections.find((d) => d.type === 'OBJECT');
+        const other = freshDetections.find((d) => d.type === 'OTHER' || (d.type as string) === 'OTHER_ANIMAL' || (d.type as string) === 'OBJECT');
 
         if (person) {
-          setLiveStatusText('Tao — Hindi ito kambing o tupa');
-        } else if (otherAnimal) {
-          setLiveStatusText('Ibang Hayop — Hindi ito kambing o tupa');
-        } else if (obj) {
-          setLiveStatusText('Ibang Bagay — Hindi ito kambing o tupa');
+          setLiveStatusText('May taong nakita.');
+        } else if (other) {
+          setLiveStatusText('May ibang bagay na nakita.');
         } else {
-          setLiveStatusText('Walang kambing o tupa na nakita');
+          setLiveStatusText('Walang kambing o tupa na nakita.');
         }
       }
     } catch (err: any) {
       if (err?.name !== 'AbortError') {
         console.warn('[Camera] Live detection loop exception:', err?.message);
+        setLiveDetections([]);
+        if (overlayCanvasRef.current && videoRef.current) {
+          renderLiveDetectionsToCanvas(overlayCanvasRef.current, videoRef.current, []);
+        }
         setCameraState('DETECTING');
         setLiveStatusText('Kumokonekta sa Gemini Vision...');
       }
@@ -625,17 +630,22 @@ export function CameraFirstHealthModal({
     );
     const hasUncertain = liveDetections.some((d) => d.type === 'UNCERTAIN');
     const hasPerson = liveDetections.some((d) => d.type === 'PERSON');
+    const hasOther = liveDetections.some((d) => d.type === 'OTHER' || (d.type as string) === 'OTHER_ANIMAL' || (d.type as string) === 'OBJECT');
 
     if (validLivestock.length === 0) {
-      if (hasUncertain) {
-        setLiveStatusText('Hindi malinaw ang hayop. Ilapit o ayusin ang camera at subukan muli.');
-        return;
-      }
       if (hasPerson) {
-        setLiveStatusText('Tao ang nakita sa camera. Itapat ang camera sa kambing o tupa.');
+        setLiveStatusText('May taong nakita.');
         return;
       }
-      setLiveStatusText('Walang kambing o tupa na nakita. Itapat ang camera sa hayop at subukan muli.');
+      if (hasOther) {
+        setLiveStatusText('May ibang bagay na nakita.');
+        return;
+      }
+      if (hasUncertain) {
+        setLiveStatusText('Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.');
+        return;
+      }
+      setLiveStatusText('Walang kambing o tupa na nakita.');
       return;
     }
 
