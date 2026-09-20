@@ -806,7 +806,14 @@ export async function detectLiveFrameLocally(
             targetType = 'PERSON';
             targetLabel = 'TAO';
             canonicalClass = 'person';
-          } else if (catName === 'sheep' && score >= CONFIDENCE_THRESHOLDS.SHEEP) {
+          } else if (
+            catName === 'sheep' &&
+            score >= CONFIDENCE_THRESHOLDS.SHEEP &&
+            _yoloSession
+          ) {
+            // MediaPipe's COCO sheep class is only a secondary signal.
+            // Never let it become the sole livestock detector; the dedicated
+            // goat model must be loaded so a goat can win the species gate.
             targetType = 'SHEEP';
             targetLabel = 'TUPA';
             canonicalClass = 'sheep';
@@ -882,6 +889,25 @@ export async function detectLiveFrameLocally(
     for (let i = 0; i < rawMediaPipeDetections.length; i++) {
       if (!usedMpIndices.has(i)) {
         frameCandidates.push(rawMediaPipeDetections[i]);
+      }
+    }
+
+    // Goat-first species gate:
+    // If the dedicated goat model sees a goat, suppress nearby sheep candidates
+    // from the generic COCO detector. This prevents goat -> Tupa flips.
+    const goatCandidates = frameCandidates.filter((d) => d.type === 'GOAT');
+    if (goatCandidates.length > 0) {
+      for (let i = frameCandidates.length - 1; i >= 0; i--) {
+        const candidate = frameCandidates[i];
+        if (candidate.type !== 'SHEEP') continue;
+        const nearGoat = goatCandidates.some((goat) => {
+          const iou = calculateIoU(goat.boundingBox, candidate.boundingBox);
+          const dx = (goat.boundingBox.x + goat.boundingBox.width / 2) - (candidate.boundingBox.x + candidate.boundingBox.width / 2);
+          const dy = (goat.boundingBox.y + goat.boundingBox.height / 2) - (candidate.boundingBox.y + candidate.boundingBox.height / 2);
+          const centerDistance = Math.sqrt(dx * dx + dy * dy);
+          return iou >= 0.10 || centerDistance <= 0.22;
+        });
+        if (nearGoat) frameCandidates.splice(i, 1);
       }
     }
 
