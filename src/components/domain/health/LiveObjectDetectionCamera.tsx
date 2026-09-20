@@ -1102,10 +1102,10 @@ export function LiveObjectDetectionCamera({
           >
             <button
               type="button"
-              disabled={!selectedTrack || isScanning}
+              disabled={!selectedTrack || selectedTrack.species === 'person' || isScanning}
               onClick={handlePerformHealthScan}
               aria-label={
-                selectedTrack
+                selectedTrack && selectedTrack.species !== 'person'
                   ? `I-scan ang ${selectedTrack.species === 'sheep' ? 'tupa' : 'kambing'}`
                   : 'I-scan'
               }
@@ -1119,23 +1119,23 @@ export function LiveObjectDetectionCamera({
                 padding: 0,
                 outline: 'none',
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                cursor: selectedTrack && !isScanning ? 'pointer' : 'not-allowed',
-                background: selectedTrack
+                cursor: selectedTrack && selectedTrack.species !== 'person' && !isScanning ? 'pointer' : 'not-allowed',
+                background: selectedTrack && selectedTrack.species !== 'person'
                   ? 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)'
                   : 'rgba(51, 65, 85, 0.55)',
-                border: selectedTrack
+                border: selectedTrack && selectedTrack.species !== 'person'
                   ? '3px solid rgba(255, 255, 255, 0.95)'
                   : '3px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: selectedTrack
+                boxShadow: selectedTrack && selectedTrack.species !== 'person'
                   ? '0 0 24px rgba(34, 197, 94, 0.65), 0 4px 14px rgba(0, 0, 0, 0.6)'
                   : '0 2px 8px rgba(0, 0, 0, 0.3)',
-                opacity: selectedTrack && !isScanning ? 1 : 0.65,
+                opacity: selectedTrack && selectedTrack.species !== 'person' && !isScanning ? 1 : 0.65,
                 transform: isScanning ? 'scale(0.92)' : 'scale(1)',
               }}
             >
               <Camera
                 size={34}
-                color={selectedTrack ? '#FFFFFF' : '#94A3B8'}
+                color={selectedTrack && selectedTrack.species !== 'person' ? '#FFFFFF' : '#94A3B8'}
                 strokeWidth={2.2}
               />
             </button>
@@ -1152,7 +1152,7 @@ export function LiveObjectDetectionCamera({
                 minHeight: 16,
               }}
             >
-              {!selectedTrack
+              {!selectedTrack || selectedTrack.species === 'person'
                 ? 'I-SCAN'
                 : selectedTrack.species === 'sheep'
                 ? 'I-SCAN ANG TUPA'

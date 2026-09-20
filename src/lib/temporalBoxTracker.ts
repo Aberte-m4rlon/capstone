@@ -100,10 +100,10 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
   maxConsecutiveMisses: 3,
   maxTrackAgeMs: 450, // 300-500ms grace period (Directives 6 & 8)
   speciesConsensusThreshold: 3,
-  goatEntryThreshold: 0.40,
-  goatKeepThreshold: 0.28,
-  sheepEntryThreshold: 0.45,
-  sheepKeepThreshold: 0.30,
+  goatEntryThreshold: 0.28,
+  goatKeepThreshold: 0.20,
+  sheepEntryThreshold: 0.35,
+  sheepKeepThreshold: 0.25,
   personEntryThreshold: 0.50,
   personKeepThreshold: 0.35,
 };
@@ -517,9 +517,9 @@ export class TemporalLivestockTracker {
           isSelected: false,
         };
 
-        // If no animal is currently selected and this is the first LIVESTOCK animal in the scene,
+        // If no livestock animal is currently selected and this is a LIVESTOCK animal,
         // auto-select it for seamless farmer experience (PERSON CANNOT BE SELECTED)
-        if (this.tracks.length === 0 && this.selectedTrackId === null && raw.species !== 'person') {
+        if (this.selectedTrackId === null && raw.species !== 'person') {
           newTrack.isSelected = true;
           this.selectedTrackId = newTrack.trackId;
         }
@@ -666,7 +666,12 @@ export function renderTrackedAnimalsToCanvas(
 
     let labelText = '';
     if (isPerson) {
-      labelText = 'TAO';
+      const sameSpeciesCount = tracks.filter((t) => t.species === 'person').length;
+      if (sameSpeciesCount > 1 && track.displayNumber > 0) {
+        labelText = `TAO #${track.displayNumber}`;
+      } else {
+        labelText = 'TAO';
+      }
     } else if (isSelected) {
       labelText = isGoat ? '✓ NAPILING KAMBING' : '✓ NAPILING TUPA';
     } else {
