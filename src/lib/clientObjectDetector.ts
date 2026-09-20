@@ -81,13 +81,24 @@ const MEDIAPIPE_REMOTE_MODEL =
 
 const GOAT_ONNX_MODEL_URL = '/models/goat_yolov8n.onnx';
 
-// Thresholds for genuine classes
+// Hysteresis Thresholds for genuine classes (Directives 6 & 7)
 export const CONFIDENCE_THRESHOLDS = {
-  GOAT: 0.12,         // Lower gate so valid goats are not lost before sheep verification can run
-  SHEEP: 0.35,        // MediaPipe genuine sheep threshold
-  PERSON: 0.38,       // MediaPipe genuine human threshold
-  OTHER_ANIMAL: 0.50, // Domestic animals (ASO, PUSA) only if genuine
-  OBJECT: 0.50,       // Farm/household objects
+  // Entry: required to establish a new track
+  GOAT_ENTRY: 0.40,
+  SHEEP_ENTRY: 0.45,
+  PERSON_ENTRY: 0.50,
+
+  // Keep: required to maintain and smooth an active track
+  GOAT_KEEP: 0.28,
+  SHEEP_KEEP: 0.30,
+  PERSON_KEEP: 0.35,
+
+  // Baseline thresholds for compatibility
+  GOAT: 0.28,
+  SHEEP: 0.30,
+  PERSON: 0.35,
+  OTHER_ANIMAL: 0.50,
+  OBJECT: 0.50,
 } as const;
 
 // Strict Genuine Supported Classes (Requirement 11)
@@ -347,8 +358,8 @@ function applyNMS(
 
 async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number): Promise<ClientDetectedObject[]> {
   if (!_yoloSession || _isYoloInferencing) {
-    // Return fresh valid detections within 350ms TTL window
-    if (timestamp - _lastYoloTimestamp < 350) {
+    // Return fresh valid detections within 450ms TTL window to bridge ONNX WASM execution frames
+    if (timestamp - _lastYoloTimestamp < 450) {
       return _lastYoloGoatBoxes;
     }
     return [];
@@ -369,7 +380,7 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
       Number.isFinite(declaredHeight) && declaredHeight > 0 &&
       declaredWidth === declaredHeight
         ? declaredWidth
-        : 640;
+        : 416;
 
     if (!_offscreenCanvas || _offscreenCanvas.width !== targetSize || _offscreenCanvas.height !== targetSize) {
       _offscreenCanvas = document.createElement('canvas');
@@ -381,17 +392,8 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     const ctx = _offscreenCtx;
     if (!ctx) return [];
 
-    console.log('[Detector] Goat ONNX input: ' + targetSize + 'x' + targetSize);
-    const scale = Math.min(targetSize / vW, targetSize / vH);
-    const scaledW = Math.round(vW * scale);
-    const scaledH = Math.round(vH * scale);
-    const padX = Math.floor((targetSize - scaledW) / 2);
-    const padY = Math.floor((targetSize - scaledH) / 2);
-
-    // Letterbox padding with standard 114 gray to preserve aspect ratio (prevents squishing edge goats)
-    ctx.fillStyle = '#727272';
-    ctx.fillRect(0, 0, targetSize, targetSize);
-    ctx.drawImage(video, 0, 0, vW, vH, padX, padY, scaledW, scaledH);
+    // Draw video directly scaled to targetSize (416x416 for goat_yolov8n) without letterbox borders to preserve natural aspect and feature activations
+    ctx.drawImage(video, 0, 0, targetSize, targetSize);
     const imgData = ctx.getImageData(0, 0, targetSize, targetSize);
     const data = imgData.data;
 
@@ -451,18 +453,18 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     for (let a = 0; a < numAnchors; a++) {
       // Class 0 is GOAT for the supported one-class/two-class model layouts.
       const score = outData[4 * numAnchors + a];
-      if (score < CONFIDENCE_THRESHOLDS.GOAT) continue;
+      if (score < CONFIDENCE_THRESHOLDS.GOAT_KEEP) continue;
 
       const cx = outData[0 * numAnchors + a];
       const cy = outData[1 * numAnchors + a];
       const w = outData[2 * numAnchors + a];
       const h = outData[3 * numAnchors + a];
 
-      // Un-pad and un-scale back to normalized video frame [0, 1]
-      const x = Math.max(0, Math.min(1, ((cx - w / 2) - padX) / scaledW));
-      const y = Math.max(0, Math.min(1, ((cy - h / 2) - padY) / scaledH));
-      const width = Math.max(0, Math.min(1 - x, w / scaledW));
-      const height = Math.max(0, Math.min(1 - y, h / scaledH));
+      // Normalized coordinates [0, 1] relative to video frame
+      const x = Math.max(0, Math.min(1, (cx - w / 2) / targetSize));
+      const y = Math.max(0, Math.min(1, (cy - h / 2) / targetSize));
+      const width = Math.max(0, Math.min(1 - x, w / targetSize));
+      const height = Math.max(0, Math.min(1 - y, h / targetSize));
 
       const rawBox = { x, y, width, height };
       if (!isValidBoundingBox(rawBox)) continue;
@@ -579,7 +581,7 @@ function applyTemporalStabilityAndQuality(
   let detectedQualityIssue: 'too_small' | 'too_dark' | 'occluded' | null = null;
 
   for (const track of _activeTracks) {
-    if (!updatedTrackIds.has(track.id)) continue;
+    if (!updatedTrackIds.has(track.id) && timestamp - track.lastSeen > 400) continue;
 
     const hist = track.history;
     const histLen = hist.length;
@@ -712,7 +714,7 @@ export async function detectLiveFrameLocally(
       modelReady: _isModelReady,
       modelName: 'YOLOv8 Goat Detector + Generic Object Detector',
       supportsGoatClass: _hasGoatClass,
-      supportsSheepClass: false,
+      supportsSheepClass: true,
       detections: [],
       count_goats: 0,
       count_sheep: 0,
@@ -802,18 +804,14 @@ export async function detectLiveFrameLocally(
           let targetLabel: LiveTargetLabel | null = null;
           let canonicalClass = catName;
 
-          if (catName === 'person' && score >= CONFIDENCE_THRESHOLDS.PERSON) {
+          if (catName === 'person' && score >= CONFIDENCE_THRESHOLDS.PERSON_KEEP) {
             targetType = 'PERSON';
             targetLabel = 'TAO';
             canonicalClass = 'person';
-          } else if (catName === 'sheep') {
-            // IMPORTANT: EfficientDet-Lite0 is a generic COCO detector, not a
-            // goat-vs-sheep livestock classifier. Goats are commonly close enough
-            // visually to trigger its sheep class. Do NOT expose this raw COCO
-            // sheep class as a trusted TUPA detection in the farm scanner.
-            // A dedicated two-class goat/sheep model is required before TUPA can
-            // be shown as a confirmed species.
-            continue;
+          } else if (catName === 'sheep' && score >= CONFIDENCE_THRESHOLDS.SHEEP_KEEP) {
+            targetType = 'SHEEP';
+            targetLabel = 'TUPA';
+            canonicalClass = 'sheep';
           } else if (catName === 'dog' && score >= CONFIDENCE_THRESHOLDS.OTHER_ANIMAL) {
             targetType = 'OTHER_ANIMAL';
             targetLabel = 'ASO';
@@ -970,7 +968,7 @@ export async function detectLiveFrameLocally(
       modelReady: true,
       modelName: 'YOLOv8n + EfficientDet-Lite0',
       supportsGoatClass: true,
-      supportsSheepClass: false,
+      supportsSheepClass: true,
       detections: stableDetections,
       count_goats,
       count_sheep,

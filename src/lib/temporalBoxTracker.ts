@@ -67,7 +67,7 @@ export interface TrackedLivestockAnimal {
 }
 
 export interface TrackerConfig {
-  /** EMA smoothing factor for bounding box coordinates (0.0 to 1.0). Default: 0.38 */
+  /** EMA smoothing factor for bounding box coordinates (0.0 to 1.0). Default: 0.40 (prev * 0.6 + curr * 0.4) */
   smoothingAlpha: number;
   /** Minimum IoU threshold to consider a match between frames. Default: 0.25 */
   matchIouThreshold: number;
@@ -75,19 +75,37 @@ export interface TrackerConfig {
   maxCenterDistanceFallback: number;
   /** Number of missed frames tolerated before pruning a track. Default: 3 */
   maxConsecutiveMisses: number;
-  /** Maximum duration in ms before pruning an unseen track. Default: 800ms */
+  /** Maximum duration in ms before pruning an unseen track. Default: 450ms (300-500ms grace period) */
   maxTrackAgeMs: number;
   /** Number of consecutive consistent species classifications required to change label. Default: 3 */
   speciesConsensusThreshold: number;
+  /** Entry threshold to start tracking a new goat detection. Default: 0.40 (Directive 7) */
+  goatEntryThreshold: number;
+  /** Keep threshold to maintain an existing goat track. Default: 0.28 (Directive 7) */
+  goatKeepThreshold: number;
+  /** Entry threshold to start tracking a new sheep detection. Default: 0.45 (Directive 7) */
+  sheepEntryThreshold: number;
+  /** Keep threshold to maintain an existing sheep track. Default: 0.30 (Directive 7) */
+  sheepKeepThreshold: number;
+  /** Entry threshold for person detection. Default: 0.50 */
+  personEntryThreshold: number;
+  /** Keep threshold for person detection. Default: 0.35 */
+  personKeepThreshold: number;
 }
 
 export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
-  smoothingAlpha: 0.38,
+  smoothingAlpha: 0.40, // 0.60 prev + 0.40 curr (Directive 9)
   matchIouThreshold: 0.25,
   maxCenterDistanceFallback: 0.18,
   maxConsecutiveMisses: 3,
-  maxTrackAgeMs: 800,
+  maxTrackAgeMs: 450, // 300-500ms grace period (Directives 6 & 8)
   speciesConsensusThreshold: 3,
+  goatEntryThreshold: 0.40,
+  goatKeepThreshold: 0.28,
+  sheepEntryThreshold: 0.45,
+  sheepKeepThreshold: 0.30,
+  personEntryThreshold: 0.50,
+  personKeepThreshold: 0.35,
 };
 
 // ── 2D Geometry & IoU Helpers ─────────────────────────────────────────────────
@@ -303,7 +321,7 @@ export class TemporalLivestockTracker {
     }
 
     const found = this.tracks.find((t) => t.trackId === trackId);
-    if (!found) return false;
+    if (!found || found.species === 'person') return false;
 
     this.selectedTrackId = trackId;
     this.tracks.forEach((t) => {
@@ -347,29 +365,38 @@ export class TemporalLivestockTracker {
    * Update tracker with fresh detections from the current frame.
    *
    * Flow:
-   * 1. Match fresh detections with existing tracks using 2D IoU.
-   * 2. Fall back to center distance for fast movement.
-   * 3. Apply Exponential Moving Average (EMA) to smooth box coords.
-   * 4. Enforce species consensus before switching label.
-   * 5. Manage grace period for missed tracks.
-   * 6. Prune stale tracks and notify if selected track is lost.
+   * 1. Filter candidates by KEEP threshold.
+   * 2. If no valid detections, manage grace period (do NOT instantly wipe).
+   * 3. Match candidates with existing tracks using 2D IoU / center distance.
+   * 4. Apply formula-accurate EMA smoothing: smoothed = previous * 0.6 + current * 0.4.
+   * 5. Hysteresis entry check: unmatched candidates only spawn new tracks if >= ENTRY threshold.
+   * 6. Enforce species consensus and non-selectable person rules.
+   * 7. Prune stale tracks that exceed 450ms grace period or 3 consecutive misses.
+   * 8. Assign stable display numbers.
    */
   public update(rawDetections: RawLivestockDetection[], timestamp: number = Date.now()): TrackedLivestockAnimal[] {
-    // Directive 13: When the scene becomes empty, immediately clear tracks
-    if (!rawDetections || rawDetections.length === 0) {
-      this.tracks = [];
-      const hadSelection = this.selectedTrackId !== null;
-      this.selectedTrackId = null;
-      if (hadSelection && this.onSelectedTrackLost) {
-        this.onSelectedTrackLost();
+    // 0. Filter incoming candidates: Must at least meet species KEEP threshold
+    const validDetections = (rawDetections || []).filter((d) => {
+      if (d.species === 'goat') return d.confidence >= this.config.goatKeepThreshold;
+      if (d.species === 'sheep') return d.confidence >= this.config.sheepKeepThreshold;
+      if (d.species === 'person') return d.confidence >= this.config.personKeepThreshold;
+      return false;
+    });
+
+    // When no candidates meet keep threshold in this frame:
+    // Tolerate grace period (up to 3 misses / 450ms) to bridge detector frame skips or momentary occlusion
+    if (validDetections.length === 0) {
+      for (const track of this.tracks) {
+        track.consecutiveMisses++;
       }
-      return [];
+      this.pruneStaleTracks(timestamp);
+      return [...this.tracks];
     }
 
     const matchedTrackIds = new Set<number>();
     const matchedRawIndices = new Set<number>();
 
-    // 1. Calculate cost matrix (IoU) between all existing tracks and raw detections
+    // 1. Calculate cost matrix (IoU) between all existing tracks and valid detections
     const matchCandidates: {
       trackIndex: number;
       rawIndex: number;
@@ -379,8 +406,8 @@ export class TemporalLivestockTracker {
 
     for (let t = 0; t < this.tracks.length; t++) {
       const track = this.tracks[t];
-      for (let r = 0; r < rawDetections.length; r++) {
-        const raw = rawDetections[r];
+      for (let r = 0; r < validDetections.length; r++) {
+        const raw = validDetections[r];
         const iou = calculate2DIoU(track.box, raw.box);
         const distance = calculateCenterDistance(track.box, raw.box);
 
@@ -399,7 +426,7 @@ export class TemporalLivestockTracker {
     // 2. Perform greedy matching
     for (const cand of matchCandidates) {
       const track = this.tracks[cand.trackIndex];
-      const raw = rawDetections[cand.rawIndex];
+      const raw = validDetections[cand.rawIndex];
 
       if (matchedTrackIds.has(track.trackId) || matchedRawIndices.has(cand.rawIndex)) {
         continue;
@@ -408,16 +435,16 @@ export class TemporalLivestockTracker {
       matchedTrackIds.add(track.trackId);
       matchedRawIndices.add(cand.rawIndex);
 
-      // ── Update Track with EMA Smoothing ──
-      const alpha = this.config.smoothingAlpha;
+      // ── Update Track with EMA Smoothing (Directive 9: 0.6 prev + 0.4 curr) ──
+      const alpha = this.config.smoothingAlpha; // 0.40
       track.targetBox = { ...raw.box };
 
-      // EMA smoothing formula: smoothed = previous + alpha * (target - previous)
+      // smoothed = previous * 0.6 + current * 0.4
       track.box = {
-        x: track.box.x + alpha * (raw.box.x - track.box.x),
-        y: track.box.y + alpha * (raw.box.y - track.box.y),
-        width: track.box.width + alpha * (raw.box.width - track.box.width),
-        height: track.box.height + alpha * (raw.box.height - track.box.height),
+        x: track.box.x * (1 - alpha) + raw.box.x * alpha,
+        y: track.box.y * (1 - alpha) + raw.box.y * alpha,
+        width: track.box.width * (1 - alpha) + raw.box.width * alpha,
+        height: track.box.height * (1 - alpha) + raw.box.height * alpha,
       };
 
       track.confidence = raw.confidence;
@@ -459,10 +486,21 @@ export class TemporalLivestockTracker {
       }
     }
 
-    // 4. Create new tracks for unmatched raw detections
-    for (let r = 0; r < rawDetections.length; r++) {
+    // 4. Create new tracks for unmatched raw detections (HYSTERESIS ENTRY CHECK)
+    for (let r = 0; r < validDetections.length; r++) {
       if (!matchedRawIndices.has(r)) {
-        const raw = rawDetections[r];
+        const raw = validDetections[r];
+
+        // Hysteresis Directive 7: Only spawn new tracks if confidence reaches ENTRY threshold
+        let meetsEntry = false;
+        if (raw.species === 'goat' && raw.confidence >= this.config.goatEntryThreshold) meetsEntry = true;
+        else if (raw.species === 'sheep' && raw.confidence >= this.config.sheepEntryThreshold) meetsEntry = true;
+        else if (raw.species === 'person' && raw.confidence >= this.config.personEntryThreshold) meetsEntry = true;
+
+        if (!meetsEntry) {
+          continue; // Ignore low-confidence spikes that don't meet entry threshold
+        }
+
         const newTrack: TrackedLivestockAnimal = {
           trackId: this.nextTrackId++,
           displayNumber: 0, // re-assigned below
@@ -480,7 +518,7 @@ export class TemporalLivestockTracker {
         };
 
         // If no animal is currently selected and this is the first LIVESTOCK animal in the scene,
-        // auto-select it for seamless farmer experience
+        // auto-select it for seamless farmer experience (PERSON CANNOT BE SELECTED)
         if (this.tracks.length === 0 && this.selectedTrackId === null && raw.species !== 'person') {
           newTrack.isSelected = true;
           this.selectedTrackId = newTrack.trackId;
@@ -490,35 +528,10 @@ export class TemporalLivestockTracker {
       }
     }
 
-    // 5. Prune tracks that exceed max consecutive misses or age limit
-    const prevSelectedId = this.selectedTrackId;
-    let selectedTrackStillAlive = false;
+    // 5. Prune tracks that exceed max consecutive misses or grace age limit
+    this.pruneStaleTracks(timestamp);
 
-    this.tracks = this.tracks.filter((t) => {
-      const isAlive =
-        t.consecutiveMisses <= this.config.maxConsecutiveMisses &&
-        timestamp - t.lastSeen <= this.config.maxTrackAgeMs;
-
-      if (t.trackId === prevSelectedId && isAlive) {
-        selectedTrackStillAlive = true;
-      }
-      return isAlive;
-    });
-
-    // 6. Handle lost selected track
-    if (prevSelectedId !== null && !selectedTrackStillAlive) {
-      this.selectedTrackId = null;
-      const livestockTracks = this.tracks.filter((t) => t.species !== 'person');
-      if (livestockTracks.length > 0) {
-        // Auto-select another visible livestock animal if available
-        livestockTracks[0].isSelected = true;
-        this.selectedTrackId = livestockTracks[0].trackId;
-      } else if (this.onSelectedTrackLost) {
-        this.onSelectedTrackLost();
-      }
-    }
-
-    // 7. Stable display ordering and numbering (e.g. KAMBING #1, KAMBING #2)
+    // 6. Stable display ordering and numbering (e.g. KAMBING #1, KAMBING #2)
     // Sort left-to-right to give predictable numbering
     const sortedTracks = [...this.tracks].sort((a, b) => a.box.x - b.box.x);
     let goatNum = 1;
@@ -536,6 +549,38 @@ export class TemporalLivestockTracker {
     }
 
     return [...this.tracks];
+  }
+
+  /**
+   * Prune stale tracks that exceed max consecutive misses or grace age limit.
+   */
+  private pruneStaleTracks(timestamp: number): void {
+    const prevSelectedId = this.selectedTrackId;
+    let selectedTrackStillAlive = false;
+
+    this.tracks = this.tracks.filter((t) => {
+      const isAlive =
+        t.consecutiveMisses <= this.config.maxConsecutiveMisses &&
+        timestamp - t.lastSeen <= this.config.maxTrackAgeMs;
+
+      if (t.trackId === prevSelectedId && isAlive) {
+        selectedTrackStillAlive = true;
+      }
+      return isAlive;
+    });
+
+    // Handle lost selected track
+    if (prevSelectedId !== null && !selectedTrackStillAlive) {
+      this.selectedTrackId = null;
+      const livestockTracks = this.tracks.filter((t) => t.species !== 'person');
+      if (livestockTracks.length > 0) {
+        // Auto-select another visible livestock animal if available
+        livestockTracks[0].isSelected = true;
+        this.selectedTrackId = livestockTracks[0].trackId;
+      } else if (this.onSelectedTrackLost) {
+        this.onSelectedTrackLost();
+      }
+    }
   }
 
   /**
@@ -625,7 +670,12 @@ export function renderTrackedAnimalsToCanvas(
     } else if (isSelected) {
       labelText = isGoat ? '✓ NAPILING KAMBING' : '✓ NAPILING TUPA';
     } else {
-      labelText = isGoat ? 'KAMBING' : 'TUPA';
+      const sameSpeciesCount = tracks.filter((t) => t.species === track.species).length;
+      if (sameSpeciesCount > 1 && track.displayNumber > 0) {
+        labelText = isGoat ? `KAMBING #${track.displayNumber}` : `TUPA #${track.displayNumber}`;
+      } else {
+        labelText = isGoat ? 'KAMBING' : 'TUPA';
+      }
     }
 
     // 1. Draw Bounding Box Fill
