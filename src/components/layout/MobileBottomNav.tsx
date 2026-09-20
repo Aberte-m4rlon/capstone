@@ -27,6 +27,23 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
     setMoreMenuOpen(false);
   }, [location.pathname]);
 
+  const [isCameraActive, setIsCameraActive] = useState(() =>
+    typeof document !== 'undefined' && document.body.classList.contains('camera-scanner-active')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsCameraActive(document.body.classList.contains('camera-scanner-active'));
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Completely remove bottom navigation when inside the AI Health Scanner
+  if (location.pathname === '/camera-screening' || isCameraActive) {
+    return null;
+  }
+
   // Determine active states for the 4 standard slots
   const isDashboardActive = location.pathname === '/dashboard' || location.pathname === '/' || location.pathname === '/super-admin' || location.pathname === '/admin';
   const isAnimalsActive = location.pathname.startsWith('/animals');

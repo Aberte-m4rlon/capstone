@@ -16,7 +16,8 @@ export function CameraScreeningPage() {
   };
 
   const handleSaved = () => {
-    navigate('/health');
+    // Keep user in camera mode so they can scan subsequent animals in the pen.
+    // Farmer can tap the top ← button whenever they are ready to leave.
   };
 
   return (

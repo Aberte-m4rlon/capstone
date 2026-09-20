@@ -1,14 +1,20 @@
 /**
  * LiveObjectDetectionCamera.tsx — Dedicated Full-Screen "AI Health Scanner"
  *
- * Real-time object-detection camera experience for AlpasFarm:
- * - Dedicated full-screen livestock detection UI (Top Bar, Full Live Feed, Floating HUD, Scan Control)
- * - Real-time client-side detection (YOLOv8n for Goat + MediaPipe for Sheep & Person)
- * - Temporal stabilization & IoU tracking via TemporalLivestockTracker (zero jitter, zero flickering)
- * - Accurate coordinate transformation for object-fit: cover viewports
- * - Tap-to-select on the camera viewport with persistent track following
- * - Invokes Gemini Vision ONLY upon tapping "Suriin ang Napili"
- * - Separate, uncluttered post-scan Health Result sheet with image persistence to Supabase
+ * Real-time object-detection mobile camera experience for AlpasFarm:
+ * - Dedicated full-screen mobile camera layout (no standard app navigation while active)
+ * - Top translucent bar: [←] [AI Health Scanner status] [⚙]
+ * - Full-bleed live camera stream with object-fit: cover and hardware-accelerated RAF canvas
+ * - Temporal stabilization & IoU tracking (zero jitter, zero flickering, grace periods, clean scene clearing)
+ * - Accurate coordinate transformation for object-fit: cover mobile viewports
+ * - Tap-to-select on live detection box; selection follows the persistent track
+ * - Floating status pill: "Naghahanap ng kambing o tupa...", "Kambing ang nakita", "Kambing na napili", etc.
+ * - Dedicated 3-element bottom camera control bar:
+ *     [ Thumbnail / Gallery icon ]   ● [ Large 78px Circular Shutter (I-SCAN) ]   [ Flip Camera ]
+ * - Safe area padding for Android/iOS navigation gestures: env(safe-area-inset-bottom)
+ * - Gemini Multimodal Vision API invoked ONLY upon pressing I-SCAN
+ * - Post-scan Health Check bottom sheet overlay displayed directly over the camera
+ * - Storage persistence to Supabase 'animal-screenings' bucket + health_records update
  */
 
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
@@ -16,6 +22,8 @@ import {
   ArrowLeft,
   Settings as SettingsIcon,
   SwitchCamera,
+  Camera,
+  Image as ImageIcon,
   Sparkles,
   AlertCircle,
   AlertTriangle,
@@ -41,7 +49,6 @@ import {
 import {
   detectLiveFrameLocally,
   initClientObjectDetector,
-  isClientDetectorReady,
 } from '../../../lib/clientObjectDetector';
 import {
   captureVideoFrame,
@@ -67,7 +74,7 @@ export function LiveObjectDetectionCamera({
   onHealthCheckSaved,
 }: LiveObjectDetectionCameraProps) {
   const toast = useToast();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const farmData = useFarmData();
 
   // ── Elements & State Refs ──────────────────────────────────────────────────
@@ -80,6 +87,14 @@ export function LiveObjectDetectionCamera({
   const detectTimerRef = useRef<any>(null);
   const isDetectingRef = useRef<boolean>(false);
 
+  // ── Suppress standard app navigation while camera scanner is open ──────────
+  useEffect(() => {
+    document.body.classList.add('camera-scanner-active');
+    return () => {
+      document.body.classList.remove('camera-scanner-active');
+    };
+  }, []);
+
   // ── Camera Lifecycle State ────────────────────────────────────────────────
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -88,21 +103,23 @@ export function LiveObjectDetectionCamera({
   const [showGrid, setShowGrid] = useState(false);
 
   // ── Tracking & Selection State ────────────────────────────────────────────
+  const [statusMessage, setStatusMessage] = useState<string>('Naghahanap ng kambing o tupa...');
   const trackerRef = useRef<TemporalLivestockTracker>(
     new TemporalLivestockTracker({}, () => {
-      // Callback when selected track leaves the scene
+      // Callback when selected track drops past grace period
       setStatusMessage('Hindi na makita ang napiling alaga. Pumili ulit.');
     })
   );
   const [activeTracks, setActiveTracks] = useState<TrackedLivestockAnimal[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<TrackedLivestockAnimal | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string>('Naghahanap ng kambing o tupa...');
 
   // ── Health Scan & Result State ────────────────────────────────────────────
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<GeminiScanResult | null>(null);
   const [croppedImagePreview, setCroppedImagePreview] = useState<string | null>(null);
   const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
+  const [lastCapturedThumbnail, setLastCapturedThumbnail] = useState<string | null>(null);
+  const [showResultSheet, setShowResultSheet] = useState<boolean>(false);
   const [savingRecord, setSavingRecord] = useState(false);
   const [notes, setNotes] = useState('');
   const [selectedFarmAnimalId, setSelectedFarmAnimalId] = useState<string>(preselectedAnimalId || '');
@@ -119,6 +136,39 @@ export function LiveObjectDetectionCamera({
       (item: InventoryItem) => (item.quantity ?? 0) > 0 && item.category?.toLowerCase().includes('med')
     );
   }, [farmData.inventory]);
+
+  // Selected registered animal entity
+  const selectedAnimal = useMemo(() => {
+    return activeFarmAnimals.find((a) => a.id === selectedFarmAnimalId) || null;
+  }, [activeFarmAnimals, selectedFarmAnimalId]);
+
+  // ── Formatted Farmer-Friendly Detection Status ────────────────────────────
+  const computeDetectionStatus = useCallback(
+    (tracks: TrackedLivestockAnimal[], selected: TrackedLivestockAnimal | null): string => {
+      if (selected) {
+        return selected.species === 'sheep' ? 'Tupa na napili' : 'Kambing na napili';
+      }
+      if (tracks.length === 0) {
+        return 'Naghahanap ng kambing o tupa...';
+      }
+      const goats = tracks.filter((t) => t.species === 'goat').length;
+      const sheep = tracks.filter((t) => t.species === 'sheep').length;
+
+      if (goats > 0 && sheep > 0) {
+        const gText = goats === 1 ? '1 kambing' : `${goats} kambing`;
+        const sText = sheep === 1 ? '1 tupa' : `${sheep} tupa`;
+        return `${gText} at ${sText} ang nakita`;
+      }
+      if (goats > 0) {
+        return goats === 1 ? 'Kambing ang nakita' : `${goats} kambing ang nakita`;
+      }
+      if (sheep > 0) {
+        return sheep === 1 ? 'Tupa ang nakita' : `${sheep} tupa ang nakita`;
+      }
+      return 'Naghahanap ng kambing o tupa...';
+    },
+    []
+  );
 
   // ── Stop Camera Stream ────────────────────────────────────────────────────
   const stopCameraStream = useCallback(() => {
@@ -204,7 +254,7 @@ export function LiveObjectDetectionCamera({
 
   // ── Live Render Animation Loop (requestAnimationFrame) ────────────────────
   useEffect(() => {
-    if (!isCameraActive || isScanning || scanResult) return;
+    if (!isCameraActive || isScanning) return;
 
     let isRunning = true;
     const tracker = trackerRef.current;
@@ -216,20 +266,30 @@ export function LiveObjectDetectionCamera({
       const canvas = overlayCanvasRef.current;
       const container = containerRef.current;
 
-      if (video && canvas && container && video.videoWidth > 0) {
-        const transform = computeViewportTransform(
-          container.clientWidth,
-          container.clientHeight,
-          video.videoWidth,
-          video.videoHeight
-        );
+      if (video && canvas && container && video.readyState >= 2) {
+        const containerW = container.clientWidth;
+        const containerH = container.clientHeight;
 
-        // Smoothly interpolate boxes towards targets
-        tracker.interpolate(0.25);
-        const tracks = tracker.getActiveTracks();
+        if (canvas.width !== containerW || canvas.height !== containerH) {
+          canvas.width = containerW;
+          canvas.height = containerH;
+        }
 
-        // Render high-contrast stable boxes to canvas
-        renderTrackedAnimalsToCanvas(canvas, tracks, transform);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const transform = computeViewportTransform(
+            containerW,
+            containerH,
+            video.videoWidth,
+            video.videoHeight
+          );
+
+          renderTrackedAnimalsToCanvas(
+            canvas,
+            tracker.getActiveTracks(),
+            transform
+          );
+        }
       }
 
       rafIdRef.current = requestAnimationFrame(renderLoop);
@@ -244,9 +304,9 @@ export function LiveObjectDetectionCamera({
         rafIdRef.current = null;
       }
     };
-  }, [isCameraActive, isScanning, !!scanResult]);
+  }, [isCameraActive, isScanning]);
 
-  // ── Live Detection Cycle (~10 FPS locally) ─────────────────────────────────
+  // ── Live Detection Cycle (~8-9 FPS locally) ────────────────────────────────
   const runDetectionCycle = useCallback(async () => {
     const video = videoRef.current;
     if (
@@ -255,7 +315,7 @@ export function LiveObjectDetectionCamera({
       video.videoWidth === 0 ||
       isDetectingRef.current ||
       isScanning ||
-      scanResult
+      showResultSheet
     ) {
       return;
     }
@@ -263,11 +323,11 @@ export function LiveObjectDetectionCamera({
     isDetectingRef.current = true;
     try {
       const result = await detectLiveFrameLocally(video);
-      if (!isMountedRef.current || isScanning || scanResult) return;
+      if (!isMountedRef.current || isScanning || showResultSheet) return;
 
       const tracker = trackerRef.current;
 
-      // Extract only genuine goat and sheep detections
+      // Extract genuine goat and sheep detections
       const rawLivestock: RawLivestockDetection[] = (result.detections || [])
         .filter((d) => d.type === 'GOAT' || d.type === 'SHEEP')
         .map((d) => ({
@@ -285,41 +345,18 @@ export function LiveObjectDetectionCamera({
       const selected = tracker.getSelectedTrack();
       setSelectedTrack(selected);
 
-      // Update farmer-friendly status message
-      if (updatedTracks.length === 0) {
-        if (result.count_persons > 0) {
-          setStatusMessage('May taong nakita.');
-        } else if (result.count_uncertain > 0) {
-          setStatusMessage('Hindi malinaw kung kambing o tupa. Ilapit ang camera.');
-        } else {
-          setStatusMessage('Walang kambing o tupa na nakita.');
-        }
-      } else if (updatedTracks.length === 1) {
-        const single = updatedTracks[0];
-        setStatusMessage(
-          single.species === 'sheep'
-            ? 'Tupa ang nakita. Handa nang suriin.'
-            : 'Kambing ang nakita. Handa nang suriin.'
-        );
-      } else {
-        if (selected) {
-          setStatusMessage(
-            `Napili: ${selected.species === 'sheep' ? 'Tupa' : 'Kambing'} #${selected.displayNumber}. Handa nang suriin.`
-          );
-        } else {
-          setStatusMessage('Maraming alaga ang nakita. Pindutin ang kahon ng alaga na susuriin.');
-        }
-      }
+      // Update dynamic Tagalog status message
+      setStatusMessage(computeDetectionStatus(updatedTracks, selected));
     } catch (err) {
       console.warn('[Camera] Detection cycle notice:', err);
     } finally {
       isDetectingRef.current = false;
     }
-  }, [isScanning, scanResult]);
+  }, [isScanning, showResultSheet, computeDetectionStatus]);
 
   // Setup periodic detection interval (~120ms cadence = ~8-9 FPS)
   useEffect(() => {
-    if (!isCameraActive || isScanning || scanResult) {
+    if (!isCameraActive || isScanning || showResultSheet) {
       if (detectTimerRef.current) {
         clearInterval(detectTimerRef.current);
         detectTimerRef.current = null;
@@ -335,7 +372,7 @@ export function LiveObjectDetectionCamera({
         detectTimerRef.current = null;
       }
     };
-  }, [isCameraActive, isScanning, scanResult, runDetectionCycle]);
+  }, [isCameraActive, isScanning, showResultSheet, runDetectionCycle]);
 
   // ── Camera Mount Lifecycle ────────────────────────────────────────────────
   useEffect(() => {
@@ -350,6 +387,8 @@ export function LiveObjectDetectionCamera({
 
   // ── Tap to Select on Viewport ─────────────────────────────────────────────
   const handleViewportTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (showResultSheet) return;
+
     const container = containerRef.current;
     const video = videoRef.current;
     if (!container || !video || video.videoWidth === 0) return;
@@ -362,8 +401,10 @@ export function LiveObjectDetectionCamera({
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
     } else if ('clientX' in e) {
-      clientX = (e as React.MouseEvent).clientX;
-      clientY = (e as React.MouseEvent).clientY;
+      clientX = e.clientX;
+      clientY = e.clientY;
+    } else {
+      return;
     }
 
     const tapX = clientX - rect.left;
@@ -376,23 +417,36 @@ export function LiveObjectDetectionCamera({
       video.videoHeight
     );
 
-    const hit = trackerRef.current.selectAtScreenCoordinates(tapX, tapY, transform);
-    if (hit) {
-      setSelectedTrack(hit);
-      setActiveTracks(trackerRef.current.getActiveTracks());
+    const tracker = trackerRef.current;
+    const hitTrack = tracker.selectAtScreenCoordinates(tapX, tapY, transform);
+
+    if (hitTrack) {
+      setSelectedTrack(hitTrack);
       setStatusMessage(
-        `Napili: ${hit.species === 'sheep' ? 'Tupa' : 'Kambing'} #${hit.displayNumber}. Handa nang suriin.`
+        hitTrack.species === 'sheep' ? 'Tupa na napili' : 'Kambing na napili'
       );
+    } else {
+      // If tapped outside, unselect only if multiple exist
+      if (tracker.getActiveTracks().length > 1) {
+        tracker.selectTrackById(null);
+        setSelectedTrack(null);
+        setStatusMessage(computeDetectionStatus(tracker.getActiveTracks(), null));
+      }
     }
   };
 
-  // ── Perform Health Scan with Gemini Vision ────────────────────────────────
+  // ── Camera Flip Control ───────────────────────────────────────────────────
+  const handleFlipCamera = useCallback(() => {
+    setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
+  }, []);
+
+  // ── Health Scan: Capture & Send Selected Animal to Gemini ─────────────────
   const handlePerformHealthScan = async () => {
     const video = videoRef.current;
     const selected = trackerRef.current.getSelectedTrack();
 
-    if (!video || video.videoWidth === 0 || !selected) {
-      toast('Pumili muna ng kambing o tupa sa camera.', 'warning');
+    if (!video || !selected) {
+      toast('Pumili muna ng kambing o tupa na susuriin.', 'warning');
       return;
     }
 
@@ -410,6 +464,7 @@ export function LiveObjectDetectionCamera({
 
       setCroppedImagePreview(dataUrl);
       setCroppedBlob(blob);
+      setLastCapturedThumbnail(dataUrl);
 
       // 3. Send crop to Gemini Multimodal Vision API
       const result = await scanAnimalWithGemini(croppedCanvas, {
@@ -424,6 +479,7 @@ export function LiveObjectDetectionCamera({
       }
 
       setScanResult(result);
+      setShowResultSheet(true);
 
       // Auto-match preselected animal or first matching species
       if (!selectedFarmAnimalId) {
@@ -446,6 +502,7 @@ export function LiveObjectDetectionCamera({
 
   // ── Reset & Rescan ────────────────────────────────────────────────────────
   const handleResetScan = () => {
+    setShowResultSheet(false);
     setScanResult(null);
     setCroppedImagePreview(null);
     setCroppedBlob(null);
@@ -497,6 +554,7 @@ export function LiveObjectDetectionCamera({
             .getPublicUrl(filePath);
           savedImageUrl = urlData.publicUrl;
           savedImagePath = filePath;
+          setLastCapturedThumbnail(savedImageUrl);
         } else {
           console.warn('[Camera] Storage upload warning:', uploadError.message);
         }
@@ -588,7 +646,12 @@ export function LiveObjectDetectionCamera({
         onHealthCheckSaved(insertedData as HealthRecord);
       }
 
-      onClose();
+      // Close bottom sheet and return to live camera for the next animal
+      setShowResultSheet(false);
+      setScanResult(null);
+      setNotes('');
+      setMedItemId('');
+      setMedQty('');
     } catch (err: any) {
       console.error('[Camera] Save error:', err);
       toast(err?.message || 'Nabigo ang pag-save ng Health Check.', 'error');
@@ -597,303 +660,19 @@ export function LiveObjectDetectionCamera({
     }
   };
 
-  // ── Render Clean Health Result Modal ──────────────────────────────────────
-  if (scanResult && croppedImagePreview) {
+  // Helper metadata for risk/status badge
+  const resultRiskMeta = useMemo(() => {
+    if (!scanResult) return null;
     const raw = scanResult.rawResponse;
-    const firstAnimal = scanResult.animals?.[0];
     const condition = raw?.condition || (scanResult.success ? 'Maayos' : 'Bantayan');
-    let riskScore = 15;
-    if (condition === 'Kailangan ng Gamot' || raw?.health_status === 'needs_medication') {
-      riskScore = 80;
-    } else if (condition === 'Kailangan ng Atensyon' || raw?.health_status === 'needs_attention') {
-      riskScore = 60;
-    } else if (condition === 'Bantayan' || raw?.health_status === 'monitor') {
-      riskScore = 35;
-    }
+    let score = 15;
+    if (condition === 'Kailangan ng Gamot' || raw?.health_status === 'needs_medication') score = 80;
+    else if (condition === 'Kailangan ng Atensyon' || raw?.health_status === 'needs_attention') score = 60;
+    else if (condition === 'Bantayan' || raw?.health_status === 'monitor') score = 35;
 
-    const mockRecord: Partial<HealthRecord> = { risk_score: riskScore };
-    const meta = getRecordRiskMeta(mockRecord as HealthRecord);
-    const StatusIcon = meta.Icon;
-    const observationsList = raw?.visual_observations || firstAnimal?.visualObservations || [];
+    return getRecordRiskMeta({ risk_score: score } as HealthRecord);
+  }, [scanResult]);
 
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: '#0F172A',
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          overflowY: 'auto',
-          color: '#F8FAFC',
-        }}
-      >
-        {/* Top Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px 20px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-            background: 'rgba(15, 23, 42, 0.95)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 10,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button
-              type="button"
-              onClick={handleResetScan}
-              style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: 'none',
-                borderRadius: '50%',
-                width: 38,
-                height: 38,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#FFFFFF',
-                cursor: 'pointer',
-              }}
-            >
-              <RotateCcw size={18} />
-            </button>
-            <div>
-              <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: '#FFFFFF' }}>
-                Resulta ng Pagsusuri
-              </h2>
-              <div style={{ fontSize: 12, color: '#94A3B8' }}>
-                Gemini Vision AI Health Analysis
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#94A3B8',
-              cursor: 'pointer',
-              padding: 6,
-            }}
-          >
-            <X size={22} />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div style={{ maxWidth: 680, width: '100%', margin: '0 auto', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Selected Animal Crop Card */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 14,
-              overflow: 'hidden',
-              backgroundColor: '#1E293B',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-            }}
-          >
-            <div style={{ position: 'relative', width: '100%', maxHeight: 320, backgroundColor: '#000000', display: 'flex', justifyContent: 'center' }}>
-              <img
-                src={croppedImagePreview}
-                alt="Selected Animal Crop"
-                style={{ maxHeight: 320, width: 'auto', objectFit: 'contain' }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 12,
-                  left: 12,
-                  background: 'rgba(15, 23, 42, 0.85)',
-                  backdropFilter: 'blur(6px)',
-                  padding: '4px 10px',
-                  borderRadius: 20,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: '#4ADE80',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <Check size={14} />
-                Litrato ng Napiling Alaga
-              </div>
-            </div>
-
-            {/* Health Status Pill */}
-            <div style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <div>
-                <span style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>
-                  Kalagayan
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <StatusIcon size={20} color={meta.color} />
-                  <span style={{ fontSize: 18, fontWeight: 800, color: meta.color }}>
-                    {meta.label}
-                  </span>
-                </div>
-              </div>
-              <div
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 20,
-                  backgroundColor: meta.badgeBg,
-                  border: `1px solid ${meta.badgeBorder}`,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: meta.color,
-                }}
-              >
-                Risk Score: {riskScore}
-              </div>
-            </div>
-          </div>
-
-          {/* Observations & Actions */}
-          <div style={{ backgroundColor: '#1E293B', borderRadius: 14, padding: 18, border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-                Napansin sa Alaga:
-              </h3>
-              {observationsList.length > 0 ? (
-                <ul style={{ margin: 0, paddingLeft: 18, color: '#F1F5F9', fontSize: 14, lineHeight: 1.6 }}>
-                  {observationsList.map((obs: string, idx: number) => (
-                    <li key={idx}>{obs}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p style={{ margin: 0, color: '#F1F5F9', fontSize: 14 }}>
-                  {scanResult.overallMessage || 'Walang nakitang abnormal na palatandaan.'}
-                </p>
-              )}
-            </div>
-
-            {(scanResult.recommendation || raw?.action) && (
-              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: 12 }}>
-                <h3 style={{ fontSize: 13, fontWeight: 700, color: '#4ADE80', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                  Gawin / Rekomendasyon:
-                </h3>
-                <p style={{ margin: 0, color: '#F1F5F9', fontSize: 13.5, lineHeight: 1.5 }}>
-                  {scanResult.recommendation || raw?.action}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Select Matching Animal in Inventory */}
-          <div style={{ backgroundColor: '#1E293B', borderRadius: 14, padding: 18, border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#F1F5F9' }}>
-              I-ugnay sa Kambing o Tupa sa Talaan:
-            </label>
-            <select
-              value={selectedFarmAnimalId}
-              onChange={(e) => setSelectedFarmAnimalId(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 8,
-                backgroundColor: '#0F172A',
-                border: '1px solid #334155',
-                color: '#FFFFFF',
-                fontSize: 14,
-                outline: 'none',
-              }}
-            >
-              <option value="">-- Piliin ang Alaga --</option>
-              {activeFarmAnimals.map((a: Animal) => (
-                <option key={a.id} value={a.id}>
-                  {a.tag_id} {a.name ? `(${a.name})` : ''} — {a.species?.toLowerCase() === 'sheep' ? 'Tupa' : 'Kambing'}
-                </option>
-              ))}
-            </select>
-
-            {/* Notes */}
-            <div style={{ marginTop: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#94A3B8', display: 'block', marginBottom: 4 }}>
-                Karagdagang Tala (Opsyonal):
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Hal. Binigyan ng sariwang damo, pinainom ng bitamina..."
-                rows={2}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  backgroundColor: '#0F172A',
-                  border: '1px solid #334155',
-                  color: '#FFFFFF',
-                  fontSize: 13,
-                  outline: 'none',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-            <button
-              type="button"
-              onClick={handleResetScan}
-              style={{
-                flex: 1,
-                padding: '14px',
-                borderRadius: 12,
-                backgroundColor: '#334155',
-                color: '#FFFFFF',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: 14,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                cursor: 'pointer',
-              }}
-            >
-              <RotateCcw size={18} />
-              I-scan Muli
-            </button>
-            <button
-              type="button"
-              disabled={savingRecord || !selectedFarmAnimalId}
-              onClick={handleSaveHealthCheck}
-              style={{
-                flex: 2,
-                padding: '14px',
-                borderRadius: 12,
-                background: selectedFarmAnimalId ? '#16A34A' : '#475569',
-                color: '#FFFFFF',
-                border: 'none',
-                fontWeight: 700,
-                fontSize: 14,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                cursor: selectedFarmAnimalId ? 'pointer' : 'not-allowed',
-                boxShadow: selectedFarmAnimalId ? '0 4px 14px rgba(22, 163, 74, 0.4)' : 'none',
-              }}
-            >
-              <Save size={18} />
-              {savingRecord ? 'Inililigtas...' : 'I-save ang Health Check'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Main Full-Screen Live Camera Screen ───────────────────────────────────
   return (
     <div
       ref={containerRef}
@@ -901,12 +680,13 @@ export function LiveObjectDetectionCamera({
         position: 'fixed',
         inset: 0,
         backgroundColor: '#0B0F17',
-        zIndex: 999,
+        zIndex: 99999,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         userSelect: 'none',
         WebkitUserSelect: 'none',
+        touchAction: 'manipulation',
       }}
     >
       {/* ── TOP BAR: ← AI Health Scanner ⚙ ── */}
@@ -916,15 +696,20 @@ export function LiveObjectDetectionCamera({
           top: 0,
           left: 0,
           right: 0,
-          zIndex: 20,
+          zIndex: 30,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '16px 20px',
-          background: 'linear-gradient(to bottom, rgba(11, 15, 23, 0.85) 0%, rgba(11, 15, 23, 0) 100%)',
+          paddingTop: 'max(12px, env(safe-area-inset-top, 0px))',
+          paddingBottom: 14,
+          paddingLeft: 16,
+          paddingRight: 16,
+          background: 'linear-gradient(to bottom, rgba(11, 15, 23, 0.88) 0%, rgba(11, 15, 23, 0) 100%)',
+          backdropFilter: 'blur(6px)',
           color: '#FFFFFF',
         }}
       >
+        {/* Back / Close button */}
         <button
           type="button"
           onClick={onClose}
@@ -932,7 +717,7 @@ export function LiveObjectDetectionCamera({
           style={{
             background: 'rgba(15, 23, 42, 0.75)',
             backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
             borderRadius: '50%',
             width: 42,
             height: 42,
@@ -941,26 +726,30 @@ export function LiveObjectDetectionCamera({
             justifyContent: 'center',
             color: '#FFFFFF',
             cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
           }}
         >
           <ArrowLeft size={20} />
         </button>
 
+        {/* Center: Live indicator dot + Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span
             style={{
-              width: 8,
-              height: 8,
+              width: 9,
+              height: 9,
               borderRadius: '50%',
               backgroundColor: isCameraActive ? '#22C55E' : '#EF4444',
               boxShadow: isCameraActive ? '0 0 10px #22C55E' : 'none',
+              animation: isCameraActive ? 'pulse 2s infinite' : 'none',
             }}
           />
-          <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0, letterSpacing: -0.2 }}>
+          <h1 style={{ fontSize: 16.5, fontWeight: 700, margin: 0, letterSpacing: -0.2 }}>
             AI Health Scanner
           </h1>
         </div>
 
+        {/* Settings button */}
         <button
           type="button"
           onClick={() => setShowSettings((prev) => !prev)}
@@ -968,7 +757,7 @@ export function LiveObjectDetectionCamera({
           style={{
             background: 'rgba(15, 23, 42, 0.75)',
             backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
             borderRadius: '50%',
             width: 42,
             height: 42,
@@ -977,6 +766,7 @@ export function LiveObjectDetectionCamera({
             justifyContent: 'center',
             color: '#FFFFFF',
             cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
           }}
         >
           <SettingsIcon size={20} />
@@ -1059,7 +849,7 @@ export function LiveObjectDetectionCamera({
               justifyContent: 'center',
               padding: 24,
               color: '#FFFFFF',
-              zIndex: 30,
+              zIndex: 35,
               textAlign: 'center',
               gap: 12,
             }}
@@ -1096,7 +886,7 @@ export function LiveObjectDetectionCamera({
               inset: 0,
               backgroundColor: 'rgba(11, 15, 23, 0.85)',
               backdropFilter: 'blur(6px)',
-              zIndex: 30,
+              zIndex: 35,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1107,110 +897,615 @@ export function LiveObjectDetectionCamera({
           >
             <div
               style={{
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 borderRadius: '50%',
                 border: '4px solid rgba(34, 197, 94, 0.2)',
                 borderTopColor: '#22C55E',
                 animation: 'spin 1s linear infinite',
               }}
             />
-            <div style={{ fontSize: 16, fontWeight: 700 }}>
+            <div style={{ fontSize: 17, fontWeight: 700 }}>
               Sinusuri ang napiling alaga...
             </div>
-            <div style={{ fontSize: 12.5, color: '#94A3B8', maxWidth: 280, textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: '#94A3B8', maxWidth: 280, textAlign: 'center' }}>
               Isinusumite ang cropped image sa Gemini Vision AI para sa pagsusuri
             </div>
           </div>
         )}
       </div>
 
-      {/* ── BOTTOM HUD: Status Pill & Capture Control ── */}
+      {/* ── BOTTOM CAMERA CONTROLS BAR ── */}
       <div
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
-          zIndex: 20,
+          zIndex: 30,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '16px 20px 28px',
-          background: 'linear-gradient(to top, rgba(11, 15, 23, 0.95) 0%, rgba(11, 15, 23, 0.6) 70%, rgba(11, 15, 23, 0) 100%)',
-          gap: 14,
+          paddingLeft: 20,
+          paddingRight: 20,
+          paddingTop: 12,
+          paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+          background: 'linear-gradient(to top, rgba(11, 15, 23, 0.96) 0%, rgba(11, 15, 23, 0.75) 60%, rgba(11, 15, 23, 0) 100%)',
+          gap: 12,
+          pointerEvents: showResultSheet ? 'none' : 'auto',
+          opacity: showResultSheet ? 0 : 1,
+          transition: 'opacity 0.2s ease',
         }}
       >
-        {/* Floating Detection Status Pill */}
+        {/* Detection Status Pill */}
         <div
           style={{
             background: selectedTrack
               ? 'rgba(22, 163, 74, 0.92)'
               : activeTracks.length > 0
-              ? 'rgba(30, 41, 59, 0.88)'
-              : 'rgba(15, 23, 42, 0.82)',
+              ? 'rgba(30, 41, 59, 0.9)'
+              : 'rgba(15, 23, 42, 0.85)',
             backdropFilter: 'blur(8px)',
             color: '#FFFFFF',
             padding: '7px 18px',
-            borderRadius: 22,
-            fontSize: 12.5,
+            borderRadius: 24,
+            fontSize: 13,
             fontWeight: 700,
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.45)',
             maxWidth: '92%',
             textAlign: 'center',
+            letterSpacing: 0.1,
           }}
         >
           {selectedTrack ? (
-            <CheckCircle2 size={15} color="#4ADE80" />
+            <CheckCircle2 size={16} color="#4ADE80" />
           ) : activeTracks.length > 0 ? (
-            <Sparkles size={15} color="#22C55E" />
+            <Sparkles size={16} color="#22C55E" />
           ) : (
-            <Info size={15} color="#94A3B8" />
+            <Info size={16} color="#94A3B8" />
           )}
           <span>{statusMessage}</span>
         </div>
 
-        {/* Primary Health Scan Action Button */}
-        <button
-          type="button"
-          disabled={!selectedTrack || isScanning}
-          onClick={handlePerformHealthScan}
+        {/* 3-Element Control Bar: [Thumbnail]   ● (SCAN)   [Flip Camera] */}
+        <div
           style={{
-            width: '100%',
-            maxWidth: 380,
-            padding: '15px 24px',
-            borderRadius: 16,
-            background: selectedTrack
-              ? 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)'
-              : 'rgba(51, 65, 85, 0.65)',
-            border: selectedTrack
-              ? '1px solid rgba(255, 255, 255, 0.25)'
-              : '1px solid rgba(255, 255, 255, 0.08)',
-            color: '#FFFFFF',
-            fontWeight: 800,
-            fontSize: 15,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            cursor: selectedTrack ? 'pointer' : 'not-allowed',
-            boxShadow: selectedTrack
-              ? '0 6px 20px rgba(34, 197, 94, 0.45)'
-              : 'none',
-            transition: 'all 0.2s ease',
+            justifyContent: 'space-between',
+            width: '100%',
+            maxWidth: 390,
+            padding: '0 8px',
           }}
         >
-          <Sparkles size={20} />
-          <span>
-            {selectedTrack
-              ? `Suriin ang Napiling ${selectedTrack.species === 'sheep' ? 'Tupa' : 'Kambing'}`
-              : 'Pumili ng Kambing o Tupa'}
-          </span>
-        </button>
+          {/* LEFT: Captured Image Thumbnail button */}
+          <button
+            type="button"
+            onClick={() => {
+              if (lastCapturedThumbnail && scanResult) {
+                setShowResultSheet(true);
+              }
+            }}
+            disabled={!lastCapturedThumbnail}
+            aria-label="Huling pagsusuri thumbnail"
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(30, 41, 59, 0.85)',
+              backdropFilter: 'blur(8px)',
+              border: lastCapturedThumbnail
+                ? '2px solid #22C55E'
+                : '2px solid rgba(255, 255, 255, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              cursor: lastCapturedThumbnail ? 'pointer' : 'default',
+              padding: 0,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {lastCapturedThumbnail ? (
+              <img
+                src={lastCapturedThumbnail}
+                alt="Latest Capture"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <ImageIcon size={22} color="#FFFFFF" style={{ opacity: 0.65 }} />
+            )}
+          </button>
+
+          {/* CENTER: Large 78px Circular Shutter / Scan Button */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <button
+              type="button"
+              disabled={!selectedTrack || isScanning}
+              onClick={handlePerformHealthScan}
+              aria-label={
+                selectedTrack
+                  ? `I-scan ang ${selectedTrack.species === 'sheep' ? 'tupa' : 'kambing'}`
+                  : 'I-scan'
+              }
+              style={{
+                width: 78,
+                height: 78,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                outline: 'none',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                cursor: selectedTrack && !isScanning ? 'pointer' : 'not-allowed',
+                background: selectedTrack
+                  ? 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)'
+                  : 'rgba(51, 65, 85, 0.55)',
+                border: selectedTrack
+                  ? '3px solid rgba(255, 255, 255, 0.95)'
+                  : '3px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: selectedTrack
+                  ? '0 0 24px rgba(34, 197, 94, 0.65), 0 4px 14px rgba(0, 0, 0, 0.6)'
+                  : '0 2px 8px rgba(0, 0, 0, 0.3)',
+                opacity: selectedTrack && !isScanning ? 1 : 0.65,
+                transform: isScanning ? 'scale(0.92)' : 'scale(1)',
+              }}
+            >
+              <Camera
+                size={34}
+                color={selectedTrack ? '#FFFFFF' : '#94A3B8'}
+                strokeWidth={2.2}
+              />
+            </button>
+
+            {/* Dynamic Label Below Shutter Button */}
+            <span
+              style={{
+                fontSize: 11.5,
+                fontWeight: 800,
+                letterSpacing: 0.5,
+                textTransform: 'uppercase',
+                color: '#FFFFFF',
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.8)',
+                minHeight: 16,
+              }}
+            >
+              {!selectedTrack
+                ? 'I-SCAN'
+                : selectedTrack.species === 'sheep'
+                ? 'I-SCAN ANG TUPA'
+                : 'I-SCAN ANG KAMBING'}
+            </span>
+          </div>
+
+          {/* RIGHT: Flip Camera Button */}
+          <button
+            type="button"
+            onClick={handleFlipCamera}
+            aria-label="I-flip ang camera"
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(30, 41, 59, 0.85)',
+              backdropFilter: 'blur(8px)',
+              border: '2px solid rgba(255, 255, 255, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <SwitchCamera size={22} color="#FFFFFF" strokeWidth={2.2} />
+          </button>
+        </div>
       </div>
+
+      {/* ── AFTER SCAN: Result Bottom Sheet Overlay over Live Camera ── */}
+      {showResultSheet && scanResult && croppedImagePreview && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 60,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+          }}
+          onClick={() => setShowResultSheet(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxHeight: '85dvh',
+              backgroundColor: '#0F172A',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderTop: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.7)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Drag Handle Bar */}
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10, paddingBottom: 6 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 5,
+                  borderRadius: 3,
+                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                }}
+              />
+            </div>
+
+            {/* Sheet Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 20px 14px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: '#FFFFFF', letterSpacing: -0.2 }}>
+                  Health Check
+                </h2>
+                <div style={{ fontSize: 12.5, color: '#94A3B8', marginTop: 2 }}>
+                  {selectedAnimal
+                    ? `${selectedAnimal.species === 'Sheep' ? 'Tupa' : 'Kambing'} — ${selectedAnimal.tag_id}${selectedAnimal.name ? ` (${selectedAnimal.name})` : ''}`
+                    : 'Pagsusuri ng Gemini Vision AI'}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleResetScan}
+                  title="I-scan Muli"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '50%',
+                    width: 36,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <RotateCcw size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowResultSheet(false)}
+                  title="Isara"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '50%',
+                    width: 36,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '16px 20px calc(24px + env(safe-area-inset-bottom, 0px))',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+              }}
+            >
+              {/* Cropped Animal Preview Card */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  backgroundColor: '#1E293B',
+                  borderRadius: 14,
+                  padding: 10,
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                <img
+                  src={croppedImagePreview}
+                  alt="Scanned Animal"
+                  style={{
+                    width: 100,
+                    height: 80,
+                    objectFit: 'cover',
+                    borderRadius: 10,
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Sinuring Alaga
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#FFFFFF', marginTop: 2 }}>
+                    {selectedAnimal ? `${selectedAnimal.tag_id} (${selectedAnimal.species === 'Sheep' ? 'Tupa' : 'Kambing'})` : 'Hindi nakatala'}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    {resultRiskMeta && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 12,
+                          backgroundColor: resultRiskMeta.badgeBg,
+                          border: `1px solid ${resultRiskMeta.badgeBorder}`,
+                          color: resultRiskMeta.color,
+                        }}
+                      >
+                        {resultRiskMeta.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Kalagayan Card */}
+              {resultRiskMeta && (
+                <div
+                  style={{
+                    backgroundColor: '#1E293B',
+                    borderRadius: 14,
+                    padding: '14px 16px',
+                    border: `1px solid ${resultRiskMeta.badgeBorder}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>
+                      Kalagayan
+                    </div>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: resultRiskMeta.color, marginTop: 2 }}>
+                      {resultRiskMeta.label}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: '50%',
+                      backgroundColor: resultRiskMeta.badgeBg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <resultRiskMeta.Icon size={20} color={resultRiskMeta.color} />
+                  </div>
+                </div>
+              )}
+
+              {/* Napansin (Observations) */}
+              <div
+                style={{
+                  backgroundColor: '#1E293B',
+                  borderRadius: 14,
+                  padding: '14px 16px',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={15} color="#FBBF24" />
+                  Napansin:
+                </div>
+                {(() => {
+                  const raw = scanResult.rawResponse;
+                  const first = scanResult.animals?.[0];
+                  const obs: string[] = raw?.visual_observations || first?.visualObservations || [];
+                  if (obs.length === 0) {
+                    return (
+                      <div style={{ fontSize: 13, color: '#CBD5E1', lineHeight: 1.5 }}>
+                        {raw?.condition_summary || 'Maayos ang tindig at walang nakitang sugat o sakit.'}
+                      </div>
+                    );
+                  }
+                  return (
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#CBD5E1', lineHeight: 1.6 }}>
+                      {obs.map((item, idx) => (
+                        <li key={idx} style={{ marginBottom: 4 }}>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </div>
+
+              {/* Gawin (Recommended Action) */}
+              <div
+                style={{
+                  backgroundColor: '#1E293B',
+                  borderRadius: 14,
+                  padding: '14px 16px',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <HeartPulse size={15} color="#4ADE80" />
+                  Gawin:
+                </div>
+                <div style={{ fontSize: 13, color: '#CBD5E1', lineHeight: 1.55 }}>
+                  {scanResult.recommendation ||
+                    scanResult.rawResponse?.action ||
+                    'Panatilihing malinis ang kulungan, bigyan ng sariwang tubig, at subaybayan ang pagkain.'}
+                </div>
+              </div>
+
+              {/* Farm Animal Link Selector */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: 6 }}>
+                  I-ugnay sa Kambing o Tupa sa Talaan:
+                </label>
+                <select
+                  value={selectedFarmAnimalId}
+                  onChange={(e) => setSelectedFarmAnimalId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 12,
+                    backgroundColor: '#1E293B',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">-- Piliin ang Alaga --</option>
+                  {activeFarmAnimals.map((a: Animal) => (
+                    <option key={a.id} value={a.id}>
+                      {a.tag_id} {a.name ? `(${a.name})` : ''} — {a.species?.toLowerCase() === 'sheep' ? 'Tupa' : 'Kambing'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Optional Medicine Deduction */}
+              {availableMedicines.length > 0 && (
+                <div
+                  style={{
+                    backgroundColor: '#1E293B',
+                    borderRadius: 14,
+                    padding: 14,
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: 6 }}>
+                    Gamot mula sa Inventory (Opsyonal):
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+                    <select
+                      value={medItemId}
+                      onChange={(e) => setMedItemId(e.target.value)}
+                      style={{
+                        padding: '9px 12px',
+                        borderRadius: 10,
+                        backgroundColor: '#0F172A',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: '#FFFFFF',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    >
+                      <option value="">-- Walang Gamot --</option>
+                      {availableMedicines.map((m: InventoryItem) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.quantity} {m.unit})
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      placeholder="Dami"
+                      value={medQty}
+                      onChange={(e) => setMedQty(e.target.value)}
+                      min="1"
+                      style={{
+                        padding: '9px 12px',
+                        borderRadius: 10,
+                        backgroundColor: '#0F172A',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: '#FFFFFF',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Primary Action Button: Save Health Check */}
+              <button
+                type="button"
+                disabled={savingRecord || !selectedFarmAnimalId}
+                onClick={handleSaveHealthCheck}
+                style={{
+                  width: '100%',
+                  padding: '15px 20px',
+                  borderRadius: 14,
+                  backgroundColor: selectedFarmAnimalId ? '#16A34A' : 'rgba(51, 65, 85, 0.6)',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: 15,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  cursor: selectedFarmAnimalId && !savingRecord ? 'pointer' : 'not-allowed',
+                  boxShadow: selectedFarmAnimalId ? '0 4px 18px rgba(22, 163, 74, 0.45)' : 'none',
+                  marginTop: 4,
+                }}
+              >
+                {savingRecord ? (
+                  <>
+                    <div
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: '50%',
+                        border: '2px solid rgba(255,255,255,0.3)',
+                        borderTopColor: '#FFFFFF',
+                        animation: 'spin 1s linear infinite',
+                      }}
+                    />
+                    <span>Sine-save sa Records...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} />
+                    <span>I-save ang Health Check</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── SETTINGS DRAWER / MODAL ── */}
       {showSettings && (
@@ -1220,7 +1515,7 @@ export function LiveObjectDetectionCamera({
             inset: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.65)',
             backdropFilter: 'blur(4px)',
-            zIndex: 40,
+            zIndex: 50,
             display: 'flex',
             alignItems: 'flex-end',
           }}
@@ -1233,7 +1528,7 @@ export function LiveObjectDetectionCamera({
               backgroundColor: '#1E293B',
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              padding: '24px 20px',
+              padding: '24px 20px calc(24px + env(safe-area-inset-bottom, 0px))',
               color: '#FFFFFF',
               display: 'flex',
               flexDirection: 'column',
@@ -1253,60 +1548,52 @@ export function LiveObjectDetectionCamera({
               </button>
             </div>
 
-            {/* Switch Camera */}
-            <button
-              type="button"
-              onClick={() => {
-                setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
-                setShowSettings(false);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 14px',
-                borderRadius: 10,
-                backgroundColor: '#0F172A',
-                border: '1px solid #334155',
-                color: '#FFFFFF',
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <SwitchCamera size={18} color="#22C55E" />
-                <span style={{ fontSize: 14, fontWeight: 600 }}>Palitan ang Camera</span>
+            {/* Flip Camera Option */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Palitan ang Camera</div>
+                <div style={{ fontSize: 12, color: '#94A3B8' }}>
+                  Kasalukuyan: {facingMode === 'environment' ? 'Rear (Likod)' : 'Front (Harap)'}
+                </div>
               </div>
-              <span style={{ fontSize: 12, color: '#94A3B8' }}>
-                {facingMode === 'environment' ? 'Rear (Likod)' : 'Front (Harap)'}
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={handleFlipCamera}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: 10,
+                  padding: '8px 16px',
+                  color: '#FFFFFF',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <SwitchCamera size={16} />
+                I-flip
+              </button>
+            </div>
 
-            {/* Toggle Grid */}
-            <button
-              type="button"
-              onClick={() => setShowGrid((prev) => !prev)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 14px',
-                borderRadius: 10,
-                backgroundColor: '#0F172A',
-                border: '1px solid #334155',
-                color: '#FFFFFF',
-                cursor: 'pointer',
-              }}
-            >
-              <span style={{ fontSize: 14, fontWeight: 600 }}>Ipakita ang Grid Lines</span>
-              <span style={{ fontSize: 12, color: showGrid ? '#22C55E' : '#94A3B8', fontWeight: 700 }}>
-                {showGrid ? 'Naka-on' : 'Naka-off'}
-              </span>
-            </button>
+            {/* Alignment Grid Option */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Alignment Grid</div>
+                <div style={{ fontSize: 12, color: '#94A3B8' }}>Gabay sa pag-tutok ng alaga</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={showGrid}
+                onChange={(e) => setShowGrid(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: '#22C55E', cursor: 'pointer' }}
+              />
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-export default LiveObjectDetectionCamera;

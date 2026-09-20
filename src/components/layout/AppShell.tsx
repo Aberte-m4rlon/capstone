@@ -71,6 +71,18 @@ export function AppShell({ children }: AppShellProps) {
     refreshNotifications();
   };
 
+  // Dedicate true full-screen mode without any sidebar, header, AI button, or bottom nav
+  if (location.pathname === '/camera-screening') {
+    return (
+      <main
+        className="camera-screening-fullscreen"
+        style={{ width: '100vw', height: '100dvh', overflow: 'hidden', margin: 0, padding: 0 }}
+      >
+        {children}
+      </main>
+    );
+  }
+
   return (
     <div className="app-layout">
       {/* Desktop Sidebar */}
