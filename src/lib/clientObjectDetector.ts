@@ -710,9 +710,9 @@ export async function detectLiveFrameLocally(
     return {
       success: true,
       modelReady: _isModelReady,
-      modelName: 'YOLOv8n + EfficientDet-Lite0',
+      modelName: 'YOLOv8 Goat Detector + Generic Object Detector',
       supportsGoatClass: _hasGoatClass,
-      supportsSheepClass: true,
+      supportsSheepClass: false,
       detections: [],
       count_goats: 0,
       count_sheep: 0,
@@ -806,17 +806,14 @@ export async function detectLiveFrameLocally(
             targetType = 'PERSON';
             targetLabel = 'TAO';
             canonicalClass = 'person';
-          } else if (
-            catName === 'sheep' &&
-            score >= CONFIDENCE_THRESHOLDS.SHEEP &&
-            _yoloSession
-          ) {
-            // MediaPipe's COCO sheep class is only a secondary signal.
-            // Never let it become the sole livestock detector; the dedicated
-            // goat model must be loaded so a goat can win the species gate.
-            targetType = 'SHEEP';
-            targetLabel = 'TUPA';
-            canonicalClass = 'sheep';
+          } else if (catName === 'sheep') {
+            // IMPORTANT: EfficientDet-Lite0 is a generic COCO detector, not a
+            // goat-vs-sheep livestock classifier. Goats are commonly close enough
+            // visually to trigger its sheep class. Do NOT expose this raw COCO
+            // sheep class as a trusted TUPA detection in the farm scanner.
+            // A dedicated two-class goat/sheep model is required before TUPA can
+            // be shown as a confirmed species.
+            continue;
           } else if (catName === 'dog' && score >= CONFIDENCE_THRESHOLDS.OTHER_ANIMAL) {
             targetType = 'OTHER_ANIMAL';
             targetLabel = 'ASO';
@@ -973,7 +970,7 @@ export async function detectLiveFrameLocally(
       modelReady: true,
       modelName: 'YOLOv8n + EfficientDet-Lite0',
       supportsGoatClass: true,
-      supportsSheepClass: true,
+      supportsSheepClass: false,
       detections: stableDetections,
       count_goats,
       count_sheep,
