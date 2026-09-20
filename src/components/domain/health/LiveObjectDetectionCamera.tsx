@@ -54,6 +54,7 @@ import {
   captureVideoFrame,
   canvasToBlob,
   cropCanvasToBoundingBox,
+  BoundingBox,
 } from '../../../lib/cameraUtils';
 import { scanAnimalWithGemini, GeminiScanResult } from '../../../lib/geminiScanner';
 import { getRecordRiskMeta } from '../../../pages/HealthPage';
@@ -112,6 +113,8 @@ export function LiveObjectDetectionCamera({
   );
   const [activeTracks, setActiveTracks] = useState<TrackedLivestockAnimal[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<TrackedLivestockAnimal | null>(null);
+  const [uncertainMode, setUncertainMode] = useState<boolean>(false);
+  const [uncertainBox, setUncertainBox] = useState<BoundingBox | null>(null);
 
   // ── Health Scan & Result State ────────────────────────────────────────────
   const [isScanning, setIsScanning] = useState(false);
@@ -121,32 +124,31 @@ export function LiveObjectDetectionCamera({
   const [lastCapturedThumbnail, setLastCapturedThumbnail] = useState<string | null>(null);
   const [showResultSheet, setShowResultSheet] = useState<boolean>(false);
   const [savingRecord, setSavingRecord] = useState(false);
-  const [notes, setNotes] = useState('');
   const [selectedFarmAnimalId, setSelectedFarmAnimalId] = useState<string>(preselectedAnimalId || '');
-  const [medItemId, setMedItemId] = useState<string>('');
-  const [medQty, setMedQty] = useState<string>('');
 
   // ── Active Animals & Medicines ────────────────────────────────────────────
   const activeFarmAnimals = useMemo(() => {
     return farmData.animals.filter((a: Animal) => !a.archived && !a.is_sold && a.status !== 'Sold');
   }, [farmData.animals]);
 
-  const availableMedicines = useMemo(() => {
-    return farmData.inventory.filter(
-      (item: InventoryItem) => (item.quantity ?? 0) > 0 && item.category?.toLowerCase().includes('med')
-    );
-  }, [farmData.inventory]);
-
   // Selected registered animal entity
   const selectedAnimal = useMemo(() => {
     return activeFarmAnimals.find((a) => a.id === selectedFarmAnimalId) || null;
   }, [activeFarmAnimals, selectedFarmAnimalId]);
 
-  // ── Formatted Farmer-Friendly Detection Status ────────────────────────────
+  // ── Formatted Farmer-Friendly Detection Status (Directive 12) ─────────────
   const computeDetectionStatus = useCallback(
-    (tracks: TrackedLivestockAnimal[], selected: TrackedLivestockAnimal | null): string => {
-      if (selected) {
-        return selected.species === 'sheep' ? 'Tupa na napili' : 'Kambing na napili';
+    (
+      tracks: TrackedLivestockAnimal[],
+      _selected: TrackedLivestockAnimal | null,
+      personDetected: boolean = false,
+      uncertain: boolean = false
+    ): string => {
+      if (personDetected && tracks.length === 0) {
+        return 'May taong nakita. Itutok ang camera sa kambing o tupa.';
+      }
+      if (uncertain && tracks.length === 0) {
+        return 'Hindi matukoy ang uri ng hayop';
       }
       if (tracks.length === 0) {
         return 'Naghahanap ng kambing o tupa...';
@@ -155,22 +157,26 @@ export function LiveObjectDetectionCamera({
       const sheep = tracks.filter((t) => t.species === 'sheep').length;
 
       if (goats > 0 && sheep > 0) {
-        const gText = goats === 1 ? '1 kambing' : `${goats} kambing`;
-        const sText = sheep === 1 ? '1 tupa' : `${sheep} tupa`;
-        return `${gText} at ${sText} ang nakita`;
+        return `${goats} kambing at ${sheep} tupa na-detect.`;
       }
-      if (goats > 0) {
-        return goats === 1 ? 'Kambing ang nakita' : `${goats} kambing ang nakita`;
+      if (goats > 1) {
+        return `${goats} kambing na-detect.`;
       }
-      if (sheep > 0) {
-        return sheep === 1 ? 'Tupa ang nakita' : `${sheep} tupa ang nakita`;
+      if (goats === 1) {
+        return 'Kambing na-detect.';
+      }
+      if (sheep > 1) {
+        return `${sheep} tupa na-detect.`;
+      }
+      if (sheep === 1) {
+        return 'Tupa na-detect.';
       }
       return 'Naghahanap ng kambing o tupa...';
     },
     []
   );
 
-  // ── Stop Camera Stream ────────────────────────────────────────────────────
+  // ── Stop Camera Stream (Directive 2: Clear all detection state) ────────────
   const stopCameraStream = useCallback(() => {
     if (detectTimerRef.current) {
       clearInterval(detectTimerRef.current);
@@ -188,6 +194,10 @@ export function LiveObjectDetectionCamera({
       videoRef.current.srcObject = null;
     }
     trackerRef.current.reset();
+    setActiveTracks([]);
+    setSelectedTrack(null);
+    setUncertainMode(false);
+    setUncertainBox(null);
     setIsCameraActive(false);
   }, []);
 
@@ -327,10 +337,29 @@ export function LiveObjectDetectionCamera({
 
       const tracker = trackerRef.current;
 
-      // Extract genuine goat and sheep detections
-      const rawLivestock: RawLivestockDetection[] = (result.detections || [])
-        .filter((d) => d.type === 'GOAT' || d.type === 'SHEEP')
-        .map((d) => ({
+      // Extract detections strictly by verified classification
+      const allDetections = result.detections || [];
+      const personDetected = allDetections.some((d) => d.type === 'PERSON');
+      const goatDetections = allDetections.filter((d) => d.type === 'GOAT');
+      const sheepDetections = allDetections.filter((d) => d.type === 'SHEEP');
+      const uncertainDetections = allDetections.filter((d) => d.type === 'UNCERTAIN');
+
+      if (personDetected && goatDetections.length === 0 && sheepDetections.length === 0) {
+        // Directive 2 & 12: Person in frame with no livestock -> clear boxes immediately
+        tracker.reset();
+        setActiveTracks([]);
+        setSelectedTrack(null);
+        setUncertainMode(false);
+        setUncertainBox(null);
+        setStatusMessage('May taong nakita. Itutok ang camera sa kambing o tupa.');
+        return;
+      }
+
+      if (goatDetections.length > 0 || sheepDetections.length > 0) {
+        setUncertainMode(false);
+        setUncertainBox(null);
+
+        const rawLivestock: RawLivestockDetection[] = [...goatDetections, ...sheepDetections].map((d) => ({
           species: d.type === 'SHEEP' ? 'sheep' : 'goat',
           label: d.type === 'SHEEP' ? 'TUPA' : 'KAMBING',
           confidence: d.confidence,
@@ -338,15 +367,32 @@ export function LiveObjectDetectionCamera({
           rawCategory: d.rawCategory,
         }));
 
-      // Update tracker with EMA smoothing, IoU matching, and grace periods
-      const updatedTracks = tracker.update(rawLivestock);
-      setActiveTracks(updatedTracks);
+        // Update tracker with EMA smoothing, IoU matching, and fast eviction
+        const updatedTracks = tracker.update(rawLivestock);
+        setActiveTracks(updatedTracks);
 
-      const selected = tracker.getSelectedTrack();
-      setSelectedTrack(selected);
+        const selected = tracker.getSelectedTrack();
+        setSelectedTrack(selected);
 
-      // Update dynamic Tagalog status message
-      setStatusMessage(computeDetectionStatus(updatedTracks, selected));
+        // Update dynamic Tagalog status message
+        setStatusMessage(computeDetectionStatus(updatedTracks, selected, false, false));
+      } else if (uncertainDetections.length > 0) {
+        // Directive 1 & 4: Species cannot be reliably determined
+        tracker.reset();
+        setActiveTracks([]);
+        setSelectedTrack(null);
+        setUncertainMode(true);
+        setUncertainBox(uncertainDetections[0].boundingBox);
+        setStatusMessage('Hindi matukoy ang uri ng hayop');
+      } else {
+        // Directive 2: Nothing detected in frame -> clear all boxes immediately
+        tracker.reset();
+        setActiveTracks([]);
+        setSelectedTrack(null);
+        setUncertainMode(false);
+        setUncertainBox(null);
+        setStatusMessage('Naghahanap ng kambing o tupa...');
+      }
     } catch (err) {
       console.warn('[Camera] Detection cycle notice:', err);
     } finally {
@@ -440,25 +486,35 @@ export function LiveObjectDetectionCamera({
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
   }, []);
 
-  // ── Health Scan: Capture & Send Selected Animal to Gemini ─────────────────
+  // ── Health Scan: Capture & Send Selected Animal to Gemini (Directive 5) ──
   const handlePerformHealthScan = async () => {
     const video = videoRef.current;
     const selected = trackerRef.current.getSelectedTrack();
 
-    if (!video || !selected) {
-      toast('Pumili muna ng kambing o tupa na susuriin.', 'warning');
+    if (!video) return;
+
+    if (!selected && !uncertainMode) {
+      toast('Itutok ang camera sa kambing o tupa na susuriin.', 'warning');
       return;
     }
 
     setIsScanning(true);
-    setStatusMessage('Kinukunan ang napiling alaga at sinusuri gamit ang AI...');
+    setStatusMessage('Kinukunan ang alaga at sinusuri gamit ang AI...');
 
     try {
       // 1. Capture full-resolution video frame
       const fullFrameCanvas = captureVideoFrame(video);
 
-      // 2. Crop the selected animal's bounding box with 15% safe padding margin
-      const croppedCanvas = cropCanvasToBoundingBox(fullFrameCanvas, selected.box, 0.15);
+      // 2. Crop animal's bounding box with 15% safe padding margin, or use frame
+      let croppedCanvas: HTMLCanvasElement;
+      if (selected) {
+        croppedCanvas = cropCanvasToBoundingBox(fullFrameCanvas, selected.box, 0.15);
+      } else if (uncertainBox) {
+        croppedCanvas = cropCanvasToBoundingBox(fullFrameCanvas, uncertainBox, 0.15);
+      } else {
+        croppedCanvas = fullFrameCanvas;
+      }
+
       const dataUrl = croppedCanvas.toDataURL('image/jpeg', 0.90);
       const blob = await canvasToBlob(croppedCanvas, 0.90);
 
@@ -469,7 +525,7 @@ export function LiveObjectDetectionCamera({
       // 3. Send crop to Gemini Multimodal Vision API
       const result = await scanAnimalWithGemini(croppedCanvas, {
         context: 'health_scan',
-        animalType: selected.species,
+        animalType: selected ? selected.species : 'goat',
       });
 
       if (!result.success || !result.detected) {
@@ -481,20 +537,19 @@ export function LiveObjectDetectionCamera({
       setScanResult(result);
       setShowResultSheet(true);
 
-      // Auto-match preselected animal or first matching species
-      if (!selectedFarmAnimalId) {
-        const matchingAnimal = activeFarmAnimals.find(
-          (a: Animal) => a.species?.toLowerCase() === selected.species
-        );
-        if (matchingAnimal) {
-          setSelectedFarmAnimalId(matchingAnimal.id);
-        } else if (activeFarmAnimals.length > 0) {
-          setSelectedFarmAnimalId(activeFarmAnimals[0].id);
-        }
+      // Auto-match preselected animal or matching species from Gemini result
+      const targetSpecies = (result.rawResponse?.animal_type || selected?.species || 'goat').toLowerCase();
+      const matchingAnimal = activeFarmAnimals.find(
+        (a: Animal) => a.species?.toLowerCase() === targetSpecies
+      );
+      if (matchingAnimal) {
+        setSelectedFarmAnimalId(matchingAnimal.id);
+      } else if (activeFarmAnimals.length > 0) {
+        setSelectedFarmAnimalId(activeFarmAnimals[0].id);
       }
     } catch (err: any) {
       console.error('[Camera] Health scan error:', err);
-      toast(err?.message || 'Nabigo ang pagsusuri sa kalusugan.', 'error');
+      toast('May problema sa pagsusuri ng alaga. Subukan muli.', 'error');
     } finally {
       setIsScanning(false);
     }
@@ -506,13 +561,10 @@ export function LiveObjectDetectionCamera({
     setScanResult(null);
     setCroppedImagePreview(null);
     setCroppedBlob(null);
-    setNotes('');
-    setMedItemId('');
-    setMedQty('');
     setStatusMessage('Naghahanap ng kambing o tupa...');
   };
 
-  // ── Save Health Check to Storage & Supabase Database ───────────────────────
+  // ── Save Health Check to Storage & Supabase Database (Directive 8, 9, 10, 11, 19) ──
   const handleSaveHealthCheck = async () => {
     if (!scanResult || !user) {
       toast('Walang resulta ng pagsusuri na mai-save.', 'error');
@@ -571,12 +623,16 @@ export function LiveObjectDetectionCamera({
         : scanResult.recommendation || 'Maayos ang pangangatawan.';
 
       let riskScore = 15;
+      let riskLevel = 'Low';
       if (condition === 'Kailangan ng Gamot' || raw?.health_status === 'needs_medication') {
         riskScore = 80;
+        riskLevel = 'High';
       } else if (condition === 'Kailangan ng Atensyon' || raw?.health_status === 'needs_attention') {
         riskScore = 60;
+        riskLevel = 'Medium';
       } else if (condition === 'Bantayan' || raw?.health_status === 'monitor') {
         riskScore = 35;
+        riskLevel = 'Medium';
       }
 
       let newStatus: Animal['health_status'] = 'Healthy';
@@ -584,23 +640,62 @@ export function LiveObjectDetectionCamera({
       else if (riskScore >= 45) newStatus = 'At Risk';
       else if (riskScore >= 25) newStatus = 'Monitor';
 
-      // 3. Insert Health Record
+      // 3. Insert into camera_health_screenings (Dedicated table supporting image_path/image_url)
+      if (savedImagePath) {
+        try {
+          await supabase.from('camera_health_screenings').insert([
+            {
+              user_id: user.id,
+              animal_id: animal.id,
+              image_path: savedImagePath,
+              image_url: savedImageUrl,
+              prediction: condition,
+              confidence: 0.95,
+              model_version: 'gemini-camera-v2',
+              risk_score: riskScore,
+              risk_level: riskLevel,
+              recommendation: scanResult.recommendation || raw?.action || 'Ipagpatuloy ang regular na pagmamasid.',
+              notes: conditionStr,
+              goat_detected: animal.species?.toLowerCase() !== 'sheep',
+              scan_type: 'gemini_camera',
+            },
+          ]);
+        } catch (screenErr) {
+          console.warn('[Camera] camera_health_screenings insert notice:', screenErr);
+        }
+      }
+
+      // 4. Insert into health_records (Clinical table without image_path/image_url columns)
+      const originTag = '[Pinagmulan: gemini_camera | AI Health Scanner]';
+      const imageTag = savedImagePath ? `[Larawan: ${savedImagePath}]` : '';
+      const notesParts = [originTag, imageTag, conditionStr].filter(Boolean);
+      const combinedNotes = notesParts.join('\n');
+
       const newRecordPayload = {
         animal_id: animal.id,
         user_id: user.id,
         record_date: new Date().toISOString().split('T')[0],
-        risk_score: riskScore,
-        status: newStatus,
-        detected_conditions: conditionStr,
-        reasons: reasonsStr,
-        notes: notes.trim() || undefined,
-        recommendations: scanResult.recommendation || raw?.action,
         temperature: null,
         heart_rate: null,
         respiratory_rate: null,
-        weight: animal.weight_kg ?? null,
-        image_url: savedImageUrl,
-        image_path: savedImagePath,
+        rumen_sounds: null,
+        mucous_membrane: null,
+        bloat_score: null,
+        gait: null,
+        famacha_score: null,
+        appetite: 'Normal',
+        activity_level: 'Normal',
+        eye_condition: 'Normal',
+        body_condition: 'Normal',
+        cough: false,
+        diarrhea: false,
+        nasal_discharge: false,
+        risk_score: riskScore,
+        risk_level: riskLevel,
+        reasons: reasonsStr,
+        recommendation: scanResult.recommendation || raw?.action || 'Ipagpatuloy ang regular na pagmamasid.',
+        notes: combinedNotes,
+        detected_conditions: [`Visual Screening: ${condition}`],
       };
 
       const { data: insertedData, error: recordError } = await supabase
@@ -611,7 +706,7 @@ export function LiveObjectDetectionCamera({
 
       if (recordError) throw recordError;
 
-      // 4. Update Animal current health status
+      // 5. Update Animal current health status
       await supabase
         .from('animals')
         .update({
@@ -621,25 +716,7 @@ export function LiveObjectDetectionCamera({
         })
         .eq('id', animal.id);
 
-      // 5. Optional Inventory Medicine Deduction
-      if (medItemId && medQty && Number(medQty) > 0) {
-        const item = farmData.inventory.find((i: InventoryItem) => i.id === medItemId);
-        if (item) {
-          const currentStock = Number(item.quantity) || 0;
-          const deductAmount = Number(medQty);
-          if (deductAmount <= currentStock) {
-            await supabase
-              .from('inventory')
-              .update({
-                quantity: currentStock - deductAmount,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', item.id);
-          }
-        }
-      }
-
-      toast(`Na-save ang Health Check ng ${animal.tag_id}!`, 'success');
+      toast('Na-save ang health check!', 'success');
       farmData.refresh();
 
       if (insertedData && onHealthCheckSaved) {
@@ -649,12 +726,9 @@ export function LiveObjectDetectionCamera({
       // Close bottom sheet and return to live camera for the next animal
       setShowResultSheet(false);
       setScanResult(null);
-      setNotes('');
-      setMedItemId('');
-      setMedQty('');
     } catch (err: any) {
       console.error('[Camera] Save error:', err);
-      toast(err?.message || 'Nabigo ang pag-save ng Health Check.', 'error');
+      toast('May problema sa pag-save ng health check. Subukan muli.', 'error');
     } finally {
       setSavingRecord(false);
     }
@@ -1032,11 +1106,13 @@ export function LiveObjectDetectionCamera({
           >
             <button
               type="button"
-              disabled={!selectedTrack || isScanning}
+              disabled={(!selectedTrack && !uncertainMode) || isScanning}
               onClick={handlePerformHealthScan}
               aria-label={
                 selectedTrack
                   ? `I-scan ang ${selectedTrack.species === 'sheep' ? 'tupa' : 'kambing'}`
+                  : uncertainMode
+                  ? 'I-scan ang alaga'
                   : 'I-scan'
               }
               style={{
@@ -1049,23 +1125,23 @@ export function LiveObjectDetectionCamera({
                 padding: 0,
                 outline: 'none',
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                cursor: selectedTrack && !isScanning ? 'pointer' : 'not-allowed',
-                background: selectedTrack
+                cursor: (selectedTrack || uncertainMode) && !isScanning ? 'pointer' : 'not-allowed',
+                background: (selectedTrack || uncertainMode)
                   ? 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)'
                   : 'rgba(51, 65, 85, 0.55)',
-                border: selectedTrack
+                border: (selectedTrack || uncertainMode)
                   ? '3px solid rgba(255, 255, 255, 0.95)'
                   : '3px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: selectedTrack
+                boxShadow: (selectedTrack || uncertainMode)
                   ? '0 0 24px rgba(34, 197, 94, 0.65), 0 4px 14px rgba(0, 0, 0, 0.6)'
                   : '0 2px 8px rgba(0, 0, 0, 0.3)',
-                opacity: selectedTrack && !isScanning ? 1 : 0.65,
+                opacity: (selectedTrack || uncertainMode) && !isScanning ? 1 : 0.65,
                 transform: isScanning ? 'scale(0.92)' : 'scale(1)',
               }}
             >
               <Camera
                 size={34}
-                color={selectedTrack ? '#FFFFFF' : '#94A3B8'}
+                color={(selectedTrack || uncertainMode) ? '#FFFFFF' : '#94A3B8'}
                 strokeWidth={2.2}
               />
             </button>
@@ -1082,11 +1158,13 @@ export function LiveObjectDetectionCamera({
                 minHeight: 16,
               }}
             >
-              {!selectedTrack
-                ? 'I-SCAN'
-                : selectedTrack.species === 'sheep'
-                ? 'I-SCAN ANG TUPA'
-                : 'I-SCAN ANG KAMBING'}
+              {selectedTrack
+                ? selectedTrack.species === 'sheep'
+                  ? 'I-SCAN ANG TUPA'
+                  : 'I-SCAN ANG KAMBING'
+                : uncertainMode
+                ? 'I-SCAN ANG ALAGA'
+                : 'I-SCAN'}
             </span>
           </div>
 
@@ -1331,7 +1409,7 @@ export function LiveObjectDetectionCamera({
               >
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <AlertTriangle size={15} color="#FBBF24" />
-                  Napansin:
+                  Mga Nakita ng AI (Visual Observations):
                 </div>
                 {(() => {
                   const raw = scanResult.rawResponse;
@@ -1403,60 +1481,6 @@ export function LiveObjectDetectionCamera({
                   ))}
                 </select>
               </div>
-
-              {/* Optional Medicine Deduction */}
-              {availableMedicines.length > 0 && (
-                <div
-                  style={{
-                    backgroundColor: '#1E293B',
-                    borderRadius: 14,
-                    padding: 14,
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                  }}
-                >
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: 6 }}>
-                    Gamot mula sa Inventory (Opsyonal):
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
-                    <select
-                      value={medItemId}
-                      onChange={(e) => setMedItemId(e.target.value)}
-                      style={{
-                        padding: '9px 12px',
-                        borderRadius: 10,
-                        backgroundColor: '#0F172A',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#FFFFFF',
-                        fontSize: 13,
-                        outline: 'none',
-                      }}
-                    >
-                      <option value="">-- Walang Gamot --</option>
-                      {availableMedicines.map((m: InventoryItem) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.quantity} {m.unit})
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      placeholder="Dami"
-                      value={medQty}
-                      onChange={(e) => setMedQty(e.target.value)}
-                      min="1"
-                      style={{
-                        padding: '9px 12px',
-                        borderRadius: 10,
-                        backgroundColor: '#0F172A',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#FFFFFF',
-                        fontSize: 13,
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* Primary Action Button: Save Health Check */}
               <button

@@ -82,12 +82,12 @@ export interface TrackerConfig {
 }
 
 export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
-  smoothingAlpha: 0.38,
+  smoothingAlpha: 0.45,
   matchIouThreshold: 0.25,
   maxCenterDistanceFallback: 0.18,
-  maxConsecutiveMisses: 3,
-  maxTrackAgeMs: 800,
-  speciesConsensusThreshold: 3,
+  maxConsecutiveMisses: 0, // Directive 2: Zero consecutive miss grace period when subject leaves
+  maxTrackAgeMs: 250,      // Immediate expiration
+  speciesConsensusThreshold: 2,
 };
 
 // ── 2D Geometry & IoU Helpers ─────────────────────────────────────────────────
@@ -355,6 +355,17 @@ export class TemporalLivestockTracker {
    * 6. Prune stale tracks and notify if selected track is lost.
    */
   public update(rawDetections: RawLivestockDetection[], timestamp: number = Date.now()): TrackedLivestockAnimal[] {
+    // Directive 2: Every camera frame replaces previous state. If nothing detected, clear immediately.
+    if (!rawDetections || rawDetections.length === 0) {
+      this.tracks = [];
+      const hadSelection = this.selectedTrackId !== null;
+      this.selectedTrackId = null;
+      if (hadSelection && this.onSelectedTrackLost) {
+        this.onSelectedTrackLost();
+      }
+      return [];
+    }
+
     const matchedTrackIds = new Set<number>();
     const matchedRawIndices = new Set<number>();
 
@@ -574,7 +585,8 @@ export function renderTrackedAnimalsToCanvas(
     return;
   }
 
-  const multipleAnimals = tracks.length > 1;
+  const goatCount = tracks.filter((t) => t.species === 'goat').length;
+  const sheepCount = tracks.filter((t) => t.species === 'sheep').length;
 
   for (const track of tracks) {
     const screenBox = mapVideoBoxToScreen(track.box, transform);
@@ -582,6 +594,8 @@ export function renderTrackedAnimalsToCanvas(
 
     const isSelected = track.isSelected;
     const isGoat = track.species === 'goat';
+    // Directive 3: Numbering is ONLY allowed when two or more animals of that species are visible
+    const multipleOfThisSpecies = isGoat ? goatCount > 1 : sheepCount > 1;
 
     // Color theme
     let strokeColor = isSelected ? '#22C55E' : 'rgba(22, 163, 74, 0.85)';
@@ -590,9 +604,9 @@ export function renderTrackedAnimalsToCanvas(
     let badgeBg = isSelected ? '#16A34A' : '#15803D';
     let labelText = isSelected
       ? isGoat
-        ? multipleAnimals ? `✓ NAPILING KAMBING #${track.displayNumber}` : '✓ NAPILING KAMBING'
-        : multipleAnimals ? `✓ NAPILING TUPA #${track.displayNumber}` : '✓ NAPILING TUPA'
-      : multipleAnimals
+        ? multipleOfThisSpecies ? `✓ NAPILING KAMBING #${track.displayNumber}` : '✓ NAPILING KAMBING'
+        : multipleOfThisSpecies ? `✓ NAPILING TUPA #${track.displayNumber}` : '✓ NAPILING TUPA'
+      : multipleOfThisSpecies
       ? `${track.label} #${track.displayNumber}`
       : track.label;
 

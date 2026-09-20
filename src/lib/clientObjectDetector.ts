@@ -147,7 +147,7 @@ const _activeTracks: TrackedTarget[] = [];
 // Configure ONNX Runtime Web environment
 if (typeof window !== 'undefined') {
   try {
-    ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/';
+    ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/';
     ort.env.wasm.numThreads = 1; // 1 thread for universal iOS Safari / Android Chrome compatibility
   } catch (e) {
     console.warn('[Detector] ONNX env setup warning:', e);
@@ -801,9 +801,18 @@ export async function detectLiveFrameLocally(
             targetLabel = 'TAO';
             canonicalClass = 'person';
           } else if (catName === 'sheep' && score >= CONFIDENCE_THRESHOLDS.SHEEP) {
-            targetType = 'SHEEP';
-            targetLabel = 'TUPA';
-            canonicalClass = 'sheep';
+            // MediaPipe COCO model has NO goat class, only sheep.
+            // Do NOT blindly label every animal TUPA.
+            // Only confirm TUPA if YOLO confirms it is not a goat and confidence is very high.
+            if (_yoloSession !== null && score >= 0.75) {
+              targetType = 'SHEEP';
+              targetLabel = 'TUPA';
+              canonicalClass = 'sheep';
+            } else {
+              targetType = 'UNCERTAIN';
+              targetLabel = 'Hindi matukoy ang uri ng hayop';
+              canonicalClass = 'uncertain';
+            }
           } else if (catName === 'dog' && score >= CONFIDENCE_THRESHOLDS.OTHER_ANIMAL) {
             targetType = 'OTHER_ANIMAL';
             targetLabel = 'ASO';
@@ -835,8 +844,8 @@ export async function detectLiveFrameLocally(
       }
     }
 
-    // 3. Close Probability Ambiguity & Collision Resolution (Section 13)
-    // If YOLO detected goat and MediaPipe detected sheep on the same animal box:
+    // 3. Collision Resolution & Species Arbitration
+    // Dedicated YOLO goat model has priority for goat detections
     const frameCandidates: ClientDetectedObject[] = [];
     const usedMpIndices = new Set<number>();
 
@@ -858,29 +867,13 @@ export async function detectLiveFrameLocally(
         const mpObj = rawMediaPipeDetections[matchedMpIdx];
         usedMpIndices.add(matchedMpIdx);
 
-        if (mpObj.type === 'SHEEP') {
-          const scoreDiff = goat.confidence - mpObj.confidence;
-          if (Math.abs(scoreDiff) < 0.12) {
-            // Close probability (e.g. 0.51 vs 0.49) -> UNCERTAIN (Section 13)
-            frameCandidates.push({
-              className: 'uncertain',
-              type: 'UNCERTAIN',
-              label: 'HINDI MALINAW',
-              confidence: +Math.max(goat.confidence, mpObj.confidence).toFixed(2),
-              boundingBox: goat.boundingBox,
-              bbox: goat.boundingBox,
-              rawCategory: 'ambiguous_goat_sheep',
-              timestamp: now,
-            });
-          } else if (scoreDiff > 0) {
-            // YOLO goat scored significantly higher
-            frameCandidates.push(goat);
-          } else {
-            // MediaPipe sheep scored significantly higher
-            frameCandidates.push(mpObj);
-          }
+        if (mpObj.type === 'SHEEP' || mpObj.type === 'UNCERTAIN') {
+          // Dedicated YOLO goat model detected a goat on this box.
+          // Since MediaPipe COCO lacks a goat class and maps goats to sheep,
+          // YOLO's goat detection takes definitive precedence.
+          frameCandidates.push(goat);
         } else {
-          // If MediaPipe detected person or other animal overlapping, keep both or person
+          // If MediaPipe detected person or other animal overlapping, keep both
           frameCandidates.push(goat);
           frameCandidates.push(mpObj);
         }
