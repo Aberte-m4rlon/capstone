@@ -6,7 +6,7 @@
  *   - Generates real normalized 2D bounding boxes and target classifications:
  *       • KAMBING / TUPA (Green bounding box, lock & auto-capture)
  *       • TAO (Blue bounding box, "TAO — Hindi kambing o tupa")
- *       • HAYOP (Amber bounding box, "HAYOP — Hindi kambing o tupa")
+ *       • IBANG HAYOP (Amber bounding box, "IBANG HAYOP — Hindi kambing o tupa")
  *       • BAGAY (Slate dashed box)
  *   - Prevents auto-capture when multiple animals or non-targets are in view.
  *   - When a single goat or sheep is held steady for 2 cycles (~2.4s),
@@ -109,14 +109,14 @@ function buildMessage(
           const hasGoat = det.trackedAnimals.some((a) => a.species === 'goat');
           const hasSheep = det.trackedAnimals.some((a) => a.species === 'sheep');
           if (hasGoat && hasSheep) {
-            return 'May kambing at tupa na nakita. Piliin ang hayop na gusto mong i-scan.';
+            return 'May kambing at tupa na nakita. Piliin kung alin ang gusto mong i-scan.';
           }
-          return 'Maraming hayop ang nakita. Piliin ang hayop na gusto mong i-scan.';
+          return 'Maraming kambing o tupa ang nakita. Piliin ang nais mong i-scan.';
         }
         if (isObserving && remainingSec > 0) {
-          return `Naka-lock sa hayop: ${sp} — Huwag igalaw (${remainingSec.toFixed(1)}s)...`;
+          return `Naka-lock sa ${sp} — Huwag igalaw (${remainingSec.toFixed(1)}s)...`;
         }
-        return `Nakita ang hayop: ${sp}`;
+        return `Nakita: ${sp}`;
       }
       if (det.otherDetected) {
         return `${det.nonTargetClass?.toUpperCase() ?? 'BAGAY'} — Hindi ito kambing o tupa.`;
@@ -124,9 +124,9 @@ function buildMessage(
       return 'Naghahanap... Itapat ang camera sa kambing o tupa.';
     case 'stable': {
       const sp = det?.detectedSpecies === 'sheep' ? 'Tupa' : 'Kambing';
-      return `Nakita ang hayop: ${sp} — Sinusuri ang kalusugan sa Gemini Vision...`;
+      return `Nakita: ${sp} — Sinusuri ang kalusugan sa Gemini Vision...`;
     }
-    case 'scanning':       return 'Sinusuri ang kalusugan ng hayop sa Gemini Vision...';
+    case 'scanning':       return 'Sinusuri ang kalusugan ng kambing o tupa sa Gemini Vision...';
     case 'result':         return 'Tapos na ang pagsusuri sa kalusugan.';
     case 'cooldown':       return `Handa para sa susunod na scan sa loob ng ${cd}s...`;
     case 'error':          return 'Nagkaroon ng problema habang nagsusuri.';
@@ -330,8 +330,8 @@ export function useAutoScan(options: {
           angleLabel: 'Side Profile',
           angleTagalog: 'Tagiliran',
           angleGuidance: hasMultiple
-            ? 'Maraming hayop ang nakita. Itapat ang camera sa isang kambing o tupa.'
-            : 'Panatilihing steady ang camera sa hayop.',
+            ? 'Maraming kambing o tupa ang nakita. Itapat ang camera sa iisang alaga lamang.'
+            : 'Panatilihing steady ang camera sa alaga.',
           angleClinicalFocus: 'Gemini Vision Live Object Detection',
           angleConfidence: 0.95,
           nonTargetClass: null,

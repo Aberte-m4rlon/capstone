@@ -144,9 +144,9 @@ export function AIChat({
   streamingText,
   quickPrompts = [
     'Buod ng Bukid',
-    'Mga hayop na kailangan ng atensyon',
+    'Mga alagang kailangan ng atensyon',
     'Lampas na sa schedule na bakuna',
-    'Mga buntis na hayop',
+    'Mga buntis na inahin',
     'Mababa na ang stock sa inventory',
     'Mga paalala sa kalusugan',
   ],
@@ -570,7 +570,7 @@ export function AIChat({
                 Paano kita matutulungan sa iyong bukid ngayon?
               </h4>
               <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: 'var(--color-text-muted, #667085)', lineHeight: 1.4 }}>
-                Magtanong tungkol sa kalusugan ng hayop, pakain, bakuna, o mag-attach ng litrato ng kambing o tupa para sa visual AI screening.
+                Magtanong tungkol sa kalusugan ng kambing o tupa, pakain, bakuna, o mag-attach ng litrato para sa visual AI screening.
               </p>
 
               {/* Quick Prompts Chips */}
@@ -786,8 +786,8 @@ export function AIChat({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            title="Maglakip ng litrato ng hayop"
-            aria-label="Maglakip ng litrato ng hayop"
+            title="Maglakip ng litrato ng kambing o tupa"
+            aria-label="Maglakip ng litrato ng kambing o tupa"
             style={{
               background: selectedImage ? 'rgba(46, 125, 50, 0.12)' : 'none',
               border: 'none',

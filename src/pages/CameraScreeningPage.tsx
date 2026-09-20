@@ -1,22 +1,32 @@
-/**
- * CameraScreeningPage.tsx — Deprecated separate camera page.
- *
- * Consolidated directly into CameraFirstHealthModal within the Health Check flow.
- * Automatically redirects to /health?action=check to open the single unified Health Check modal.
- */
-import { useEffect } from 'react';
+import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { LiveObjectDetectionCamera } from '../components/domain/health/LiveObjectDetectionCamera';
 
 export function CameraScreeningPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const animalId = searchParams.get('animalId') || undefined;
 
-  useEffect(() => {
-    const qId = searchParams.get('animalId');
-    navigate(qId ? `/health?action=check&animalId=${qId}` : '/health?action=check', { replace: true });
-  }, [navigate, searchParams]);
+  const handleClose = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/health');
+    }
+  };
 
-  return null;
+  const handleSaved = () => {
+    navigate('/health');
+  };
+
+  return (
+    <LiveObjectDetectionCamera
+      onClose={handleClose}
+      preselectedAnimalId={animalId}
+      onHealthCheckSaved={handleSaved}
+    />
+  );
 }
 
 export default CameraScreeningPage;
+

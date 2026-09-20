@@ -88,7 +88,7 @@ export function WeightsPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.animal_id) e.animal_id = 'Pumili ng hayop.';
+    if (!form.animal_id) e.animal_id = 'Pumili ng kambing o tupa.';
     if (!form.weight_kg || isNaN(Number(form.weight_kg)) || Number(form.weight_kg) <= 0)
       e.weight_kg = 'Maglagay ng wastong timbang na higit sa 0.';
     setErrors(e);
@@ -100,7 +100,7 @@ export function WeightsPage() {
 
     const animal = farmData.animals.find((a) => a.id === form.animal_id);
     if (!animal || (!isSuperAdmin && animal.user_id !== user.id)) {
-      toast('Walang pahintulot sa napiling hayop.', 'danger');
+      toast('Walang pahintulot sa napiling kambing o tupa.', 'danger');
       return;
     }
 
@@ -272,7 +272,7 @@ export function WeightsPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Hayop</th>
+                    <th>Kambing / Tupa</th>
                     <th>Kasalukuyan</th>
                     <th>Nakaraan</th>
                     <th>Pagbabago</th>
@@ -354,7 +354,7 @@ export function WeightsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
               <Brain size={18} color="#43A047" />
               <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--color-text-primary, #1F2933)' }}>
-                Pagtataya sa Paglaki ng Hayop
+                Pagtataya sa Paglaki ng Kambing o Tupa
               </span>
               <Badge variant="warning" size="sm">
                 R² = {mlGrowth.rSquared.toFixed(3)}
@@ -400,7 +400,7 @@ export function WeightsPage() {
             {mlGrowth.projectedWeights.length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary, #667085)' }}>
-                  Tinatayang Kurba ng Paglaki ng Hayop
+                  Tinatayang Kurba ng Paglaki ng Kambing o Tupa
                 </div>
                 <Line
                   data={{
@@ -444,7 +444,7 @@ export function WeightsPage() {
               </div>
             )}
             <p style={{ fontSize: '12px', color: 'var(--color-text-muted, #64748B)', marginTop: 8, margin: 0 }}>
-              Tinatantiya ng modelong ito ang takbo ng timbang ng hayop sa susunod na 90 araw batay sa nakaraang mga tala ng timbang. Ang putol-putol na linya ay nagpapakita ng posibleng saklaw batay sa datos.
+              Tinatantiya ng modelong ito ang takbo ng timbang ng alaga sa susunod na 90 araw batay sa nakaraang mga tala ng timbang. Ang putol-putol na linya ay nagpapakita ng posibleng saklaw batay sa datos.
             </p>
           </CardContent>
         </Card>
@@ -456,10 +456,10 @@ export function WeightsPage() {
           value={fAnimal}
           onChange={setFAnimal}
           options={[
-            { value: 'All', label: 'Lahat ng Hayop' },
+            { value: 'All', label: 'Lahat (Kambing at Tupa)' },
             ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
           ]}
-          ariaLabel="Salain ayon sa Hayop"
+          ariaLabel="Salain ayon sa Kambing o Tupa"
           minWidth={180}
         />
       </FilterToolbar>
@@ -483,7 +483,7 @@ export function WeightsPage() {
                 <thead>
                   <tr>
                     <th>Petsa</th>
-                    <th>Hayop</th>
+                    <th>Kambing / Tupa</th>
                     <th>Uri ng Rekord</th>
                     <th>Timbang</th>
                     <th>Nakaraan</th>
@@ -558,12 +558,12 @@ export function WeightsPage() {
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Hayop" required error={errors.animal_id}>
+            <FormField label="Kambing o Tupa" required error={errors.animal_id}>
               <Select
                 value={form.animal_id}
                 onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Pumili ng hayop...' },
+                  { value: '', label: 'Pumili ng kambing o tupa...' },
                   ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
                 ]}
               />

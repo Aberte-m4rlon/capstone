@@ -61,7 +61,7 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
   const actions: QuickAction[] = [
     {
       id: 'add-animal',
-      title: 'Magdagdag ng Hayop',
+      title: 'Magdagdag ng Kambing o Tupa',
       subtitle: 'Magrehistro ng bagong kambing o tupa',
       icon: <GoatIcon size={22} color="#238B45" strokeWidth={2.2} />,
       to: '/animals?action=add',
@@ -79,8 +79,8 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
     },
     {
       id: 'record-sale',
-      title: 'Magbenta ng Hayop',
-      subtitle: 'Itala ang benta, timbang bago ibenta, at kita',
+      title: 'Magbenta ng Kambing o Tupa',
+      subtitle: 'Itala ang benta ng kambing o tupa at kita',
       icon: <DollarSign size={22} color="#238B45" strokeWidth={2.2} />,
       to: '/sales?action=add',
       color: '#238B45',
@@ -116,7 +116,7 @@ export function QuickAddSheet({ isOpen, onClose }: QuickAddSheetProps) {
     {
       id: 'ai-scanner',
       title: 'AI Health Scanner',
-      subtitle: 'Suriin ang kalusugan ng hayop gamit ang camera',
+      subtitle: 'Suriin ang kalusugan ng kambing o tupa gamit ang camera',
       icon: <Camera size={22} color="#238B45" strokeWidth={2.2} />,
       to: '/health?action=check',
       color: '#238B45',

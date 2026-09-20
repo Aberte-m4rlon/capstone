@@ -145,7 +145,7 @@ function speciesLabelFilipino(species: string): string {
   const s = (species || '').toLowerCase();
   if (s.includes('goat') || s.includes('kambing')) return 'Kambing (Goat)';
   if (s.includes('sheep') || s.includes('tupa')) return 'Tupa (Sheep)';
-  return species || 'Livestock';
+  return species || 'Kambing / Tupa';
 }
 
 function healthStatusBadge(status: string): { label: string; color: string; bg: string; borderColor: string } {
@@ -304,7 +304,7 @@ export function PublicAnimalPage() {
         }
 
         if (!rows || rows.length === 0) {
-          throw new Error('Hindi makita ang animal profile. Maaaring mali o expired ang QR/profile link, o tinanggal na ang tala ng hayop na ito sa ALPASFARM.');
+          throw new Error('Hindi makita ang profile ng alaga. Maaaring mali o expired ang QR/profile link, o tinanggal na ang tala nito sa ALPASFARM.');
         }
 
         const row = rows[0];
@@ -495,9 +495,10 @@ export function PublicAnimalPage() {
   // Web Share API
   const handleShare = async () => {
     if (!animal) return;
+    const speciesText = animal.species === 'Sheep' ? 'tupa' : 'kambing';
     const shareData = {
       title: `${animal.tag_id} - ${animal.name} | ALPASFARM`,
-      text: `Tingnan ang beripikadong profile ng hayop na si ${animal.name} (${animal.tag_id}) sa ALPASFARM.`,
+      text: `Tingnan ang beripikadong profile ng ${speciesText} na si ${animal.name} (${animal.tag_id}) sa ALPASFARM.`,
       url: publicUrl,
     };
     if (navigator.share) {
@@ -591,10 +592,10 @@ export function PublicAnimalPage() {
             <AlertTriangle size={28} />
           </div>
           <h1 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--color-text-primary, #0f172a)' }}>
-            Hindi Ma-verify ang Animal Profile
+            Hindi Ma-verify ang Profile ng Alaga
           </h1>
           <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #64748b)', lineHeight: 1.5, marginBottom: 24 }}>
-            Maaaring mali o expired ang QR/profile link, o tinanggal na ang tala ng hayop na ito sa ALPASFARM.
+            Maaaring mali o expired ang QR/profile link, o tinanggal na ang tala ng alagang ito sa ALPASFARM.
           </p>
           <Link
             to="/"
@@ -1452,7 +1453,7 @@ export function PublicAnimalPage() {
           )}
         </section>
 
-        {/* ── 6. Lost / Found Animal Section ("May Nakakita ba sa Hayop na Ito?") ── */}
+        {/* ── 6. Lost / Found Section ("May Nakakita ba sa Alagang Ito?") ── */}
         <section
           style={{
             background: 'rgba(35, 139, 69, 0.05)',
@@ -1484,10 +1485,10 @@ export function PublicAnimalPage() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: 'var(--color-text-primary, #0f172a)' }}>
-                May Nakakita ba sa Hayop na Ito?
+                May Nakakita ba sa {animal.species === 'Sheep' ? 'Tupang' : 'Kambing na'} Ito?
               </h3>
               <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)', lineHeight: 1.5, margin: '6px 0 0' }}>
-                Kung nakita mo ang hayop na ito at hindi mo alam kung saan ito ibabalik, maaari mong kontakin ang may-ari gamit ang contact information sa ibaba.
+                Kung nakita mo ang {animal.species === 'Sheep' ? 'tupang' : 'kambing na'} ito at hindi mo alam kung saan ito ibabalik, maaari mong kontakin ang may-ari gamit ang contact information sa ibaba.
               </p>
             </div>
           </div>
@@ -1551,10 +1552,10 @@ export function PublicAnimalPage() {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary, #0f172a)' }}>
-              Verified ALPASFARM Animal Profile
+              Beripikadong Profile ng {animal.species === 'Sheep' ? 'Tupa' : 'Kambing'}
             </div>
             <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', lineHeight: 1.5, margin: '4px 0 8px' }}>
-              Ang tala ng hayop na ito ay opisyal na nakarehistro at beripikado sa ALPASFARM Livestock Management System.
+              Ang tala ng {animal.species === 'Sheep' ? 'tupang' : 'kambing na'} ito ay opisyal na nakarehistro at beripikado sa ALPASFARM Goat & Sheep Farm Management System.
             </p>
             <div style={{ fontSize: 11, color: 'var(--color-text-secondary, #64748b)', fontWeight: 600 }}>
               Petsa ng Rehistrasyon: {formatDateFilipino(animal.registered_on)}
@@ -1715,7 +1716,7 @@ export function PublicAnimalPage() {
             Digital QR Verification Passport
           </div>
           <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #64748b)', maxWidth: 380, margin: '0 auto 16px' }}>
-            I-scan ang QR code gamit ang camera ng cellphone upang mabilis na buksan at i-verify ang pampublikong tala ng hayop na ito.
+            I-scan ang QR code gamit ang camera ng cellphone upang mabilis na buksan at i-verify ang pampublikong tala ng {animal.species === 'Sheep' ? 'tupang' : 'kambing na'} ito.
           </p>
 
           {/* QR Canvas */}
@@ -1820,7 +1821,7 @@ export function PublicAnimalPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
             <ShieldCheck size={14} color="#16A34A" />
-            <span style={{ fontWeight: 700 }}>ALPASFARM Livestock Management Platform</span>
+            <span style={{ fontWeight: 700 }}>ALPASFARM Goat & Sheep Farm Management Platform</span>
           </div>
           <p style={{ margin: '0 0 12px', fontSize: 11 }}>
             Ligtas at beripikadong digital profile alinsunod sa mga pamantayan ng pag-aalaga ng kambing at tupa.

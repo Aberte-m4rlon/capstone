@@ -32,7 +32,7 @@ interface ActivityEntry {
 }
 
 const CATEGORY_TAGLISH: Record<ActivityCategory, string> = {
-  Animal:      'Hayop',
+  Animal:      'Kambing at Tupa',
   Health:      'Kalusugan',
   Weight:      'Timbang',
   Breeding:    'Breeding',
@@ -83,7 +83,7 @@ export function ActivityLogPage() {
         id: `animal-${a.id}`,
         date: a.created_at.split('T')[0],
         category: 'Animal',
-        action: a.archived ? 'Nai-archive ang Hayop' : 'Naidagdag ang Hayop',
+        action: a.archived ? (a.species === 'Sheep' ? 'Nai-archive ang Tupa' : 'Nai-archive ang Kambing') : (a.species === 'Sheep' ? 'Naidagdag ang Tupa' : 'Naidagdag ang Kambing'),
         description: `${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'}, ${a.sex === 'Male' ? 'Lalaki' : 'Babae'}${a.breed ? `, ${a.breed}` : ''}`,
         animal: a.name,
         icon: 'PawPrint',
@@ -353,10 +353,10 @@ export function ActivityLogPage() {
           value={filterAnimal}
           onChange={setFilterAnimal}
           options={[
-            { value: 'All', label: 'Lahat ng Hayop' },
+            { value: 'All', label: 'Lahat (Kambing at Tupa)' },
             ...animalNames.map((n) => ({ value: n, label: n })),
           ]}
-          ariaLabel="Salain ayon sa Hayop"
+          ariaLabel="Salain ayon sa Kambing o Tupa"
           minWidth={150}
         />
         <FilterDateRange
@@ -394,7 +394,7 @@ export function ActivityLogPage() {
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Petsa</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Kategorya</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Gawain / Aksyon</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Hayop</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>Kambing / Tupa</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Deskripsyon</th>
                 </tr>
               </thead>

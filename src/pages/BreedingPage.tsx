@@ -337,16 +337,16 @@ export function BreedingPage() {
     const e: Record<string, string> = {};
 
     if (!form.animal_id) {
-      e.animal_id = 'Pumili ng babaeng hayop (Dam).';
+      e.animal_id = 'Pumili ng inahing kambing o tupa (Dam).';
     } else if (!editing && selectedFemaleAssessment && selectedFemaleAssessment.recommendation !== 'Ready') {
-      e.animal_id = `Hindi pa handa sa mating ang babaeng ito: ${selectedFemaleAssessment.reasons.join(', ')}`;
+      e.animal_id = `Hindi pa handa sa mating ang inahing ito: ${selectedFemaleAssessment.reasons.join(', ')}`;
     }
 
     if (form.partner_id) {
       if (form.partner_id === form.animal_id) {
         e.partner_id = 'Hindi maaaring pareho ang lalaki at babae.';
       } else if (!editing && selectedMaleAssessment && selectedMaleAssessment.recommendation !== 'Ready') {
-        e.partner_id = `Hindi pa handa sa mating ang napiling lalaki: ${selectedMaleAssessment.reasons.join(', ')}`;
+        e.partner_id = `Hindi pa handa sa mating ang napiling barako: ${selectedMaleAssessment.reasons.join(', ')}`;
       }
     }
 
@@ -363,14 +363,14 @@ export function BreedingPage() {
 
     const female = farmData.animals.find((a) => a.id === form.animal_id);
     if (!female || (!isSuperAdmin && female.user_id !== user.id)) {
-      toast('Walang pahintulot sa napiling babaeng hayop.', 'danger');
+      toast('Walang pahintulot sa napiling inahin.', 'danger');
       return;
     }
 
     if (form.partner_id) {
       const partner = farmData.animals.find((a) => a.id === form.partner_id);
       if (!partner || (!isSuperAdmin && partner.user_id !== user.id)) {
-        toast('Walang pahintulot sa napiling lalaking hayop.', 'danger');
+        toast('Walang pahintulot sa napiling barako.', 'danger');
         return;
       }
     }
@@ -407,11 +407,12 @@ export function BreedingPage() {
         toast('Matagumpay na na-save ang record ng breeding.', 'success');
 
         if (kiddingDate && form.status === 'Pregnant') {
+          const femaleSpecies = female?.species === 'Sheep' ? 'tupa' : 'kambing';
           await createNotification(
             user.id,
             'Breeding',
-            `Inaasahang Panganganak: ${female?.name ?? 'Hayop'}`,
-            `Ang ${female?.name ?? 'hayop'} ay inaasahang manganganak bandang ${formatDate(kiddingDate)}.`,
+            `Inaasahang Panganganak: ${female?.name ?? (female?.species === 'Sheep' ? 'Tupa' : 'Kambing')}`,
+            `Ang ${female?.name ?? femaleSpecies} ay inaasahang manganganak bandang ${formatDate(kiddingDate)}.`,
             'Normal',
             '/breeding',
             `breeding_kidding_${form.animal_id}_${kiddingDate}`
@@ -498,7 +499,7 @@ export function BreedingPage() {
   const handleSaveOffspring = async () => {
     if (!user) return;
     if (!offspringForm.name.trim()) {
-      toast('Pakilagay ang pangalan ng bagong silang na hayop.', 'warning');
+      toast('Pakilagay ang pangalan ng bagong silang na alaga.', 'warning');
       return;
     }
     setSavingOffspring(true);
@@ -612,10 +613,10 @@ export function BreedingPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 800, color: 'var(--color-text-primary, #0F172A)', letterSpacing: '-0.02em' }}>
-            Breeding
+            Breeding ng Kambing at Tupa
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
-            {farmData.breedingRecords.length} kabuuang records sa breeding · {readyFemales.length} babaeng handa · {readyMales.length} lalaking handa
+            {farmData.breedingRecords.length} kabuuang records sa breeding ng kambing at tupa · {readyFemales.length} inahing handa · {readyMales.length} barakong handa
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -627,7 +628,7 @@ export function BreedingPage() {
             onClick={openAdd}
             disabled={readyFemales.length === 0}
             leftIcon={<Plus size={16} />}
-            title={readyFemales.length === 0 ? 'Walang babaeng hayop na handa sa mating sa kasalukuyan' : 'Magdagdag ng Record ng Breeding'}
+            title={readyFemales.length === 0 ? 'Walang inahing kambing o tupa na handa sa mating sa kasalukuyan' : 'Magdagdag ng Record ng Breeding'}
           >
             Magdagdag ng Record ng Breeding
           </Button>
@@ -762,8 +763,8 @@ export function BreedingPage() {
           readyFemales.length === 0 ? (
             <EmptyState
               icon={<Icons.Heart size={28} />}
-              title="Walang babaeng hayop na handa sa mating ngayon"
-              description="Kailangan maabot ng babaeng hayop ang tamang edad at timbang para makapag-mate."
+              title="Walang inahing kambing o tupa na handa sa mating ngayon"
+              description="Kailangan maabot ng inahin ang tamang edad at timbang para makapag-mate."
             />
           ) : (
             <div className="readiness-cards-grid">
@@ -823,7 +824,7 @@ export function BreedingPage() {
             <EmptyState
               icon={<Icons.Heart size={28} />}
               title="Walang lalaking barako na handa ngayon"
-              description="Kailangan maabot ng lalaking hayop ang tamang edad at timbang para magamit sa pagpapalahi."
+              description="Kailangan maabot ng barako ang tamang edad at timbang para magamit sa pagpapalahi."
             />
           ) : (
             <div className="readiness-cards-grid">
@@ -882,8 +883,8 @@ export function BreedingPage() {
           (notReadyFemales.length === 0 && notReadyMales.length === 0) ? (
             <EmptyState
               icon={<CheckCircle2 size={28} color="#2E7D32" />}
-              title="Lahat ng aktibong hayop ay handa sa pagpapalahi"
-              description="Walang hayop na kasalukuyang pinipigilan ng edad, timbang, o pagbubuntis."
+              title="Lahat ng aktibong kambing at tupa ay handa sa pagpapalahi"
+              description="Walang alaga na kasalukuyang pinipigilan ng edad, timbang, o pagbubuntis."
             />
           ) : (
             <div className="readiness-cards-grid">
@@ -1216,7 +1217,7 @@ export function BreedingPage() {
               label="Babae (Inahin)"
               required
               error={errors.animal_id}
-              helperText={readyFemales.length === 0 ? 'Walang babaeng hayop na kasalukuyang pasok sa edad at timbang para sa mating.' : undefined}
+              helperText={readyFemales.length === 0 ? 'Walang inahing kambing o tupa na kasalukuyang pasok sa edad at timbang para sa mating.' : undefined}
             >
               <Select
                 value={form.animal_id}
@@ -1416,7 +1417,7 @@ export function BreedingPage() {
                 className="form-textarea"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Obserbasyon sa mating, numero ng kulungan, gawi ng hayop..."
+                placeholder="Obserbasyon sa mating, numero ng kulungan, gawi ng alaga..."
                 style={{ minHeight: 80 }}
               />
             </FormField>
@@ -1501,7 +1502,7 @@ export function BreedingPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-              <FormField label="Uri ng Hayop (Species)" required>
+              <FormField label="Uri (Kambing o Tupa)" required>
                 <Select
                   value={offspringForm.species}
                   onChange={(e) => handleSpeciesChangeOffspring(e.target.value as Species)}

@@ -226,7 +226,7 @@ export function InlineAnimalCameraScanner({
       if (lower.includes('notallowed') || lower.includes('permission') || err?.name === 'NotAllowedError') {
         setPermissionError(true);
       } else if (lower.includes('notfound') || lower.includes('device') || err?.name === 'NotFoundError') {
-        setCameraError('Walang nakitang camera sa device na ito. Piliin na lang ang hayop sa listahan.');
+        setCameraError('Walang nakitang camera sa device na ito. Piliin na lang ang alaga sa listahan.');
       } else if (lower.includes('notreadable') || lower.includes('in use')) {
         setCameraError('Ginagamit pa ng ibang application o tab ang camera. Paki-refresh o isara ang ibang tab.');
       } else {
@@ -331,7 +331,7 @@ export function InlineAnimalCameraScanner({
           ? 'Tupa'
           : detectedSpecies === 'Goat'
           ? 'Kambing'
-          : 'Hindi tiyak ang hayop';
+          : 'Hindi tiyak (Kambing o Tupa)';
 
       const hasConcerns = ruleRes.hasConcern || geminiConcerns.length > 0 || geminiStatus === 'attention';
       const healthStatus: 'healthy' | 'monitor' | 'attention' = hasConcerns ? 'monitor' : 'healthy';
@@ -340,7 +340,7 @@ export function InlineAnimalCameraScanner({
       const notesLines: string[] = [];
       notesLines.push(`[Camera Scan: ${speciesTagalog.toUpperCase()}]`);
       if (finalMatchedAnimal) {
-        notesLines.push(`Hayop: ${finalMatchedAnimal.name || finalMatchedAnimal.tag_id} (${finalMatchedAnimal.tag_id})`);
+        notesLines.push(`Alaga: ${finalMatchedAnimal.name || finalMatchedAnimal.tag_id} (${finalMatchedAnimal.tag_id})`);
       }
       notesLines.push(`Obserbasyon: ${consolidatedObs.join(', ')}`);
       if (hasConcerns) {
@@ -368,7 +368,7 @@ export function InlineAnimalCameraScanner({
       console.error('Scan evaluation failed:', err);
       const fallbackResult: InlineScanResultData = {
         detectedSpecies: 'Unknown',
-        speciesLabelTagalog: 'Hindi tiyak ang hayop',
+        speciesLabelTagalog: 'Hindi tiyak (Kambing o Tupa)',
         matchedAnimal: matchedAnimal,
         visualObservations: ['Walang nakitang obvious abnormality'],
         suggestedSymptoms: [],
@@ -502,7 +502,7 @@ export function InlineAnimalCameraScanner({
           {cameraError}
         </h4>
         <p style={{ margin: '0 0 18px 0', fontSize: 13, color: 'var(--text-secondary)', maxWidth: 360, lineHeight: 1.5 }}>
-          Maaari mo pa ring ituloy ang health check sa pamamagitan ng pagpili ng hayop mula sa opisyal na listahan.
+          Maaari mo pa ring ituloy ang health check sa pamamagitan ng pagpili ng alaga mula sa opisyal na listahan.
         </p>
         <button
           type="button"
@@ -633,7 +633,7 @@ export function InlineAnimalCameraScanner({
                   backdropFilter: 'blur(4px)',
                 }}
               >
-                Itapat sa Hayop
+                Itapat sa Kambing o Tupa
               </span>
             )}
           </div>
@@ -725,7 +725,7 @@ export function InlineAnimalCameraScanner({
               }}
             />
             <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'center', padding: '0 20px' }}>
-              Sinusuri ang kalusugan at tag ng hayop gamit ang AI...
+              Sinusuri ang kalusugan at tag ng alaga gamit ang AI...
             </div>
           </div>
         )}
@@ -771,7 +771,7 @@ export function ScanResultCard({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 15, color: '#16A34A' }}>
           <CheckCircle2 size={18} />
-          <span>✓ Hayop na Nakita</span>
+          <span>✓ Kambing o Tupa na Nakita</span>
         </div>
         <span
           style={{
@@ -816,7 +816,7 @@ export function ScanResultCard({
               {result.speciesLabelTagalog}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Hindi awtomatikong natukoy ang tag ng indibidwal na hayop. Maaari mong piliin ang hayop mula sa iyong listahan pagbalik sa form.
+              Hindi awtomatikong natukoy ang tag ng indibidwal na alaga. Maaari mong piliin ang kambing o tupa mula sa iyong listahan pagbalik sa form.
             </div>
           </div>
         )}

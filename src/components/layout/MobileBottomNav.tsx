@@ -61,7 +61,7 @@ export function MobileBottomNav({ role, getBadge }: MobileBottomNavProps) {
         {/* 2. Animals */}
         <MobileNavItem
           to="/animals"
-          label="Mga Hayop"
+          label="Kambing at Tupa"
           icon={<GoatIcon size={20} strokeWidth={2.2} />}
           isActive={isAnimalsActive && !quickAddOpen && !moreMenuOpen}
         />

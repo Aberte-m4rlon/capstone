@@ -64,7 +64,7 @@ function mapFarmerFriendlyError(rawError?: string): string {
     return 'Nagkaroon ng problema sa database. Pakisubukan muli.';
   }
   if (lower.includes('naibenta') || lower.includes('sold') || lower.includes('naka-archive') || lower.includes('archived')) {
-    return 'Hindi maaaring bigyan ng gamot ang hayop na naibenta na o naka-archive.';
+    return 'Hindi maaaring bigyan ng gamot ang alaga na naibenta na o naka-archive.';
   }
   return rawError;
 }
@@ -90,7 +90,7 @@ export function MedicationTreatmentModal({
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
 
   // Form Fields — Initial state adheres strictly to farmer-first guidelines:
-  // Hayop: [ Piliin ang hayop ]
+  // Alaga: [ Piliin ang kambing o tupa ]
   // Gamot / Item: [ Piliin ang gamot mula sa imbentaryo ]
   // Dami: [ 1 ]
   // Unit: [ -- ]
@@ -144,7 +144,7 @@ export function MedicationTreatmentModal({
 
         if (animalErr) {
           console.error('Error fetching animals:', animalErr);
-          throw new Error('Nagkaroon ng problema sa database sa pagkuha ng mga hayop.');
+          throw new Error('Nagkaroon ng problema sa database sa pagkuha ng listahan ng kambing at tupa.');
         }
 
         // 2. Fetch sold animal IDs from animal_sales to ensure sold animals are completely excluded
@@ -246,7 +246,7 @@ export function MedicationTreatmentModal({
 
     // STEP 1: Is an animal selected?
     if (!selectedAnimalId) {
-      setErrorMessage('Pakipili muna ng hayop na gagamutin.');
+      setErrorMessage('Pakipili muna ng kambing o tupa na gagamutin.');
       return;
     }
 
@@ -279,7 +279,7 @@ export function MedicationTreatmentModal({
 
     // Verify animal is not archived/sold
     if (selectedAnimal && selectedAnimal.archived) {
-      setErrorMessage('Hindi maaaring bigyan ng gamot ang hayop na naibenta na o naka-archive.');
+      setErrorMessage('Hindi maaaring bigyan ng gamot ang alaga na naibenta na o naka-archive.');
       return;
     }
 
@@ -384,7 +384,7 @@ export function MedicationTreatmentModal({
 
         {/* 1. Animal Selection */}
         <Select
-          label="Hayop (Animal)"
+          label="Kambing o Tupa"
           required
           value={selectedAnimalId}
           onChange={(e) => setSelectedAnimalId(e.target.value)}
@@ -392,18 +392,18 @@ export function MedicationTreatmentModal({
           helperText={
             selectedAnimal
               ? `Napili: ${selectedAnimal.tag_id} ${selectedAnimal.name ? `(${selectedAnimal.name})` : ''} — Kalusugan: ${selectedAnimal.health_status || 'Healthy'}`
-              : 'Piliin ang hayop na gagamutin'
+              : 'Piliin ang kambing o tupa na gagamutin'
           }
         >
-          <option value="">-- Piliin ang hayop --</option>
+          <option value="">-- Piliin ang kambing o tupa --</option>
           {animals.length === 0 ? (
             <option value="" disabled>
-              Walang aktibong hayop na available
+              Walang aktibong kambing o tupa na available
             </option>
           ) : (
             animals.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.tag_id} — {a.name ? `${a.name} (${a.species === 'Goat' ? 'Kambing' : a.species === 'Sheep' ? 'Tupa' : a.species || 'Hayop'})` : (a.species === 'Goat' ? 'Kambing' : a.species === 'Sheep' ? 'Tupa' : a.species || 'Hayop')}
+                {a.tag_id} — {a.name ? `${a.name} (${a.species === 'Goat' ? 'Kambing' : a.species === 'Sheep' ? 'Tupa' : 'Kambing / Tupa'})` : (a.species === 'Goat' ? 'Kambing' : a.species === 'Sheep' ? 'Tupa' : 'Kambing / Tupa')}
               </option>
             ))
           )}
@@ -614,7 +614,7 @@ export function MedicationTreatmentModal({
           rows={2}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Iba pang tagubilin o obserbasyon sa hayop..."
+          placeholder="Iba pang tagubilin o obserbasyon sa alaga..."
           disabled={loading}
         />
 

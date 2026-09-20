@@ -107,7 +107,7 @@ export function FeedPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.animal_id) e.animal_id = 'Pumili ng hayop.';
+    if (!form.animal_id) e.animal_id = 'Pumili ng kambing o tupa.';
     if (!editing && !form.inventory_item_id) {
       e.inventory_item_id = 'Pumili ng pakain mula sa imbentaryo.';
     } else if (!form.feed_type.trim()) {
@@ -128,7 +128,7 @@ export function FeedPage() {
 
     const animal = farmData.animals.find((a) => a.id === form.animal_id);
     if (!animal || (!isSuperAdmin && animal.user_id !== user.id)) {
-      toast('Walang pahintulot sa napiling hayop.', 'danger');
+      toast('Walang pahintulot sa napiling kambing o tupa.', 'danger');
       return;
     }
 
@@ -397,7 +397,7 @@ export function FeedPage() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Hayop</th>
+                        <th>Kambing / Tupa</th>
                         <th>Kabuuang Pakain</th>
                         <th>Kabuuang Gastos</th>
                         <th>Dagdag sa Timbang</th>
@@ -487,7 +487,7 @@ export function FeedPage() {
                   </div>
                 </div>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-muted, #64748B)', marginTop: 12, margin: 0 }}>
-                  Batay sa kasalukuyang dami ng alaga ({feedForecast.animalCount} aktibong hayop), average na timbang, at nakaraang konsumo.
+                  Batay sa kasalukuyang dami ng alaga ({feedForecast.animalCount} aktibong kambing at tupa), average na timbang, at nakaraang konsumo.
                 </p>
               </CardContent>
             </Card>
@@ -498,10 +498,10 @@ export function FeedPage() {
               value={fAnimal}
               onChange={setFAnimal}
               options={[
-                { value: 'All', label: 'Lahat ng Hayop' },
+                { value: 'All', label: 'Lahat (Kambing at Tupa)' },
                 ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
               ]}
-              ariaLabel="Salain ayon sa Hayop"
+              ariaLabel="Salain ayon sa Kambing o Tupa"
               minWidth={180}
             />
           </FilterToolbar>
@@ -525,7 +525,7 @@ export function FeedPage() {
                     <thead>
                       <tr>
                         <th>Petsa</th>
-                        <th>Hayop</th>
+                        <th>Kambing / Tupa</th>
                         <th>Uri ng Pakain</th>
                         <th>Dami (kg)</th>
                         <th>Halaga (₱)</th>
@@ -576,7 +576,7 @@ export function FeedPage() {
               {milkForecasts.length === 0 ? (
                 <EmptyState
                   icon={<Icons.Milk size={32} />}
-                  title="Walang babaeng hayop na nahanap"
+                  title="Walang inahing kambing o tupa na nahanap"
                   description="Magdagdag ng inahin upang masubaybayan ang paggagatas at ani ng gatas."
                 />
               ) : (
@@ -644,7 +644,7 @@ export function FeedPage() {
                     <thead>
                       <tr>
                         <th>Petsa</th>
-                        <th>Hayop</th>
+                        <th>Kambing / Tupa</th>
                         <th>Dami ng Gatas (Litro)</th>
                         <th style={{ textAlign: 'right' }}>Mga Aksyon</th>
                       </tr>
@@ -685,12 +685,12 @@ export function FeedPage() {
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Hayop" required error={errors.animal_id}>
+            <FormField label="Kambing o Tupa" required error={errors.animal_id}>
               <Select
                 value={form.animal_id}
                 onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Pumili ng hayop...' },
+                  { value: '', label: 'Pumili ng kambing o tupa...' },
                   ...activeAnimals.map((a) => ({ value: a.id, label: `${a.name} (${a.tag_id})` })),
                 ]}
               />
@@ -841,7 +841,7 @@ export function FeedPage() {
         <ModalHeader title="Magtala ng Ani ng Gatas" onClose={() => setMilkModalOpen(false)} />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Inahin (Hayop)" required error={errors.animal_id}>
+            <FormField label="Inahin (Kambing o Tupa)" required error={errors.animal_id}>
               <Select
                 value={milkForm.animal_id}
                 onChange={(e) => setMilkForm({ ...milkForm, animal_id: e.target.value })}

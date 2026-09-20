@@ -8,8 +8,9 @@
 // ─── Main Navigation Labels ─────────────────────────────────────────────────
 export const NAV_LABELS = {
   dashboard: 'Buod ng Bukid',
-  animals: 'Mga Hayop',
-  animalManagement: 'Pamamahala ng Hayop',
+  animals: 'Kambing at Tupa',
+  animalManagement: 'Pamamahala ng Kambing at Tupa',
+  sales: 'Benta ng Kambing at Tupa',
   health: 'Health Monitoring',
   aiHealthScanner: 'AI Health Scanner',
   breeding: 'Breeding',
@@ -28,7 +29,7 @@ export const NAV_LABELS = {
 // ─── Mobile Bottom Navigation (Strict 5 items) ──────────────────────────────
 export const MOBILE_NAV_LABELS = {
   dashboard: 'Buod',
-  animals: 'Mga Hayop',
+  animals: 'Kambing/Tupa',
   add: '+',
   alerts: 'Mga Paalala',
   more: 'Iba Pa',
@@ -41,8 +42,8 @@ export const FARM_LABELS = {
   dashboardTitle: 'Buod ng Bukid',
   dashboardQuestion: 'Kamusta ang bukid ko ngayon?',
   dashboardSubtitle: 'Pangkalahatang kalagayan at mga gawain sa iyong bukid ngayong araw',
-  animalsSection: 'Mga Hayop sa Bukid',
-  healthSection: 'Kalagayan ng mga Hayop',
+  animalsSection: 'Kambing at Tupa sa Bukid',
+  healthSection: 'Kalusugan ng Kambing at Tupa',
   healthSubtitle: 'Subaybayan ang kalagayan ng bawat kambing at tupa.',
   healthDisclaimer:
     'Ang sistemang ito ay gabay lamang sa maagang pagsusuri (decision support). Hindi ito opisyal na diagnosis ng beterinaryo.',
@@ -52,7 +53,7 @@ export const FARM_LABELS = {
   alertsSection: 'Mga Paalala',
 
   // Stat KPI Cards
-  cardTotalAnimals: 'Mga Hayop sa Bukid',
+  cardTotalAnimals: 'Kabuuang Kambing at Tupa',
   cardGoats: 'Mga Kambing',
   cardSheep: 'Mga Tupa',
   cardHealthy: 'Maayos',
@@ -70,9 +71,9 @@ export function formatHeadCount(count: number): string {
   return `${count} ulo`;
 }
 
-/** Format total animal count ("60 kabuuang hayop") */
+/** Format total animal count ("60 kabuuang kambing at tupa") */
 export function formatTotalHerd(count: number): string {
-  return `${count} kabuuang hayop`;
+  return `${count} kabuuang kambing at tupa`;
 };
 
 // ─── Species & Sex Terminology ──────────────────────────────────────────────
@@ -82,8 +83,8 @@ export const SPECIES_LABELS: Record<string, { singular: string; plural: string; 
 };
 
 export const SEX_LABELS: Record<string, { label: string; short: string; symbol: string; bilingual: string }> = {
-  Female: { label: 'Babaeng Hayop', short: 'Babae', symbol: 'F', bilingual: 'Babae (Female)' },
-  Male: { label: 'Lalaking Hayop', short: 'Lalaki', symbol: 'M', bilingual: 'Lalaki (Male)' },
+  Female: { label: 'Babaeng Alaga', short: 'Babae', symbol: 'F', bilingual: 'Babae (Female)' },
+  Male: { label: 'Lalaking Alaga', short: 'Lalaki', symbol: 'M', bilingual: 'Lalaki (Male)' },
 };
 
 // ─── Animal Lifecycle Statuses ──────────────────────────────────────────────
@@ -121,12 +122,12 @@ export const ANIMAL_STATUS_LABELS: Record<string, { label: string; badge: string
 // ─── Monthly Comparison Formatter (Never "0+0 this month") ───────────────────
 export function formatMonthlyAnimalGrowth(count: number): string {
   if (count <= 0) {
-    return 'Walang bagong hayop ngayong buwan';
+    return 'Walang bagong kambing o tupa ngayong buwan';
   }
   if (count === 1) {
-    return '+1 bagong hayop ngayong buwan';
+    return '+1 bagong kambing o tupa ngayong buwan';
   }
-  return `+${count} bagong hayop ngayong buwan`;
+  return `+${count} bagong kambing o tupa ngayong buwan`;
 }
 
 // ─── Health Risk Tiers ──────────────────────────────────────────────────────
@@ -148,7 +149,7 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
     color: '#EF4444',
     bg: 'rgba(239, 68, 68, 0.12)',
     border: 'rgba(239, 68, 68, 0.35)',
-    description: 'Inirerekomendang suriin agad ang hayop o kumonsulta sa beterinaryo.',
+    description: 'Inirerekomendang suriin agad ang kambing o tupa o kumonsulta sa beterinaryo.',
   },
   Moderate: {
     label: 'Bantayan / Under Observation',
@@ -157,7 +158,7 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
     color: '#F59E0B',
     bg: 'rgba(245, 158, 11, 0.12)',
     border: 'rgba(245, 158, 11, 0.35)',
-    description: 'May napansing senyales na kailangang obserbahan at subaybayan.',
+    description: 'May napansing senyales na kailangang obserbahan at subaybayan sa kambing o tupa.',
   },
   Low: {
     label: 'Maayos / Healthy',
@@ -166,7 +167,7 @@ export const HEALTH_TIERS: Record<'High' | 'Moderate' | 'Low', HealthTierConfig>
     color: '#238B45',
     bg: '#EAF6ED',
     border: 'rgba(35, 139, 69, 0.25)',
-    description: 'Masigla at maayos ang pangkalahatang pangangatawan ng hayop.',
+    description: 'Masigla at maayos ang pangkalahatang pangangatawan ng kambing o tupa.',
   },
 };
 
@@ -183,11 +184,11 @@ export const HEALTH_STATUS_BILINGUAL: Record<string, string> = {
 
 // ─── Simple Explanations for Health Signs (Replacing Medical Jargon) ─────────
 export function simplifyHealthObservation(rawText: string | null | undefined): string {
-  if (!rawText || !rawText.trim()) return 'Normal ang hitsura at masigla ang hayop.';
+  if (!rawText || !rawText.trim()) return 'Normal ang hitsura at masigla ang alaga.';
   const lower = rawText.toLowerCase();
 
   if (lower.includes('respiratory') || lower.includes('breathing') || lower.includes('cough') || lower.includes('hinga')) {
-    return 'May napansing kakaiba sa paghinga ng hayop.';
+    return 'May napansing kakaiba sa paghinga ng alaga.';
   }
   if (lower.includes('appetite') || lower.includes('pagkain') || lower.includes('reduced feed')) {
     return 'Mas kaunti ang pagkain kaysa dati.';
@@ -196,7 +197,7 @@ export function simplifyHealthObservation(rawText: string | null | undefined): s
     return 'May lumalabas na sipon o discharge sa ilong.';
   }
   if (lower.includes('dehydration') || lower.includes('kulang sa tubig') || lower.includes('panunuyo')) {
-    return 'Posibleng kulang sa tubig ang hayop.';
+    return 'Posibleng kulang sa tubig ang alaga.';
   }
   if (lower.includes('poor body condition') || lower.includes('emaciat') || lower.includes('payat') || lower.includes('low bcs')) {
     return 'Medyo payat o mababa ang body condition.';
@@ -208,7 +209,7 @@ export function simplifyHealthObservation(rawText: string | null | undefined): s
     return 'May napansing pamamaga o kabag sa kaliwang tagiliran.';
   }
   if (lower.includes('fever') || lower.includes('lagnat') || lower.includes('temperature')) {
-    return 'Mataas ang surface temperature ng hayop.';
+    return 'Mataas ang surface temperature ng alaga.';
   }
   if (lower.includes('diarrhea') || lower.includes('pagtatae') || lower.includes('scour')) {
     return 'May napansing basang dumi o pagtatae.';
@@ -229,8 +230,8 @@ export function formatFarmerHealthConcern(concern: string): { farmerText: string
 
   if (lower.includes('pneumonia') || lower.includes('respiratory') || lower.includes('cough') || lower.includes('sipon') || lower.includes('nasal')) {
     return {
-      farmerText: 'May napansing kakaiba sa paghinga ng hayop (ubo / sipon / mabilis na paghinga)',
-      actionText: 'Ihiwalay muna ang hayop sa tuyong silungan at kumonsulta sa beterinaryo kung magpatuloy.',
+      farmerText: 'May napansing kakaiba sa paghinga ng alaga (ubo / sipon / mabilis na paghinga)',
+      actionText: 'Ihiwalay muna ang alaga sa tuyong silungan at kumonsulta sa beterinaryo kung magpatuloy.',
     };
   }
 
@@ -244,7 +245,7 @@ export function formatFarmerHealthConcern(concern: string): { farmerText: string
   if (lower.includes('bloat') || lower.includes('kabag') || lower.includes('rumen') || lower.includes('digestive')) {
     return {
       farmerText: 'May napansing pamamaga o kabag sa tiyan (kaliwang tagiliran)',
-      actionText: 'Huwag munang pakainin ng basang damo o feeds; lakarin ang hayop at humingi ng payo.',
+      actionText: 'Huwag munang pakainin ng basang damo o feeds; lakarin ang alaga at humingi ng payo.',
     };
   }
 
@@ -272,13 +273,13 @@ export function formatFarmerHealthConcern(concern: string): { farmerText: string
   if (lower.includes('ppr') || lower.includes('viral')) {
     return {
       farmerText: 'May napansing posibleng impeksyon o matamlay na kalagayan',
-      actionText: 'Agarang ihiwalay (isolate) ang hayop sa ibang kawan at ipagbigay-alam sa beterinaryo.',
+      actionText: 'Agarang ihiwalay (isolate) ang alaga sa ibang kawan at ipagbigay-alam sa beterinaryo.',
     };
   }
 
   return {
     farmerText: `May napansing posibleng problema sa kalusugan: ${simplifyHealthObservation(concern)}`,
-    actionText: 'Obserbahan muna ang hayop at tingnan kung may iba pang sintomas.',
+    actionText: 'Obserbahan muna ang alaga at tingnan kung may iba pang sintomas.',
   };
 }
 
@@ -287,13 +288,15 @@ export const AI_SCANNER_LABELS = {
   title: 'AI Health Scanner',
   instruction: 'Itutok ang camera sa kambing o tupa.',
   step1: 'Itutok ang camera sa kambing o tupa.',
-  step2: 'Hinahanap ang hayop...',
-  searching: 'Hinahanap ang hayop...',
-  goatDetected: 'Kambing ang nakita.',
-  sheepDetected: 'Tupa ang nakita.',
-  wrongObject: 'Hindi ito kambing o tupa.',
-  noAnimal: 'Pakiharap ang camera sa kambing o tupa.',
-  lowConfidence: 'Mahina ang pagkakakita. Lumapit nang kaunti at tiyaking malinaw ang hayop.',
+  step2: 'Naghahanap ng kambing o tupa...',
+  searching: 'Naghahanap ng kambing o tupa...',
+  goatDetected: 'Kambing ang Nakita',
+  sheepDetected: 'Tupa ang Nakita',
+  bothDetected: 'Kambing at Tupa ang Nakita',
+  multiAnimal: 'Maraming kambing at/o tupa ang nakita. Piliin kung alin ang susuriin.',
+  wrongObject: 'Hindi kambing o tupa ang nakikita ng camera.',
+  noAnimal: 'Walang Kambing o Tupa na Nakita',
+  lowConfidence: 'Mahina ang pagkakakita. Lumapit nang kaunti at tiyaking malinaw ang kambing o tupa.',
   blurryImage: 'Malabo ang kuha. Subukang lumapit at iwasan ang sobrang liwanag.',
 
   // Thermal Camera Status (Strictly Non-Invasive Surface Temperature)
@@ -307,7 +310,7 @@ export const AI_SCANNER_LABELS = {
   resultTitle: 'Possible Health Concern',
   resultSummaryTagalog: 'May napansing posibleng problema sa kalusugan.',
   observationNotice: 'May ilang senyales na kailangan bantayan.',
-  defaultFarmerAdvice: 'Obserbahan muna ang hayop at tingnan kung may iba pang sintomas.',
+  defaultFarmerAdvice: 'Obserbahan muna ang kambing o tupa at tingnan kung may iba pang sintomas.',
   disclaimer:
     'Ang resulta ay gabay lamang para sa maagang pagmamasid. Hindi ito opisyal na diagnosis ng beterinaryo.',
   scanAgain: 'Mag-scan Ulit',
@@ -317,7 +320,7 @@ export const AI_SCANNER_LABELS = {
 // ─── Breeding Terminology ───────────────────────────────────────────────────
 export const BREEDING_LABELS = {
   title: 'Breeding',
-  subtitle: 'Talaan ng pagpaparami, pagbubuntis, at panganganak sa bukid',
+  subtitle: 'Talaan ng pagpaparami, pagbubuntis, at panganganak ng kambing at tupa',
   pregnantList: 'Mga Buntis',
   readyToBreed: 'Handa sa Pagpapalahi',
   hasMatingRecord: 'May Rekord ng Pagtatalik',
@@ -345,7 +348,7 @@ export const VACCINE_LABELS = {
   dueNow: 'Bakuna na Due na',
   status: 'Kalagayan ng Bakuna',
   recordVaccineBtn: 'Mag-record ng Bakuna',
-  animal: 'Hayop',
+  animal: 'Kambing / Tupa',
   vaccine: 'Pangalan ng Bakuna',
   vaccinationDate: 'Petsa ng Bakuna',
   nextDueDate: 'Petsa ng Susunod na Bakuna',
@@ -370,10 +373,10 @@ export const GENERAL_INVENTORY_LABELS = {
 
   // 5 Canonical Categories
   categories: {
-    animals: 'Mga Hayop',
-    feed: 'Pakain',
-    health: 'Gamot at Health Supplies',
-    supplies: 'Mga Gamit sa Bukid',
+    animals: 'Kambing at Tupa',
+    feed: 'Pakain ng Kambing at Tupa',
+    health: 'Mga Gamot at Health Supplies',
+    supplies: 'Kagamitan sa Bukid',
     tools: 'Tools at Equipment',
   },
 
@@ -413,7 +416,7 @@ export const ALERT_LABELS = {
 export const REPORT_LABELS = {
   title: 'Mga Ulat',
   subtitle: 'Tingnan, i-download, o i-print ang buod ng impormasyon sa bukid',
-  animalReport: 'Ulat sa mga Hayop',
+  animalReport: 'Ulat ng Kambing at Tupa',
   healthReport: 'Ulat sa Kalusugan',
   breedingReport: 'Ulat sa Pagpapalahi / Breeding',
   weightReport: 'Ulat sa Timbang',
@@ -438,18 +441,18 @@ export const COMMON_ACTIONS = {
   download: 'I-download',
   print: 'I-print',
   search: 'Maghanap',
-  searchPlaceholder: 'Maghanap ng hayop, ID, gamit, o record...',
+  searchPlaceholder: 'Maghanap ng kambing o tupa, Tag ID, gamit, o record...',
   all: 'Lahat',
-  addAnimal: 'Magdagdag ng Hayop',
-  saveAnimal: 'I-save ang Hayop',
+  addAnimal: 'Magdagdag ng Kambing o Tupa',
+  saveAnimal: 'I-save ang Kambing o Tupa',
 };
 
 // ─── Standard Empty States ──────────────────────────────────────────────────
 export const EMPTY_STATES = {
-  animals: 'Wala pang hayop na nakalagay.',
-  health: 'Wala pang health record para sa hayop na ito.',
+  animals: 'Walang kambing o tupa na nakatala.',
+  health: 'Wala pang health record para sa kambing o tupa na ito.',
   vaccinations: 'Walang bakuna na due ngayon.',
-  breeding: 'Wala pang rekord ng pagpapalahi.',
+  breeding: 'Wala pang rekord ng pagpapalahi para sa kambing at tupa.',
   inventory: 'Lahat ng stock ay nasa maayos na dami.',
   alerts: '🎉 Walang kailangang aksyunan ngayon.',
   noData: 'Walang nahanap na record.',
@@ -459,7 +462,7 @@ export const EMPTY_STATES = {
 export const VALIDATION_MESSAGES = {
   fetchError: 'May problema sa pagkuha ng data. Subukan ulit.',
   saveError: 'Hindi mai-save ang impormasyon. Pakitingnan ang mga nilagay na detalye.',
-  nameOrTagRequired: 'Pakilagay ang pangalan o Tag ID ng hayop.',
+  nameOrTagRequired: 'Pakilagay ang pangalan o Tag ID ng kambing o tupa.',
   savedSuccess: 'Matagumpay na na-save ang impormasyon.',
   deletedSuccess: 'Matagumpay na nabura ang rekord.',
   updatedSuccess: 'Na-update na ang rekord.',
@@ -467,7 +470,7 @@ export const VALIDATION_MESSAGES = {
 
 // ─── Confirmation Dialogs ───────────────────────────────────────────────────
 export const CONFIRMATION_MESSAGES = {
-  deleteAnimalTitle: 'Sigurado ka bang nais mong burahin ang hayop na ito?',
+  deleteAnimalTitle: 'Sigurado ka bang nais mong burahin ang kambing o tupa na ito?',
   deleteAnimalDesc: 'Hindi na ito maibabalik kapag nabura.',
   confirmDelete: 'Oo, Burahin',
   cancelDelete: 'Huwag Muna',
@@ -476,8 +479,8 @@ export const CONFIRMATION_MESSAGES = {
 // ─── Tooltips & Helpful Explanations ────────────────────────────────────────
 export const TOOLTIPS_HELP = {
   famacha: 'Pagsusuri sa kulay ng talukap ng mata para malaman kung may anemia o bulate.',
-  bcs: 'Pagsusuri kung payat, tama lang, o mataba ang hayop.',
-  temperature: 'Surface temperature ng hayop gamit ang thermal sensor o thermometer.',
-  kiddingDate: 'Tinatayang petsa kung kailan manganganak ang hayop.',
+  bcs: 'Pagsusuri kung payat, tama lang, o mataba ang alaga.',
+  temperature: 'Surface temperature ng kambing o tupa gamit ang thermal sensor o thermometer.',
+  kiddingDate: 'Tinatayang petsa kung kailan manganganak ang kambing o tupa.',
 };
 

@@ -160,7 +160,7 @@ export function generateDailyAlerts(
         id: `inventory-${item.id}`,
         type: 'Inventory',
         title: `${item.name} — Nag-expire na ang stock`,
-        description: `Paso o expired na ang gamit na ito. Huwag nang gagamitin sa mga hayop upang maiwasan ang pinsala, at itapon o palitan agad.`,
+        description: `Paso o expired na ang gamit na ito. Huwag nang gagamitin sa kambing o tupa upang maiwasan ang pinsala, at itapon o palitan agad.`,
         priority: 'Critical',
         dueLabel: 'Aksyonan Agad',
         link: '/inventory',
@@ -246,7 +246,7 @@ export function generateRecommendations(
   if (atRiskAnimals.length > 0) {
     recs.push({
       category: 'Health',
-      title: `${atRiskAnimals.length} hayop ang may binabantayang kalusugan`,
+      title: `${atRiskAnimals.length} alaga ang may binabantayang kalusugan`,
       description: atRiskAnimals.map((a) => `${a.name} (Score: ${a.health_risk_score})`).join(', '),
       priority: 'Warning',
       severity_color: 'orange',
@@ -261,7 +261,7 @@ export function generateRecommendations(
   if (overdueVacc.length > 0) {
     recs.push({
       category: 'Vaccination',
-      title: `${overdueVacc.length} hayop ang lampas na sa iskedyul ng bakuna`,
+      title: `${overdueVacc.length} alaga ang lampas na sa iskedyul ng bakuna`,
       description: overdueVacc.map((a) => a.name).join(', '),
       priority: 'Critical',
       severity_color: 'red',
@@ -271,7 +271,7 @@ export function generateRecommendations(
       id: 'vacc-overdue',
       severity: 'urgent',
       icon: 'Syringe',
-      title: `${overdueVacc.length} hayop ang lampas sa bakuna`,
+      title: `${overdueVacc.length} alaga ang lampas sa bakuna`,
       description: overdueVacc.map((a) => a.name).join(', '),
       link: '/vaccinations',
     });
@@ -279,7 +279,7 @@ export function generateRecommendations(
   if (dueSoonVacc.length > 0) {
     recs.push({
       category: 'Vaccination',
-      title: `${dueSoonVacc.length} hayop ang may paparating na iskedyul ng bakuna`,
+      title: `${dueSoonVacc.length} alaga ang may paparating na iskedyul ng bakuna`,
       description: dueSoonVacc.map((a) => a.name).join(', '),
       priority: 'Warning',
       severity_color: 'yellow',
@@ -387,7 +387,7 @@ export function generateRecommendations(
   if (animalsNoRecentWeight.length > 0) {
     recs.push({
       category: 'Weight',
-      title: `${animalsNoRecentWeight.length} hayop ang kailangang timbangin muli`,
+      title: `${animalsNoRecentWeight.length} alaga ang kailangang timbangin muli`,
       description: 'Magtala ng bagong timbang upang masubaybayan ang paglaki at dami ng pakain.',
       priority: 'Normal',
       severity_color: 'blue',
@@ -397,7 +397,7 @@ export function generateRecommendations(
       id: 'weight-routine',
       severity: 'routine',
       icon: 'Scale',
-      title: `${animalsNoRecentWeight.length} hayop ang dapat nang timbangin`,
+      title: `${animalsNoRecentWeight.length} alaga ang dapat nang timbangin`,
       description: 'Mahigit 30 araw nang walang bagong timbang',
       link: '/animals',
     });
@@ -415,8 +415,8 @@ export function generateRecommendations(
   if (animalsNoRecentHealth.length > 0) {
     recs.push({
       category: 'Health',
-      title: `${animalsNoRecentHealth.length} hayop ang matagal nang walang health check`,
-      description: 'Magsagawa ng regular na obserbasyon upang matiyak na malusog ang mga hayop.',
+      title: `${animalsNoRecentHealth.length} alaga ang matagal nang walang health check`,
+      description: 'Magsagawa ng regular na obserbasyon upang matiyak na malusog ang mga alaga.',
       priority: 'Normal',
       severity_color: 'blue',
       link: '/health',
@@ -509,7 +509,7 @@ export function generateRecommendations(
             recs.push({
               category: 'Kalusugan',
               title: `May napansing posibleng problema sa kalusugan ni ${a.name} (${Math.round(prediction.probability * 100)}% tsansa)`,
-              description: `Pangunahing dahilan: ${prediction.featureImportance.slice(0, 3).map((f) => f.feature).join(', ')}. Obserbahan ang hayop o kumonsulta sa beterinaryo.`,
+              description: `Pangunahing dahilan: ${prediction.featureImportance.slice(0, 3).map((f) => f.feature).join(', ')}. Obserbahan ang alaga o kumonsulta sa beterinaryo.`,
               priority: 'Warning',
               severity_color: 'orange',
               link: `/animals/${a.id}`,

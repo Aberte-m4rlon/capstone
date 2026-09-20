@@ -690,7 +690,7 @@ export function LandingPage() {
               <PawPrint size={24} />
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--text, #174B2A)' }}>
-              Pamamahala ng mga Hayop
+              Pamamahala ng Kambing at Tupa
             </h3>
             <p style={{ fontSize: 13.5, color: 'var(--text-secondary, #50645A)', lineHeight: 1.6, margin: 0 }}>
               Mag-record at madaling subaybayan ang impormasyon ng bawat kambing at tupa, kabilang ang ID, pangalan, lahi, kasarian, edad, at timbang.
@@ -728,7 +728,7 @@ export function LandingPage() {
               Health Monitoring
             </h3>
             <p style={{ fontSize: 13.5, color: 'var(--text-secondary, #50645A)', lineHeight: 1.6, margin: 0 }}>
-              Subaybayan ang kalagayan ng bawat hayop gamit ang health records, observations, risk level, at mga rekomendasyon para sa susunod na hakbang.
+              Subaybayan ang kalagayan ng bawat alaga gamit ang health records, observations, risk level, at mga rekomendasyon para sa susunod na hakbang.
             </p>
           </div>
 
@@ -763,7 +763,7 @@ export function LandingPage() {
               Breeding
             </h3>
             <p style={{ fontSize: 13.5, color: 'var(--text-secondary, #50645A)', lineHeight: 1.6, margin: 0 }}>
-              Itala ang pagpapalahi, buntis na hayop, inaasahang panganganak, at iba pang breeding records.
+              Itala ang pagpapalahi, buntis na inahin, inaasahang panganganak, at iba pang breeding records ng kambing at tupa.
             </p>
           </div>
 
@@ -873,7 +873,7 @@ export function LandingPage() {
               Mga Timbang
             </h3>
             <p style={{ fontSize: 13.5, color: 'var(--text-secondary, #50645A)', lineHeight: 1.6, margin: 0 }}>
-              Itala ang timbang ng bawat hayop at makita ang pagbabago ng timbang sa paglipas ng panahon upang masuri ang paglaki.
+              Itala ang timbang ng bawat alaga at makita ang pagbabago ng timbang sa paglipas ng panahon upang masuri ang paglaki.
             </p>
           </div>
 
@@ -997,7 +997,7 @@ export function LandingPage() {
                 lineHeight: 1.6,
               }}
             >
-              Makikita mo kung aling hayop ang maayos, kailangang bantayan, o nangangailangan ng karagdagang atensyon.
+              Makikita mo kung aling kambing o tupa ang maayos, kailangang bantayan, o nangangailangan ng karagdagang atensyon.
             </p>
           </div>
 
@@ -1270,7 +1270,7 @@ export function LandingPage() {
             </div>
             <div>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text, #174B2A)', marginBottom: 4 }}>
-                Mga Hayop
+                Kambing at Tupa
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary, #50645A)', lineHeight: 1.5 }}>
                 Talaan ng kawan na siyang pinaglalaanan ng pagkain, gamot, at iba pang supplies ng bukid.
@@ -1531,7 +1531,7 @@ export function LandingPage() {
                 lineHeight: 1.6,
               }}
             >
-              Ang impormasyon ng iyong mga hayop, kalusugan, breeding, bakuna, timbang, inventory, mga paalala, at mga ulat ay magkakaugnay.
+              Ang impormasyon ng iyong kambing at tupa, kalusugan, breeding, bakuna, timbang, inventory, mga paalala, at mga ulat ay magkakaugnay.
             </p>
           </div>
 
@@ -1545,7 +1545,7 @@ export function LandingPage() {
             }}
           >
             {[
-              { step: 1, title: 'Mga Hayop', desc: 'Rehistro ng bawat kambing at tupa', icon: PawPrint },
+              { step: 1, title: 'Kambing at Tupa', desc: 'Rehistro ng bawat kambing at tupa', icon: PawPrint },
               { step: 2, title: 'Health Monitoring', desc: 'Pagsusuri at kalagayan sa araw-araw', icon: HeartPulse },
               { step: 3, title: 'Breeding', desc: 'Pagpapalahi at pagbubuntis', icon: Heart },
               { step: 4, title: 'Mga Bakuna', desc: 'Proteksyon at schedule ng turok', icon: Syringe },
@@ -1765,7 +1765,7 @@ export function LandingPage() {
                   Breeding &amp; Kidding
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text, #174B2A)', marginTop: 4 }}>
-                  Buntis na Hayop
+                  Buntis na Inahin
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-secondary, #50645A)', marginTop: 4 }}>
                   May schedule ng panganganak
@@ -1872,7 +1872,7 @@ export function LandingPage() {
                   letterSpacing: '-0.02em',
                 }}
               >
-                QR Code para sa Bawat Hayop
+                QR Code para sa Bawat Alaga
               </h2>
               <p
                 style={{
@@ -1882,7 +1882,7 @@ export function LandingPage() {
                   margin: '0 0 18px',
                 }}
               >
-                Maaaring magkaroon ng sariling QR Code ang bawat hayop para mas madaling makita ang impormasyon nito.
+                Maaaring magkaroon ng sariling QR Code ang bawat alaga para mas madaling makita ang impormasyon nito.
               </p>
               <p
                 style={{
@@ -1906,10 +1906,10 @@ export function LandingPage() {
                 }}
               >
                 <div style={{ fontSize: 14.5, fontWeight: 800, color: 'var(--text, #174B2A)', marginBottom: 6 }}>
-                  Kapag May Nakakita sa Iyong Hayop
+                  Kapag May Nakakita sa Iyong Alaga
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary, #50645A)', lineHeight: 1.55 }}>
-                  Sa pamamagitan ng QR Code, maaaring buksan ang public profile ng hayop. Makikita rito ang pangunahing impormasyon tungkol sa hayop at ang pampublikong contact information ng may-ari upang agad itong maibalik.
+                  Sa pamamagitan ng QR Code, maaaring buksan ang public profile ng alaga. Makikita rito ang pangunahing impormasyon tungkol sa kambing o tupa at ang pampublikong contact information ng may-ari upang agad itong maibalik.
                 </div>
               </div>
 
@@ -2293,7 +2293,7 @@ export function LandingPage() {
             </div>
             <div>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text, #174B2A)', marginBottom: 4 }}>
-                Mas madaling makita ang kasaysayan ng bawat hayop
+                Mas madaling makita ang kasaysayan ng bawat alaga
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary, #50645A)', lineHeight: 1.5 }}>
                 Kumpletong kasaysayan ng timbang, kalusugan, gamutan, at supling sa iisang pahina.
@@ -2348,7 +2348,7 @@ export function LandingPage() {
               margin: '0 auto',
             }}
           >
-            Ang bawat user ay may sariling farm data. Hindi dapat makita o mapamahalaan ng ibang user ang mga hayop, records, inventory, at iba pang pribadong impormasyon na hindi kanila.
+            Ang bawat user ay may sariling farm data. Hindi dapat makita o mapamahalaan ng ibang user ang mga alaga, records, inventory, at iba pang pribadong impormasyon na hindi kanila.
           </p>
         </div>
       </section>
@@ -2493,7 +2493,7 @@ export function LandingPage() {
                   Buod ng Bukid
                 </span>
                 <span onClick={() => navigate('/animals')} style={{ fontSize: 13, color: 'var(--text-secondary, #50645A)', cursor: 'pointer' }}>
-                  Mga Hayop
+                  Kambing at Tupa
                 </span>
                 <span onClick={() => navigate('/health')} style={{ fontSize: 13, color: 'var(--text-secondary, #50645A)', cursor: 'pointer' }}>
                   Health Monitoring

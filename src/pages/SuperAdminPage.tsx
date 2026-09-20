@@ -373,7 +373,7 @@ export function SuperAdminPage() {
             <StatCard icon={<Crown size={18} />} accentColor="green" value={loading ? '—' : stats.superAdmins} label="Super Admins" />
             <StatCard icon={<ShieldCheck size={18} />} accentColor="green" value={loading ? '—' : stats.sysAdmins} label="System Admins" />
             <StatCard icon={<CheckCircle size={18} />} accentColor="green" value={loading ? '—' : stats.farmManagers} label="Farm Managers" />
-            <StatCard icon={<PawPrint size={18} />} accentColor="green" value={loading ? '—' : stats.totalAnimals} label="Kabuuang mga Hayop" />
+            <StatCard icon={<PawPrint size={18} />} accentColor="green" value={loading ? '—' : stats.totalAnimals} label="Kabuuang Kambing at Tupa" />
             <StatCard icon={<HeartPulse size={18} />} accentColor="green" value={loading ? '—' : stats.totalHealth} label="Mga Health Record" />
           </div>
 
@@ -471,7 +471,7 @@ export function SuperAdminPage() {
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>User</th><th>Tungkulin</th><th>Katayuan</th><th>Bukid</th><th>Mga Hayop</th><th>Petsa ng Pagrehistro</th><th>Huling Pag-login</th><th>Mga Aksyon</th></tr></thead>
+                  <thead><tr><th>User</th><th>Tungkulin</th><th>Katayuan</th><th>Bukid</th><th>Kambing at Tupa</th><th>Petsa ng Pagrehistro</th><th>Huling Pag-login</th><th>Mga Aksyon</th></tr></thead>
                   <tbody>
                     {filtered.map(u => {
                       const b = roleBadge(u.role);
@@ -626,7 +626,7 @@ export function SuperAdminPage() {
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
               {[
-                { label: 'Binabantayang Hayop', value: String(mlSummary.monitored) },
+                { label: 'Binabantayang Alaga', value: String(mlSummary.monitored) },
                 { label: 'Mga Babala ng AI', value: String(mlSummary.warningCount) },
                 { label: 'Mataas ang Risk (AI)', value: String(mlSummary.mlHigh) },
                 { label: 'Kritikal (AI)', value: String(mlSummary.mlCritical) },

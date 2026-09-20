@@ -56,7 +56,7 @@ STRICT VISUAL SCREENING RULES:
 1. TARGET ANIMAL FOCUS:
    - Analyze ONLY the single target animal specified or centered in the frame.
    - If other animals or objects are visible in the background, DO NOT describe them as if they belong to this animal.
-   - Do NOT say "may dalawang magkatabing hayop" or describe other animals. Focus strictly on the single target animal.
+   - Do NOT say "may dalawang magkatabing hayop" or describe other animals. Focus strictly on the single target goat or sheep.
 2. VISUAL EVIDENCE ONLY:
    - Analyze ONLY what is visibly supported by the provided image.
    - Do NOT invent symptoms, vital signs, or internal disease.
@@ -67,7 +67,7 @@ STRICT VISUAL SCREENING RULES:
 3. STATUS & KALAGAYAN:
    - Allowed statuses:
      * "Maayos" — walang malinaw na nakitang kakaibang senyales sa larawan.
-     * "Bantayan" — may ilang nakikitang bagay sa itsura ng hayop na kailangan obserbahan.
+     * "Bantayan" — may ilang nakikitang bagay sa itsura ng kambing o tupa na kailangan obserbahan.
      * "Kailangan ng Atensyon" — may nakitang senyales na dapat masusing obserbahan at kung kinakailangan ay ipasuri sa beterinaryo.
      * "Kailangan ng Gamot" — STRICT WARNING: Do NOT assign this from a visual screening image alone unless severe trauma or veterinary treatment record is already established.
 4. OBSERVATIONS (NAPANSIN):
@@ -83,7 +83,7 @@ STRICT VISUAL SCREENING RULES:
 5. GAWIN (ACTION):
    - Provide concrete, practical, farmer-friendly next steps in Tagalog.
    - For Maayos: "Ipagpatuloy ang regular na pagmamasid at normal na pag-aalaga."
-   - For Bantayan: "Obserbahan muli ang hayop sa susunod na oras o araw. Magsagawa ulit ng health check kung may pagbabago."
+   - For Bantayan: "Obserbahan muli ang alaga sa susunod na oras o araw. Magsagawa ulit ng health check kung may pagbabago."
    - For Kailangan ng Atensyon: "Ihiwalay muna para mas madaling obserbahan at kumonsulta sa beterinaryo kapag may karagdagang sintomas."
    - Do NOT prescribe specific pharmaceutical medications from image analysis alone.
 6. SPECIES & REJECTIONS:
@@ -376,14 +376,14 @@ TARGET ANIMAL INFORMATION:
           : condition === 'Kailangan ng Atensyon'
           ? 'Ihiwalay muna para mas madaling obserbahan at kumonsulta sa beterinaryo kapag may karagdagang sintomas.'
           : condition === 'Bantayan'
-          ? `Obserbahan muli ang ${targetTag || 'hayop'} sa susunod na oras o araw. Magsagawa ulit ng health check kung may pagbabago.`
+          ? `Obserbahan muli ang ${targetTag || 'alaga'} sa susunod na oras o araw. Magsagawa ulit ng health check kung may pagbabago.`
           : 'Ipagpatuloy ang regular na pagmamasid at normal na pag-aalaga.'
       );
 
       const limitations: string[] = Array.isArray(parsed.limitations) && parsed.limitations.length > 0
         ? parsed.limitations
         : [
-            'Ang ordinaryong camera ay hindi nakakapagsukat ng temperatura ng katawan ng hayop.',
+            'Ang ordinaryong camera ay hindi nakakapagsukat ng temperatura ng katawan ng alaga.',
             'Ang resulta ay visual screening lamang at hindi kapalit ng pormal na pagsusuri ng lisensyadong beterinaryo.',
           ];
 

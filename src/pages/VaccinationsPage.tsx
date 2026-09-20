@@ -165,7 +165,7 @@ export function VaccinationsPage() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.animal_id) e.animal_id = 'Pumili ng hayop.';
+    if (!form.animal_id) e.animal_id = 'Pumili ng kambing o tupa.';
     if (!editing && !form.inventory_item_id) {
       e.inventory_item_id = 'Pumili ng bakuna mula sa iyong Farm Inventory.';
     } else if (!form.vaccine_name.trim()) {
@@ -194,7 +194,7 @@ export function VaccinationsPage() {
 
     const animal = farmData.animals.find((a) => a.id === form.animal_id);
     if (!animal || (!isSuperAdmin && animal.user_id !== user.id)) {
-      toast('Walang pahintulot sa napiling hayop.', 'error');
+      toast('Walang pahintulot sa napiling kambing o tupa.', 'error');
       return;
     }
 
@@ -394,7 +394,7 @@ export function VaccinationsPage() {
                 fontWeight: 500,
               }}
             >
-              Iskedyul ng bakuna, booster, at kalusugan ng hayop · {farmData.vaccinations.length} naitalang bakuna
+              Iskedyul ng bakuna, booster, at proteksyon ng kambing at tupa · {farmData.vaccinations.length} naitalang bakuna
             </p>
           </div>
         </div>
@@ -703,7 +703,7 @@ export function VaccinationsPage() {
               <thead>
                 <tr>
                   <th>Petsa ng Bakuna</th>
-                  <th>Hayop</th>
+                  <th>Kambing / Tupa</th>
                   <th>Pangalan ng Bakuna</th>
                   <th>Susunod na Bakuna</th>
                   <th>Katayuan</th>
@@ -878,12 +878,12 @@ export function VaccinationsPage() {
         />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <FormField label="Pumili ng Hayop" required error={errors.animal_id}>
+            <FormField label="Pumili ng Kambing o Tupa" required error={errors.animal_id}>
               <Select
                 value={form.animal_id}
                 onChange={(e) => setForm({ ...form, animal_id: e.target.value })}
                 options={[
-                  { value: '', label: 'Pumili ng hayop...' },
+                  { value: '', label: 'Pumili ng kambing o tupa...' },
                   ...activeAnimals.map((a) => ({
                     value: a.id,
                     label: `${a.name} (${a.tag_id}) — ${a.species === 'Goat' ? 'Kambing' : 'Tupa'} • ${a.breed ?? 'Standard'}`,

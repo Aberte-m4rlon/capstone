@@ -440,10 +440,10 @@ export function Dashboard() {
       {/* ── QUICK ACTIONS ROW ──────────────────────────────────────────────── */}
       <QuickActions
         actions={[
-          { label: 'Magdagdag ng Hayop', to: '/animals', icon: <Plus size={14} className="qa-plus-icon" /> },
+          { label: 'Magdagdag ng Kambing o Tupa', to: '/animals', icon: <Plus size={14} className="qa-plus-icon" /> },
           { label: 'Suriin ang Kalusugan', to: '/health', icon: <Stethoscope size={14} className="qa-plus-icon" /> },
           { label: 'Magpakain sa Bukid', to: '/feed', icon: <Package size={14} className="qa-plus-icon" /> },
-          { label: 'Magbenta ng Hayop', to: '/sales?action=add', icon: <DollarSign size={14} className="qa-plus-icon" /> },
+          { label: 'Magbenta ng Kambing o Tupa', to: '/sales?action=add', icon: <DollarSign size={14} className="qa-plus-icon" /> },
           { label: 'Pagpaparami', to: '/breeding', icon: <Baby size={14} className="qa-plus-icon" /> },
           { label: 'Magpagamot', to: '/health', icon: <Bandage size={14} className="qa-plus-icon" /> },
           { label: 'Magtala ng Bakuna', to: '/vaccinations', icon: <Syringe size={14} className="qa-plus-icon" /> },
@@ -503,7 +503,7 @@ export function Dashboard() {
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: (vaccineStats.dueSoon.length + vaccineStats.overdue.length) > 0 ? '#F59E0B' : '#238B45' }} />
           </div>
           <div className="alert-value">
-            {vaccineStats.dueSoon.length + vaccineStats.overdue.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>hayop</span>
+            {vaccineStats.dueSoon.length + vaccineStats.overdue.length} <span style={{ fontSize: '13px', fontWeight: 600 }}>kambing/tupa</span>
           </div>
           <span className="alert-action">
             Tingnan ngayon <ArrowRight size={13} />
@@ -575,7 +575,7 @@ export function Dashboard() {
             <Layers size={17} />
           </div>
           <span>
-            Salain Ayon sa Hayop (Filter by Species):
+            Salain Ayon sa Uri (Kambing o Tupa):
           </span>
         </div>
         <div className="species-filter-track">
@@ -604,7 +604,7 @@ export function Dashboard() {
       </div>
 
       {/* ═════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1: MGA HAYOP SA BUKID (Herd Breakdown)                      */}
+      {/* SECTION 1: MGA KAMBING AT TUPA SA BUKID (Herd Breakdown)                      */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
@@ -618,7 +618,7 @@ export function Dashboard() {
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate('/animals')} style={{ gap: 6 }}>
-            <span>Tingnan ang Lahat ng Hayop</span>
+            <span>Tingnan ang Lahat ng Kambing at Tupa</span>
             <ChevronRight size={15} />
           </Button>
         </div>
@@ -701,7 +701,7 @@ export function Dashboard() {
                 {herdStats.total}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#238B45', marginTop: 4 }}>
-                kabuuang aktibong hayop
+                kabuuang kambing at tupa
               </div>
             </div>
           </div>
@@ -878,7 +878,7 @@ export function Dashboard() {
       </div>
 
       {/* ═════════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 2: KALAGAYAN NG MGA HAYOP (Health Screening & Early Warning)*/}
+      {/* SECTION 2: KALAGAYAN NG MGA KAMBING AT TUPA (Health Screening & Early Warning)*/}
       {/* ═════════════════════════════════════════════════════════════════════ */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
@@ -1033,10 +1033,10 @@ export function Dashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--color-text-primary, #0F172A)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <AlertTriangle size={16} color="#F59E0B" />
-                <span>Mga Hayop na Nangangailangan ng Pagsusuri Ngayong Araw:</span>
+                <span>Kambing at Tupa na Nangangailangan ng Pagsusuri Ngayong Araw:</span>
               </span>
               <span style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                {healthScreening.highRisk.length + healthScreening.moderateRisk.length} alaga
+                {healthScreening.highRisk.length + healthScreening.moderateRisk.length} kambing at tupa
               </span>
             </div>
 
@@ -1648,7 +1648,7 @@ export function Dashboard() {
                 <span>Mga Mungkahi sa Bukid (Recommendations)</span>
               </div>
             }
-            subtitle="Kalkulasyon mula sa rekord ng hayop at imbentaryo"
+            subtitle="Kalkulasyon mula sa rekord ng kambing, tupa, at imbentaryo"
           />
           <CardContent>
             {recommendations.length === 0 ? (

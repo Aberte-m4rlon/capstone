@@ -27,7 +27,7 @@ export interface NavItemConfig {
 /**
  * Get clean role-specific navigation list
  * Follows exact sequence:
- * MAIN: Buod ng Bukid, Mga Hayop, Health Monitoring, Breeding, Timbang, Mga Bakuna, Farm Inventory
+ * MAIN: Buod ng Bukid, Kambing at Tupa, Health Monitoring, Breeding, Timbang, Mga Bakuna, Farm Inventory
  * LOWER: Mga Paalala, Mga Ulat, Activity Log
  * BOTTOM: AI Farm Assistant, Mga User (if authorized), Mga Setting
  */
@@ -44,7 +44,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
       },
       {
         to: '/animals',
-        label: 'Mga Hayop',
+        label: 'Kambing at Tupa',
         icon: <GoatIcon size={20} strokeWidth={2.2} />,
         roles: ['super_admin'],
       },
@@ -62,7 +62,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
       },
       {
         to: '/sales',
-        label: 'Benta ng Hayop',
+        label: 'Benta ng Kambing at Tupa',
         icon: <DollarSign size={20} strokeWidth={2.2} />,
         roles: ['super_admin'],
       },
@@ -130,7 +130,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
       },
       {
         to: '/animals',
-        label: 'Mga Hayop',
+        label: 'Kambing at Tupa',
         icon: <GoatIcon size={20} strokeWidth={2.2} />,
         roles: ['system_admin'],
       },
@@ -148,7 +148,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
       },
       {
         to: '/sales',
-        label: 'Benta ng Hayop',
+        label: 'Benta ng Kambing at Tupa',
         icon: <DollarSign size={20} strokeWidth={2.2} />,
         roles: ['system_admin'],
       },
@@ -210,7 +210,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
     },
     {
       to: '/animals',
-      label: 'Mga Hayop',
+      label: 'Kambing at Tupa',
       icon: <GoatIcon size={20} strokeWidth={2.2} />,
       roles: ['farm_manager'],
     },
@@ -228,7 +228,7 @@ export function getNavItemsForRole(role: string | null): NavItemConfig[] {
     },
     {
       to: '/sales',
-      label: 'Benta ng Hayop',
+      label: 'Benta ng Kambing at Tupa',
       icon: <DollarSign size={20} strokeWidth={2.2} />,
       roles: ['farm_manager'],
     },

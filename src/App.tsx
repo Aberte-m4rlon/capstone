@@ -171,7 +171,7 @@ function AppRoutes() {
         <Route path="/activity-log" element={<RequireRole allowed={ALL_FARM_ROLES}><ActivityLogPage /></RequireRole>} />
         <Route path="/settings" element={<RequireRole allowed={ALL_FARM_ROLES}><SettingsPage /></RequireRole>} />
         <Route path="/myai" element={<RequireRole allowed={ALL_FARM_ROLES}><MyAIPage /></RequireRole>} />
-        <Route path="/camera-screening" element={<Navigate to="/health?action=check" replace />} />
+        <Route path="/camera-screening" element={<RequireRole allowed={ALL_FARM_ROLES}><CameraScreeningPage /></RequireRole>} />
 
         {/* ── System Admin routes ── */}
         <Route path="/admin" element={<RequireRole allowed={['system_admin', 'super_admin']}><AdminPage /></RequireRole>} />

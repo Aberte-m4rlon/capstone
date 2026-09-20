@@ -28,7 +28,7 @@ interface ChannelMatrixRow {
 const CATEGORY_ROWS: ChannelMatrixRow[] = [
   {
     key: 'health',
-    label: 'Kalusugan ng Hayop (Health Alerts)',
+    label: 'Kalusugan ng Kambing at Tupa (Health Alerts)',
     description: 'May sakit, kailangan ng agarang atensyon, o may abnormal na vital signs.',
     inAppKey: 'health_in_app',
     smsKey: 'health_sms',
@@ -68,7 +68,7 @@ const CATEGORY_ROWS: ChannelMatrixRow[] = [
   },
   {
     key: 'sales',
-    label: 'Pagbebenta ng Hayop (Sales)',
+    label: 'Pagbebenta ng Kambing at Tupa (Sales)',
     description: 'Kumpirmasyon kapag matagumpay na naitala ang benta ng kambing o tupa.',
     inAppKey: 'sales_in_app',
     smsKey: 'sales_sms',
@@ -287,7 +287,7 @@ export function NotificationPreferencesCard({
               Agarang Emergency Alerto (Critical Emergency Override)
             </div>
             <div style={{ fontSize: 11.5, color: '#64748B' }}>
-              Kusang magpapadala ng agarang SMS at Email kapag kritikal ang lagay ng hayop kahit naka-off ang kategorya.
+              Kusang magpapadala ng agarang SMS at Email kapag kritikal ang lagay ng alaga kahit naka-off ang kategorya.
             </div>
           </div>
         </div>

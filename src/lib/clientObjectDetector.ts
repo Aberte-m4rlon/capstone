@@ -18,11 +18,11 @@
  *       • Fluctuating classifications or borderline confidence transitions to UNCERTAIN.
  *   - CLOSE PROBABILITY AMBIGUITY GUARD (Section 13 & 14):
  *       • If goat & sheep detectors both fire with close confidence (|diff| < 0.12), marks UNCERTAIN.
- *       • Farmer-facing message: "Hindi malinaw ang hayop. Ilapit o ayusin ang camera at subukan muli."
+ *       • Farmer-facing message: "Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera at subukan muli."
  *   - IMAGE QUALITY ANALYSIS (Section 15):
- *       • Bounding box area check (< 5% of frame -> "Masyadong maliit ang hayop sa camera...")
+ *       • Bounding box area check (< 5% of frame -> "Masyadong maliit ang alaga sa camera...")
  *       • Luminance check (average luma < 35 -> "Madilim ang larawan. Ayusin ang ilaw at subukan muli.")
- *       • Frame border clipping check ("Hindi malinaw ang buong hayop. Ilipat nang kaunti ang camera.")
+ *       • Frame border clipping check ("Hindi malinaw ang buong kambing o tupa. Ilipat nang kaunti ang camera.")
  *   - PER-FRAME REPLACEMENT:
  *       • Canvas is cleared (clearRect) before every draw — zero ghost boxes when animals leave.
  */
@@ -650,19 +650,19 @@ function applyTemporalStabilityAndQuality(
   if (detectedQualityIssue === 'too_dark') {
     overallStatusMessage = 'Madilim ang larawan. Ayusin ang ilaw at subukan muli.';
   } else if (detectedQualityIssue === 'too_small' && totalLivestock > 0) {
-    overallStatusMessage = 'Masyadong maliit ang hayop sa camera. Ilapit nang kaunti ang camera.';
+    overallStatusMessage = 'Masyadong maliit ang alaga sa camera. Ilapit nang kaunti ang camera.';
   } else if (detectedQualityIssue === 'occluded' && totalLivestock > 0) {
-    overallStatusMessage = 'Hindi malinaw ang buong hayop. Ilipat nang kaunti ang camera.';
+    overallStatusMessage = 'Hindi malinaw ang buong kambing o tupa. Ilipat nang kaunti ang camera.';
   } else if (uncertains.length > 0) {
     overallStatusMessage = 'Hindi malinaw kung kambing o tupa. Ilapit o ayusin ang camera.';
   } else if (goats.length > 0 && sheep.length > 0) {
     // Both goat and sheep detected (Requirement 12)
-    overallStatusMessage = 'May kambing at tupa na nakita. Piliin ang hayop na gusto mong i-scan.';
+    overallStatusMessage = 'May kambing at tupa na nakita. Piliin kung alin ang gusto mong i-scan.';
   } else if (totalLivestock > 1) {
     // Multiple of same species
     overallStatusMessage = goats.length > 1
-      ? 'May mga kambing na nakita. Piliin ang hayop na gusto mong i-scan.'
-      : 'May mga tupa na nakita. Piliin ang hayop na gusto mong i-scan.';
+      ? 'May mga kambing na nakita. Piliin ang kambing na gusto mong i-scan.'
+      : 'May mga tupa na nakita. Piliin ang tupa na gusto mong i-scan.';
   } else if (goats.length === 1 && sheep.length === 0) {
     overallStatusMessage = 'KAMBING: Handa nang i-scan • Manatiling nakatutok...';
   } else if (sheep.length === 1 && goats.length === 0) {
@@ -672,7 +672,7 @@ function applyTemporalStabilityAndQuality(
   } else if (stableDetections.length > 0) {
     overallStatusMessage = `${stableDetections[0].label} — Hindi ito kambing o tupa`;
   } else {
-    overallStatusMessage = 'Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa hayop at subukan muli.';
+    overallStatusMessage = 'Walang kambing o tupa na nakita. Itapat nang maayos ang camera sa kambing o tupa at subukan muli.';
   }
 
   return {

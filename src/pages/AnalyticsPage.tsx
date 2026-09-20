@@ -181,7 +181,7 @@ export function AnalyticsPage() {
           <EmptyState
             icon={<Activity size={32} />}
             title="Wala pang sapat na datos para suriin"
-            description="Magdagdag ng alagang hayop at mga rekord upang makita ang buong pagsusuri."
+            description="Magdagdag ng kambing o tupa at mga rekord upang makita ang buong pagsusuri."
           />
         </Card>
       ) : (
@@ -217,7 +217,7 @@ export function AnalyticsPage() {
             </Card>
 
             <Card variant="glass" padding="md">
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Distribusyon ng Kalusugan ng mga Hayop</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Distribusyon ng Kalusugan ng mga Kambing at Tupa</div>
               <div style={{ maxWidth: 260, margin: '0 auto' }}>
                 <Doughnut 
                   data={{ 
@@ -391,7 +391,7 @@ export function AnalyticsPage() {
 
           {feedEfficiencyData.length > 0 && (
             <Card variant="glass" padding="md" style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Pagkonsumo ng Pakain bawat Hayop</div>
+              <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 12 }}>Pagkonsumo ng Pakain bawat Kambing o Tupa</div>
               <Bar 
                 data={{ 
                   labels: feedEfficiencyData.map((d) => d.name), 
@@ -434,7 +434,7 @@ export function AnalyticsPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-light, rgba(255,255,255,0.08))', color: 'var(--color-text-secondary, #475569)' }}>
-                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Hayop</th>
+                      <th style={{ padding: '10px 8px', fontWeight: 600 }}>Kambing / Tupa</th>
                       <th style={{ padding: '10px 8px', fontWeight: 600 }}>Metriko</th>
                       <th style={{ padding: '10px 8px', fontWeight: 600 }}>Halaga</th>
                       <th style={{ padding: '10px 8px', fontWeight: 600 }}>Z-Score</th>
@@ -481,7 +481,7 @@ export function AnalyticsPage() {
             <Card variant="glass" padding="md" style={{ borderLeft: '4px solid #238B45', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                 <Layers size={20} color="#238B45" />
-                <span style={{ fontWeight: 800, fontSize: 15 }}>Pagpapangkat ng mga Hayop sa Bukid</span>
+                <span style={{ fontWeight: 800, fontSize: 15 }}>Pagpapangkat ng mga Kambing at Tupa sa Bukid</span>
                 <Badge variant="warning">{clusters.k} pangkat · {clusters.converged ? 'nakumpleto' : 'natapos ang mga pagsusuri'}</Badge>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
@@ -493,7 +493,7 @@ export function AnalyticsPage() {
                         <span style={{ width: 10, height: 10, borderRadius: '50%', background: ['#238B45', '#176B35', '#43A047', '#2E7D32'][c % 4] }} />
                         {label}
                       </div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{animalsInCluster.length} {animalsInCluster.length === 1 ? 'hayop' : 'mga hayop'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', fontWeight: 600 }}>{animalsInCluster.length} {animalsInCluster.length === 1 ? 'alaga' : 'mga alaga'}</div>
                       <div style={{ fontSize: 12, marginTop: 8, wordBreak: 'break-word', lineHeight: 1.4 }}>
                         {animalsInCluster.map((a) => a.name).join(', ')}
                       </div>
@@ -502,7 +502,7 @@ export function AnalyticsPage() {
                 })}
               </div>
               <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginTop: 14, lineHeight: 1.5 }}>
-                Pinapangkat ng modelong ito ang mga hayop ayon sa pagkakapareho sa timbang, edad, kalusugan, at uri upang mas maging angkop ang paraan ng pag-aalaga.
+                Pinapangkat ng modelong ito ang mga alaga ayon sa pagkakapareho sa timbang, edad, kalusugan, at uri upang mas maging angkop ang paraan ng pag-aalaga.
               </p>
             </Card>
           )}

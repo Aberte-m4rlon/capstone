@@ -404,7 +404,7 @@ export function SettingsPage() {
           </span>
         </div>
         <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14, lineHeight: 1.5 }}>
-          Ginagamit ng AlpasFarm ang Google Gemini Multimodal Vision para sa real-time na pagtukoy sa kambing at tupa, pag-detect ng maraming hayop sa iisang kuha, at pag-screen ng mga visual signs sa kalusugan (tulad ng sipon, sugat, at pangangatawan).
+          Ginagamit ng AlpasFarm ang Google Gemini Multimodal Vision para sa real-time na pagtukoy sa kambing at tupa, pag-detect ng maraming kambing o tupa sa iisang kuha, at pag-screen ng mga visual signs sa kalusugan (tulad ng sipon, sugat, at pangangatawan).
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(255, 255, 255, 0.65)', border: '1px solid rgba(0, 0, 0, 0.06)', borderRadius: 10, padding: 12 }}>

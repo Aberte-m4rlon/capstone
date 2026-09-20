@@ -196,7 +196,7 @@ export function AnimalProfilePage() {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [farmData.inventoryTransactions, animal?.id]);
 
-  // ─── Real-Data Driven Health Status ("Kalagayan ng Hayop") ───────────────────
+  // ─── Real-Data Driven Health Status ("Kalagayan ng Kambing / Tupa") ───────────────────
   // Hierarchy:
   // 1. "Kailangan ng Gamot" - active medication or ongoing clinical treatment
   // 2. "Kailangan ng Atensyon" - health concern detected or critical/high risk
@@ -249,7 +249,7 @@ export function AnimalProfilePage() {
         color: '#DC2626',
         bg: 'rgba(220, 38, 38, 0.12)',
         borderColor: '#DC2626',
-        description: 'Kasalukuyang may gamot o lunas na ibinibigay sa hayop.',
+        description: 'Kasalukuyang may gamot o lunas na ibinibigay sa alaga.',
         Icon: Pill,
       };
     }
@@ -281,7 +281,7 @@ export function AnimalProfilePage() {
         color: '#D97706',
         bg: 'rgba(217, 119, 6, 0.12)',
         borderColor: '#D97706',
-        description: 'Nasa ilalim ng masusing pagmamasid ang hayop.',
+        description: 'Nasa ilalim ng masusing pagmamasid ang alaga.',
         Icon: Activity,
       };
     }
@@ -367,14 +367,17 @@ export function AnimalProfilePage() {
   if (!animal || isUnauthorized) {
     return (
       <div className="empty-state">
-        <h4>Hindi Nahanap ang Hayop o Walang Pahintulot</h4>
-        <p>Ang hayop na ito ay maaaring nabura na o pag-aari ng ibang bukid.</p>
+        <h4>Hindi Nahanap ang Alaga o Walang Pahintulot</h4>
+        <p>Ang talaang ito ay maaaring nabura na o pag-aari ng ibang bukid.</p>
         <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => navigate('/animals')}>
-          Bumalik sa Listahan ng mga Hayop
+          Bumalik sa Kambing at Tupa
         </button>
       </div>
     );
   }
+
+  const isSheep = animal.species === 'Sheep';
+  const speciesLabel = isSheep ? 'Tupa' : 'Kambing';
 
   const handleSaveEdit = async () => {
     if (!animal || !user) return;
@@ -395,7 +398,7 @@ export function AnimalProfilePage() {
 
       const { error } = await query;
       if (error) throw error;
-      toast('Matagumpay na na-update ang impormasyon ng hayop.', 'success');
+      toast(`Matagumpay na na-update ang impormasyon ng ${speciesLabel.toLowerCase()}.`, 'success');
       setEditOpen(false);
       farmData.refresh();
     } catch {
@@ -414,10 +417,10 @@ export function AnimalProfilePage() {
       }
       const { error } = await query;
       if (error) throw error;
-      toast('Matagumpay na nabura ang hayop.', 'success');
+      toast(`Matagumpay na nabura ang ${speciesLabel.toLowerCase()}.`, 'success');
       navigate('/animals');
     } catch {
-      toast('Hindi mabura ang hayop. Pakisubukan muli.', 'error');
+      toast(`Hindi mabura ang ${speciesLabel.toLowerCase()}. Pakisubukan muli.`, 'error');
     }
   };
 
@@ -454,7 +457,7 @@ export function AnimalProfilePage() {
           <div class="name">${animal.name}</div>
           <div class="tag">${animal.tag_id}</div>
           <div class="meta">${animal.species === 'Goat' ? 'Kambing' : 'Tupa'}${animal.breed ? ` · ${animal.breed}` : ''} · ${animal.sex === 'Female' ? 'Babae' : 'Lalaki'}</div>
-          <div class="hint">I-scan ang QR code na ito upang makita ang profile ng hayop.</div>
+          <div class="hint">I-scan ang QR code na ito upang makita ang profile ng ${speciesLabel.toLowerCase()}.</div>
         </div>
       </body></html>`);
       win.document.close();
@@ -478,7 +481,7 @@ export function AnimalProfilePage() {
 
   // Farmer-first navigation modules
   const tabs = [
-    { key: 'overview', label: 'Buod ng Hayop' },
+    { key: 'overview', label: `Buod ng ${speciesLabel}` },
     { key: 'health', label: 'Kalusugan' },
     { key: 'breeding', label: 'Breeding' },
     { key: 'vaccination', label: 'Mga Bakuna' },
@@ -513,7 +516,7 @@ export function AnimalProfilePage() {
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--color-primary, #238B45)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
         >
-          <ArrowLeft size={15} /> Bumalik sa mga Hayop
+          <ArrowLeft size={15} /> Bumalik sa Kambing at Tupa
         </button>
 
         {/* ── Animal Header (Identity + Farmer Health Status) ── */}
@@ -653,7 +656,7 @@ export function AnimalProfilePage() {
 
         {/* ── Tab Content ── */}
 
-        {/* 1. BUOD NG HAYOP (OVERVIEW) */}
+        {/* 1. BUOD NG ALAGA (OVERVIEW) */}
         {tab === 'overview' && (
           <div style={{
             display: 'grid',
@@ -678,7 +681,7 @@ export function AnimalProfilePage() {
                     fontSize: 12,
                     fontWeight: 700,
                   }}>
-                    <CheckCircle2 size={14} /> Nabenta na ang hayop na ito
+                    <CheckCircle2 size={14} /> Naibenta ang {speciesLabel}
                   </span>
                 </div>
                 <div style={{
@@ -727,9 +730,9 @@ export function AnimalProfilePage() {
               </GlassCard>
             )}
 
-            {/* CARD 1: KALAGAYAN NG HAYOP (Real-data farmer status) */}
+            {/* CARD 1: KALAGAYAN NG ALAGA (Real-data farmer status) */}
             <GlassCard>
-              <CardTitle icon={HeartPulse} title="Kalagayan ng Hayop" />
+              <CardTitle icon={HeartPulse} title={`Kalagayan ng ${speciesLabel}`} />
               <div style={{
                 background: farmerStatus.bg,
                 border: `1.5px solid ${farmerStatus.borderColor}44`,
@@ -803,9 +806,9 @@ export function AnimalProfilePage() {
               )}
             </GlassCard>
 
-            {/* CARD 2: MAHALAGANG IMPORMASYON */}
+            {/* CARD 2: IMPORMASYON NG KAMBING / TUPA */}
             <GlassCard>
-              <CardTitle icon={Info} title="Mahalagang Impormasyon" />
+              <CardTitle icon={Info} title={`Impormasyon ng ${speciesLabel}`} />
               <StatRow label="Animal ID" value={animal.tag_id} />
               <StatRow label="Pangalan" value={animal.name} />
               <StatRow label="Uri" value={animal.species === 'Goat' ? 'Kambing' : 'Tupa'} />
@@ -883,7 +886,7 @@ export function AnimalProfilePage() {
                 fontSize: 14, color: animal.notes ? 'var(--text)' : 'var(--text-secondary)',
                 lineHeight: 1.7, margin: 0, fontStyle: animal.notes ? 'normal' : 'italic',
               }}>
-                {animal.notes || 'Walang naitalang karagdagang tala para sa hayop na ito.'}
+                {animal.notes || `Walang naitalang karagdagang tala para sa ${speciesLabel.toLowerCase()}ng ito.`}
               </p>
             </GlassCard>
 
@@ -894,7 +897,7 @@ export function AnimalProfilePage() {
         {tab === 'health' && (
           <GlassCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={HeartPulse} title="Kalusugan ng Hayop" />
+              <CardTitle icon={HeartPulse} title={`Kalusugan ng ${speciesLabel}`} />
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                 <button
                   className="btn btn-primary btn-sm"
@@ -948,7 +951,7 @@ export function AnimalProfilePage() {
             {animalHealth.length === 0 ? (
               <div className="empty-state">
                 <div className="es-icon"><HeartPulse size={24} /></div>
-                <h4>Bagong hayop ito o wala pang health record</h4>
+                <h4>Bago ang {speciesLabel.toLowerCase()}ng ito o wala pang health record</h4>
                 <p>Magsagawa ng Health Check gamit ang camera o magtala ng manu-manong pagsusuri.</p>
                 {!isSold && (
                   <button
@@ -1198,7 +1201,7 @@ export function AnimalProfilePage() {
         {tab === 'vaccination' && (
           <GlassCard>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
-              <CardTitle icon={Syringe} title="Mga Bakuna ng Hayop" />
+              <CardTitle icon={Syringe} title={`Mga Bakuna ng ${speciesLabel}`} />
               <button className="btn btn-primary btn-sm" onClick={() => navigate('/vaccinations')}>
                 <Plus size={15} /> Magdagdag ng Bakuna
               </button>
@@ -1207,7 +1210,7 @@ export function AnimalProfilePage() {
               <div className="empty-state">
                 <div className="es-icon"><Syringe size={24} /></div>
                 <h4>Walang talaan ng bakuna</h4>
-                <p>Magtala ng bakuna upang mapanatiling ligtas ang hayop sa mga sakit.</p>
+                <p>Magtala ng bakuna upang mapanatiling ligtas ang {speciesLabel.toLowerCase()} sa mga sakit.</p>
               </div>
             ) : (
               <div className="table-wrap">
@@ -1251,7 +1254,7 @@ export function AnimalProfilePage() {
                   leftIcon={<Plus size={14} />}
                   onClick={() => {
                     if (isSold) {
-                      toast('Hindi maaaring bigyan ng gamot ang nabentang hayop.', 'error');
+                      toast(`Hindi maaaring bigyan ng gamot ang nabentang ${speciesLabel.toLowerCase()}.`, 'error');
                       return;
                     }
                     setAdministerModalOpen(true);
@@ -1383,7 +1386,7 @@ export function AnimalProfilePage() {
                 <div className="empty-state">
                   <div className="es-icon"><Scale size={24} /></div>
                   <h4>Walang talaan ng timbang</h4>
-                  <p>Maaaring maglagay ng timbang tuwing nag-e-edit ng hayop o kapag nagtitimbang sa bukid.</p>
+                  <p>Maaaring maglagay ng timbang tuwing nag-e-edit ng alaga o kapag nagtitimbang sa bukid.</p>
                 </div>
               ) : (
                 <>
@@ -1431,7 +1434,7 @@ export function AnimalProfilePage() {
 
             {/* Summary Statistics of all Records */}
             <GlassCard>
-              <CardTitle icon={ClipboardList} title="Buod ng mga Naitala sa Hayop" />
+              <CardTitle icon={ClipboardList} title={`Buod ng mga Naitala sa ${speciesLabel}`} />
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -1443,16 +1446,16 @@ export function AnimalProfilePage() {
                   <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', marginTop: 4 }}>{animalHealth.length}</div>
                 </div>
                 <div style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Talaan ng Timbang</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: '#238B45', marginTop: 4 }}>{animalWeights.length}</div>
-                </div>
-                <div style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Bakuna</div>
                   <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', marginTop: 4 }}>{animalVaccinations.length}</div>
                 </div>
                 <div style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Nagamit na Gamot</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: '#DC2626', marginTop: 4 }}>{animalInventoryUsage.length}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Gamot / Gamit</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', marginTop: 4 }}>{animalInventoryUsage.length}</div>
+                </div>
+                <div style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Tala ng Timbang</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', marginTop: 4 }}>{animalWeights.length}</div>
                 </div>
               </div>
 
@@ -1497,6 +1500,10 @@ export function AnimalProfilePage() {
         /* Hide scrollbar on tab nav */
         div[style*="overflow-x: auto"]::-webkit-scrollbar { display: none; }
         div[style*="overflow-x: auto"] { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 0.8; }
+        }
       `}</style>
 
       {/* ── QR Modal ── */}
@@ -1508,7 +1515,7 @@ export function AnimalProfilePage() {
             <div style={{ textAlign: 'center' }}>
               <p style={{ fontWeight: 800, fontSize: 16, margin: '0 0 2px' }}>{animal.name}</p>
               <p style={{ color: 'var(--color-primary, #238B45)', fontSize: 13, fontWeight: 600, margin: 0 }}>{animal.tag_id}</p>
-              <p style={{ color: 'var(--color-text-secondary, #64748B)', fontSize: 12, marginTop: 6 }}>I-scan gamit ang cellphone camera upang makita ang hayop</p>
+              <p style={{ color: 'var(--color-text-secondary, #64748B)', fontSize: 12, marginTop: 6 }}>I-scan gamit ang cellphone camera upang makita ang profile ng {speciesLabel.toLowerCase()}</p>
             </div>
           </div>
         </ModalBody>
@@ -1521,7 +1528,7 @@ export function AnimalProfilePage() {
 
       {/* ── Edit Modal ── */}
       <Modal open={editOpen} onClose={() => setEditOpen(false)} size="md">
-        <ModalHeader title="I-edit ang Hayop" onClose={() => setEditOpen(false)} />
+        <ModalHeader title={`I-edit ang ${speciesLabel}`} onClose={() => setEditOpen(false)} />
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
@@ -1626,7 +1633,7 @@ export function AnimalProfilePage() {
       {/* ── Confirm Delete ── */}
       <ConfirmDialog
         open={confirmDelete}
-        title="Burahin ang Hayop"
+        title="Burahin ang Rekord"
         message={`Sigurado ka bang nais mong burahin si ${animal.name} (${animal.tag_id})? Mabubura din ang lahat ng kaugnay na talaan nito sa bukid. Hindi na ito maibabalik kapag nabura.`}
         confirmLabel="Oo, Burahin"
         cancelLabel="Huwag Muna"

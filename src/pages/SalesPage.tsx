@@ -149,12 +149,12 @@ export function SalesPage() {
   const handleProceedToConfirm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAnimal) {
-      toast('Pumili muna ng hayop na ibebenta.', 'danger');
+      toast('Pumili muna ng kambing o tupa na ibebenta.', 'danger');
       return;
     }
     const weightNum = parseFloat(soldWeight);
     if (isNaN(weightNum) || weightNum <= 0) {
-      toast('Kailangang timbangin muna ang hayop bago ito maibenta. Ilagay ang wastong timbang (kg).', 'danger');
+      toast('Kailangang timbangin muna ang kambing o tupa bago ito maibenta. Ilagay ang wastong timbang (kg).', 'danger');
       return;
     }
     const priceNum = parseFloat(sellingPrice);
@@ -193,7 +193,7 @@ export function SalesPage() {
     setSubmitting(false);
 
     if (res.success) {
-      toast('Na-record na ang bentahan. Ang hayop ay nailipat na sa Kasaysayan ng Pagbebenta.', 'success');
+      toast('Na-record na ang bentahan. Ang alaga ay nailipat na sa Kasaysayan ng Pagbebenta.', 'success');
       handleCloseModal();
       await refresh();
     } else {
@@ -211,10 +211,10 @@ export function SalesPage() {
           </div>
           <div>
             <h1 className="sales-header-title">
-              Benta ng Hayop
+              Benta ng Kambing at Tupa
             </h1>
             <p className="sales-header-desc">
-              Pamamahala sa pagbebenta ng mga alagang hayop at kita ng bukid.
+              Pamamahala sa pagbebenta ng kambing at tupa at kita ng bukid.
             </p>
           </div>
         </div>
@@ -227,7 +227,7 @@ export function SalesPage() {
             leftIcon={<Plus size={16} />}
             style={{ fontWeight: 700 }}
           >
-            Magbenta ng Hayop
+            Magbenta ng Kambing o Tupa
           </Button>
         </div>
       </div>
@@ -237,7 +237,7 @@ export function SalesPage() {
         {/* Card 1: Total Animals Sold */}
         <div className="sales-stat-card">
           <div className="sales-stat-top">
-            <span className="sales-stat-label">Mga Nabentang Hayop</span>
+            <span className="sales-stat-label">Mga Nabentang Kambing at Tupa</span>
             <div className="sales-stat-icon-wrap">
               <CheckCircle2 size={17} />
             </div>
@@ -375,7 +375,7 @@ export function SalesPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Hanapin ang hayop sa Tag ID, pangalan, bumibili..."
+                placeholder="Hanapin sa Tag ID, pangalan, bumibili..."
                 style={{
                   width: '100%',
                   height: '40px',
@@ -549,9 +549,9 @@ export function SalesPage() {
                 description={
                   searchQuery || speciesFilter !== 'all' || paymentFilter !== 'all'
                     ? 'Walang tumutugma sa iyong filter o hinahanap.'
-                    : 'Wala pang naibentang hayop. Kapag nagbenta ka ng kambing o tupa, lalabas dito ang detalye ng benta.'
+                    : 'Wala pang naibentang kambing o tupa. Kapag nagbenta ka ng kambing o tupa, lalabas dito ang detalye ng benta.'
                 }
-                actionLabel="Magbenta ng Hayop"
+                actionLabel="Magbenta ng Kambing o Tupa"
                 onAction={handleOpenModal}
               />
             </div>
@@ -562,7 +562,7 @@ export function SalesPage() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Hayop</th>
+                      <th>Kambing / Tupa</th>
                       <th>Timbang</th>
                       <th>Presyo</th>
                       <th>Presyo/Kilo</th>
@@ -720,17 +720,17 @@ export function SalesPage() {
         </CardContent>
       </Card>
 
-      {/* ── 9. SELLING FORM MODAL (+ Magbenta ng Hayop) ── */}
+      {/* ── 9. SELLING FORM MODAL (+ Magbenta ng Kambing o Tupa) ── */}
       <Modal
         open={isSellModalOpen}
         onClose={handleCloseModal}
         size="lg"
       >
         <ModalHeader
-          title={formStep === 'input' ? 'Magbenta ng Hayop' : 'Kumpirmahin ang Pagbebenta'}
+          title={formStep === 'input' ? 'Magbenta ng Kambing o Tupa' : 'Kumpirmahin ang Pagbebenta'}
           subtitle={
             formStep === 'input'
-              ? 'Itala ang pagbebenta ng alagang hayop kasama ang aktwal na timbang bago ibenta.'
+              ? 'Itala ang pagbebenta ng kambing o tupa kasama ang aktwal na timbang bago ibenta.'
               : 'Suriin ang mga detalye bago opisyal na i-save ang benta sa database.'
           }
           icon={<DollarSign size={20} />}
@@ -752,7 +752,7 @@ export function SalesPage() {
                     marginBottom: 6,
                   }}
                 >
-                  Pumili ng Hayop na Ibebenta <span style={{ color: 'var(--color-danger, #EF4444)' }}>*</span>
+                  Pumili ng Kambing o Tupa na Ibebenta <span style={{ color: 'var(--color-danger, #EF4444)' }}>*</span>
                 </label>
                 <select
                   value={selectedAnimalId}
@@ -779,7 +779,7 @@ export function SalesPage() {
                     boxSizing: 'border-box',
                   }}
                 >
-                  <option value="">-- Pumili sa aktibong mga hayop --</option>
+                  <option value="">-- Pumili sa aktibong mga kambing at tupa --</option>
                   {availableAnimals.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.tag_id} — {a.name || 'Walang pangalan'} ({a.species === 'Goat' ? 'Kambing' : 'Tupa'})
@@ -789,7 +789,7 @@ export function SalesPage() {
                 </select>
                 {availableAnimals.length === 0 && (
                   <p style={{ fontSize: '12px', color: '#D97706', marginTop: 4 }}>
-                    Walang aktibong hayop na magagamit para ibenta sa kasalukuyan.
+                    Walang aktibong kambing o tupa na magagamit para ibenta sa kasalukuyan.
                   </p>
                 )}
               </div>
@@ -805,7 +805,7 @@ export function SalesPage() {
                   }}
                 >
                   <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-primary, #238B45)' }}>
-                    {selectedAnimal.tag_id} ({selectedAnimal.name || 'Hayop'})
+                    {selectedAnimal.tag_id} ({selectedAnimal.name || (selectedAnimal.species === 'Sheep' ? 'Tupa' : 'Kambing')})
                   </div>
                   <div
                     style={{
@@ -905,7 +905,7 @@ export function SalesPage() {
                 </div>
                 <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--color-text-secondary, #475569)', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Info size={13} color="var(--color-primary, #238B45)" style={{ flexShrink: 0 }} />
-                  Kailangang timbangin muna ang hayop bago ito maibenta.
+                  Kailangang timbangin muna ang kambing o tupa bago ito maibenta.
                 </p>
               </div>
 
@@ -1274,7 +1274,7 @@ export function SalesPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '13px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid rgba(35, 139, 69, 0.12)' }}>
-                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Hayop:</span>
+                    <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Kambing / Tupa:</span>
                     <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>
                       {selectedAnimal?.tag_id} ({selectedAnimal?.name || 'Walang pangalan'})
                     </strong>
@@ -1340,7 +1340,7 @@ export function SalesPage() {
                   Ano ang mangyayari pagkatapos kumpirmahin:
                 </div>
                 <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.5 }}>
-                  <li>Awtomatikong mamarkahan ang hayop bilang <strong>'Nabenta'</strong>.</li>
+                  <li>Awtomatikong mamarkahan ang alaga bilang <strong>'Nabenta'</strong>.</li>
                   <li>Aalisin ito sa aktibong bilang ng mga alaga sa bukid.</li>
                   <li>Itatabi ang timbang na ito sa kasaysayan ng timbang ng bukid.</li>
                   <li>Ligtas na mananatili ang lahat ng medikal at breeding records nito.</li>
@@ -1459,7 +1459,7 @@ export function SalesPage() {
                   <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{selectedSaleDetail.animal_tag_id}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>
-                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Pangalan ng Hayop:</span>
+                  <span style={{ color: 'var(--color-text-secondary, #475569)' }}>Pangalan:</span>
                   <strong style={{ color: 'var(--color-text-primary, #0F172A)' }}>{selectedSaleDetail.animal_name}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid var(--color-border, rgba(35, 139, 69, 0.10))' }}>

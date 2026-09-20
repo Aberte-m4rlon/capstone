@@ -439,9 +439,9 @@ export async function scanAnimalWithGemini(
     let overallMsg = apiData.recommendation;
     if (!apiData.detected) {
       if (apiData.reason === 'needs_better_image') {
-        overallMsg = 'Hindi malinaw ang larawan. Ilapit at itutok ang camera sa buong hayop.';
+        overallMsg = 'Hindi malinaw ang larawan. Ilapit at itutok ang camera sa buong kambing o tupa.';
       } else if (apiData.reason === 'multiple_animals') {
-        overallMsg = 'Maraming hayop ang nakita. Mag-scan ng isang kambing o tupa lamang.';
+        overallMsg = 'Maraming kambing o tupa ang nakita. Mag-scan ng isang kambing o tupa lamang.';
       } else {
         overallMsg = 'Hindi kambing o tupa ang nakita. Ilapit ang camera sa isang kambing o tupa.';
       }
@@ -493,7 +493,7 @@ export async function scanGoatTemperature(
     return {
       animalDetected: scanResult.detected,
       animalType: scanResult.detected ? (isSheep ? 'Sheep' : 'Goat') : 'Other',
-      nonTargetClass: scanResult.detected ? null : 'Non-target / Walang hayop',
+      nonTargetClass: scanResult.detected ? null : 'Non-target / Walang kambing o tupa',
       detectionConfidence: scanResult.detected ? 0.95 : 0.1,
       estimatedTemperature: null, // Strictly null - no fake temperature
       temperatureStatus: null,
@@ -530,7 +530,7 @@ export async function scanGoatTemperature(
       possibleConditions: [],
       observations: ['Hindi matagumpay ang pagsusuri: ' + (err?.message || 'Error')],
       explanation: err?.message || 'Hindi nakumpleto ang pagsusuri.',
-      recommendedActions: ['I-scan muli ang hayop nang may maayos na liwanag.'],
+      recommendedActions: ['I-scan muli ang kambing o tupa nang may maayos na liwanag.'],
       engine: 'gemini-vision-api',
       modelVersion: 'gemini-3.6-flash',
       disclaimer: 'Paunang visual screening lamang ito.',

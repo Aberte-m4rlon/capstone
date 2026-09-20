@@ -167,11 +167,11 @@ export async function recordAnimalSale(
   } = input;
 
   if (!animal || !animal.id) {
-    return { success: false, error: 'Pumili muna ng hayop na ibebenta.' };
+    return { success: false, error: 'Pumili muna ng kambing o tupa na ibebenta.' };
   }
 
   if (!soldWeight || soldWeight <= 0) {
-    return { success: false, error: 'Kailangang timbangin muna ang hayop bago ito maibenta. Ilagay ang wastong timbang (kg).' };
+    return { success: false, error: 'Kailangang timbangin muna ang kambing o tupa bago ito maibenta. Ilagay ang wastong timbang (kg).' };
   }
 
   if (sellingPrice === undefined || sellingPrice === null || sellingPrice <= 0) {
@@ -262,11 +262,12 @@ export async function recordAnimalSale(
     }
 
     // 4. Dispatch Sales Notification (In-App + SMS + Email) asynchronously
+    const speciesLabel = (animal.species || '').toLowerCase() === 'sheep' ? 'Tupa' : 'Kambing';
     notificationService
       .dispatchNotification({
         userId,
         type: 'Sales',
-        title: `Naibenta ang Hayop: ${animal.name} (${animal.tag_id})`,
+        title: `Naibenta ang ${speciesLabel}: ${animal.name} (${animal.tag_id})`,
         message: `Naitala ang pagbebenta kay ${buyerName || 'Bumibili'}: ₱${sellingPrice.toLocaleString()} (${soldWeight}kg, Bayad: ₱${amountReceived.toLocaleString()}).`,
         priority: 'Normal',
         severity: 'normal',

@@ -138,7 +138,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const testTitle = 'Pagsubok sa Email Notification (Test Alert)';
     const testBody =
-      'Magandang araw mula sa ALPASFARM!\n\nIto ay pagsubok na mensahe upang kumpirmahin na aktibo at maayos na gumagana ang iyong email notification settings sa ALPASFARM.\n\nMakakatanggap ka rito ng mga paalala ukol sa kalusugan ng hayop, bakuna, pagbubuntis, at mababang imbentaryo.';
+      'Magandang araw mula sa ALPASFARM!\n\nIto ay pagsubok na mensahe upang kumpirmahin na aktibo at maayos na gumagana ang iyong email notification settings sa ALPASFARM.\n\nMakakatanggap ka rito ng mga paalala ukol sa kalusugan ng kambing at tupa, bakuna, pagbubuntis, at mababang imbentaryo.';
 
     const template = buildEmailTemplate({
       title: testTitle,

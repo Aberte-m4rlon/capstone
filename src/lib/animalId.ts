@@ -365,11 +365,12 @@ export async function createAnimalWithInitialWeight(
 
   // If no initial weight was provided, return success immediately without fake records
   if (!hasWeight) {
+    const speciesName = createdAnimal.species === 'Goat' ? 'Kambing' : 'Tupa';
     notificationService
       .dispatchNotification({
         userId: createdAnimal.user_id,
         type: 'System',
-        title: `Bagong Hayop: ${createdAnimal.name} (${createdAnimal.tag_id})`,
+        title: `Bagong ${speciesName}: ${createdAnimal.name} (${createdAnimal.tag_id})`,
         message: `Matagumpay na naidagdag si ${createdAnimal.name} (${createdAnimal.tag_id}, ${createdAnimal.species === 'Goat' ? 'Kambing' : 'Tupa'}) sa iyong bukid.`,
         priority: 'Normal',
         severity: 'normal',
@@ -410,11 +411,12 @@ export async function createAnimalWithInitialWeight(
     };
   }
 
+  const speciesNameWithWeight = createdAnimal.species === 'Goat' ? 'Kambing' : 'Tupa';
   notificationService
     .dispatchNotification({
       userId: createdAnimal.user_id,
       type: 'System',
-      title: `Bagong Hayop: ${createdAnimal.name} (${createdAnimal.tag_id})`,
+      title: `Bagong ${speciesNameWithWeight}: ${createdAnimal.name} (${createdAnimal.tag_id})`,
       message: `Matagumpay na naidagdag si ${createdAnimal.name} (${createdAnimal.tag_id}, ${createdAnimal.species === 'Goat' ? 'Kambing' : 'Tupa'}, ${initialWeightKg}kg) sa iyong bukid.`,
       priority: 'Normal',
       severity: 'normal',

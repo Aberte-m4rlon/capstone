@@ -95,7 +95,7 @@ export function AppHeader({
       .slice(0, 5)
       .forEach((a) =>
         results.push({
-          type: 'Mga Hayop',
+          type: 'Kambing at Tupa',
           label: `${a.name} — ${a.tag_id}`,
           sub: `${a.species === 'Goat' ? 'Kambing' : 'Tupa'} · ${a.breed ?? 'Walang lahi'}`,
           link: `/animals/${a.id}`,
@@ -264,7 +264,7 @@ export function AppHeader({
             <input
               type="text"
               className="search-input"
-              placeholder="Maghanap ng hayop, ID, gamit, o record..."
+              placeholder="Maghanap ng alaga, tag ID, gamit, o record..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
@@ -520,7 +520,7 @@ export function AppHeader({
         <input
           type="text"
           className="search-input"
-          placeholder="Maghanap ng hayop, ID, gamit, o record..."
+          placeholder="Maghanap ng alaga, tag ID, gamit, o record..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => searchResults.length > 0 && setSearchOpen(true)}

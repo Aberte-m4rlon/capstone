@@ -198,7 +198,7 @@ export const HealthScanDetailImageCard: React.FC<{
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
           <Camera size={15} color="#16A34A" />
-          <span>Nai-save na Larawan ng Hayop</span>
+          <span>Nai-save na Larawan ng Alaga</span>
         </div>
         {displayUrl && (
           <button
@@ -214,6 +214,7 @@ export const HealthScanDetailImageCard: React.FC<{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 4,
+              padding: '2px 4px',
             }}
           >
             <Eye size={13} />
@@ -276,7 +277,7 @@ export const HealthScanDetailImageCard: React.FC<{
         }}
       >
         <span>
-          {animal ? `${animal.species === 'Sheep' ? 'Tupa' : 'Kambing'} — ${animal.tag_id}` : 'Hayop'}
+          {animal ? `${animal.species === 'Sheep' ? 'Tupa' : 'Kambing'} — ${animal.tag_id}` : 'Kambing / Tupa'}
         </span>
         <span style={{ color: '#16A34A', fontWeight: 600 }}>✓ Nakatabi sa Supabase Storage</span>
       </div>
@@ -339,7 +340,7 @@ export const HealthScanLightboxModal: React.FC<{
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Camera size={18} color="#16A34A" />
           <span style={{ fontWeight: 700, fontSize: 16 }}>
-            Larawan ng Health Scan — {animal ? animal.tag_id : 'Hayop'}
+            Larawan ng Health Scan — {animal ? animal.tag_id : 'Kambing / Tupa'}
           </span>
         </div>
       </ModalHeader>
@@ -414,7 +415,7 @@ export const HealthScanLightboxModal: React.FC<{
               }}
             >
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                Hayop (Animal)
+                Kambing / Tupa
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
                 {animal ? (
@@ -482,7 +483,7 @@ export const HealthScanLightboxModal: React.FC<{
             >
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 3 }}>
-                  Mga Napansin sa Hayop (Observations)
+                  Mga Napansin sa Kalusugan (Observations)
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.45 }}>
                   {record.detected_conditions ? (

@@ -151,12 +151,12 @@ async function syncScreeningToAnimalHealth(
     mappedStatus = 'Needs Attention';
     notificationPriority = scoreVal >= 75 || rawRisk.includes('crit') ? 'Critical' : 'Warning';
     notificationTitle = 'Kailangan ng Atensyon';
-    notificationMsg = 'May napansing kondisyon na dapat bantayan. Obserbahan ang hayop at magsagawa ng manual health check.';
+    notificationMsg = 'May napansing kondisyon na dapat bantayan. Obserbahan ang alaga at magsagawa ng manual health check.';
   } else if (scoreVal >= 25 || rawRisk.includes('mod')) {
     mappedStatus = 'Monitor';
     notificationPriority = 'Warning';
     notificationTitle = 'Bantayan';
-    notificationMsg = 'May kaunting pagbabago sa kalagayan ng hayop na kailangang patuloy na obserbahan.';
+    notificationMsg = 'May kaunting pagbabago sa kalagayan ng alaga na kailangang patuloy na obserbahan.';
   }
 
   try {

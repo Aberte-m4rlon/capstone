@@ -244,7 +244,7 @@ export function AdminPage() {
           icon={<PawPrint size={20} />}
           accentColor="green"
           value={stats.totalAnimals}
-          label="Mga Hayop"
+          label="Kambing at Tupa"
           subtext="Sa lahat ng bukid"
         />
         <StatCard
@@ -290,7 +290,7 @@ export function AdminPage() {
                   <th>Email</th>
                   <th>Tungkulin</th>
                   <th>Pangalan ng Bukid</th>
-                  <th style={{ textAlign: 'center' }}>Mga Hayop</th>
+                  <th style={{ textAlign: 'center' }}>Kambing at Tupa</th>
                   <th style={{ textAlign: 'center' }}>Health Records</th>
                   <th>Petsa ng Pagrehistro</th>
                   <th>Huling Pag-login</th>
@@ -362,7 +362,7 @@ export function AdminPage() {
                                 {detail.animals.length > 0 && (
                                   <div>
                                     <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--color-text-secondary, #475569)', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                      <PawPrint size={12} /> Mga Hayop ({detail.animals.filter((a: any) => !a.archived).length} aktibo)
+                                      <PawPrint size={12} /> Kambing at Tupa ({detail.animals.filter((a: any) => !a.archived).length} aktibo)
                                     </div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                       {detail.animals.filter((a: any) => !a.archived).map((a: any) => (
@@ -432,7 +432,7 @@ export function AdminPage() {
       <ConfirmDialog
         open={!!confirmDelete}
         title="Burahin ang User"
-        message={`Sigurado ka bang nais mong burahin si ${confirmDelete?.email}? Permanenteng mabubura ang user at LAHAT ng datos ng kanilang bukid (${confirmDelete?.animal_count} alagang hayop, ${confirmDelete?.health_count} health records). Hindi na ito maibabalik.`}
+        message={`Sigurado ka bang nais mong burahin si ${confirmDelete?.email}? Permanenteng mabubura ang user at LAHAT ng datos ng kanilang bukid (${confirmDelete?.animal_count} kambing at tupa, ${confirmDelete?.health_count} health records). Hindi na ito maibabalik.`}
         confirmLabel="Burahin ang User"
         danger
         onConfirm={handleDelete}

@@ -174,14 +174,14 @@ export function MoreMenuSheet({ isOpen, onClose, role, getBadge }: MoreMenuSheet
       {
         to: '/inventory',
         label: 'Farm Inventory',
-        description: 'Buod ng lahat ng mayroon sa bukid (Livestock at Stocks)',
+        description: 'Buod ng lahat ng mayroon sa bukid (Kambing, Tupa, at Stocks)',
         icon: <Package size={20} color="#238B45" />,
         badge: getBadge('/inventory'),
       },
       {
         to: '/sales',
-        label: 'Benta ng Hayop',
-        description: 'Pamamahala sa pagbebenta ng hayop at kita',
+        label: 'Benta ng Kambing at Tupa',
+        description: 'Pamamahala sa pagbebenta ng kambing at tupa at kita',
         icon: <DollarSign size={20} color="#238B45" />,
       },
       {

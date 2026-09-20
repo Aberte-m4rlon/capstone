@@ -183,7 +183,7 @@ export function AnimalCameraScanModal({
         const { data: foreignAnimal } = await query.maybeSingle();
 
         if (foreignAnimal && currentUserId && foreignAnimal.user_id !== currentUserId && !isSuperAdmin) {
-          setErrorMessage('Hindi available ang hayop na ito sa iyong bukid.');
+          setErrorMessage('Hindi available ang alagang ito sa iyong bukid.');
           return;
         }
 
@@ -390,19 +390,19 @@ export function AnimalCameraScanModal({
 
       if (lower.includes('permission') || lower.includes('notallowed') || err?.name === 'NotAllowedError') {
         setPermissionError(true);
-        setErrorMessage('Naka-block ang camera access sa browser. Pindutin ang camera o lock icon sa address bar para i-allow, o piliin na lang ang hayop sa listahan.');
+        setErrorMessage('Naka-block ang camera access sa browser. Pindutin ang camera o lock icon sa address bar para i-allow, o piliin na lang ang alaga sa listahan.');
       } else if (lower.includes('notfound') || lower.includes('device')) {
-        setErrorMessage('Walang nakitang camera sa device na ito. Pwede mong piliin ang hayop sa listahan.');
+        setErrorMessage('Walang nakitang camera sa device na ito. Pwede mong piliin ang alaga sa listahan.');
       } else if (
         lower.includes('notreadable') ||
         lower.includes('already in use') ||
         lower.includes('could not start')
       ) {
-        setErrorMessage('Ginagamit pa ng ibang application o tab ang camera. Pwede mong piliin ang hayop sa listahan.');
+        setErrorMessage('Ginagamit pa ng ibang application o tab ang camera. Pwede mong piliin ang alaga sa listahan.');
       } else if (lower.includes('timeout')) {
-        setErrorMessage('Masyadong matagal magbukas ang camera sa browser. Pwede mong piliin ang hayop sa listahan o subukan ulit.');
+        setErrorMessage('Masyadong matagal magbukas ang camera sa browser. Pwede mong piliin ang alaga sa listahan o subukan ulit.');
       } else {
-        setErrorMessage('Hindi mabuksan ang camera sa device na ito. Pwede mong piliin ang hayop sa listahan.');
+        setErrorMessage('Hindi mabuksan ang camera sa device na ito. Pwede mong piliin ang alaga sa listahan.');
       }
       scanStateRef.current = 'error';
       setScanState('error');
@@ -503,7 +503,7 @@ export function AnimalCameraScanModal({
                 id="camera-scan-title"
                 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#F8FAFC' }}
               >
-                Mag-scan ng Hayop
+                Mag-scan ng Kambing o Tupa
               </h3>
               <p style={{ margin: 0, fontSize: 12, color: '#94A3B8' }}>
                 I-scan ang QR Code o Animal ID ng kambing o tupa para awtomatikong makuha ang impormasyon nito.
@@ -829,7 +829,7 @@ export function AnimalCameraScanModal({
                   borderRadius: 8,
                 }}
               >
-                Pumili ng Hayop
+                Pumili ng Kambing o Tupa
               </Button>
             </div>
           )}

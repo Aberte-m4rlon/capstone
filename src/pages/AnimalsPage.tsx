@@ -177,7 +177,7 @@ export function AnimalsPage() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.tag_id.trim()) e.tag_id = 'Kailangan ang Animal ID.';
-    if (!form.name.trim()) e.name = 'Kailangan ang pangalan ng hayop.';
+    if (!form.name.trim()) e.name = form.species === 'Sheep' ? 'Kailangan ang pangalan ng tupa.' : 'Kailangan ang pangalan ng kambing.';
     if (!form.species) e.species = 'Kailangan piliin ang species.';
     if (!form.sex) e.sex = 'Kailangan piliin ang kasarian.';
     const trimmedWeight = form.weight_kg !== '' && form.weight_kg !== null && form.weight_kg !== undefined ? String(form.weight_kg).trim() : '';
@@ -238,17 +238,18 @@ export function AnimalsPage() {
 
         if (result.error) throw result.error;
 
+        const animalTerm = form.species === 'Sheep' ? 'tupa' : 'kambing';
         if (result.initialWeightRecorded) {
           if (result.hadConflict) {
-            toast(`Naresolba ang ID conflict bilang ${result.finalTagId}. Naidagdag na ang hayop at na-record ang unang timbang.`, 'success');
+            toast(`Naresolba ang ID conflict bilang ${result.finalTagId}. Naidagdag na ang ${animalTerm} at na-record ang unang timbang.`, 'success');
           } else {
-            toast('Naidagdag na ang hayop at na-record ang unang timbang.', 'success');
+            toast(`Naidagdag na ang ${animalTerm} at na-record ang unang timbang.`, 'success');
           }
         } else {
           if (result.hadConflict) {
-            toast(`Naresolba ang ID conflict bilang ${result.finalTagId}. Naidagdag na ang hayop.`, 'success');
+            toast(`Naresolba ang ID conflict bilang ${result.finalTagId}. Naidagdag na ang ${animalTerm}.`, 'success');
           } else {
-            toast('Naidagdag na ang hayop.', 'success');
+            toast(`Naidagdag na ang ${animalTerm}.`, 'success');
           }
         }
       }
@@ -271,10 +272,10 @@ export function AnimalsPage() {
       }
       const { error } = await query;
       if (error) throw error;
-      toast(a.archived ? 'Naibalik ang hayop sa aktibo.' : 'Nai-archive ang hayop.', 'success');
+      toast(a.archived ? 'Naibalik ang alaga sa aktibo.' : 'Nai-archive ang alaga.', 'success');
       farmData.refresh();
     } catch {
-      toast('Hindi mai-update ang hayop. Pakisubukan muli.', 'danger');
+      toast('Hindi mai-update ang impormasyon. Pakisubukan muli.', 'danger');
     }
   };
 
@@ -291,7 +292,7 @@ export function AnimalsPage() {
       setConfirmDelete(null);
       farmData.refresh();
     } catch {
-      toast('Hindi mai-delete ang hayop. Pakisubukan muli.', 'danger');
+      toast('Hindi mai-delete ang alaga. Pakisubukan muli.', 'danger');
     }
   };
 
@@ -347,14 +348,14 @@ export function AnimalsPage() {
               letterSpacing: '-0.02em',
             }}
           >
-            Mga Hayop
+            Kambing at Tupa
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary, #475569)', fontSize: '14px' }}>
-            {filtered.length} {filtered.length === 1 ? 'hayop' : 'mga hayop'} {fStatus === 'Sold' ? 'na naibenta' : fStatus === 'All' ? 'kabuuang rekord' : 'na aktibo sa bukid'}
+            {filtered.length} {filtered.length === 1 ? 'kambing o tupa' : 'kambing at tupa'} {fStatus === 'Sold' ? 'na naibenta' : fStatus === 'All' ? 'kabuuang rekord' : 'sa bukid'}
           </p>
         </div>
         <Button variant="primary" onClick={openAdd} leftIcon={<Plus size={16} />}>
-          Magdagdag ng Hayop
+          Magdagdag ng Kambing o Tupa
         </Button>
       </div>
 
@@ -382,7 +383,7 @@ export function AnimalsPage() {
               {animalStats.total}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
-              kabuuang hayop
+              kabuuang kambing at tupa
             </div>
           </div>
         </div>
@@ -565,7 +566,7 @@ export function AnimalsPage() {
           options={[
             { value: 'Active', label: 'Aktibo lamang' },
             { value: 'Sold', label: 'Mga Nabenta' },
-            { value: 'All', label: 'Lahat ng Hayop' },
+            { value: 'All', label: 'Lahat (Kambing at Tupa)' },
           ]}
           ariaLabel="Salain ayon sa Katayuan"
         />
@@ -578,9 +579,9 @@ export function AnimalsPage() {
             <div style={{ padding: 32 }}>
               <EmptyState
                 icon={<Icons.PawPrint size={36} />}
-                title={fStatus === 'Sold' ? 'Walang naitalang nabentang hayop' : 'Wala pang animal records.'}
-                description={fStatus === 'Sold' ? 'Dito lalabas ang mga alagang naibenta na.' : 'Magdagdag ng unang hayop para masimulan ang pag-monitor sa bukid.'}
-                actionLabel={fStatus === 'Sold' ? undefined : 'Magdagdag ng Hayop'}
+                title={fStatus === 'Sold' ? 'Walang naitalang nabentang kambing o tupa' : 'Walang kambing o tupa na nakatala.'}
+                description={fStatus === 'Sold' ? 'Dito lalabas ang mga kambing at tupa na naibenta na.' : 'Magdagdag ng unang kambing o tupa para masimulan ang pagsubaybay sa bukid.'}
+                actionLabel={fStatus === 'Sold' ? undefined : 'Magdagdag ng Kambing o Tupa'}
                 onAction={fStatus === 'Sold' ? undefined : openAdd}
               />
             </div>
@@ -692,7 +693,7 @@ export function AnimalsPage() {
         role="dialog"
       >
         <ModalHeader
-          title={editing ? 'I-edit ang Hayop' : 'Magdagdag ng Hayop'}
+          title={editing ? (form.species === 'Sheep' ? 'I-edit ang Tupa' : 'I-edit ang Kambing') : 'Magdagdag ng Kambing o Tupa'}
           onClose={() => setModalOpen(false)}
         />
         <ModalBody>
@@ -752,7 +753,7 @@ export function AnimalsPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-              <FormField label="Uri ng Hayop (Species)" required>
+              <FormField label="Uri (Kambing o Tupa)" required>
                 <Select
                   value={form.species}
                   onChange={(e) => handleSpeciesChange(e.target.value as Species)}
@@ -792,7 +793,7 @@ export function AnimalsPage() {
               </FormField>
               <FormField
                 label="Timbang (kg) (Opsyonal)"
-                helperText="Maaaring laktawan kung wala pang timbang ang hayop"
+                helperText="Maaaring laktawan kung wala pang timbang ang alaga"
                 error={errors.weight_kg}
               >
                 <Input
@@ -820,7 +821,7 @@ export function AnimalsPage() {
                 className="form-textarea"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Karagdagang tala sa kalusugan o kasaysayan ng hayop..."
+                placeholder="Karagdagang tala sa kalusugan o kasaysayan ng kambing o tupa..."
                 style={{ minHeight: 80 }}
               />
             </FormField>
@@ -831,7 +832,7 @@ export function AnimalsPage() {
             Kanselahin
           </Button>
           <Button variant="primary" onClick={handleSave} loading={saving}>
-            {editing ? 'I-save ang Pagbabago' : 'I-save ang Hayop'}
+            {editing ? 'I-save ang Pagbabago' : form.species === 'Sheep' ? 'I-save ang Tupa' : 'I-save ang Kambing'}
           </Button>
         </ModalFooter>
       </Modal>
@@ -850,7 +851,7 @@ export function AnimalsPage() {
                 {qrAnimal?.tag_id}
               </div>
               <p style={{ color: 'var(--color-text-muted, #64748B)', fontSize: '12px', marginTop: 6, margin: 0 }}>
-                I-scan gamit ang anumang QR camera para makita ang public health record ng hayop.
+                I-scan gamit ang anumang QR camera para makita ang public health record ng kambing o tupa.
               </p>
             </div>
           </div>
@@ -871,7 +872,7 @@ export function AnimalsPage() {
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!confirmDelete}
-        title="Burahin ang Hayop"
+        title="Burahin ang Rekord"
         message={`Sigurado ka bang nais mong burahin si ${confirmDelete?.name} (${confirmDelete?.tag_id})? Matatanggal din ang lahat ng kaugnay na talaan nito sa bukid. Hindi na ito maibabalik kapag nabura.`}
         confirmLabel="Oo, Burahin"
         cancelLabel="Huwag Muna"

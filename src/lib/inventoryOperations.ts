@@ -210,7 +210,7 @@ export async function consumeInventoryStock(params: ConsumeStockParams): Promise
   const newStock = Math.max(0, +(prevStock - quantity).toFixed(2));
 
   // Build clean ledger notes & reason
-  const animalDesc = animalTag ? `${animalTag}${animalName ? ` (${animalName})` : ''}` : (animalName || 'Hayop');
+  const animalDesc = animalTag ? `${animalTag}${animalName ? ` (${animalName})` : ''}` : (animalName || 'Kambing / Tupa');
   let transactionReason = reason;
   if (!transactionReason) {
     if (usageType === 'feeding') transactionReason = 'Feeding / Pagpapakain';
@@ -426,7 +426,7 @@ export async function administerMedicationTreatment(
       success: false,
       previousStock: inventoryItem.quantity,
       newStock: inventoryItem.quantity,
-      error: 'Pumili ng hayop para sa paggamot.',
+      error: 'Pumili ng kambing o tupa para sa paggamot.',
     };
   }
 
@@ -501,7 +501,7 @@ export async function administerMedicationTreatment(
         success: false,
         previousStock: prevStock,
         newStock: prevStock,
-        error: 'Hindi nahanap ang hayop o walang pahintulot.',
+        error: 'Hindi nahanap ang alaga o walang pahintulot.',
       };
     }
 
@@ -510,7 +510,7 @@ export async function administerMedicationTreatment(
         success: false,
         previousStock: prevStock,
         newStock: prevStock,
-        error: 'Walang pahintulot na gamutin ang hayop na ito.',
+        error: 'Walang pahintulot na gamutin ang alagang ito.',
       };
     }
 
@@ -519,7 +519,7 @@ export async function administerMedicationTreatment(
         success: false,
         previousStock: prevStock,
         newStock: prevStock,
-        error: 'Hindi maaaring bigyan ng gamot ang hayop na naibenta na o naka-archive.',
+        error: 'Hindi maaaring bigyan ng gamot ang alaga na naibenta na o naka-archive.',
       };
     }
 
@@ -536,7 +536,7 @@ export async function administerMedicationTreatment(
         success: false,
         previousStock: prevStock,
         newStock: prevStock,
-        error: 'Hindi maaaring bigyan ng gamot ang hayop na naibenta na.',
+        error: 'Hindi maaaring bigyan ng gamot ang alaga na naibenta na.',
       };
     }
   } catch (checkEx) {
@@ -676,7 +676,7 @@ export async function administerMedicationTreatment(
   }
 
   // Step C: Insert into inventory_transactions ledger
-  const animalLabel = animalTag ? `${animalTag}${animalName ? ` (${animalName})` : ''}` : 'Hayop';
+  const animalLabel = animalTag ? `${animalTag}${animalName ? ` (${animalName})` : ''}` : 'Kambing / Tupa';
   const notesDetail = `Para kay: ${animalLabel} | Gamot: ${inventoryItem.name} | Dosis: ${dosage ? `${dosage} ${inventoryItem.unit}` : `${quantity} ${inventoryItem.unit}`} | Dalas: ${frequency} | Katayuan: ${status} | ${notes || ''}`.trim();
 
   const { data: txData, error: txErr } = await supabase

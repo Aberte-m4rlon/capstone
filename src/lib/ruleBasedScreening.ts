@@ -153,7 +153,7 @@ export function checkImageQuality(canvas: HTMLCanvasElement): RuleBasedImageQual
   // Resolution check
   if (width < 160 || height < 160) {
     issues.push('Masyadong maliit ang resolusyon ng larawan.');
-    guidance.push('📷 Ilapit nang kaunti ang camera sa hayop.');
+    guidance.push('📷 Ilapit nang kaunti ang camera sa kambing o tupa.');
   }
 
   // Downsample to 128x128 for rapid pixel statistics
@@ -624,7 +624,7 @@ function analyzePosture(
       targetLabel: 'Tindig / Posture',
       status: 'concern',
       label: 'Napansing hindi pangkaraniwan ang posture',
-      description: 'Napansing nakayuko o hindi pangkaraniwan ang tindig. Magkaroon ng manual health check upang suriin ang sigla ng hayop.',
+      description: 'Napansing nakayuko o hindi pangkaraniwan ang tindig. Magkaroon ng manual health check upang suriin ang sigla ng alaga.',
       severity: 'moderate',
     };
   }
@@ -633,8 +633,8 @@ function analyzePosture(
     target: 'posture',
     targetLabel: 'Tindig / Posture',
     status: 'normal',
-    label: 'Normal ang tindig ng hayop',
-    description: 'Maayos ang tindig at posisyon ng hayop habang kinukunan ng camera.',
+    label: 'Normal ang tindig ng alaga',
+    description: 'Maayos ang tindig at posisyon ng alaga habang kinukunan ng camera.',
     severity: 'low',
   };
 }
@@ -676,7 +676,7 @@ export function runRuleBasedScreening(canvas: HTMLCanvasElement): RuleBasedScree
         '📷 Ilapit nang kaunti ang camera.',
         '💡 Siguraduhing maliwanag ang lugar.',
         '👁️ Itutok ang camera sa mata.',
-        '🐐 Siguraduhing kita ang ulo ng hayop.',
+        '🐐 Siguraduhing kita ang ulo ng kambing o tupa.',
       ],
       timestamp,
     };
@@ -747,7 +747,7 @@ export function runRuleBasedScreening(canvas: HTMLCanvasElement): RuleBasedScree
       '📷 Ilapit nang kaunti ang camera.',
       '💡 Siguraduhing maliwanag ang lugar.',
       '👁️ Itutok ang camera sa mata.',
-      '🐐 Siguraduhing kita ang ulo ng hayop.',
+      '🐐 Siguraduhing kita ang ulo ng kambing o tupa.',
     ],
     timestamp,
   };
@@ -894,7 +894,7 @@ export function combineScreeningAssessments(
         ? 'May nakitang visual sign sa larawan. Ang ML assessment ay pansamantalang hindi magamit.'
         : 'Normal ang nakitang visual appearance. Ang ML assessment ay pansamantalang hindi magamit.',
       recommendationMessage: ruleHasConcern
-        ? 'Magkaroon ng Manual Health Check upang masuri nang personal ang hayop.'
+        ? 'Magkaroon ng Manual Health Check upang masuri nang personal ang alaga.'
         : 'Ipagpatuloy ang regular na pagmamasid sa kawan.',
       actionType: 'manual_check',
       actionLabel: 'Manual Health Check',

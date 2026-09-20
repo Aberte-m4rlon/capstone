@@ -72,7 +72,7 @@ export function ScannerPage() {
         return;
       }
       // Animal not in local data — navigate anyway (they may be logged in as different user)
-      setLastResult('Nahanap ang hayop');
+      setLastResult('Nahanap ang alaga');
       toast('Na-scan ang QR code — binubuksan ang profile…', 'success');
       setTimeout(() => navigate(`/animals/${animalId}`), 600);
       return;
@@ -86,7 +86,7 @@ export function ScannerPage() {
       if (pathMatch) {
         const id = pathMatch[1];
         const animal = farmData.animals.find((a) => a.id === id);
-        setLastResult(animal ? animal.name : 'Nahanap ang hayop');
+        setLastResult(animal ? animal.name : 'Nahanap ang alaga');
         toast(animal ? `Nahanap: ${animal.name}` : 'Na-scan ang QR code!', 'success');
         setTimeout(() => navigate(`/animals/${id}`), 600);
         return;
@@ -108,7 +108,7 @@ export function ScannerPage() {
 
     if (isMounted.current) {
       setLastResult(null);
-      setErrorMsg(`Na-scan ang QR ngunit walang tumutugmang hayop sa bukid.\nNa-scan na detalye: "${decoded.slice(0, 80)}"\n\nSiguraduhing sa AlpasFarm galing ang QR code na ito.`);
+      setErrorMsg(`Na-scan ang QR ngunit walang tumutugmang kambing o tupa sa bukid.\nNa-scan na detalye: "${decoded.slice(0, 80)}"\n\nSiguraduhing sa AlpasFarm galing ang QR code na ito.`);
       setScanState('error');
     }
   }, [farmData.animals, navigate, stopScanner, toast]);
@@ -207,7 +207,7 @@ export function ScannerPage() {
       toast(`Nahanap: ${animal.name} (${animal.tag_id})`, 'success');
       navigate(`/animals/${animal.id}`);
     } else {
-      toast('Walang alagang hayop na nahanap sa tag ID o pangalang iyon.', 'danger');
+      toast('Walang kambing o tupa na nahanap sa tag ID o pangalang iyon.', 'danger');
     }
   };
 
@@ -225,7 +225,7 @@ export function ScannerPage() {
           }}>
             <ScanLine size={32} color="#059669" />
           </div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>QR Code Scanner ng mga Hayop</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>QR Code Scanner ng Kambing at Tupa</h2>
           <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)' }}>
             I-scan ang QR tag ng alaga upang agad mabuksan ang profile nito.
           </p>
@@ -294,7 +294,7 @@ export function ScannerPage() {
               }}>
                 <QrCode size={52} color="var(--color-text-secondary, #475569)" style={{ margin: '0 auto 12px', display: 'block' }} />
                 <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)', marginBottom: 18 }}>
-                  Pindutin ang Buksan ang Camera at itutok sa QR code tag ng alagang hayop.
+                  Pindutin ang Buksan ang Camera at itutok sa QR code tag ng alaga.
                 </p>
                 <Button variant="primary" onClick={startScanner} leftIcon={<Camera size={16} />}>
                   Buksan ang Camera
@@ -328,7 +328,7 @@ export function ScannerPage() {
             {scanState === 'scanning' && (
               <div style={{ textAlign: 'center', marginTop: 14 }}>
                 <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 10 }}>
-                  Nagsusuri... itutok ang camera sa QR code ng hayop.
+                  Nagsusuri... itutok ang camera sa QR code ng kambing o tupa.
                 </p>
                 <Button variant="secondary" size="sm" onClick={stopScanner} leftIcon={<CameraOff size={14} />}>
                   Isara ang Camera
@@ -341,7 +341,7 @@ export function ScannerPage() {
         {/* ── MANUAL MODE ── */}
         {mode === 'manual' && (
           <div>
-            <FormField label="Tag ID o Pangalan ng Hayop" hint="I-type ang tag ID sa ear tag o pangalan ng alaga. Pindutin ang Hanapin o i-Enter.">
+            <FormField label="Tag ID o Pangalan ng Alaga" hint="I-type ang tag ID sa ear tag o pangalan ng alaga. Pindutin ang Hanapin o i-Enter.">
               <Input
                 placeholder="Hal. GOAT-001 o Bella"
                 value={manualTag}
@@ -357,7 +357,7 @@ export function ScannerPage() {
               leftIcon={<PawPrint size={16} />}
               style={{ marginTop: 12 }}
             >
-              Hanapin ang Hayop
+              Hanapin ang Alaga
             </Button>
           </div>
         )}
@@ -366,10 +366,10 @@ export function ScannerPage() {
       {/* Quick access list */}
       <Card variant="glass" padding="md" style={{ maxWidth: 540, margin: '16px auto 0' }}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
-          Mabilisang Pagpili ng Hayop (Quick Access)
+          Mabilisang Pagpili ng Kambing o Tupa (Quick Access)
         </div>
         {activeAnimals.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)' }}>Wala pang nakarehistrong hayop.</p>
+          <p style={{ fontSize: 13, color: 'var(--color-text-secondary, #475569)' }}>Wala pang nakarehistrong kambing o tupa.</p>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {activeAnimals.map((a) => (

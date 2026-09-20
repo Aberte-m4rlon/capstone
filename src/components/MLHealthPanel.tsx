@@ -183,7 +183,7 @@ export function MLHealthPanel({ prediction: p, animalName, compact = false, onRe
 
       {/* Farmer Advisory Box */}
       <div style={{ padding: '10px 14px', borderRadius: 12, background: 'rgba(67, 160, 71, 0.08)', border: '1px solid rgba(67, 160, 71, 0.25)', fontSize: 12, color: 'var(--text)', lineHeight: 1.6 }}>
-        <strong>Paalala para sa Bukid:</strong> Regular na subaybayan ang pagkain, pag-inom, at sigla ng hayop. Kung may senyales ng panghihina, sumangguni agad sa beterinaryo.
+        <strong>Paalala para sa Bukid:</strong> Regular na subaybayan ang pagkain, pag-inom, at sigla ng alaga. Kung may senyales ng panghihina, sumangguni agad sa beterinaryo.
       </div>
     </div>
   );
@@ -238,7 +238,7 @@ export function EarlyWarningCard({ animalName, tagId, prediction: p, onView }: E
         )}
       </div>
       <button className="btn btn-sm btn-secondary" onClick={onView} style={{ flexShrink: 0 }}>
-        Tingnan ang Hayop
+        Tingnan ang Alaga
       </button>
     </div>
   );

@@ -548,7 +548,7 @@ export function InventoryPage() {
     try {
       const targetAnimal = consumeAnimalId ? farmData.animals.find((a) => a.id === consumeAnimalId) : null;
       if (consumeAnimalId && (!targetAnimal || (!isSuperAdmin && targetAnimal.user_id !== user.id))) {
-        toast('Walang pahintulot sa napiling hayop.', 'danger');
+        toast('Walang pahintulot sa napiling alaga.', 'danger');
         setConsumeSaving(false);
         return;
       }
@@ -876,7 +876,7 @@ export function InventoryPage() {
             </span>
           </div>
           <p style={{ color: 'var(--color-text-secondary, #475569)', fontSize: 13, marginTop: 4, marginBottom: 0 }}>
-            Buod ng lahat ng mayroon sa bukid (Livestock, Pakain, Gamot, at Kagamitan).
+            Buod ng lahat ng mayroon sa bukid (Kambing at Tupa, Pakain, Gamot, at Kagamitan).
           </p>
         </div>
 
@@ -889,7 +889,7 @@ export function InventoryPage() {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700 }}
           >
             <PawPrint size={15} />
-            Magrehistro ng Hayop
+            Magdagdag ng Kambing o Tupa
           </button>
           <button
             type="button"
@@ -915,10 +915,10 @@ export function InventoryPage() {
               <div className="kpi-icon green">
                 <Layers size={18} />
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #176B35)' }}>Livestock</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary, #176B35)' }}>Kabuuang Kambing at Tupa</span>
             </div>
             <div className="kpi-value">{livestockMetrics.total}</div>
-            <div className="kpi-label">Lahat ng Alaga</div>
+            <div className="kpi-label">Kambing at Tupa</div>
             <div className="kpi-delta up" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span>{livestockMetrics.goats} kambing · {livestockMetrics.sheep} tupa</span>
             </div>
@@ -1067,7 +1067,7 @@ export function InventoryPage() {
                 }}
               >
                 <ShieldAlert size={14} />
-                {livestockMetrics.needsAttentionCount} Hayop ang Nangangailangan ng Atensyon
+                {livestockMetrics.needsAttentionCount} Kambing at Tupa ang Nangangailangan ng Atensyon
               </span>
             )}
 
@@ -1149,7 +1149,7 @@ export function InventoryPage() {
       >
         {[
           { key: 'all', label: 'Lahat ng Mayroon sa Bukid (General Overview)', icon: <Layers size={15} /> },
-          { key: 'livestock', label: `Mga Hayop / Livestock (${livestockMetrics.total})`, icon: <PawPrint size={15} /> },
+          { key: 'livestock', label: `Kambing at Tupa (${livestockMetrics.total})`, icon: <PawPrint size={15} /> },
           { key: 'feeds', label: 'Reserbang Pakain (Feeds)', icon: <Wheat size={15} /> },
           { key: 'health', label: 'Gamot at Kalusugan (Health Supplies)', icon: <Pill size={15} /> },
           { key: 'equipment', label: 'Kagamitan at Kasangkapan (Equipment & Tools)', icon: <Wrench size={15} /> },
@@ -1181,7 +1181,7 @@ export function InventoryPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════════
-          SECTION 1: LIVESTOCK INVENTORY (Mga Alagang Hayop)
+          SECTION 1: KAMBING AT TUPA
           ══════════════════════════════════════════════════════════════════════════ */}
       {(activeTab === 'all' || activeTab === 'livestock') && (
         <div className="card" style={{ padding: 18 }}>
@@ -1190,11 +1190,11 @@ export function InventoryPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <GoatIcon size={20} color="var(--color-primary, #238B45)" />
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
-                  Imbentaryo ng mga Hayop (Livestock Inventory)
+                  Imbentaryo ng Kambing at Tupa
                 </h3>
               </div>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--color-text-secondary, #64748B)' }}>
-                Direktang naka-link sa Talaan ng mga Hayop (Animals Database). Awtomatikong nag-a-update ang bilang.
+                Direktang naka-link sa Talaan ng Kambing at Tupa. Awtomatikong nag-a-update ang bilang.
               </p>
             </div>
 
@@ -1214,7 +1214,7 @@ export function InventoryPage() {
                 onClick={() => navigate('/animals')}
                 style={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-primary, #238B45)' }}
               >
-                Pamamahala ng Hayop <ArrowRight size={13} />
+                Pamamahala ng Kambing at Tupa <ArrowRight size={13} />
               </button>
             </div>
           </div>
@@ -1356,7 +1356,7 @@ export function InventoryPage() {
             <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--color-border, #E2E8F0)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--color-text-primary, #0F172A)' }}>
-                  Aktibong Talaan ng mga Hayop sa Bukid ({activeAnimals.length})
+                  Aktibong Talaan ng Kambing at Tupa sa Bukid ({activeAnimals.length})
                 </h4>
                 <button
                   type="button"
@@ -1364,20 +1364,20 @@ export function InventoryPage() {
                   onClick={() => navigate('/animals')}
                   style={{ fontSize: 11 }}
                 >
-                  Tingnan sa Animals Module
+                  Tingnan sa Kambing at Tupa
                 </button>
               </div>
 
               {activeAnimals.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 10px', color: 'var(--color-text-secondary, #64748B)', fontSize: 13 }}>
-                  Walang aktibong hayop na nakatala. Magrehistro ng bago gamit ang button sa itaas.
+                  Walang aktibong kambing o tupa na nakatala. Magdagdag ng bago gamit ang button sa itaas.
                 </div>
               ) : (
                 <div className="table-wrap">
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Animal ID</th>
+                        <th>Tag ID</th>
                         <th>Pangalan</th>
                         <th>Uri / Species</th>
                         <th>Kasarian</th>
@@ -1428,13 +1428,13 @@ export function InventoryPage() {
                   </table>
                   {activeAnimals.length > 15 && (
                     <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 12, color: 'var(--color-text-secondary, #64748B)' }}>
-                      Ipinapakita ang unang 15 sa {activeAnimals.length} aktibong hayop.{' '}
+                      Ipinapakita ang unang 15 sa {activeAnimals.length} aktibong kambing at tupa.{' '}
                       <button
                         type="button"
                         onClick={() => navigate('/animals')}
                         style={{ color: 'var(--color-primary, #238B45)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, padding: 0 }}
                       >
-                        Tingnan ang lahat sa Animals Page &rarr;
+                        Tingnan ang lahat sa Kambing at Tupa &rarr;
                       </button>
                     </div>
                   )}
@@ -1857,7 +1857,7 @@ export function InventoryPage() {
 
       {/* ── Consume Modal ── */}
       <Modal open={consumeOpen} onClose={() => setConsumeOpen(false)} size="md">
-        <ModalHeader title="Itala ang Nagamit sa Bukid o sa Hayop" onClose={() => setConsumeOpen(false)} />
+        <ModalHeader title="Itala ang Nagamit sa Bukid o sa Alaga" onClose={() => setConsumeOpen(false)} />
         <ModalBody>
           {consumeItem && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1879,7 +1879,7 @@ export function InventoryPage() {
                     style={{
                       color:
                         Number(consumeItem.quantity) <= Number(consumeItem.minimum_stock)
-                          ? '#F59E0B'
+                            ? '#F59E0B'
                           : '#16A34A',
                     }}
                   >
@@ -1917,13 +1917,13 @@ export function InventoryPage() {
                 </FormField>
               </div>
 
-              <FormField label="Ginamit Para sa Partikular na Hayop (Opsyonal)">
+              <FormField label="Ginamit Para sa Partikular na Kambing o Tupa (Opsyonal)">
                 <select
                   className="form-select"
                   value={consumeAnimalId}
                   onChange={(e) => setConsumeAnimalId(e.target.value)}
                 >
-                  <option value="">-- Pangkalahatang Gamit sa Bukid (Walang Hayop) --</option>
+                  <option value="">-- Pangkalahatang Gamit sa Bukid (Hindi para sa partikular na alaga) --</option>
                   {activeAnimals.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.tag_id} {a.name ? `(${a.name})` : ''} — {a.species === 'Goat' ? 'Kambing' : 'Tupa'}

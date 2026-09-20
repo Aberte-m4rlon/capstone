@@ -413,17 +413,17 @@ export function HealthPage() {
 
   const handleSaveTreatment = async () => {
     if (!treatAnimalId || !treatItemId || !user) {
-      toast('Piliin ang hayop at ang gamot mula sa imbentaryo.', 'error');
+      toast('Piliin ang kambing o tupa at ang gamot mula sa imbentaryo.', 'error');
       return;
     }
 
     const animal = farmData.animals.find((a) => a.id === treatAnimalId);
     if (!animal) {
-      toast('Hindi mahanap ang napiling hayop.', 'error');
+      toast('Hindi mahanap ang napiling alaga.', 'error');
       return;
     }
     if (animal.user_id !== user.id && !isSuperAdmin) {
-      toast('Walang pahintulot na gamutin ang hayop na ito.', 'error');
+      toast('Walang pahintulot na gamutin ang alagang ito.', 'error');
       return;
     }
 
@@ -448,7 +448,7 @@ export function HealthPage() {
     }
 
     if (item.expiry_date && isItemExpired(item.expiry_date)) {
-      toast(`⚠️ Expired na ang gamot na ito noong ${item.expiry_date}. Hindi maaaring ibigay sa hayop.`, 'error');
+      toast(`⚠️ Expired na ang gamot na ito noong ${item.expiry_date}. Hindi maaaring ibigay sa alaga.`, 'error');
       return;
     }
 
@@ -568,7 +568,7 @@ export function HealthPage() {
 
       {/* ── 3. 4 HEALTH SUMMARY METRIC CARDS (FARMER ORDER) ── */}
       <div className="health-summary-grid">
-        {/* 1. Mga Hayop na Maayos */}
+        {/* 1. Kambing at Tupa na Maayos */}
         <div
           className={`health-stat-card low-risk-card ${fRisk === 'low' ? 'stat-card-active' : ''}`}
           onClick={() => setFRisk(fRisk === 'low' ? 'All' : 'low')}
@@ -587,7 +587,7 @@ export function HealthPage() {
           <div className="stat-subtext low-risk-subtext">Malusog ang kawan</div>
         </div>
 
-        {/* 2. Mga Hayop na Bantayan */}
+        {/* 2. Kambing at Tupa na Bantayan */}
         <div
           className={`health-stat-card mod-risk-card ${fRisk === 'moderate' ? 'stat-card-active' : ''}`}
           onClick={() => setFRisk(fRisk === 'moderate' ? 'All' : 'moderate')}
@@ -606,7 +606,7 @@ export function HealthPage() {
           <div className="stat-subtext mod-risk-subtext">Obserbahan ang sigla</div>
         </div>
 
-        {/* 3. Mga Hayop na Kailangan ng Atensyon */}
+        {/* 3. Kambing at Tupa na Kailangan ng Atensyon */}
         <div
           className={`health-stat-card high-risk-card ${fRisk === 'high' ? 'stat-card-active' : ''}`}
           onClick={() => setFRisk(fRisk === 'high' ? 'All' : 'high')}
@@ -625,7 +625,7 @@ export function HealthPage() {
           <div className="stat-subtext high-risk-subtext">Agarang suriin</div>
         </div>
 
-        {/* 4. Mga Hayop na Kailangan ng Gamot */}
+        {/* 4. Kambing at Tupa na Kailangan ng Gamot */}
         <div
           className={`health-stat-card med-needed-card ${fRisk === 'critical' ? 'stat-card-active' : ''}`}
           onClick={() => setFRisk(fRisk === 'critical' ? 'All' : 'critical')}
@@ -650,7 +650,7 @@ export function HealthPage() {
         <div className="section-header">
           <div className="section-title-group">
             <ShieldAlert size={20} color="#EF4444" />
-            <h2 className="section-title">Mga Hayop na Nangangailangan ng Agarang Atensyon</h2>
+            <h2 className="section-title">Kambing at Tupa na Nangangailangan ng Atensyon</h2>
           </div>
           <span className="badge badge-critical" style={{ fontSize: 12, padding: '4px 10px', borderRadius: 20 }}>
             {priorityAnimals.length} May Paalala
@@ -662,7 +662,7 @@ export function HealthPage() {
             <CheckCircle2 size={36} color="#16A34A" />
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>
-                Lahat ng hayop ay nasa maayos na kalagayan
+                Lahat ng kambing at tupa ay nasa maayos na kalagayan
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
                 Walang aktibong kritikal na alerto o biglaang pagtaas ng risk sa bukid.
@@ -723,7 +723,7 @@ export function HealthPage() {
                       onClick={() => openPredictionModal(item.animal.id)}
                     >
                       <Camera size={14} />
-                      <span>Suriin ang Hayop</span>
+                      <span>Suriin ang Alaga</span>
                     </button>
                   </div>
                 </div>
@@ -743,7 +743,7 @@ export function HealthPage() {
               <Stethoscope size={22} color="#238B45" />
             </div>
             <div className="action-card-title">Magsagawa ng Health Check</div>
-            <div className="action-card-desc">I-scan ang hayop gamit ang camera para sa mabilis na health check</div>
+            <div className="action-card-desc">I-scan ang kambing o tupa gamit ang camera para sa mabilis na health check</div>
             <div className="action-card-arrow">
               <ArrowUpRight size={16} />
             </div>
@@ -836,7 +836,7 @@ export function HealthPage() {
               value={fAnimal}
               onChange={(e) => setFAnimal(e.target.value)}
             >
-              <option value="All">Lahat ng Hayop</option>
+              <option value="All">Lahat ng Kambing at Tupa</option>
               {activeAnimals.map((a) => (
                 <option key={a.id} value={a.id}>
                   [{a.species || 'Goat'}] {a.name} ({a.tag_id})
@@ -1038,11 +1038,11 @@ export function HealthPage() {
                 <div className="detail-card">
                   <div className="detail-card-head">
                     <PawPrint size={16} color="var(--primary)" />
-                    <span>Impormasyon ng Hayop</span>
+                    <span>Impormasyon ng {an?.species === 'Sheep' ? 'Tupa' : 'Kambing'}</span>
                   </div>
                   <div className="detail-grid-2x2">
                     <div className="detail-field">
-                      <span className="detail-field-lbl">Pangalan ng Hayop</span>
+                      <span className="detail-field-lbl">Pangalan</span>
                       <span className="detail-field-val font-bold">{an?.name || 'Walang Pangalan'}</span>
                     </div>
                     <div className="detail-field">
@@ -1134,7 +1134,7 @@ export function HealthPage() {
                   <p className="detail-rec-intro">
                     {r.recommendation || (riskMeta.key === 'low'
                       ? 'Ipagpatuloy ang regular na pag-monitor. Walang kinakailangang agarang gamutan.'
-                      : 'Bantayan nang maigi ang hayop. Maglagay ng regular na pisikal na check at ibukod kung lumala.')}
+                      : 'Bantayan nang maigi ang alaga. Maglagay ng regular na pisikal na check at ibukod kung lumala.')}
                   </p>
                   <div className="detail-action-steps">
                     <div className="detail-action-steps-title">Mga Mungkahing Hakbang:</div>

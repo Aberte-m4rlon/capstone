@@ -21,7 +21,7 @@ type ReportType =
   | 'performance';
 
 const REPORT_LABELS: Record<ReportType, string> = {
-  animal: 'Ulat ng mga Hayop',
+  animal: 'Ulat ng Kambing at Tupa',
   health: 'Ulat sa Kalusugan',
   treatment: 'Ulat sa Gamot at Deworming',
   breeding: 'Ulat sa Pagpapalahi (Breeding)',
@@ -199,10 +199,10 @@ export function ReportsPage() {
         const overdueVacc = activeAnimals.filter((a) => a.vaccination_status === 'Overdue').length;
         const lowStock = farmData.inventory.filter((i) => inventoryStatus(i, farmData.settings?.expiry_warning_days ?? 15).status === 'Low Stock').length;
         return [
-          { metric: 'Kabuuang Hayop (Total Animals)', value: totalAnimals },
-          { metric: 'Malulusog na Hayop (Healthy)', value: healthy },
+          { metric: 'Kabuuang Kambing at Tupa (Total Herd)', value: totalAnimals },
+          { metric: 'Malulusog na Kambing at Tupa (Healthy)', value: healthy },
           { metric: 'May Panganib sa Kalusugan (At Risk)', value: atRisk },
-          { metric: 'Buntis na Hayop (Pregnant)', value: pregnant },
+          { metric: 'Buntis na Inahin (Pregnant)', value: pregnant },
           { metric: 'Katamtamang Timbang / Average Weight (kg)', value: avgWeight },
           { metric: 'Lampas sa Iskedyul ng Bakuna (Overdue)', value: overdueVacc },
           { metric: 'Mababang Stock na Gamit (Low Stock)', value: lowStock },
@@ -276,7 +276,7 @@ export function ReportsPage() {
         >
           <div className="alpas-stat-header">
             <span className="stat-card-label" style={{ fontWeight: 700 }}>
-              Mga Hayop
+              Kambing at Tupa
             </span>
             <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PawPrint size={15} />
@@ -287,7 +287,7 @@ export function ReportsPage() {
               {activeAnimals.length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
-              Talaan ng hayop
+              Talaan ng kambing at tupa
             </div>
           </div>
         </div>
@@ -357,7 +357,7 @@ export function ReportsPage() {
         >
           <div className="alpas-stat-header">
             <span className="stat-card-label" style={{ fontWeight: 700 }}>
-              Benta ng Hayop
+              Benta ng Kambing at Tupa
             </span>
             <div className="stat-card-icon green" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <DollarSign size={15} />
@@ -368,7 +368,7 @@ export function ReportsPage() {
               {(farmData.sales || []).length}
             </div>
             <div className="alpas-stat-footer" style={{ color: 'var(--color-text-muted)' }}>
-              Naibentang hayop
+              Naibentang kambing at tupa
             </div>
           </div>
         </div>
@@ -425,7 +425,7 @@ export function ReportsPage() {
                       weight: 'Timbang',
                       status: 'Status',
                       date: 'Petsa',
-                      animal: 'Hayop',
+                      animal: 'Kambing / Tupa',
                       temp: 'Temperatura (°C)',
                       hr: 'Heart Rate',
                       risk: 'Risk Level',

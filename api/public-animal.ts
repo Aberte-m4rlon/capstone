@@ -163,8 +163,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     if (animalErr || !animals || animals.length === 0) {
       res.status(404).json({
-        error: 'Hindi makita ang animal profile.',
-        details: 'Maaaring mali o expired ang QR/profile link, o tinanggal na ang tala ng hayop na ito sa ALPASFARM.',
+        error: 'Hindi makita ang profile ng kambing o tupa.',
+        details: 'Maaaring mali o expired ang QR/profile link, o tinanggal na ang tala ng kambing o tupa na ito sa ALPASFARM.',
       });
       return;
     }
@@ -321,7 +321,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     });
   } catch (err: any) {
     res.status(500).json({
-      error: 'Hindi ma-load ang tala ng hayop.',
+      error: 'Hindi ma-load ang tala ng kambing o tupa.',
       details: err?.message || 'Internal server error',
     });
   }

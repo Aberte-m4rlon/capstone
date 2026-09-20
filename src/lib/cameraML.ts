@@ -264,7 +264,7 @@ export async function identifyLivestockSpecies(
       return {
         detected: true,
         species: isSheep ? 'Sheep' : 'Goat',
-        label: isSheep ? 'Hayop na nakita: Tupa' : 'Hayop na nakita: Kambing',
+        label: isSheep ? 'Tupa ang nakita' : 'Kambing ang nakita',
         confidence: 0.95,
       };
     }
@@ -279,7 +279,7 @@ export async function identifyLivestockSpecies(
     return {
       detected: true,
       species: 'Goat',
-      label: 'Hayop: Kambing',
+      label: 'Kambing ang nakita',
       confidence: 0.7,
     };
   }
@@ -366,9 +366,9 @@ export async function runHealthScan(
     primaryIndicators: indicators.slice(0, 3).map((i) => i.label),
     combinedRiskScore: farmContext?.healthRiskScore ? Math.round((riskScore + farmContext.healthRiskScore) / 2) : riskScore,
     combinedFactors: [],
-    recommendation: raw?.recommendation || 'Patuloy na obserbahan ang hayop.',
-    recommendedActions: [raw?.recommendation || 'Patuloy na obserbahan ang hayop.'],
-    explanation: raw?.observations?.join('. ') || 'Matagumpay na na-scan ang hayop gamit ang Gemini Vision.',
+    recommendation: raw?.recommendation || 'Patuloy na obserbahan ang alaga.',
+    recommendedActions: [raw?.recommendation || 'Patuloy na obserbahan ang alaga.'],
+    explanation: raw?.observations?.join('. ') || 'Matagumpay na na-scan ang kambing o tupa gamit ang Gemini Vision.',
     modelVersion: MODEL_VERSION,
     scanType: 'image',
     timestamp: new Date().toISOString(),

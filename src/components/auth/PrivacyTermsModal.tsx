@@ -302,7 +302,7 @@ export function PrivacyTermsModal({
                 </p>
                 <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4, color: '#4B6053' }}>
                   <li><strong>Impormasyon sa Account:</strong> Pangalan, email address, numero ng telepono, farm name, lalawigan/lokasyon, at role sa system.</li>
-                  <li><strong>Talaan ng mga Hayop (Animal Records):</strong> Tag ID, pangalan, lahi (breed), kasarian, petsa ng kapanganakan, timbang, at kategorya ng kambing o tupa.</li>
+                  <li><strong>Talaan ng Kambing at Tupa (Livestock Records):</strong> Tag ID, pangalan, lahi (breed), kasarian, petsa ng kapanganakan, timbang, at kategorya ng kambing o tupa.</li>
                   <li><strong>Talaan sa Kalusugan (Health & Treatment):</strong> Bakuna, gamot, deworming, klinikal na obserbasyon ng magsasaka (temperatura, gana, sigla, mga sintomas).</li>
                   <li><strong>Imbentaryo at Feeds:</strong> Dami at paggalaw ng feeds, gamot, at supplies sa bukid.</li>
                   <li><strong>Talaan ng Pagpapalahi (Breeding):</strong> Kasaysayan ng breeding at pagsilang ng mga supling.</li>
@@ -369,7 +369,7 @@ export function PrivacyTermsModal({
                 </p>
                 <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4, color: '#4B6053' }}>
                   <li>Tingnan at baguhin ang iyong profile at mga talaan ng bukid anumang oras.</li>
-                  <li>Mag-export ng mga ulat (CSV o PDF) ng iyong mga hayop at imbentaryo.</li>
+                  <li>Mag-export ng mga ulat (CSV o PDF) ng iyong kambing at tupa at imbentaryo.</li>
                   <li>Humiling ng pagbura o pag-deactivate ng iyong account sa pamamagitan ng pakikipag-ugnayan sa Administrator.</li>
                 </ul>
               </div>
