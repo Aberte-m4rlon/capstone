@@ -103,6 +103,8 @@ export interface HealthRecord {
   recommendation: string | null;
   detected_conditions: string | null;
   notes: string | null;
+  image_path?: string | null;
+  image_url?: string | null;
   created_at: string;
   updated_at: string;
 }

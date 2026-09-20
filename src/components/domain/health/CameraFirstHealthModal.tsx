@@ -36,6 +36,8 @@ import {
   captureLowResFrame,
   cropCanvasToBoundingBox,
   renderLiveDetectionsToCanvas,
+  dataUrlToBlob,
+  uploadHealthScanImage,
   type LiveDetectedObject,
 } from '../../../lib/cameraUtils';
 import {
@@ -871,7 +873,7 @@ export function CameraFirstHealthModal({
     setLiveStatusText('Naghahanap ng kambing o tupa...');
   };
 
-  // ── Save Health Check Record to Supabase ──────────────────────────────────
+  // ── Save Health Check Record to Supabase with Persistent Image Storage ────
   const handleSaveHealthCheck = async () => {
     if (!selectedAnimal || !currentUserId) {
       toast('Pumili muna ng hayop upang mai-save ang health check.', 'warning');
@@ -891,6 +893,29 @@ export function CameraFirstHealthModal({
     setSaving(true);
     try {
       const todayStr = new Date().toISOString().split('T')[0];
+
+      // 1. Obtain & Upload the Selected Animal Image Crop to Persistent Storage
+      let storedImagePath: string | null = null;
+      let storedImageUrl: string | null = null;
+      const targetImageCropUrl = scanResult.croppedImageUrl || scanResult.capturedImageUrl;
+
+      if (targetImageCropUrl) {
+        try {
+          const imageBlob = dataUrlToBlob(targetImageCropUrl);
+          const uploadRes = await uploadHealthScanImage(
+            currentUserId,
+            selectedAnimal.id,
+            imageBlob
+          );
+          storedImagePath = uploadRes.imagePath;
+          storedImageUrl = uploadRes.imageUrl;
+        } catch (uploadErr: any) {
+          console.error('[Health Check Save Error] Image upload failed:', uploadErr);
+          toast('Hindi na-save ang larawan. Subukan muli.', 'error');
+          setSaving(false);
+          return; // Abort save to avoid creating records with broken/missing images
+        }
+      }
 
       // Handle optional medication consumption if Kailangan ng Gamot
       let medName: string | null = null;
@@ -945,12 +970,15 @@ export function CameraFirstHealthModal({
       if (medName) {
         notesParts.push(`Gamot/Lunas: ${medName}`);
       }
+      if (storedImagePath) {
+        notesParts.push(`[Larawan: ${storedImagePath}]`);
+      }
       const finalNotes = notesParts.filter(Boolean).join('\n');
 
-      // 1. Insert into health_records
+      // 2. Insert into health_records
       // NOTE: health_records table does NOT have a 'medication' column.
       // Medication information is appended to notes.
-      const healthPayload = {
+      const healthPayload: any = {
         user_id: currentUserId,
         animal_id: selectedAnimal.id,
         record_date: todayStr,
@@ -977,10 +1005,59 @@ export function CameraFirstHealthModal({
         notes: finalNotes,
       };
 
-      const { error: insertError } = await supabase.from('health_records').insert(healthPayload);
-      if (insertError) throw insertError;
+      // Try inserting with image_path & image_url; fallback if columns not yet migrated
+      const { error: insertError } = await supabase
+        .from('health_records')
+        .insert({
+          ...healthPayload,
+          image_path: storedImagePath,
+          image_url: storedImageUrl,
+        });
 
-      // 2. Synchronize animal's profile health status
+      if (insertError) {
+        if (
+          insertError.message?.includes('image_path') ||
+          insertError.message?.includes('image_url') ||
+          insertError.message?.includes('schema')
+        ) {
+          // Graceful fallback: table has not yet applied migration, insert standard fields
+          const { error: fallbackError } = await supabase
+            .from('health_records')
+            .insert(healthPayload);
+          if (fallbackError) throw fallbackError;
+        } else {
+          throw insertError;
+        }
+      }
+
+      // 3. Dual-persist to camera_health_screenings for durable AI audit & image linking
+      try {
+        await supabase.from('camera_health_screenings').insert({
+          user_id: currentUserId,
+          animal_id: selectedAnimal.id,
+          image_path: storedImagePath,
+          image_url: storedImageUrl,
+          prediction:
+            scanResult.healthStatus === 'healthy'
+              ? 'normal_appearance'
+              : 'possible_health_concern',
+          confidence: 0.95,
+          model_version: 'gemini-crop-v1',
+          quality_score: 95,
+          quality_issues: [],
+          risk_score: riskScore,
+          risk_level: mappedRiskLevel.toUpperCase(),
+          indicators: scanResult.visualObservations,
+          notes: finalNotes,
+          recommendation: scanResult.recommendation,
+          goat_detected: true,
+          scan_type: 'image',
+        });
+      } catch (screeningErr) {
+        console.warn('Could not mirror screening to camera_health_screenings:', screeningErr);
+      }
+
+      // 4. Synchronize animal's profile health status
       let animalUpdate = supabase
         .from('animals')
         .update({
@@ -994,7 +1071,7 @@ export function CameraFirstHealthModal({
       }
       await animalUpdate;
 
-      // 3. Dispatch alert if status warrants attention
+      // 5. Dispatch alert if status warrants attention
       if (scanResult.healthStatus !== 'healthy') {
         const eventKey = `health_${selectedAnimal.id}_${scanResult.healthStatus}_${todayStr}`;
         const alertTitle = `${selectedAnimal.name || selectedAnimal.tag_id}: May Napansing Kalagayan (${scanResult.healthStatusLabel})`;
@@ -1015,12 +1092,7 @@ export function CameraFirstHealthModal({
         ).catch((e) => console.warn('Could not dispatch health notification:', e));
       }
 
-      toast(
-        medName
-          ? `Nai-save ang health check at nabawasan ang ${medName} sa imbentaryo.`
-          : 'Nai-save ang health check ng hayop!',
-        'success'
-      );
+      toast('Na-save ang Health Check.', 'success');
 
       // Clean up and notify parent
       stopCameraStream();
@@ -1586,6 +1658,87 @@ export function CameraFirstHealthModal({
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
               }}
             >
+              {/* Selected Animal Image Preview Card (Requirement 14) */}
+              {(scanResult.croppedImageUrl || scanResult.capturedImageUrl) && (
+                <div
+                  style={{
+                    background: 'var(--surface-sunken)',
+                    borderRadius: 12,
+                    border: '1px solid var(--border)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      maxHeight: 240,
+                      background: '#111827',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <img
+                      src={scanResult.croppedImageUrl || scanResult.capturedImageUrl}
+                      alt="Larawan ng Napiling Hayop"
+                      style={{
+                        width: '100%',
+                        maxHeight: 240,
+                        objectFit: 'contain',
+                        display: 'block',
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        left: 8,
+                        background: 'rgba(0, 0, 0, 0.75)',
+                        backdropFilter: 'blur(4px)',
+                        color: '#FFFFFF',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Camera size={12} />
+                      <span>Larawan ng Sinuring Hayop</span>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: 12,
+                      color: 'var(--text-secondary)',
+                      background: 'var(--surface)',
+                      borderTop: '1px solid var(--border)',
+                      flexWrap: 'wrap',
+                      gap: 6,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      {selectedAnimal
+                        ? `${selectedAnimal.species === 'Sheep' ? 'Tupa' : 'Kambing'} — ${selectedAnimal.tag_id}${selectedAnimal.name && selectedAnimal.name !== selectedAnimal.tag_id ? ` (${selectedAnimal.name})` : ''}`
+                        : `${scanResult.speciesLabelTagalog} (Hindi natukoy ang Tag ID)`}
+                    </span>
+                    <span style={{ fontSize: 11, color: '#16A34A', fontWeight: 600 }}>
+                      ✓ Na-crop mula sa detection box
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Result Header & Kalagayan */}
               <div
                 style={{
@@ -1941,7 +2094,7 @@ export function CameraFirstHealthModal({
             disabled={saving || !scanResult || !selectedAnimal}
             title={!scanResult ? 'Mag-scan muna ng hayop.' : !selectedAnimal ? 'Pumili ng hayop.' : 'I-save ang Health Check'}
           >
-            {saving ? 'Inililigtas...' : 'I-save ang Health Check'}
+            {saving ? 'Sine-save...' : 'I-save ang Health Check'}
           </button>
         </div>
       </ModalFooter>

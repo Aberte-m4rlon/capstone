@@ -5,6 +5,8 @@
  * without any heavy ML / TensorFlow / ONNX dependencies.
  */
 
+import { supabase } from './supabase';
+
 /**
  * Capture current frame from a running HTML5 video element into an HTMLCanvasElement
  */
@@ -592,4 +594,133 @@ export function renderLiveDetectionsToCanvas(
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(labelText, labelX + badgePadX, labelY + 16);
   }
+}
+
+/**
+ * Convert dataURL to standard binary Blob (JPEG/PNG)
+ */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const parts = dataUrl.split(',');
+  const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+  const byteStr = atob(parts[1]);
+  const n = byteStr.length;
+  const u8arr = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    u8arr[i] = byteStr.charCodeAt(i);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
+/**
+ * Compress an HTMLCanvasElement to a JPEG Blob with maximum dimension and quality.
+ * Adheres to Requirement 3:
+ * - JPEG quality around 80-90 (default 0.85)
+ * - Maximum dimension 1280px
+ * - Preserves aspect ratio
+ * - Suitable for health history, animal profile, reports, and visual comparison
+ */
+export async function compressCanvasToBlob(
+  canvas: HTMLCanvasElement,
+  maxDimension = 1280,
+  quality = 0.85
+): Promise<Blob> {
+  const w = canvas.width;
+  const h = canvas.height;
+
+  if (w <= maxDimension && h <= maxDimension) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to convert canvas to blob'));
+        },
+        'image/jpeg',
+        quality
+      );
+    });
+  }
+
+  // Downscale proportionally
+  const scale = Math.min(maxDimension / w, maxDimension / h);
+  const targetW = Math.max(1, Math.round(w * scale));
+  const targetH = Math.max(1, Math.round(h * scale));
+
+  const resizedCanvas = document.createElement('canvas');
+  resizedCanvas.width = targetW;
+  resizedCanvas.height = targetH;
+  const ctx = resizedCanvas.getContext('2d');
+  if (!ctx) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to convert canvas to blob'));
+        },
+        'image/jpeg',
+        quality
+      );
+    });
+  }
+
+  ctx.drawImage(canvas, 0, 0, targetW, targetH);
+  return new Promise((resolve, reject) => {
+    resizedCanvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Failed to convert resized canvas to blob'));
+      },
+      'image/jpeg',
+      quality
+    );
+  });
+}
+
+/**
+ * Upload a cropped animal health-scan image to Supabase Storage ('animal-screenings' bucket).
+ * 
+ * Strict User Scoping:
+ * - Bucket: 'animal-screenings' (private)
+ * - Path: screenings/${userId}/${animalId}/health_${recordId}_${timestamp}.jpg
+ * - Satisfies RLS: (storage.foldername(name))[1] = 'screenings' AND (storage.foldername(name))[2] = auth.uid()::text
+ */
+export async function uploadHealthScanImage(
+  userId: string,
+  animalId: string,
+  imageBlob: Blob,
+  recordId?: string
+): Promise<{ imagePath: string; imageUrl: string }> {
+  if (!userId) throw new Error('User ID is required for image storage.');
+  if (!animalId) throw new Error('Animal ID is required for image storage.');
+
+  const timestamp = Date.now();
+  const safeRecordPart = recordId ? `rec_${recordId}_` : '';
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const fileName = `health_${safeRecordPart}${timestamp}_${randomSuffix}.jpg`;
+  const storagePath = `screenings/${userId}/${animalId}/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('animal-screenings')
+    .upload(storagePath, imageBlob, {
+      contentType: 'image/jpeg',
+      upsert: false,
+    });
+
+  if (uploadError) {
+    console.error('[Health Scan Image Upload Error]:', uploadError);
+    throw new Error('Hindi na-save ang larawan. Subukan muli.');
+  }
+
+  // Generate signed URL with 7 days expiration (and auto-refreshed in UI)
+  const { data: signedData, error: signError } = await supabase.storage
+    .from('animal-screenings')
+    .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+
+  if (signError) {
+    console.warn('[Health Scan Image Sign Warning]:', signError);
+  }
+
+  return {
+    imagePath: storagePath,
+    imageUrl: signedData?.signedUrl || '',
+  };
 }

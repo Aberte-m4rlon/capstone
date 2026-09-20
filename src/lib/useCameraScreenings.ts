@@ -301,6 +301,87 @@ export async function deleteScreening(
 export async function getScreeningImageUrl(imagePath: string): Promise<string | null> {
   const { data } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrl(imagePath, 60 * 60 * 24);
+    .createSignedUrl(imagePath, 60 * 60 * 24 * 7);
   return data?.signedUrl ?? null;
 }
+
+export async function getOrRefreshSignedUrl(
+  imagePath?: string | null,
+  currentUrl?: string | null
+): Promise<string | null> {
+  if (!imagePath && !currentUrl) return null;
+  if (!imagePath) return currentUrl || null;
+
+  // Check if currentUrl is still valid
+  if (currentUrl && currentUrl.includes('token=')) {
+    try {
+      const urlObj = new URL(currentUrl);
+      const token = urlObj.searchParams.get('token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp && payload.exp * 1000 > Date.now() + 60000) {
+          return currentUrl;
+        }
+      }
+    } catch {}
+  }
+
+  const { data } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(imagePath, 60 * 60 * 24 * 7);
+  return data?.signedUrl ?? currentUrl ?? null;
+}
+
+export function useSignedImageUrl(imagePath?: string | null, initialUrl?: string | null) {
+  const [url, setUrl] = useState<string | null>(initialUrl || null);
+  const [loading, setLoading] = useState<boolean>(!initialUrl && Boolean(imagePath));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    // Check if initialUrl is valid and not expired
+    if (initialUrl && !initialUrl.startsWith('data:') && initialUrl.includes('token=')) {
+      try {
+        const urlObj = new URL(initialUrl);
+        const token = urlObj.searchParams.get('token');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.exp && payload.exp * 1000 > Date.now() + 60000) {
+            setUrl(initialUrl);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {}
+    }
+
+    if (!imagePath) {
+      setUrl(initialUrl || null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(imagePath, 60 * 60 * 24 * 7)
+      .then(({ data }) => {
+        if (!cancelled && data?.signedUrl) {
+          setUrl(data.signedUrl);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to generate signed URL:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imagePath, initialUrl]);
+
+  return { url, loading };
+}
+

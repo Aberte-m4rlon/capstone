@@ -46,7 +46,12 @@ import type { Animal, HealthStatus, Species, Sex, TreatmentStatus, TreatmentUsag
 import { consumeInventoryStock, isItemExpired } from '../lib/inventoryOperations';
 import { CameraScreeningModal } from '../components/CameraScreeningModal';
 import { useAnimalScreenings } from '../lib/useCameraScreenings';
-import { MedicationTreatmentModal } from '../components/domain/health';
+import {
+  MedicationTreatmentModal,
+  HealthScanThumbnail,
+  HealthScanLightboxModal,
+  resolveHealthImage,
+} from '../components/domain/health';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const healthBadgeColor = (s: HealthStatus) =>
@@ -154,6 +159,8 @@ export function AnimalProfilePage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cameraScreeningOpen, setCameraScreeningOpen] = useState(false);
   const [administerModalOpen, setAdministerModalOpen] = useState(false);
+  const [scanLightboxUrl, setScanLightboxUrl] = useState<string | null>(null);
+  const [scanLightboxRecord, setScanLightboxRecord] = useState<any>(null);
 
   const [editForm, setEditForm] = useState({
     tag_id: '', name: '', species: 'Goat' as Species, breed: '', sex: 'Female' as Sex,
@@ -958,6 +965,7 @@ export function AnimalProfilePage() {
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th style={{ width: 56, textAlign: 'center' }}>Larawan</th>
                       <th>Petsa (Date)</th>
                       <th>Temperatura</th>
                       <th>Gana sa Pagkain</th>
@@ -978,6 +986,17 @@ export function AnimalProfilePage() {
 
                       return (
                         <tr key={r.id}>
+                          <td style={{ textAlign: 'center', verticalAlign: 'middle', padding: '6px 8px' }}>
+                            <HealthScanThumbnail
+                              record={r}
+                              screenings={animalScreenings}
+                              size={42}
+                              onClick={(url, rec) => {
+                                setScanLightboxUrl(url);
+                                setScanLightboxRecord(rec);
+                              }}
+                            />
+                          </td>
                           <td>{formatDate(r.record_date)}</td>
                           <td>{r.temperature ? `${r.temperature}°C` : 'Hindi nasukat'}</td>
                           <td>{r.appetite ?? 'Normal'}</td>
@@ -991,7 +1010,9 @@ export function AnimalProfilePage() {
                             ) : r.reasons ? (
                               <span>{r.reasons}</span>
                             ) : r.notes ? (
-                              <span style={{ color: 'var(--text-secondary)' }}>{r.notes}</span>
+                              <span style={{ color: 'var(--text-secondary)' }}>
+                                {r.notes.replace(/\[Larawan:\s*[^\]]+\]/g, '').trim()}
+                              </span>
                             ) : (
                               <span style={{ color: 'var(--text-secondary)' }}>Normal / Walang problema</span>
                             )}
@@ -1001,6 +1022,124 @@ export function AnimalProfilePage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Chronological Health Scan Images Gallery (Requirements 10, 11, 12) */}
+            {sortedHealth.some((rec) => {
+              const res = resolveHealthImage(rec, animalScreenings);
+              return Boolean(res.path || res.url);
+            }) && (
+              <div
+                style={{
+                  marginTop: 20,
+                  paddingTop: 16,
+                  borderTop: '1px solid var(--border)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 12,
+                    flexWrap: 'wrap',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Camera size={16} color="#16A34A" />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                      Kasaysayan ng mga Larawan ng Health Scan (Chronological Scan History)
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                    Pindutin ang larawan upang masuri nang malaki
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: 12,
+                    overflowX: 'auto',
+                    paddingBottom: 8,
+                  }}
+                >
+                  {sortedHealth
+                    .filter((rec) => {
+                      const res = resolveHealthImage(rec, animalScreenings);
+                      return Boolean(res.path || res.url);
+                    })
+                    .map((rec) => {
+                      const isMed = rec.reasons?.includes('Gamot') || rec.notes?.includes('Ginagamot');
+                      const isConcern =
+                        rec.risk_level === 'High' ||
+                        rec.risk_level === 'Critical' ||
+                        Boolean((rec as any).detected_conditions);
+                      const isMon = rec.risk_level === 'Moderate';
+                      const label = isMed
+                        ? 'Kailangan ng Gamot'
+                        : isConcern
+                        ? 'Kailangan ng Atensyon'
+                        : isMon
+                        ? 'Bantayan'
+                        : 'Maayos';
+                      const color = isMed
+                        ? '#DC2626'
+                        : isConcern
+                        ? '#EA580C'
+                        : isMon
+                        ? '#D97706'
+                        : '#16A34A';
+
+                      return (
+                        <div
+                          key={rec.id}
+                          style={{
+                            minWidth: 130,
+                            maxWidth: 150,
+                            background: 'var(--surface-sunken)',
+                            borderRadius: 10,
+                            border: '1px solid var(--border)',
+                            padding: 8,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 6,
+                            alignItems: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <HealthScanThumbnail
+                            record={rec}
+                            screenings={animalScreenings}
+                            size={110}
+                            onClick={(url, r) => {
+                              setScanLightboxUrl(url);
+                              setScanLightboxRecord(r);
+                            }}
+                          />
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>
+                            {formatDate(rec.record_date)}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color,
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              background: `${color}18`,
+                              textAlign: 'center',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             )}
           </GlassCard>
@@ -1540,6 +1679,18 @@ export function AnimalProfilePage() {
         onSuccess={() => {
           farmData.refresh();
         }}
+      />
+
+      {/* ── Health Scan Lightbox Modal (Requirement 12) ── */}
+      <HealthScanLightboxModal
+        open={Boolean(scanLightboxUrl)}
+        onClose={() => {
+          setScanLightboxUrl(null);
+          setScanLightboxRecord(null);
+        }}
+        record={scanLightboxRecord}
+        animal={animal ?? null}
+        imageUrl={scanLightboxUrl}
       />
     </>
   );

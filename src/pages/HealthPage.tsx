@@ -60,6 +60,10 @@ import { isMedicineCategory, isDewormerCategory, isSupplementCategory, consumeIn
 import {
   MedicationTreatmentModal,
   CameraFirstHealthModal,
+  HealthScanThumbnail,
+  HealthScanLightboxModal,
+  HealthScanDetailImageCard,
+  resolveHealthImage,
 } from '../components/domain/health';
 
 
@@ -225,6 +229,8 @@ export function HealthPage() {
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
   const [selectedRecordForDetail, setSelectedRecordForDetail] = useState<HealthRecord | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [scanLightboxUrl, setScanLightboxUrl] = useState<string | null>(null);
+  const [scanLightboxRecord, setScanLightboxRecord] = useState<HealthRecord | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<HealthRecord | null>(null);
 
   // Medication / Treatment Modal State
@@ -876,9 +882,26 @@ export function HealthPage() {
                     }
                   }}
                 >
-                  {/* Left Icon Badge */}
-                  <div className="health-log-icon-box">
-                    <Stethoscope size={18} />
+                  {/* Left Icon Badge or Saved Health Scan Thumbnail */}
+                  <div
+                    className="health-log-icon-box"
+                    style={{
+                      padding: 0,
+                      background: 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <HealthScanThumbnail
+                      record={r}
+                      size={44}
+                      fallbackIcon={<Stethoscope size={18} />}
+                      onClick={(url, rec) => {
+                        setScanLightboxUrl(url);
+                        setScanLightboxRecord(rec);
+                      }}
+                    />
                   </div>
 
                   {/* Main Content Info */}
@@ -909,8 +932,25 @@ export function HealthPage() {
                   {/* Mobile-Only Stacking Structure */}
                   <div className="health-log-mobile-container">
                     <div className="health-log-mobile-header">
-                      <div className="health-log-icon-box">
-                        <Stethoscope size={16} />
+                      <div
+                        className="health-log-icon-box"
+                        style={{
+                          padding: 0,
+                          background: 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <HealthScanThumbnail
+                          record={r}
+                          size={38}
+                          fallbackIcon={<Stethoscope size={16} />}
+                          onClick={(url, rec) => {
+                            setScanLightboxUrl(url);
+                            setScanLightboxRecord(rec);
+                          }}
+                        />
                       </div>
                       <div className="health-log-mobile-title-wrap">
                         <span className="health-log-animal-name" title={anName}>{anName}</span>
@@ -984,6 +1024,16 @@ export function HealthPage() {
 
             return (
               <div className="detail-modal-flow">
+                {/* 0. Saved Animal Health Scan Image (Requirements 10 & 12) */}
+                <HealthScanDetailImageCard
+                  record={r}
+                  animal={an ?? null}
+                  onOpenLightbox={(url) => {
+                    setScanLightboxRecord(r);
+                    setScanLightboxUrl(url);
+                  }}
+                />
+
                 {/* 1. Animal Information */}
                 <div className="detail-card">
                   <div className="detail-card-head">
@@ -1178,6 +1228,22 @@ export function HealthPage() {
         onSuccess={() => {
           farmData.refresh();
         }}
+      />
+
+      {/* ── 9. HEALTH SCAN LIGHTBOX MODAL (Requirement 12) ── */}
+      <HealthScanLightboxModal
+        open={Boolean(scanLightboxUrl)}
+        onClose={() => {
+          setScanLightboxUrl(null);
+          setScanLightboxRecord(null);
+        }}
+        record={scanLightboxRecord}
+        animal={
+          scanLightboxRecord
+            ? farmData.animals.find((a) => a.id === scanLightboxRecord.animal_id) ?? null
+            : null
+        }
+        imageUrl={scanLightboxUrl}
       />
 
 
