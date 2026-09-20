@@ -37,8 +37,8 @@ import type { BoundingBox } from './cameraUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type LivestockSpecies = 'goat' | 'sheep';
-export type LivestockDisplayLabel = 'KAMBING' | 'TUPA';
+export type LivestockSpecies = 'goat' | 'sheep' | 'person';
+export type LivestockDisplayLabel = 'KAMBING' | 'TUPA' | 'TAO';
 
 export interface RawLivestockDetection {
   species: LivestockSpecies;
@@ -82,12 +82,12 @@ export interface TrackerConfig {
 }
 
 export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
-  smoothingAlpha: 0.45,
+  smoothingAlpha: 0.38,
   matchIouThreshold: 0.25,
   maxCenterDistanceFallback: 0.18,
-  maxConsecutiveMisses: 0, // Directive 2: Zero consecutive miss grace period when subject leaves
-  maxTrackAgeMs: 250,      // Immediate expiration
-  speciesConsensusThreshold: 2,
+  maxConsecutiveMisses: 3,
+  maxTrackAgeMs: 800,
+  speciesConsensusThreshold: 3,
 };
 
 // ── 2D Geometry & IoU Helpers ─────────────────────────────────────────────────
@@ -326,7 +326,7 @@ export class TemporalLivestockTracker {
     let minArea = Infinity;
 
     for (const track of this.tracks) {
-      if (hitTestTrack(screenTapX, screenTapY, track, transform)) {
+      if (track.species !== 'person' && hitTestTrack(screenTapX, screenTapY, track, transform)) {
         const area = track.box.width * track.box.height;
         if (area < minArea) {
           minArea = area;
@@ -355,7 +355,7 @@ export class TemporalLivestockTracker {
    * 6. Prune stale tracks and notify if selected track is lost.
    */
   public update(rawDetections: RawLivestockDetection[], timestamp: number = Date.now()): TrackedLivestockAnimal[] {
-    // Directive 2: Every camera frame replaces previous state. If nothing detected, clear immediately.
+    // Directive 13: When the scene becomes empty, immediately clear tracks
     if (!rawDetections || rawDetections.length === 0) {
       this.tracks = [];
       const hadSelection = this.selectedTrackId !== null;
@@ -434,8 +434,16 @@ export class TemporalLivestockTracker {
       // Check if majority of recent frames agree on species
       const goatVotes = track.speciesHistory.filter((s) => s === 'goat').length;
       const sheepVotes = track.speciesHistory.filter((s) => s === 'sheep').length;
+      const personVotes = track.speciesHistory.filter((s) => s === 'person').length;
 
-      if (goatVotes >= this.config.speciesConsensusThreshold && track.species !== 'goat') {
+      if (personVotes >= this.config.speciesConsensusThreshold && track.species !== 'person') {
+        track.species = 'person';
+        track.label = 'TAO';
+        track.isSelected = false;
+        if (this.selectedTrackId === track.trackId) {
+          this.selectedTrackId = null;
+        }
+      } else if (goatVotes >= this.config.speciesConsensusThreshold && track.species !== 'goat') {
         track.species = 'goat';
         track.label = 'KAMBING';
       } else if (sheepVotes >= this.config.speciesConsensusThreshold && track.species !== 'sheep') {
@@ -459,7 +467,7 @@ export class TemporalLivestockTracker {
           trackId: this.nextTrackId++,
           displayNumber: 0, // re-assigned below
           species: raw.species,
-          label: raw.species === 'sheep' ? 'TUPA' : 'KAMBING',
+          label: raw.species === 'person' ? 'TAO' : raw.species === 'sheep' ? 'TUPA' : 'KAMBING',
           confidence: raw.confidence,
           box: { ...raw.box },
           targetBox: { ...raw.box },
@@ -471,9 +479,9 @@ export class TemporalLivestockTracker {
           isSelected: false,
         };
 
-        // If no animal is currently selected and this is the first animal in the scene,
+        // If no animal is currently selected and this is the first LIVESTOCK animal in the scene,
         // auto-select it for seamless farmer experience
-        if (this.tracks.length === 0 && this.selectedTrackId === null) {
+        if (this.tracks.length === 0 && this.selectedTrackId === null && raw.species !== 'person') {
           newTrack.isSelected = true;
           this.selectedTrackId = newTrack.trackId;
         }
@@ -500,10 +508,11 @@ export class TemporalLivestockTracker {
     // 6. Handle lost selected track
     if (prevSelectedId !== null && !selectedTrackStillAlive) {
       this.selectedTrackId = null;
-      if (this.tracks.length > 0) {
-        // Auto-select another visible animal if available
-        this.tracks[0].isSelected = true;
-        this.selectedTrackId = this.tracks[0].trackId;
+      const livestockTracks = this.tracks.filter((t) => t.species !== 'person');
+      if (livestockTracks.length > 0) {
+        // Auto-select another visible livestock animal if available
+        livestockTracks[0].isSelected = true;
+        this.selectedTrackId = livestockTracks[0].trackId;
       } else if (this.onSelectedTrackLost) {
         this.onSelectedTrackLost();
       }
@@ -514,12 +523,15 @@ export class TemporalLivestockTracker {
     const sortedTracks = [...this.tracks].sort((a, b) => a.box.x - b.box.x);
     let goatNum = 1;
     let sheepNum = 1;
+    let personNum = 1;
 
     for (const t of sortedTracks) {
       if (t.species === 'goat') {
         t.displayNumber = goatNum++;
-      } else {
+      } else if (t.species === 'sheep') {
         t.displayNumber = sheepNum++;
+      } else {
+        t.displayNumber = personNum++;
       }
     }
 
@@ -558,35 +570,27 @@ export class TemporalLivestockTracker {
 export function renderTrackedAnimalsToCanvas(
   canvas: HTMLCanvasElement | null,
   tracks: TrackedLivestockAnimal[],
-  transform: ViewportTransform
+  transform: ViewportTransform,
+  dpr: number = 1
 ): void {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // Sync internal resolution with CSS display dimensions
-  if (
-    canvas.clientWidth > 0 &&
-    canvas.clientHeight > 0 &&
-    (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight)
-  ) {
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-  }
+  const W = transform.containerW;
+  const H = transform.containerH;
 
-  const W = canvas.width;
-  const H = canvas.height;
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // 1. Clear entire canvas before drawing
+  // 1. Clear entire canvas before drawing (Directive 6)
   ctx.clearRect(0, 0, W, H);
 
   // 2. If no tracks, leave canvas completely clear (empty scene must clear)
   if (!tracks || tracks.length === 0) {
+    ctx.restore();
     return;
   }
-
-  const goatCount = tracks.filter((t) => t.species === 'goat').length;
-  const sheepCount = tracks.filter((t) => t.species === 'sheep').length;
 
   for (const track of tracks) {
     const screenBox = mapVideoBoxToScreen(track.box, transform);
@@ -594,21 +598,35 @@ export function renderTrackedAnimalsToCanvas(
 
     const isSelected = track.isSelected;
     const isGoat = track.species === 'goat';
-    // Directive 3: Numbering is ONLY allowed when two or more animals of that species are visible
-    const multipleOfThisSpecies = isGoat ? goatCount > 1 : sheepCount > 1;
+    const isSheep = track.species === 'sheep';
+    const isPerson = track.species === 'person';
 
     // Color theme
-    let strokeColor = isSelected ? '#22C55E' : 'rgba(22, 163, 74, 0.85)';
-    let fillColor = isSelected ? 'rgba(34, 197, 94, 0.20)' : 'rgba(22, 163, 74, 0.08)';
+    let strokeColor = isSelected ? '#22C55E' : 'rgba(22, 163, 74, 0.90)';
+    let fillColor = isSelected ? 'rgba(34, 197, 94, 0.18)' : 'rgba(22, 163, 74, 0.08)';
     let cornerColor = isSelected ? '#4ADE80' : '#22C55E';
     let badgeBg = isSelected ? '#16A34A' : '#15803D';
-    let labelText = isSelected
-      ? isGoat
-        ? multipleOfThisSpecies ? `✓ NAPILING KAMBING #${track.displayNumber}` : '✓ NAPILING KAMBING'
-        : multipleOfThisSpecies ? `✓ NAPILING TUPA #${track.displayNumber}` : '✓ NAPILING TUPA'
-      : multipleOfThisSpecies
-      ? `${track.label} #${track.displayNumber}`
-      : track.label;
+
+    if (isPerson) {
+      strokeColor = 'rgba(59, 130, 246, 0.85)';
+      fillColor = 'rgba(59, 130, 246, 0.10)';
+      cornerColor = '#60A5FA';
+      badgeBg = '#2563EB';
+    } else if (isSheep) {
+      strokeColor = isSelected ? '#10B981' : 'rgba(16, 185, 129, 0.90)';
+      fillColor = isSelected ? 'rgba(16, 185, 129, 0.18)' : 'rgba(16, 185, 129, 0.08)';
+      cornerColor = isSelected ? '#34D399' : '#10B981';
+      badgeBg = isSelected ? '#059669' : '#047857';
+    }
+
+    let labelText = '';
+    if (isPerson) {
+      labelText = 'TAO';
+    } else if (isSelected) {
+      labelText = isGoat ? '✓ NAPILING KAMBING' : '✓ NAPILING TUPA';
+    } else {
+      labelText = isGoat ? 'KAMBING' : 'TUPA';
+    }
 
     // 1. Draw Bounding Box Fill
     ctx.fillStyle = fillColor;
@@ -688,5 +706,7 @@ export function renderTrackedAnimalsToCanvas(
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(labelText, labelX + badgePadX, labelY + 17);
   }
+
+  ctx.restore();
 }
 
