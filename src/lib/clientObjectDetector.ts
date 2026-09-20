@@ -83,7 +83,7 @@ const MEDIAPIPE_LOCAL_MODEL = '/models/efficientdet_lite0.tflite';
 const MEDIAPIPE_REMOTE_MODEL =
   'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite';
 
-const GOAT_ONNX_MODEL_URL = '/models/goat_yolov8n.onnx';
+const LIVESTOCK_ONNX_MODEL_URL = '/models/goat_sheep_yolov8n.onnx';
 
 // Hysteresis Thresholds for genuine classes (Directives 6 & 7)
 export const CONFIDENCE_THRESHOLDS = {
@@ -256,7 +256,7 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
 
       // 2. Initialize YOLOv8 Nano ONNX Goat Detector
       try {
-        _yoloSession = await ort.InferenceSession.create(GOAT_ONNX_MODEL_URL, {
+        _yoloSession = await ort.InferenceSession.create(LIVESTOCK_ONNX_MODEL_URL, {
           executionProviders: ['wasm'],
           graphOptimizationLevel: 'all',
         });
@@ -264,7 +264,7 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
       } catch (yoloErr) {
         console.warn('[Detector] YOLOv8 goat model init warning, retrying with default provider:', yoloErr);
         try {
-          _yoloSession = await ort.InferenceSession.create(GOAT_ONNX_MODEL_URL);
+          _yoloSession = await ort.InferenceSession.create(LIVESTOCK_ONNX_MODEL_URL);
           _hasGoatClass = true;
         } catch (yoloRetryErr) {
           console.error('[Detector] YOLOv8 goat detector load failed:', yoloRetryErr);
@@ -285,7 +285,7 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
 
       // Developer console logs required by Section 21 & Detector Audit
       console.log('[Detector] AUDIT REPORT:');
-      console.log('[Detector] - YOLO Model: goat_yolov8n.onnx (input: 416x416, classes: [0: goat])');
+      console.log('[Detector] - YOLO Model: goat_sheep_yolov8n.onnx (input: 640x640, classes: [0: goat, 1: sheep])');
       console.log('[Detector] - MediaPipe Model: efficientdet_lite0.tflite (classes: COCO 80, includes [0: person, 18: sheep], NO GOAT CLASS)');
       console.log('[Detector] - Species Verification: 73-dim multi-scale feature classifier active for sheep vs goat verification');
       console.log('[Detector] - Supported Classes: person (TAO), goat (KAMBING), sheep (TUPA)');
@@ -321,7 +321,7 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
 export function verifyLivestockSpeciesFromCrop(
   video: HTMLVideoElement,
   box: BoundingBox2D
-): { species: 'goat' | 'sheep'; confidence: number; label: LiveTargetLabel; type: LiveTargetType } {
+): { species: 'goat' | 'sheep' | 'uncertain'; confidence: number; label: LiveTargetLabel; type: LiveTargetType } {
   try {
     const vW = video.videoWidth || 640;
     const vH = video.videoHeight || 480;
@@ -378,13 +378,13 @@ export function verifyLivestockSpeciesFromCrop(
       }
     }
   } catch (e) {
-    // Non-fatal; defaults to goat
+    // Non-fatal; preserve uncertainty instead of forcing a species label
   }
   return {
-    species: 'goat',
-    confidence: 0.88,
-    label: 'KAMBING',
-    type: 'GOAT',
+    species: 'uncertain',
+    confidence: 0.35,
+    label: 'Hindi Malinaw',
+    type: 'UNCERTAIN',
   };
 }
 
@@ -543,9 +543,18 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     const candidates: Array<{ box: BoundingBox; score: number; label: LiveTargetLabel; type: LiveTargetType }> = [];
 
     for (let a = 0; a < numAnchors; a++) {
-      // Class 0 is GOAT for the supported one-class/two-class model layouts.
-      const score = outData[4 * numAnchors + a];
-      if (score < CONFIDENCE_THRESHOLDS.GOAT_KEEP) continue;
+      let classId = 0;
+      let score = 0;
+      for (let candidateClassId = 0; candidateClassId < outputChannels - 4; candidateClassId++) {
+        const candidateScore = outData[(4 + candidateClassId) * numAnchors + a];
+        if (candidateScore > score) {
+          score = candidateScore;
+          classId = candidateClassId;
+        }
+      }
+      const isSheep = classId === 1;
+      const minimumScore = isSheep ? CONFIDENCE_THRESHOLDS.SHEEP_KEEP : CONFIDENCE_THRESHOLDS.GOAT_KEEP;
+      if (score < minimumScore) continue;
 
       const cx = outData[0 * numAnchors + a];
       const cy = outData[1 * numAnchors + a];
@@ -564,20 +573,20 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
       candidates.push({
         box: rawBox,
         score: +score.toFixed(2),
-        label: 'KAMBING',
-        type: 'GOAT',
+        label: isSheep ? 'TUPA' : 'KAMBING',
+        type: isSheep ? 'SHEEP' : 'GOAT',
       });
     }
 
     const filtered = applyNMS(candidates, 0.45);
     const goatDetections: ClientDetectedObject[] = filtered.map((c) => ({
-      className: 'goat',
-      type: 'GOAT',
-      label: 'KAMBING',
+      className: c.type === 'SHEEP' ? 'sheep' : 'goat',
+      type: c.type,
+      label: c.label,
       confidence: c.score,
       boundingBox: c.box,
       bbox: c.box,
-      rawCategory: 'goat',
+      rawCategory: c.type === 'SHEEP' ? 'sheep' : 'goat',
       timestamp,
     }));
 
@@ -703,6 +712,13 @@ function applyTemporalStabilityAndQuality(
       finalClass = 'sheep';
       finalType = 'SHEEP';
       finalLabel = 'TUPA';
+    }
+
+    if (histLen < 3) {
+      finalClass = 'uncertain';
+      finalType = 'UNCERTAIN';
+      finalLabel = 'Hindi Malinaw';
+      finalConfidence = Math.min(finalConfidence, 0.35);
     }
 
     // 4. Image Quality Checks for the target (Section 15)

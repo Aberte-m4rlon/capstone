@@ -7,7 +7,7 @@
       "destination": "/api/gemini/animal-scan"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|models/).*)",
       "destination": "/index.html"
     }
   ]

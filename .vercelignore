@@ -7,6 +7,7 @@ alpasfarm_yolo_goat_health_1000_scaffold
 .github
 *.pt
 *.onnx
+!public/models/goat_sheep_yolov8n.onnx
 *.weights
 *.tar.xz
 *.joblib
