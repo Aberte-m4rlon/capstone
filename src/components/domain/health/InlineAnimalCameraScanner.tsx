@@ -14,6 +14,7 @@ import {
   identifyLivestockSpecies,
   type LivestockSpeciesDetection,
 } from '../../../lib/cameraML';
+import { detectLiveFrameLocally } from '../../../lib/clientObjectDetector';
 import { runRuleBasedScreening } from '../../../lib/ruleBasedScreening';
 import { scanAnimalWithGemini } from '../../../lib/geminiScanner';
 import type { Animal } from '../../../types';
@@ -167,13 +168,39 @@ export function InlineAnimalCameraScanner({
     if (!video || video.videoWidth === 0 || video.videoHeight === 0 || isScanning) return;
 
     try {
-      const canvas = captureVideoFrame(video);
-      const detection = await identifyLivestockSpecies(canvas);
-      if (isMountedRef.current) {
-        setLiveDetection(detection);
+      // Use the repository's authoritative local detector for the live camera:
+      // YOLOv8 goat model + EfficientDet sheep model. This prevents Gemini
+      // Vision from overriding a genuine YOLO goat detection as Tupa.
+      const local = await detectLiveFrameLocally(video);
+      const primary = local.primaryTarget;
+
+      let detection: LivestockSpeciesDetection;
+      if (primary?.type === 'GOAT') {
+        detection = {
+          detected: true,
+          species: 'Goat',
+          label: 'Kambing ang nakita',
+          confidence: primary.confidence,
+        };
+      } else if (primary?.type === 'SHEEP') {
+        detection = {
+          detected: true,
+          species: 'Sheep',
+          label: 'Tupa ang nakita',
+          confidence: primary.confidence,
+        };
+      } else {
+        detection = {
+          detected: false,
+          species: 'Other',
+          label: 'Hindi kambing o tupa ang nakita',
+          confidence: 0,
+        };
       }
+
+      if (isMountedRef.current) setLiveDetection(detection);
     } catch {
-      // Ignore background evaluation errors
+      // Keep the last stable camera result instead of flipping species on error.
     }
   }, [isScanning]);
 
@@ -250,7 +277,29 @@ export function InlineAnimalCameraScanner({
       const frameCanvas = captureVideoFrame(video);
       const snapshotUrl = frameCanvas.toDataURL('image/jpeg', 0.85);
 
-      const speciesRes = await identifyLivestockSpecies(frameCanvas);
+      // Species comes from the same local detector used by the live camera.
+      // Only fall back to Gemini when the local detector has no target.
+      const localDetection = await detectLiveFrameLocally(video);
+      let speciesRes: LivestockSpeciesDetection;
+
+      if (localDetection.primaryTarget?.type === 'GOAT') {
+        speciesRes = {
+          detected: true,
+          species: 'Goat',
+          label: 'Kambing ang nakita',
+          confidence: localDetection.primaryTarget.confidence,
+        };
+      } else if (localDetection.primaryTarget?.type === 'SHEEP') {
+        speciesRes = {
+          detected: true,
+          species: 'Sheep',
+          label: 'Tupa ang nakita',
+          confidence: localDetection.primaryTarget.confidence,
+        };
+      } else {
+        speciesRes = await identifyLivestockSpecies(frameCanvas);
+      }
+
       const ruleRes = runRuleBasedScreening(frameCanvas);
 
       let geminiObservations: string[] = [];
@@ -320,10 +369,14 @@ export function InlineAnimalCameraScanner({
         consolidatedObs.push('Walang nakitang obvious abnormality');
       }
 
+      // Do not reclassify a confirmed local GOAT as Tupa using the health-scan
+      // response. Species identity is determined by the camera detector first.
       const detectedSpecies: 'Goat' | 'Sheep' | 'Unknown' = speciesRes.detected
         ? speciesRes.species === 'Sheep'
           ? 'Sheep'
-          : 'Goat'
+          : speciesRes.species === 'Goat'
+          ? 'Goat'
+          : 'Unknown'
         : 'Unknown';
 
       const speciesTagalog =
