@@ -532,8 +532,9 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     // The dedicated goat model must expose only one or two livestock classes.
     // Reject incompatible COCO/anatomical models instead of treating class 0 as GOAT.
     const dims = Array.from(output.dims || []);
-    const outputChannels = dims.length >= 3 ? Number(dims[1]) : 0;
-    const numAnchors = dims.length >= 3 ? Number(dims[2]) : 0;
+    const channelsFirst = dims.length >= 3 && Number(dims[1]) <= 6;
+    const outputChannels = dims.length >= 3 ? (channelsFirst ? Number(dims[1]) : Number(dims[2])) : 0;
+    const numAnchors = dims.length >= 3 ? (channelsFirst ? Number(dims[2]) : Number(dims[1])) : 0;
 
     if (outputChannels < 5 || numAnchors <= 0 || outputChannels > 6) {
       console.warn('[Detector] Goat ONNX output is incompatible with the dedicated goat detector:', dims);
@@ -541,12 +542,17 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     }
 
     const candidates: Array<{ box: BoundingBox; score: number; label: LiveTargetLabel; type: LiveTargetType }> = [];
+    const valueAt = (channel: number, anchor: number): number =>
+      channelsFirst
+        ? outData[channel * numAnchors + anchor]
+        : outData[anchor * outputChannels + channel];
+
 
     for (let a = 0; a < numAnchors; a++) {
       let classId = 0;
       let score = 0;
       for (let candidateClassId = 0; candidateClassId < outputChannels - 4; candidateClassId++) {
-        const candidateScore = outData[(4 + candidateClassId) * numAnchors + a];
+        const candidateScore = valueAt(4 + candidateClassId, a);
         if (candidateScore > score) {
           score = candidateScore;
           classId = candidateClassId;
@@ -556,16 +562,18 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
       const minimumScore = isSheep ? CONFIDENCE_THRESHOLDS.SHEEP_KEEP : CONFIDENCE_THRESHOLDS.GOAT_KEEP;
       if (score < minimumScore) continue;
 
-      const cx = outData[0 * numAnchors + a];
-      const cy = outData[1 * numAnchors + a];
-      const w = outData[2 * numAnchors + a];
-      const h = outData[3 * numAnchors + a];
+      const cx = valueAt(0, a);
+      const cy = valueAt(1, a);
+      const w = valueAt(2, a);
+      const h = valueAt(3, a);
 
       // Normalized coordinates [0, 1] relative to video frame
-      const x = Math.max(0, Math.min(1, (cx - w / 2) / targetSize));
-      const y = Math.max(0, Math.min(1, (cy - h / 2) / targetSize));
-      const width = Math.max(0, Math.min(1 - x, w / targetSize));
-      const height = Math.max(0, Math.min(1 - y, h / targetSize));
+      const coordinatesAreNormalized = Math.max(cx, cy, w, h) <= 2;
+      const coordinateScale = coordinatesAreNormalized ? 1 : targetSize;
+      const x = Math.max(0, Math.min(1, (cx - w / 2) / coordinateScale));
+      const y = Math.max(0, Math.min(1, (cy - h / 2) / coordinateScale));
+      const width = Math.max(0, Math.min(1 - x, w / coordinateScale));
+      const height = Math.max(0, Math.min(1 - y, h / coordinateScale));
 
       const rawBox = { x, y, width, height };
       if (!isValidBoundingBox(rawBox)) continue;
