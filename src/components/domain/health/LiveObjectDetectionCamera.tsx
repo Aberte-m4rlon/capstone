@@ -1,16 +1,16 @@
 /**
- * LiveObjectDetectionCamera.tsx — Dedicated Full-Screen "AI Health Scanner"
+ * LiveObjectDetectionCamera.tsx GÇö Dedicated Full-Screen "AI Health Scanner"
  *
  * Real-time object-detection mobile camera experience for AlpasFarm:
  * - Dedicated full-screen mobile camera layout (no standard app navigation while active)
- * - Top translucent bar: [←] [AI Health Scanner status] [⚙]
+ * - Top translucent bar: [GåÉ] [AI Health Scanner status] [GÜÖ]
  * - Full-bleed live camera stream with object-fit: cover and hardware-accelerated RAF canvas
  * - Temporal stabilization & IoU tracking (zero jitter, zero flickering, grace periods, clean scene clearing)
  * - Accurate coordinate transformation for object-fit: cover mobile viewports
  * - Tap-to-select on live detection box; selection follows the persistent track
  * - Floating status pill: "Naghahanap ng kambing o tupa...", "Kambing ang nakita", "Kambing na napili", etc.
  * - Dedicated 3-element bottom camera control bar:
- *     [ Thumbnail / Gallery icon ]   ● [ Large 78px Circular Shutter (I-SCAN) ]   [ Flip Camera ]
+ *     [ Thumbnail / Gallery icon ]   GùÅ [ Large 78px Circular Shutter (I-SCAN) ]   [ Flip Camera ]
  * - Safe area padding for Android/iOS navigation gestures: env(safe-area-inset-bottom)
  * - Gemini Multimodal Vision API invoked ONLY upon pressing I-SCAN
  * - Post-scan Health Check bottom sheet overlay displayed directly over the camera
@@ -79,7 +79,7 @@ export function LiveObjectDetectionCamera({
   const { user } = useAuth();
   const farmData = useFarmData();
 
-  // ── Elements & State Refs ──────────────────────────────────────────────────
+  // GöÇGöÇ Elements & State Refs GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -89,7 +89,7 @@ export function LiveObjectDetectionCamera({
   const detectTimerRef = useRef<any>(null);
   const isDetectingRef = useRef<boolean>(false);
 
-  // ── Suppress standard app navigation while camera scanner is open ──────────
+  // GöÇGöÇ Suppress standard app navigation while camera scanner is open GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   useEffect(() => {
     document.body.classList.add('camera-scanner-active');
     return () => {
@@ -97,14 +97,14 @@ export function LiveObjectDetectionCamera({
     };
   }, []);
 
-  // ── Camera Lifecycle State ────────────────────────────────────────────────
+  // GöÇGöÇ Camera Lifecycle State GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [showSettings, setShowSettings] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
 
-  // ── Tracking & Selection State ────────────────────────────────────────────
+  // GöÇGöÇ Tracking & Selection State GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const [statusMessage, setStatusMessage] = useState<string>('Naghahanap ng kambing o tupa...');
   const trackerRef = useRef<TemporalLivestockTracker>(
     new TemporalLivestockTracker({}, () => {
@@ -115,7 +115,7 @@ export function LiveObjectDetectionCamera({
   const [activeTracks, setActiveTracks] = useState<TrackedLivestockAnimal[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<TrackedLivestockAnimal | null>(null);
 
-  // ── Health Scan & Result State ────────────────────────────────────────────
+  // GöÇGöÇ Health Scan & Result State GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<GeminiScanResult | null>(null);
   const [croppedImagePreview, setCroppedImagePreview] = useState<string | null>(null);
@@ -128,7 +128,7 @@ export function LiveObjectDetectionCamera({
   const [medItemId, setMedItemId] = useState<string>('');
   const [medQty, setMedQty] = useState<string>('');
 
-  // ── Active Animals & Medicines ────────────────────────────────────────────
+  // GöÇGöÇ Active Animals & Medicines GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const activeFarmAnimals = useMemo(() => {
     return farmData.animals.filter((a: Animal) => !a.archived && !a.is_sold && a.status !== 'Sold');
   }, [farmData.animals]);
@@ -144,7 +144,7 @@ export function LiveObjectDetectionCamera({
     return activeFarmAnimals.find((a) => a.id === selectedFarmAnimalId) || null;
   }, [activeFarmAnimals, selectedFarmAnimalId]);
 
-  // ── Formatted Farmer-Friendly Detection Status ────────────────────────────
+  // GöÇGöÇ Formatted Farmer-Friendly Detection Status GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const computeDetectionStatus = useCallback(
     (tracks: TrackedLivestockAnimal[], selected: TrackedLivestockAnimal | null): string => {
       if (selected && selected.species !== 'person') {
@@ -176,7 +176,7 @@ export function LiveObjectDetectionCamera({
     []
   );
 
-  // ── Stop Camera Stream ────────────────────────────────────────────────────
+  // GöÇGöÇ Stop Camera Stream GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const stopCameraStream = useCallback(() => {
     if (detectTimerRef.current) {
       clearInterval(detectTimerRef.current);
@@ -207,7 +207,7 @@ export function LiveObjectDetectionCamera({
     setIsCameraActive(false);
   }, []);
 
-  // ── Start Camera Stream ───────────────────────────────────────────────────
+  // GöÇGöÇ Start Camera Stream GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const startCameraStream = useCallback(async () => {
     stopCameraStream();
     setCameraError(null);
@@ -271,7 +271,7 @@ export function LiveObjectDetectionCamera({
     }
   }, [facingMode, stopCameraStream]);
 
-  // ── Live Render Animation Loop (requestAnimationFrame) ────────────────────
+  // GöÇGöÇ Live Render Animation Loop (requestAnimationFrame) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   useEffect(() => {
     if (!isCameraActive || isScanning) return;
 
@@ -332,7 +332,7 @@ export function LiveObjectDetectionCamera({
     };
   }, [isCameraActive, isScanning]);
 
-  // ── Live Detection Cycle (~8-9 FPS locally) ────────────────────────────────
+  // GöÇGöÇ Live Detection Cycle (~8-9 FPS locally) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const runDetectionCycle = useCallback(async () => {
     const video = videoRef.current;
     if (
@@ -430,7 +430,7 @@ export function LiveObjectDetectionCamera({
     };
   }, [isCameraActive, isScanning, showResultSheet, runDetectionCycle]);
 
-  // ── Camera Mount Lifecycle ────────────────────────────────────────────────
+  // GöÇGöÇ Camera Mount Lifecycle GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   useEffect(() => {
     isMountedRef.current = true;
     startCameraStream();
@@ -441,7 +441,7 @@ export function LiveObjectDetectionCamera({
     };
   }, [startCameraStream, stopCameraStream]);
 
-  // ── Tap to Select on Viewport ─────────────────────────────────────────────
+  // GöÇGöÇ Tap to Select on Viewport GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const handleViewportTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (showResultSheet) return;
 
@@ -491,12 +491,12 @@ export function LiveObjectDetectionCamera({
     }
   };
 
-  // ── Camera Flip Control ───────────────────────────────────────────────────
+  // GöÇGöÇ Camera Flip Control GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const handleFlipCamera = useCallback(() => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
   }, []);
 
-  // ── Health Scan: Capture & Send Selected Animal to Gemini ─────────────────
+  // GöÇGöÇ Health Scan: Capture & Send Selected Animal to Gemini GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const handlePerformHealthScan = async () => {
     const video = videoRef.current;
     const selected = trackerRef.current.getSelectedTrack();
@@ -576,7 +576,7 @@ export function LiveObjectDetectionCamera({
     }
   };
 
-  // ── Gallery Upload & AI Scan ──────────────────────────────────────────────
+  // GöÇGöÇ Gallery Upload & AI Scan GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -665,7 +665,7 @@ export function LiveObjectDetectionCamera({
     }
   };
 
-  // ── Reset & Rescan ────────────────────────────────────────────────────────
+  // GöÇGöÇ Reset & Rescan GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const handleResetScan = () => {
     setShowResultSheet(false);
     setScanResult(null);
@@ -677,7 +677,7 @@ export function LiveObjectDetectionCamera({
     setStatusMessage('Naghahanap ng kambing o tupa...');
   };
 
-  // ── Save Health Check to Storage & Supabase Database ───────────────────────
+  // GöÇGöÇ Save Health Check to Storage & Supabase Database GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const handleSaveHealthCheck = async () => {
     if (!scanResult || !user) {
       toast('Walang resulta ng pagsusuri na mai-save.', 'error');
@@ -749,23 +749,19 @@ export function LiveObjectDetectionCamera({
       else if (riskScore >= 45) newStatus = 'At Risk';
       else if (riskScore >= 25) newStatus = 'Monitor';
 
-      // 3. Insert Health Record
+      // 3. Insert Health Record using the deployed health_records schema.
+      const riskLevel = riskScore >= 65 ? 'High' : riskScore >= 25 ? 'Medium' : 'Low';
       const newRecordPayload = {
         animal_id: animal.id,
         user_id: user.id,
         record_date: new Date().toISOString().split('T')[0],
         risk_score: riskScore,
-        status: newStatus,
-        detected_conditions: conditionStr,
-        reasons: reasonsStr,
-        notes: notes.trim() || undefined,
-        recommendations: scanResult.recommendation || raw?.action,
+        risk_level: riskLevel,
+        reasons: `${conditionStr}. ${reasonsStr}`,
+        recommendation: scanResult.recommendation || raw?.action || null,
+        notes: notes.trim() || null,
         temperature: null,
         heart_rate: null,
-        respiratory_rate: null,
-        weight: animal.weight_kg ?? null,
-        image_url: savedImageUrl,
-        image_path: savedImagePath,
       };
 
       const { data: insertedData, error: recordError } = await supabase
@@ -853,7 +849,7 @@ export function LiveObjectDetectionCamera({
         WebkitUserSelect: 'none',
       }}
     >
-      {/* ── TOP HEADER BAR: [Bumalik] AI Health Scanner [⚙] [X] ── */}
+      {/* GöÇGöÇ TOP HEADER BAR: [Bumalik] AI Health Scanner [GÜÖ] [X] GöÇGöÇ */}
       <header
         style={{
           flexShrink: 0,
@@ -946,7 +942,7 @@ export function LiveObjectDetectionCamera({
         </div>
       </header>
 
-      {/* ── SCROLLABLE MODAL BODY ── */}
+      {/* GöÇGöÇ SCROLLABLE MODAL BODY GöÇGöÇ */}
       <div
         style={{
           flex: 1,
@@ -1497,7 +1493,7 @@ export function LiveObjectDetectionCamera({
                   <option value="">-- Piliin ang Alaga --</option>
                   {activeFarmAnimals.map((a: Animal) => (
                     <option key={a.id} value={a.id}>
-                      {a.tag_id} {a.name ? `(${a.name})` : ''} — {a.species?.toLowerCase() === 'sheep' ? 'Tupa' : 'Kambing'}
+                      {a.tag_id} {a.name ? `(${a.name})` : ''} GÇö {a.species?.toLowerCase() === 'sheep' ? 'Tupa' : 'Kambing'}
                     </option>
                   ))}
                 </select>
@@ -1594,7 +1590,7 @@ export function LiveObjectDetectionCamera({
         </div>
       </div>
 
-      {/* ── SETTINGS DRAWER / MODAL ── */}
+      {/* GöÇGöÇ SETTINGS DRAWER / MODAL GöÇGöÇ */}
       {showSettings && (
         <div
           style={{
