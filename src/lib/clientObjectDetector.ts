@@ -229,7 +229,7 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
             delegate: 'GPU',
           },
           scoreThreshold: 0.30,
-          runningMode: 'VIDEO',
+          runningMode: 'IMAGE',
         });
       } catch {
         // Fallback to CPU delegate or remote model
@@ -240,7 +240,7 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
               delegate: 'CPU',
             },
             scoreThreshold: 0.30,
-            runningMode: 'VIDEO',
+            runningMode: 'IMAGE',
           });
         } catch {
           _mediaPipeDetector = await ObjectDetector.createFromOptions(mpVision, {
@@ -249,7 +249,7 @@ export async function initClientObjectDetector(): Promise<ObjectDetector | null>
               delegate: 'CPU',
             },
             scoreThreshold: 0.30,
-            runningMode: 'VIDEO',
+            runningMode: 'IMAGE',
           });
         }
       }
@@ -896,7 +896,7 @@ export async function detectLiveFrameLocally(
     const rawMediaPipeDetections: ClientDetectedObject[] = [];
     if (_mediaPipeDetector) {
       try {
-        const mpResult = _mediaPipeDetector.detectForVideo(video, performance.now());
+        const mpResult = _mediaPipeDetector.detect(video);
         const rawList = mpResult.detections || [];
 
         for (const d of rawList) {
