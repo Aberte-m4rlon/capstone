@@ -462,7 +462,7 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     const vW = video.videoWidth || 640;
     const vH = video.videoHeight || 480;
 
-    // Match the ONNX model's real input size instead of assuming 416x416.
+    // Match the ONNX model's real input size instead of assuming a model size.
     const inputMeta = (_yoloSession as any)?.inputMetadata?.[_yoloSession!.inputNames[0]];
     const inputDims = inputMeta?.dimensions;
     const declaredHeight = Number(inputDims?.[2]);
@@ -472,7 +472,7 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
       Number.isFinite(declaredHeight) && declaredHeight > 0 &&
       declaredWidth === declaredHeight
         ? declaredWidth
-        : 416;
+        : 640;
 
     if (!_offscreenCanvas || _offscreenCanvas.width !== targetSize || _offscreenCanvas.height !== targetSize) {
       _offscreenCanvas = document.createElement('canvas');
@@ -484,7 +484,7 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     const ctx = _offscreenCtx;
     if (!ctx) return [];
 
-    // Draw video directly scaled to targetSize (416x416 for goat_yolov8n) without letterbox borders to preserve natural aspect and feature activations
+    // Draw video directly scaled to targetSize (640x640 for the deployed goat model) without letterbox borders to preserve natural aspect and feature activations
     ctx.drawImage(video, 0, 0, targetSize, targetSize);
     const imgData = ctx.getImageData(0, 0, targetSize, targetSize);
     const data = imgData.data;
