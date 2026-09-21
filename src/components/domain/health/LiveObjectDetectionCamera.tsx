@@ -998,7 +998,6 @@ export function LiveObjectDetectionCamera({
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                transform: facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)',
               }}
             />
 
