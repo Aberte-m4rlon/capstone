@@ -10,6 +10,7 @@
  */
 
 import { supabase } from './supabase';
+import { GoogleGenAI } from '@google/genai';
 import {
   optimizeImageForAI,
   captureLowResFrame,
@@ -291,6 +292,55 @@ export async function detectLiveObjects(
     };
   } finally {
     isDetectingLive = false;
+  }
+}
+
+export interface GeminiLiveDetection { species: 'goat' | 'sheep'; box_2d: [number, number, number, number]; visible: true; }
+
+export class GeminiLiveDetector {
+  private session: any = null;
+  private responseBuffer = '';
+  private onDetections: (detections: GeminiLiveDetection[]) => void;
+
+  constructor(onDetections: (detections: GeminiLiveDetection[]) => void) { this.onDetections = onDetections; }
+
+  async connect(): Promise<void> {
+    const tokenResponse = await fetch('/api/gemini/live-token', { method: 'POST' });
+    if (!tokenResponse.ok) throw new Error('Live detection is temporarily unavailable.');
+    const { token, model } = await tokenResponse.json();
+    const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
+    this.session = await ai.live.connect({
+      model,
+      callbacks: {
+        onmessage: (message: any) => this.handleMessage(message),
+        onerror: () => this.onDetections([]),
+        onclose: () => { this.session = null; },
+      },
+    });
+    this.session.sendClientContent({ turns: [{ role: 'user', parts: [{ text: 'Begin live visual goat/sheep detection now. Return a JSON detection update after observing incoming video frames.' }] }], turnComplete: true });
+  }
+
+  sendFrame(canvas: HTMLCanvasElement): void {
+    if (!this.session) return;
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+    const comma = dataUrl.indexOf(',');
+    this.session.sendRealtimeInput({ video: { data: comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl, mimeType: 'image/jpeg' } });
+  }
+
+  close(): void { if (this.session) this.session.close(); this.session = null; this.responseBuffer = ''; }
+
+  private handleMessage(message: any): void {
+    const parts = message?.serverContent?.modelTurn?.parts || [];
+    for (const part of parts) if (typeof part.text === 'string') this.responseBuffer += part.text;
+    if (!message?.serverContent?.turnComplete) return;
+    const text = this.responseBuffer.trim();
+    this.responseBuffer = '';
+    try {
+      const cleaned = text.replace(/\`\`\`json/gi, '').replace(/\`\`\`/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      const detections = Array.isArray(parsed?.detections) ? parsed.detections.filter((d: any) => (d?.species === 'goat' || d?.species === 'sheep') && Array.isArray(d?.box_2d) && d.box_2d.length === 4 && d.visible === true) : [];
+      this.onDetections(detections);
+    } catch { this.onDetections([]); }
   }
 }
 

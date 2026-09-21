@@ -55,7 +55,7 @@ import {
   canvasToBlob,
   cropCanvasToBoundingBox,
 } from '../../../lib/cameraUtils';
-import { scanAnimalWithGemini, GeminiScanResult } from '../../../lib/geminiScanner';
+import { analyzeAnimalVideo, GeminiLiveDetector, scanAnimalWithGemini, GeminiScanResult } from '../../../lib/geminiScanner';
 import { getRecordRiskMeta } from '../../../pages/HealthPage';
 import type { Animal, HealthRecord, InventoryItem } from '../../../types';
 
@@ -86,6 +86,21 @@ export function LiveObjectDetectionCamera({
   const rafIdRef = useRef<number | null>(null);
   const detectTimerRef = useRef<any>(null);
   const isDetectingRef = useRef<boolean>(false);
+  const liveDetectorRef = useRef<GeminiLiveDetector | null>(null);
+  const observationRecorderRef = useRef<MediaRecorder | null>(null);
+  const observationChunksRef = useRef<Blob[]>([]);
+  const observationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startObservationRecording = useCallback(() => {
+    if (observationRecorderRef.current || !streamRef.current || typeof MediaRecorder === 'undefined') return;
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
+    const recorder = new MediaRecorder(streamRef.current, { mimeType });
+    observationRecorderRef.current = recorder; observationChunksRef.current = [];
+    recorder.ondataavailable = (event) => { if (event.data.size > 0) observationChunksRef.current.push(event.data); };
+    recorder.onstop = async () => { observationRecorderRef.current = null; const blob = new Blob(observationChunksRef.current, { type: mimeType }); observationChunksRef.current = []; if (!blob.size || !isMountedRef.current) return; try { const analysis = await analyzeAnimalVideo(blob); if (isMountedRef.current) setStatusMessage(analysis.summary || 'Napansing kilos.'); } catch { if (isMountedRef.current) setStatusMessage('Hindi sapat ang view ng kilos.'); } };
+    recorder.start();
+    observationTimerRef.current = setTimeout(() => { if (observationRecorderRef.current?.state === 'recording') observationRecorderRef.current.stop(); observationTimerRef.current = null; }, 6000);
+  }, []);
 
   // GöÇGöÇ Suppress standard app navigation while camera scanner is open GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   useEffect(() => {
@@ -105,7 +120,7 @@ export function LiveObjectDetectionCamera({
   // GöÇGöÇ Tracking & Selection State GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   const [statusMessage, setStatusMessage] = useState<string>('Naghahanap ng kambing o tupa...');
   const trackerRef = useRef<TemporalLivestockTracker>(
-    new TemporalLivestockTracker({}, () => {
+    new TemporalLivestockTracker({ goatEntryThreshold: 0, goatKeepThreshold: 0, sheepEntryThreshold: 0, sheepKeepThreshold: 0 }, () => {
       // Callback when selected track drops past grace period
       setStatusMessage('Hindi na makita ang napiling alaga. Pumili ulit.');
     })
@@ -180,6 +195,10 @@ export function LiveObjectDetectionCamera({
       clearInterval(detectTimerRef.current);
       detectTimerRef.current = null;
     }
+    liveDetectorRef.current?.close();
+    liveDetectorRef.current = null;
+    if (observationTimerRef.current) { clearTimeout(observationTimerRef.current); observationTimerRef.current = null; }
+    if (observationRecorderRef.current?.state === 'recording') observationRecorderRef.current.stop();
     if (rafIdRef.current) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
@@ -254,7 +273,18 @@ export function LiveObjectDetectionCamera({
       }
 
       setIsCameraActive(true);
-      setStatusMessage('Naghahanap ng kambing o tupa...');
+      setStatusMessage('Kumokonekta sa Gemini Live...');
+      const liveDetector = new GeminiLiveDetector((detections) => {
+        const rawLivestock: RawLivestockDetection[] = detections.map((d) => ({ species: d.species, label: d.species === 'sheep' ? 'TUPA' : 'KAMBING', confidence: 0, box: { x: d.box_2d[1] / 1000, y: d.box_2d[0] / 1000, width: (d.box_2d[3] - d.box_2d[1]) / 1000, height: (d.box_2d[2] - d.box_2d[0]) / 1000 }, rawCategory: d.species }));
+        const updatedTracks = trackerRef.current.update(rawLivestock);
+        setActiveTracks(updatedTracks);
+        if (updatedTracks.some((track) => track.consecutiveHits >= 3)) startObservationRecording();
+        const selected = trackerRef.current.getSelectedTrack();
+        setSelectedTrack(selected);
+        setStatusMessage(computeDetectionStatus(updatedTracks, selected));
+      });
+      liveDetectorRef.current = liveDetector;
+      liveDetector.connect().catch(() => { if (isMountedRef.current) { setCameraError('Pansamantalang hindi available ang realtime detection. Subukan muli.'); setStatusMessage('Realtime detection ay hindi available.'); } });
 
     } catch (err: any) {
       console.error('[Camera] Start error:', err);
@@ -329,62 +359,11 @@ export function LiveObjectDetectionCamera({
   }, [isCameraActive, isScanning]);
 
   // GöÇGöÇ Live Detection Cycle (~8-9 FPS locally) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
-  const runDetectionCycle = useCallback(async () => {
+  const runDetectionCycle = useCallback(() => {
     const video = videoRef.current;
-    if (
-      !video ||
-      video.readyState < 2 ||
-      video.videoWidth === 0 ||
-      isDetectingRef.current ||
-      isScanning ||
-      showResultSheet
-    ) {
-      return;
-    }
-
-    isDetectingRef.current = true;
-    try {
-      const frameCanvas = captureLowResFrame(video, 480);
-      const result = await detectLiveObjects(frameCanvas);
-      if (!isMountedRef.current || isScanning || showResultSheet) return;
-
-      if (!result.success && result.error) {
-        setCameraError('Pansamantalang hindi available ang animal detection. Subukan muli.');
-        setStatusMessage('Pansamantalang hindi available ang detection.');
-        return;
-      }
-
-      const tracker = trackerRef.current;
-      const rawLivestock: RawLivestockDetection[] = (result.detections || [])
-        .filter((d) => d.type === 'GOAT' || d.type === 'SHEEP')
-        .map((d) => ({
-          species: (d.type === 'SHEEP' ? 'sheep' : 'goat') as LivestockSpecies,
-          label: (d.type === 'SHEEP' ? 'TUPA' : 'KAMBING') as LivestockDisplayLabel,
-          confidence: 0.9,
-          box: d.boundingBox,
-          rawCategory: d.label,
-        }));
-      // Update tracker with EMA smoothing, IoU matching, and grace periods
-      const updatedTracks = tracker.update(rawLivestock);
-      setActiveTracks(updatedTracks);
-
-      const selected = tracker.getSelectedTrack();
-      setSelectedTrack(selected);
-
-      // Update dynamic Tagalog status message
-      setStatusMessage(computeDetectionStatus(updatedTracks, selected));
-    } catch (err) {
-      console.warn('[Camera] Detection cycle notice:', err);
-    } finally {
-      isDetectingRef.current = false;
-    }
-  }, [
-    isScanning,
-    showResultSheet,
-    computeDetectionStatus,
-    preselectedAnimalId,
-    selectedAnimal?.species,
-  ]);
+    if (!video || video.readyState < 2 || video.videoWidth === 0 || isScanning || showResultSheet) return;
+    liveDetectorRef.current?.sendFrame(captureLowResFrame(video, 480));
+  }, [isScanning, showResultSheet]);
 
   // Gemini sampling interval: one low-resolution request at a time
   useEffect(() => {
@@ -396,7 +375,7 @@ export function LiveObjectDetectionCamera({
       return;
     }
 
-    detectTimerRef.current = setInterval(runDetectionCycle, 700);
+    detectTimerRef.current = setInterval(runDetectionCycle, 350);
 
     return () => {
       if (detectTimerRef.current) {
@@ -1273,7 +1252,7 @@ export function LiveObjectDetectionCamera({
                   border: '1px solid rgba(34, 197, 94, 0.3)',
                 }}
               >
-                {Math.round(selectedTrack.confidence * 100)}% Kumpiyansa
+                Kambing o tupa na sinusubaybayan
               </span>
             </div>
           )}
