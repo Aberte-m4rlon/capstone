@@ -473,6 +473,11 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
       declaredWidth === declaredHeight
         ? declaredWidth
         : 640;
+    const letterboxScale = Math.min(targetSize / vW, targetSize / vH);
+    const letterboxWidth = vW * letterboxScale;
+    const letterboxHeight = vH * letterboxScale;
+    const letterboxPadX = (targetSize - letterboxWidth) / 2;
+    const letterboxPadY = (targetSize - letterboxHeight) / 2;
 
     if (!_offscreenCanvas || _offscreenCanvas.width !== targetSize || _offscreenCanvas.height !== targetSize) {
       _offscreenCanvas = document.createElement('canvas');
@@ -484,8 +489,10 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
     const ctx = _offscreenCtx;
     if (!ctx) return [];
 
-    // Draw video directly scaled to targetSize (640x640 for the deployed goat model) without letterbox borders to preserve natural aspect and feature activations
-    ctx.drawImage(video, 0, 0, targetSize, targetSize);
+    // Preserve the camera aspect ratio; stretching 16:9 into a square distorts species features.
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, targetSize, targetSize);
+    ctx.drawImage(video, letterboxPadX, letterboxPadY, letterboxWidth, letterboxHeight);
     const imgData = ctx.getImageData(0, 0, targetSize, targetSize);
     const data = imgData.data;
 
@@ -567,13 +574,17 @@ async function runYoloGoatInference(video: HTMLVideoElement, timestamp: number):
       const w = valueAt(2, a);
       const h = valueAt(3, a);
 
-      // Normalized coordinates [0, 1] relative to video frame
+      // Decode from letterboxed model coordinates back into the original video frame.
       const coordinatesAreNormalized = Math.max(cx, cy, w, h) <= 2;
-      const coordinateScale = coordinatesAreNormalized ? 1 : targetSize;
-      const x = Math.max(0, Math.min(1, (cx - w / 2) / coordinateScale));
-      const y = Math.max(0, Math.min(1, (cy - h / 2) / coordinateScale));
-      const width = Math.max(0, Math.min(1 - x, w / coordinateScale));
-      const height = Math.max(0, Math.min(1 - y, h / coordinateScale));
+      const coordinateScale = coordinatesAreNormalized ? targetSize : 1;
+      const modelCx = coordinatesAreNormalized ? cx * coordinateScale : cx;
+      const modelCy = coordinatesAreNormalized ? cy * coordinateScale : cy;
+      const modelW = coordinatesAreNormalized ? w * coordinateScale : w;
+      const modelH = coordinatesAreNormalized ? h * coordinateScale : h;
+      const x = Math.max(0, Math.min(1, (modelCx - modelW / 2 - letterboxPadX) / letterboxWidth));
+      const y = Math.max(0, Math.min(1, (modelCy - modelH / 2 - letterboxPadY) / letterboxHeight));
+      const width = Math.max(0, Math.min(1 - x, modelW / letterboxWidth));
+      const height = Math.max(0, Math.min(1 - y, modelH / letterboxHeight));
 
       const rawBox = { x, y, width, height };
       if (!isValidBoundingBox(rawBox)) continue;
