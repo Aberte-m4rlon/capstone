@@ -944,9 +944,17 @@ export async function detectLiveFrameLocally(
             // It misidentifies every goat as 'sheep'.
             // We run organic multi-scale feature verification on the candidate crop:
             const verified = verifyLivestockSpeciesFromCrop(video, clampedBox);
-            targetType = verified.type;
-            targetLabel = verified.label;
-            canonicalClass = verified.species;
+            // Keep high-confidence COCO sheep detections when the crop verifier is inconclusive.
+            // YOLO goat overlap resolution below still protects against goat -> sheep relabeling.
+            if (verified.type === 'UNCERTAIN' && score >= 0.55) {
+              targetType = 'SHEEP';
+              targetLabel = 'TUPA';
+              canonicalClass = 'sheep';
+            } else {
+              targetType = verified.type;
+              targetLabel = verified.label;
+              canonicalClass = verified.species;
+            }
           } else if (catName === 'dog' && score >= CONFIDENCE_THRESHOLDS.OTHER_ANIMAL) {
             targetType = 'OTHER_ANIMAL';
             targetLabel = 'ASO';
