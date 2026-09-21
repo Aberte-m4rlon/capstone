@@ -48,12 +48,10 @@ import {
   LivestockSpecies,
   LivestockDisplayLabel,
 } from '../../../lib/temporalBoxTracker';
-import {
-  detectLiveFrameLocally,
-  initClientObjectDetector,
-} from '../../../lib/clientObjectDetector';
+import { detectLiveObjects } from '../../../lib/geminiScanner';
 import {
   captureVideoFrame,
+  captureLowResFrame,
   canvasToBlob,
   cropCanvasToBoundingBox,
 } from '../../../lib/cameraUtils';
@@ -258,10 +256,6 @@ export function LiveObjectDetectionCamera({
       setIsCameraActive(true);
       setStatusMessage('Naghahanap ng kambing o tupa...');
 
-      // Pre-warm client detector
-      initClientObjectDetector().catch((err) => {
-        console.warn('[Camera] Client detector init notice:', err);
-      });
     } catch (err: any) {
       console.error('[Camera] Start error:', err);
       if (!isMountedRef.current) return;
@@ -350,52 +344,26 @@ export function LiveObjectDetectionCamera({
 
     isDetectingRef.current = true;
     try {
-      const result = await detectLiveFrameLocally(video);
+      const frameCanvas = captureLowResFrame(video, 480);
+      const result = await detectLiveObjects(frameCanvas);
       if (!isMountedRef.current || isScanning || showResultSheet) return;
 
       if (!result.success && result.error) {
-        setCameraError(`Hindi ma-load ang animal detector: ${result.error}`);
-        setStatusMessage('Hindi ma-load ang detector. Subukang muli.');
+        setCameraError('Pansamantalang hindi available ang animal detection. Subukan muli.');
+        setStatusMessage('Pansamantalang hindi available ang detection.');
         return;
       }
 
-      // Temporarily log raw detector output per Directive 9
-      console.log('DETECTIONS:', result.detections);
-
       const tracker = trackerRef.current;
-
-      // Registered-animal safeguard: when this Health Check was opened for a
-      // specific goat, do not allow the generic COCO sheep detector to relabel
-      // that selected goat as Tupa. The camera detector remains authoritative
-      // for the actual box, while the selected record provides the species prior.
-      const detectorDetections = (result.detections || []).map((d) => {
-        if (
-          preselectedAnimalId &&
-          selectedAnimal?.species === 'Goat' &&
-          d.type === 'SHEEP'
-        ) {
-          return {
-            ...d,
-            type: 'GOAT' as const,
-            label: 'KAMBING' as const,
-            className: 'goat',
-            rawCategory: d.rawCategory || 'sheep',
-          };
-        }
-        return d;
-      });
-
-      // Extract genuine detections: GOAT, SHEEP, PERSON
-      const rawLivestock: RawLivestockDetection[] = detectorDetections
-        .filter((d) => d.type === 'GOAT' || d.type === 'SHEEP' || d.type === 'PERSON')
+      const rawLivestock: RawLivestockDetection[] = (result.detections || [])
+        .filter((d) => d.type === 'GOAT' || d.type === 'SHEEP')
         .map((d) => ({
-          species: (d.type === 'PERSON' ? 'person' : d.type === 'SHEEP' ? 'sheep' : 'goat') as LivestockSpecies,
-          label: (d.type === 'PERSON' ? 'TAO' : d.type === 'SHEEP' ? 'TUPA' : 'KAMBING') as LivestockDisplayLabel,
-          confidence: d.confidence,
+          species: (d.type === 'SHEEP' ? 'sheep' : 'goat') as LivestockSpecies,
+          label: (d.type === 'SHEEP' ? 'TUPA' : 'KAMBING') as LivestockDisplayLabel,
+          confidence: 0.9,
           box: d.boundingBox,
-          rawCategory: d.rawCategory,
+          rawCategory: d.label,
         }));
-
       // Update tracker with EMA smoothing, IoU matching, and grace periods
       const updatedTracks = tracker.update(rawLivestock);
       setActiveTracks(updatedTracks);
@@ -418,7 +386,7 @@ export function LiveObjectDetectionCamera({
     selectedAnimal?.species,
   ]);
 
-  // Setup periodic detection interval (~120ms cadence = ~8-9 FPS)
+  // Gemini sampling interval: one low-resolution request at a time
   useEffect(() => {
     if (!isCameraActive || isScanning || showResultSheet) {
       if (detectTimerRef.current) {
@@ -428,7 +396,7 @@ export function LiveObjectDetectionCamera({
       return;
     }
 
-    detectTimerRef.current = setInterval(runDetectionCycle, 120);
+    detectTimerRef.current = setInterval(runDetectionCycle, 700);
 
     return () => {
       if (detectTimerRef.current) {

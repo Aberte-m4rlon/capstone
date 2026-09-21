@@ -211,7 +211,7 @@ let isDetectingLive = false;
 
 /**
  * Fast sampled frame object detection for live camera bounding boxes
- * Calls POST /api/gemini/detect-objects. Never exposes API key to client.
+ * Calls POST /api/gemini/animal-detect. Never exposes API key to client.
  */
 export async function detectLiveObjects(
   input: HTMLCanvasElement | string,
@@ -238,7 +238,7 @@ export async function detectLiveObjects(
 
     const charLen = dataUrl.length;
     const approxBytes = Math.round(charLen * 0.75);
-    console.log(`[GeminiScanner] Sampling frame sent to /api/gemini/detect-objects: ${Math.round(approxBytes / 1024)}KB`);
+    console.log(`[GeminiScanner] Sampling frame sent to /api/gemini/animal-detect: ${Math.round(approxBytes / 1024)}KB`);
 
     let authHeader: Record<string, string> = {};
     try {
@@ -250,7 +250,7 @@ export async function detectLiveObjects(
       // offline/fallback
     }
 
-    const res = await fetch('/api/gemini/detect-objects', {
+    const res = await fetch('/api/gemini/animal-detect', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -266,16 +266,6 @@ export async function detectLiveObjects(
     }
 
     const data: LiveObjectDetectionResult = await res.json();
-    if (data.detections && Array.isArray(data.detections)) {
-      data.detections = data.detections.map((d: any) => {
-        const norm = normalizeDetectionLabel(d.label, d.type);
-        return {
-          ...d,
-          type: norm.type,
-          label: norm.label,
-        };
-      });
-    }
     console.log(`[GeminiScanner] Frame detection returned in ${Date.now() - startMs}ms: count=${data.detections?.length || 0}, goats=${data.count_goats}, sheep=${data.count_sheep}`);
     return data;
   } catch (err: any) {
@@ -302,6 +292,30 @@ export async function detectLiveObjects(
   } finally {
     isDetectingLive = false;
   }
+}
+
+export interface GeminiVideoAnalysisResult {
+  observed: boolean;
+  summary: string;
+  movements: string[];
+  concerns: string[];
+  recommendation: string;
+}
+
+export async function analyzeAnimalVideo(videoBlob: Blob): Promise<GeminiVideoAnalysisResult> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Hindi mabasa ang observation video.'));
+    reader.readAsDataURL(videoBlob);
+  });
+  const response = await fetch('/api/gemini/animal-video-analysis', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video: dataUrl }),
+  });
+  if (!response.ok) throw new Error('Temporaryong hindi available ang video analysis.');
+  return response.json() as Promise<GeminiVideoAnalysisResult>;
 }
 
 /**
