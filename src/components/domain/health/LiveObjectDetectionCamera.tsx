@@ -250,7 +250,9 @@ export function LiveObjectDetectionCamera({
         video.srcObject = stream;
         video.muted = true;
         video.playsInline = true;
-        await video.play();
+        video.play().catch((playError) => {
+          console.warn('[Camera] Mobile autoplay notice:', playError);
+        });
       }
 
       setIsCameraActive(true);
@@ -350,6 +352,12 @@ export function LiveObjectDetectionCamera({
     try {
       const result = await detectLiveFrameLocally(video);
       if (!isMountedRef.current || isScanning || showResultSheet) return;
+
+      if (!result.success && result.error) {
+        setCameraError(`Hindi ma-load ang animal detector: ${result.error}`);
+        setStatusMessage('Hindi ma-load ang detector. Subukang muli.');
+        return;
+      }
 
       // Temporarily log raw detector output per Directive 9
       console.log('DETECTIONS:', result.detections);
