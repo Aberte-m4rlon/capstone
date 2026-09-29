@@ -303,10 +303,34 @@ export interface GeminiLiveDetection {
 
 export type GeminiLiveConnectionState = 'IDLE' | 'CONNECTING' | 'CONNECTED' | 'ERROR' | 'CLOSED';
 
+export type GeminiLiveErrorCategory =
+  | 'TOKEN_ENDPOINT_ERROR'
+  | 'TOKEN_MISSING'
+  | 'TOKEN_EXPIRED'
+  | 'MODEL_ERROR'
+  | 'LIVE_AUTH_ERROR'
+  | 'LIVE_SETUP_ERROR'
+  | 'LIVE_SOCKET_ERROR'
+  | 'TIMEOUT'
+  | 'CONFIG_ERROR'
+  | 'NETWORK_ERROR';
+
+export interface GeminiLiveErrorDetail {
+  name: string;
+  category: GeminiLiveErrorCategory;
+  message: string;
+  status?: number | string;
+  statusText?: string;
+  code?: number | string;
+  cause?: any;
+  isRecoverable: boolean;
+  userMessage: string;
+}
+
 export interface GeminiLiveDetectorCallbacks {
   onDetections: (detections: GeminiLiveDetection[]) => void;
   onStatusChange?: (state: GeminiLiveConnectionState, message: string) => void;
-  onError?: (error: Error) => void;
+  onError?: (error: GeminiLiveErrorDetail) => void;
 }
 
 export class GeminiLiveDetector {
@@ -315,8 +339,7 @@ export class GeminiLiveDetector {
   private state: GeminiLiveConnectionState = 'IDLE';
   private callbacks: GeminiLiveDetectorCallbacks;
   private isConnecting = false;
-  private abortController: AbortController | null = null;
-  private connectionTimer: any = null;
+  private tokenAbortController: AbortController | null = null;
   private flowStartTime: number = 0;
   private liveConnectStartTime: number = 0;
   private isSetupComplete: boolean = false;
@@ -345,6 +368,31 @@ export class GeminiLiveDetector {
     return this.state === 'CONNECTED' && this.isSetupComplete && this.session !== null;
   }
 
+  private handleConnectionFailure(errDetail: GeminiLiveErrorDetail): void {
+    this.state = 'ERROR';
+    this.isConnecting = false;
+    this.session = null;
+    this.isSetupComplete = false;
+
+    // Developer logging matching strict requirement:
+    // [GeminiLive] ERROR name: ... message: ... status: ... statusText: ... code: ... cause: ...
+    // NEVER log GEMINI_API_KEY, ephemeral tokens, authorization headers, or secrets.
+    console.error(
+      `[GeminiLive] ERROR\n` +
+      `name: ${errDetail.name}\n` +
+      `message: ${errDetail.message}\n` +
+      `status: ${errDetail.status ?? 'N/A'}\n` +
+      `statusText: ${errDetail.statusText ?? 'N/A'}\n` +
+      `code: ${errDetail.code ?? 'N/A'}\n` +
+      `cause: ${typeof errDetail.cause === 'object' ? JSON.stringify(errDetail.cause) : (errDetail.cause ?? 'N/A')}`
+    );
+
+    this.callbacks.onDetections([]);
+    this.callbacks.onError?.(errDetail);
+    this.callbacks.onStatusChange?.('ERROR', errDetail.userMessage);
+    this.close();
+  }
+
   public async connect(): Promise<void> {
     if (this.isConnecting) {
       console.warn('[GeminiLive] Connection already in progress, ignoring duplicate call.');
@@ -362,70 +410,204 @@ export class GeminiLiveDetector {
     this.hasSentFirstFrame = false;
     this.hasReceivedFirstMessage = false;
     this.hasReceivedFirstDetection = false;
-    this.abortController = new AbortController();
 
-    const connectPromise = (async () => {
-      // Step A: Request ephemeral token
-      console.log('[GeminiLive] token request started');
-      const tokenStart = Date.now();
+    // ================================================================
+    // TIMEOUT 1: TOKEN_TIMEOUT (5 seconds for /api/gemini/live-token)
+    // ================================================================
+    console.log('[GeminiLive] token request started');
+    const tokenStart = Date.now();
 
-      const tokenResponse = await fetch('/api/gemini/live-token', {
+    this.tokenAbortController = new AbortController();
+    const tokenTimeoutId = setTimeout(() => {
+      this.tokenAbortController?.abort();
+    }, 5000);
+
+    let tokenResponse: Response;
+    try {
+      tokenResponse = await fetch('/api/gemini/live-token', {
         method: 'POST',
-        signal: this.abortController?.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'gemini-2.0-flash-exp' }),
+        signal: this.tokenAbortController.signal,
       });
+    } catch (fetchErr: any) {
+      clearTimeout(tokenTimeoutId);
+      const isTimeout = fetchErr?.name === 'AbortError';
+      const errDetail: GeminiLiveErrorDetail = {
+        name: isTimeout ? 'TokenTimeoutError' : 'NetworkError',
+        category: isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR',
+        message: isTimeout ? 'Token request timed out after 5s' : (fetchErr?.message || 'Network error fetching token'),
+        status: isTimeout ? 504 : 'N/A',
+        statusText: isTimeout ? 'Gateway Timeout' : 'Network Error',
+        code: isTimeout ? 'TOKEN_TIMEOUT' : 'FETCH_FAILED',
+        cause: fetchErr?.name || 'FetchError',
+        isRecoverable: true,
+        userMessage: 'Hindi makakonekta sa Gemini Live.',
+      };
+      this.handleConnectionFailure(errDetail);
+      return;
+    } finally {
+      clearTimeout(tokenTimeoutId);
+    }
 
-      if (!tokenResponse.ok) {
-        let errMsg = `Token request failed with status ${tokenResponse.status}`;
+    // Inspect HTTP status code
+    if (!tokenResponse.ok) {
+      let errBody: any = null;
+      try {
+        errBody = await tokenResponse.json();
+      } catch {
         try {
-          const errBody = await tokenResponse.json();
-          if (errBody?.error) errMsg = errBody.error;
+          errBody = { error: await tokenResponse.text() };
         } catch {}
-        throw new Error(errMsg);
       }
 
-      // Step B: Receive ephemeral token
-      const tokenJson = await tokenResponse.json();
-      const tokenElapsed = Date.now() - tokenStart;
-      console.log(`[GeminiLive] token request finished: ${tokenElapsed} ms`);
+      console.log(`[GeminiLive] API key configured: ${Boolean(errBody?.apiKeyConfigured)}`);
+      console.log(`[GeminiLive] token endpoint status: ${tokenResponse.status}`);
+      console.log('[GeminiLive] token received: false');
 
-      const { token, model } = tokenJson;
-      if (!token) throw new Error('Live detection token is missing in response.');
-      console.log('[GeminiLive] token received');
+      const status = tokenResponse.status;
+      const statusText = tokenResponse.statusText;
+      const errMsg = errBody?.error || `Token endpoint failed with status ${status}`;
+      const code = errBody?.code || status;
 
-      // Step C: Create client with token
-      console.log('[GeminiLive] create client with token');
-      const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
+      // Classify unrecoverable vs recoverable
+      const isMissingKey = status === 500 && (code === 'MISSING_API_KEY' || errBody?.apiKeyConfigured === false);
+      const isAuthError = status === 401 || status === 403 || code === 'AUTH_ERROR';
+      const isModelError = status === 400 || code === 'MODEL_ERROR';
 
-      // Step D: Call live.connect
-      console.log('[GeminiLive] live.connect started');
-      this.liveConnectStartTime = Date.now();
+      const isUnrecoverable = isMissingKey || isAuthError || isModelError;
+      const category: GeminiLiveErrorCategory = isMissingKey
+        ? 'CONFIG_ERROR'
+        : isAuthError
+        ? 'LIVE_AUTH_ERROR'
+        : isModelError
+        ? 'MODEL_ERROR'
+        : status === 504
+        ? 'TIMEOUT'
+        : 'TOKEN_ENDPOINT_ERROR';
 
-      const session = await ai.live.connect({
-        model: model || 'gemini-live-2.5-flash-preview',
+      const errDetail: GeminiLiveErrorDetail = {
+        name: 'TokenEndpointError',
+        category,
+        message: errMsg,
+        status,
+        statusText,
+        code,
+        cause: errBody,
+        isRecoverable: !isUnrecoverable,
+        userMessage: isUnrecoverable ? 'Gemini Live ay hindi available ngayon.' : 'Hindi makakonekta sa Gemini Live.',
+      };
+
+      this.handleConnectionFailure(errDetail);
+      return;
+    }
+
+    // Step B: Receive ephemeral token
+    let tokenJson: any;
+    try {
+      tokenJson = await tokenResponse.json();
+    } catch (parseErr: any) {
+      const errDetail: GeminiLiveErrorDetail = {
+        name: 'TokenParseError',
+        category: 'TOKEN_ENDPOINT_ERROR',
+        message: 'Failed to parse live token response JSON',
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        code: 'INVALID_JSON',
+        cause: parseErr?.message || 'Invalid JSON',
+        isRecoverable: false,
+        userMessage: 'Gemini Live ay hindi available ngayon.',
+      };
+      this.handleConnectionFailure(errDetail);
+      return;
+    }
+
+    const tokenElapsed = Date.now() - tokenStart;
+    console.log(`[GeminiLive] token request finished: ${tokenElapsed} ms`);
+
+    const { token, model, apiKeyConfigured } = tokenJson || {};
+    console.log(`[GeminiLive] API key configured: ${apiKeyConfigured !== undefined ? Boolean(apiKeyConfigured) : true}`);
+    console.log(`[GeminiLive] token endpoint status: ${tokenResponse.status}`);
+    console.log(`[GeminiLive] token received: ${Boolean(token)}`);
+
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      const errDetail: GeminiLiveErrorDetail = {
+        name: 'TokenMissingError',
+        category: 'TOKEN_MISSING',
+        message: 'Live detection token is missing or empty in server response.',
+        status: 200,
+        statusText: 'OK',
+        code: 'TOKEN_MISSING',
+        cause: tokenJson,
+        isRecoverable: false,
+        userMessage: 'Gemini Live ay hindi available ngayon.',
+      };
+      this.handleConnectionFailure(errDetail);
+      return;
+    }
+
+    // Step C: Create client with token
+    console.log('[GeminiLive] create client with token');
+    const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
+
+    // ================================================================
+    // TIMEOUT 2: LIVE_CONNECT_TIMEOUT (8s strictly for live.connect)
+    // ================================================================
+    console.log('[GeminiLive] live.connect started');
+    this.liveConnectStartTime = Date.now();
+
+    const liveModel = model || 'gemini-2.0-flash-exp';
+
+    let liveSession: any = null;
+    let liveConnectTimer: any = null;
+
+    try {
+      const liveConnectPromise = ai.live.connect({
+        model: liveModel,
         callbacks: {
           onopen: () => {
-            // Step E: WebSocket connected
             const wsElapsed = Date.now() - this.liveConnectStartTime;
             console.log(`[GeminiLive] websocket connected: ${wsElapsed} ms`);
           },
           onmessage: (message: any) => {
             this.handleMessage(message);
           },
-          onerror: (err: any) => {
-            console.error('[GeminiLive] WebSocket error:', err);
-            this.callbacks.onDetections([]);
-            if (this.state === 'CONNECTING') {
-              this.state = 'ERROR';
-              this.callbacks.onStatusChange?.('ERROR', 'Hindi makakonekta sa Gemini Live.');
-            }
+          onerror: (wsErr: any) => {
+            const errDetail: GeminiLiveErrorDetail = {
+              name: 'LiveSocketError',
+              category: 'LIVE_SOCKET_ERROR',
+              message: wsErr?.message || 'Gemini Live WebSocket error occurred.',
+              status: wsErr?.status,
+              statusText: wsErr?.statusText,
+              code: wsErr?.code || 'WS_ERROR',
+              cause: wsErr?.message || 'WebSocket Error',
+              isRecoverable: true,
+              userMessage: 'Hindi makakonekta sa Gemini Live.',
+            };
+            this.handleConnectionFailure(errDetail);
           },
           onclose: (e: any) => {
-            console.log(
-              `[GeminiLive] WebSocket closed (code: ${e?.code || 'unknown'}, reason: ${e?.reason || 'none'})`
-            );
+            const code = e?.code;
+            const reason = e?.reason || 'none';
+            console.log(`[GeminiLive] WebSocket closed (code: ${code || 'unknown'}, reason: ${reason})`);
             this.session = null;
             this.isSetupComplete = false;
-            if (this.state === 'CONNECTED') {
+
+            // Code 1008 is Policy Violation / Model not found or not supported
+            if (code === 1008 || (reason && reason.toLowerCase().includes('not supported for bidigeneratecontent'))) {
+              const errDetail: GeminiLiveErrorDetail = {
+                name: 'LiveSocketPolicyViolation',
+                category: 'MODEL_ERROR',
+                message: `Gemini Live model rejected by API: ${reason}`,
+                status: 400,
+                statusText: 'Policy Violation',
+                code: 1008,
+                cause: reason,
+                isRecoverable: false,
+                userMessage: 'Gemini Live ay hindi available ngayon.',
+              };
+              this.handleConnectionFailure(errDetail);
+            } else if (this.state === 'CONNECTED') {
               this.state = 'CLOSED';
               this.callbacks.onStatusChange?.('CLOSED', 'Nawala ang koneksyon sa Gemini Live.');
             }
@@ -433,16 +615,44 @@ export class GeminiLiveDetector {
         },
       });
 
-      this.session = session;
-      // Step F: Setup completed (ai.live.connect resolves after setupComplete)
-      this.isSetupComplete = true;
-      const setupElapsed = Date.now() - this.liveConnectStartTime;
-      console.log(`[GeminiLive] setup completed: ${setupElapsed} ms`);
+      const liveTimeoutPromise = new Promise<never>((_, reject) => {
+        liveConnectTimer = setTimeout(() => {
+          reject(new Error('LIVE_CONNECT_TIMEOUT'));
+        }, 8000);
+      });
 
-      this.state = 'CONNECTED';
-      this.callbacks.onStatusChange?.('CONNECTED', 'Gemini Live Aktibo');
+      liveSession = await Promise.race([liveConnectPromise, liveTimeoutPromise]);
+    } catch (connectErr: any) {
+      clearTimeout(liveConnectTimer);
+      const isTimeout = connectErr?.message === 'LIVE_CONNECT_TIMEOUT';
+      const errDetail: GeminiLiveErrorDetail = {
+        name: isTimeout ? 'LiveConnectTimeoutError' : 'LiveConnectError',
+        category: isTimeout ? 'TIMEOUT' : 'LIVE_SETUP_ERROR',
+        message: isTimeout ? 'Gemini Live setup timed out after 8s.' : (connectErr?.message || 'Failed to establish Live session'),
+        status: isTimeout ? 504 : 'N/A',
+        statusText: isTimeout ? 'Connect Timeout' : 'Live Setup Failed',
+        code: isTimeout ? 'LIVE_CONNECT_TIMEOUT' : 'SETUP_FAILED',
+        cause: connectErr?.message || 'Live Connect Error',
+        isRecoverable: true,
+        userMessage: 'Hindi makakonekta sa Gemini Live.',
+      };
+      this.handleConnectionFailure(errDetail);
+      return;
+    } finally {
+      clearTimeout(liveConnectTimer);
+    }
 
-      // Kickstart real-time detection turn
+    this.session = liveSession;
+    this.isSetupComplete = true;
+    const setupElapsed = Date.now() - this.liveConnectStartTime;
+    console.log(`[GeminiLive] setup completed: ${setupElapsed} ms`);
+
+    this.state = 'CONNECTED';
+    this.isConnecting = false;
+    this.callbacks.onStatusChange?.('CONNECTED', 'Gemini Live Aktibo');
+
+    // Kickstart real-time detection turn
+    try {
       this.session.sendClientContent({
         turns: [
           {
@@ -456,35 +666,8 @@ export class GeminiLiveDetector {
         ],
         turnComplete: true,
       });
-    })();
-
-    // 8-second strict timeout race
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      this.connectionTimer = setTimeout(() => {
-        reject(new Error('CONNECTION_TIMEOUT: Gemini Live connection timed out after 8s.'));
-      }, 8000);
-    });
-
-    try {
-      await Promise.race([connectPromise, timeoutPromise]);
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        console.log('[GeminiLive] Connection attempt aborted.');
-        return;
-      }
-      this.state = 'ERROR';
-      const totalElapsed = Date.now() - this.flowStartTime;
-      console.error(`[GeminiLive] Connection error after ${totalElapsed} ms:`, err?.message || err);
-      this.callbacks.onError?.(err);
-      this.callbacks.onStatusChange?.('ERROR', 'Hindi makakonekta sa Gemini Live.');
-      this.close();
-      throw err;
-    } finally {
-      this.isConnecting = false;
-      if (this.connectionTimer) {
-        clearTimeout(this.connectionTimer);
-        this.connectionTimer = null;
-      }
+    } catch (sendErr) {
+      console.warn('[GeminiLive] Initial prompt kickstart notice:', sendErr);
     }
   }
 
@@ -522,13 +705,11 @@ export class GeminiLiveDetector {
   }
 
   public close(): void {
-    if (this.connectionTimer) {
-      clearTimeout(this.connectionTimer);
-      this.connectionTimer = null;
-    }
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
+    if (this.tokenAbortController) {
+      try {
+        this.tokenAbortController.abort();
+      } catch {}
+      this.tokenAbortController = null;
     }
     if (this.session) {
       try {

@@ -55,7 +55,13 @@ import {
   canvasToBlob,
   cropCanvasToBoundingBox,
 } from '../../../lib/cameraUtils';
-import { analyzeAnimalVideo, GeminiLiveDetector, scanAnimalWithGemini, GeminiScanResult } from '../../../lib/geminiScanner';
+import {
+  analyzeAnimalVideo,
+  GeminiLiveDetector,
+  scanAnimalWithGemini,
+  GeminiScanResult,
+  GeminiLiveErrorDetail,
+} from '../../../lib/geminiScanner';
 import { getRecordRiskMeta } from '../../../pages/HealthPage';
 import type { Animal, HealthRecord, InventoryItem } from '../../../types';
 
@@ -119,6 +125,10 @@ export function LiveObjectDetectionCamera({
 
   // Gemini Live Connection Lifecycle State
   const [geminiLiveState, setGeminiLiveState] = useState<'OFF' | 'CONNECTING' | 'CONNECTED' | 'ERROR'>('OFF');
+  const [scannerState, setScannerState] = useState<
+    'CAMERA_STARTING' | 'CAMERA_READY' | 'GEMINI_TOKEN_REQUESTING' | 'GEMINI_CONNECTING' | 'GEMINI_READY' | 'GEMINI_ERROR' | 'DETECTING'
+  >('CAMERA_STARTING');
+  const [geminiErrorDetail, setGeminiErrorDetail] = useState<GeminiLiveErrorDetail | null>(null);
   const [geminiRetryCount, setGeminiRetryCount] = useState<number>(0);
   const geminiStartTimeRef = useRef<number>(0);
   const hasLoggedStepJRef = useRef<boolean>(false);
@@ -237,15 +247,20 @@ export function LiveObjectDetectionCamera({
     hasLoggedStepJRef.current = false;
     geminiStartTimeRef.current = Date.now();
     setGeminiLiveState('CONNECTING');
+    setScannerState('GEMINI_TOKEN_REQUESTING');
+    setGeminiErrorDetail(null);
     setStatusMessage('Kumokonekta sa Gemini Live...');
 
     const liveDetector = new GeminiLiveDetector({
       onDetections: (detections) => {
         if (!isMountedRef.current) return;
-        if (detections.length > 0 && !hasLoggedStepJRef.current) {
-          hasLoggedStepJRef.current = true;
-          const stepJTime = Date.now() - geminiStartTimeRef.current;
-          console.log(`[GeminiLive] render detection box: ${stepJTime} ms`);
+        if (detections.length > 0) {
+          setScannerState('DETECTING');
+          if (!hasLoggedStepJRef.current) {
+            hasLoggedStepJRef.current = true;
+            const stepJTime = Date.now() - geminiStartTimeRef.current;
+            console.log(`[GeminiLive] render detection box: ${stepJTime} ms`);
+          }
         }
 
         const rawLivestock: RawLivestockDetection[] = detections.map((d) => ({
@@ -273,20 +288,25 @@ export function LiveObjectDetectionCamera({
         if (!isMountedRef.current) return;
         if (state === 'CONNECTED') {
           setGeminiLiveState('CONNECTED');
+          setScannerState('GEMINI_READY');
           setStatusMessage('Naghahanap ng kambing o tupa...');
         } else if (state === 'CONNECTING') {
           setGeminiLiveState('CONNECTING');
+          setScannerState('GEMINI_CONNECTING');
           setStatusMessage(msg);
         } else if (state === 'ERROR' || state === 'CLOSED') {
           setGeminiLiveState('ERROR');
-          setStatusMessage('Hindi makakonekta sa Gemini Live.');
+          setScannerState('GEMINI_ERROR');
+          setStatusMessage(msg || 'Hindi makakonekta sa Gemini Live.');
         }
       },
-      onError: (err) => {
-        console.warn('[Camera] Gemini Live error:', err?.message || err);
+      onError: (errDetail: GeminiLiveErrorDetail) => {
+        console.warn('[Camera] Gemini Live error:', errDetail?.message || errDetail);
         if (isMountedRef.current) {
           setGeminiLiveState('ERROR');
-          setStatusMessage('Hindi makakonekta sa Gemini Live.');
+          setScannerState('GEMINI_ERROR');
+          setGeminiErrorDetail(errDetail);
+          setStatusMessage(errDetail?.userMessage || 'Hindi makakonekta sa Gemini Live.');
         }
       },
     });
@@ -297,21 +317,26 @@ export function LiveObjectDetectionCamera({
     } catch (err: any) {
       if (isMountedRef.current) {
         setGeminiLiveState('ERROR');
-        setStatusMessage('Hindi makakonekta sa Gemini Live.');
+        setScannerState('GEMINI_ERROR');
       }
     }
   }, [computeDetectionStatus, startObservationRecording]);
 
-  // Farmer retry action (max 3 retries)
+  // Farmer retry action (max 3 retries, only if recoverable)
   const handleRetryGeminiLive = useCallback(() => {
+    if (geminiErrorDetail && !geminiErrorDetail.isRecoverable) {
+      console.warn('[Camera] Cannot retry unrecoverable configuration/authentication error.');
+      return;
+    }
     setGeminiRetryCount((prev) => prev + 1);
     connectGeminiLive();
-  }, [connectGeminiLive]);
+  }, [connectGeminiLive, geminiErrorDetail]);
 
   // Start Camera Stream (Opens viewport immediately, Gemini connects asynchronously)
   const startCameraStream = useCallback(async () => {
     stopCameraStream();
     setCameraError(null);
+    setScannerState('CAMERA_STARTING');
     setStatusMessage('Binubuksan ang camera...');
     trackerRef.current.reset();
     setActiveTracks([]);
@@ -358,6 +383,7 @@ export function LiveObjectDetectionCamera({
 
       // Camera is now active! The farmer sees video immediately.
       setIsCameraActive(true);
+      setScannerState('CAMERA_READY');
 
       // Launch Gemini Live asynchronously in background
       connectGeminiLive();
@@ -1161,9 +1187,23 @@ export function LiveObjectDetectionCamera({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500 }}>
                   <AlertCircle size={15} color="#F87171" style={{ flexShrink: 0 }} />
-                  <span>Hindi makakonekta sa Gemini Live.</span>
+                  <span>{geminiErrorDetail?.userMessage || 'Hindi makakonekta sa Gemini Live.'}</span>
                 </div>
-                {geminiRetryCount < 3 ? (
+                {geminiErrorDetail && !geminiErrorDetail.isRecoverable ? (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: '#FCA5A5',
+                      whiteSpace: 'nowrap',
+                      backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                      padding: '4px 8px',
+                      borderRadius: 6,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Gamitin ang I-SCAN
+                  </span>
+                ) : geminiRetryCount < 3 ? (
                   <button
                     type="button"
                     onClick={handleRetryGeminiLive}
