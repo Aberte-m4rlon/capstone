@@ -427,7 +427,7 @@ export class GeminiLiveDetector {
       tokenResponse = await fetch('/api/gemini/live-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gemini-2.0-flash-exp' }),
+        body: JSON.stringify({ model: 'gemini-2.5-flash-native-audio-latest' }),
         signal: this.tokenAbortController.signal,
       });
     } catch (fetchErr: any) {
