@@ -26,13 +26,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const modelPager = await ai.models.list();
       const liveModels: Array<{ name: string; displayName?: string; methods?: string[] }> = [];
       for await (const m of modelPager) {
-        if (m.supportedGenerationMethods?.some((method: string) => method.toLowerCase().includes('bidi'))) {
-          liveModels.push({
-            name: m.name,
-            displayName: m.displayName,
-            methods: m.supportedGenerationMethods,
-          });
-        }
+        liveModels.push({
+          name: m.name,
+          displayName: m.displayName,
+          methods: m.supportedGenerationMethods,
+        });
       }
       return res.status(200).json({
         apiKeyConfigured: true,
