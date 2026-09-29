@@ -372,22 +372,46 @@ export function parseDetectionResponse(text: string): GeminiLiveDetection[] {
     lower.includes('unable to see') ||
     lower.includes('no animals') ||
     lower.includes('no visible') ||
-    lower.includes('not visible')
+    lower.includes('not visible') ||
+    lower.includes('no physical')
+  ) {
+    if (
+      !lower.includes('species: goat') &&
+      !lower.includes('species: sheep') &&
+      !lower.includes('"species": "goat"') &&
+      !lower.includes('"species": "sheep"')
+    ) {
+      return [];
+    }
+  }
+
+  // Reject keyboard / laptop / phone / computer non-livestock objects (2560.mp4 regression protection)
+  if (
+    (lower.includes('keyboard') ||
+      lower.includes('laptop') ||
+      lower.includes('computer') ||
+      lower.includes('desk') ||
+      lower.includes('phone') ||
+      lower.includes('screen')) &&
+    !lower.includes('species: goat') &&
+    !lower.includes('species: sheep') &&
+    !lower.includes('"species": "goat"') &&
+    !lower.includes('"species": "sheep"')
   ) {
     return [];
   }
 
-  // Check JSON block first
+  // 1. Check JSON block first
   try {
     const jsonMatch = text.match(/\{[\s\S]*"detections"[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(parsed.detections)) {
-        return parsed.detections
+      if (Array.isArray(parsed.detections) && parsed.detections.length > 0) {
+        const validJsonDets: GeminiLiveDetection[] = parsed.detections
           .filter(
             (d: any) =>
-              (d.species === 'goat' || d.species === 'sheep') &&
-              Array.isArray(d.box_2d) &&
+              (d?.species === 'goat' || d?.species === 'sheep') &&
+              Array.isArray(d?.box_2d) &&
               d.box_2d.length === 4
           )
           .map((d: any) => ({
@@ -398,31 +422,94 @@ export function parseDetectionResponse(text: string): GeminiLiveDetection[] {
               Math.min(1000, Math.max(0, parseInt(d.box_2d[2]))),
               Math.min(1000, Math.max(0, parseInt(d.box_2d[3]))),
             ] as [number, number, number, number],
-          }));
+            visible: true,
+          }))
+          .filter((d: GeminiLiveDetection) => {
+            const h = d.box_2d[2] - d.box_2d[0];
+            const w = d.box_2d[3] - d.box_2d[1];
+            return h > 20 && w > 20 && h * w > 800;
+          });
+
+        if (validJsonDets.length > 0) return validJsonDets;
       }
     }
   } catch {}
 
-  // Parse natural language / transcription pattern
-  const isGoat = /\b(goat|kambing)\b/i.test(text);
-  const isSheep = /\b(sheep|tupa)\b/i.test(text);
+  // 2. Multi-box regex search in natural language / transcription pattern
+  const boxRegex = /\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]/g;
+  const detections: GeminiLiveDetection[] = [];
+  let match: RegExpExecArray | null;
 
-  if (!isGoat && !isSheep) return [];
+  while ((match = boxRegex.exec(text)) !== null) {
+    const boxIndex = match.index;
+    let bestSpecies: 'goat' | 'sheep' | null = null;
+    let minDistance = Infinity;
 
-  // Directive 12: Fix old Tupa/Tuppa mapping bug: never do unknown -> sheep
-  const species: 'goat' | 'sheep' = isGoat ? 'goat' : 'sheep';
-  const boxMatch = text.match(/\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]/);
-  let box_2d: [number, number, number, number] = [150, 150, 850, 850];
-  if (boxMatch) {
-    box_2d = [
-      Math.min(1000, Math.max(0, parseInt(boxMatch[1]))),
-      Math.min(1000, Math.max(0, parseInt(boxMatch[2]))),
-      Math.min(1000, Math.max(0, parseInt(boxMatch[3]))),
-      Math.min(1000, Math.max(0, parseInt(boxMatch[4]))),
-    ];
+    // Search closest goat/kambing mention
+    for (const m of text.matchAll(/\b(goat|kambing)\b/gi)) {
+      const dist = Math.abs(boxIndex - (m.index ?? 0));
+      const weightedDist = (m.index ?? 0) <= boxIndex ? dist : dist + 30;
+      if (weightedDist < minDistance && dist < 160) {
+        minDistance = weightedDist;
+        bestSpecies = 'goat';
+      }
+    }
+
+    // Search closest sheep/tupa mention
+    for (const m of text.matchAll(/\b(sheep|tupa)\b/gi)) {
+      const dist = Math.abs(boxIndex - (m.index ?? 0));
+      const weightedDist = (m.index ?? 0) <= boxIndex ? dist : dist + 30;
+      if (weightedDist < minDistance && dist < 160) {
+        minDistance = weightedDist;
+        bestSpecies = 'sheep';
+      }
+    }
+
+    // Fallback if not within 160 chars
+    if (!bestSpecies) {
+      if (/\b(sheep|tupa)\b/i.test(text) && !/\b(goat|kambing)\b/i.test(text)) {
+        bestSpecies = 'sheep';
+      } else if (/\b(goat|kambing)\b/i.test(text)) {
+        bestSpecies = 'goat';
+      }
+    }
+
+    if (!bestSpecies) continue;
+
+    const ymin = Math.min(1000, Math.max(0, parseInt(match[1])));
+    const xmin = Math.min(1000, Math.max(0, parseInt(match[2])));
+    const ymax = Math.min(1000, Math.max(0, parseInt(match[3])));
+    const xmax = Math.min(1000, Math.max(0, parseInt(match[4])));
+
+    const height = ymax - ymin;
+    const width = xmax - xmin;
+
+    if (height > 20 && width > 20 && height * width > 800) {
+      detections.push({
+        species: bestSpecies,
+        box_2d: [ymin, xmin, ymax, xmax],
+        visible: true,
+      });
+    }
   }
 
-  return [{ species, box_2d, visible: true }];
+  // 3. Fallback: single detection if species mentioned affirmatively without explicit box
+  if (detections.length === 0) {
+    const isGoat = /\b(goat|kambing)\b/i.test(text);
+    const isSheep = /\b(sheep|tupa)\b/i.test(text);
+    if ((isGoat || isSheep) && !lower.includes('no ') && !lower.includes('not ')) {
+      if (lower.includes('detected') || lower.includes('visible') || lower.includes('nakita')) {
+        const species: 'goat' | 'sheep' = isGoat ? 'goat' : 'sheep';
+        detections.push({
+          species,
+          box_2d: [150, 150, 850, 850],
+          visible: true,
+        });
+      }
+    }
+  }
+
+  return detections;
 }
 
 export class GeminiLiveDetector {
@@ -696,17 +783,31 @@ export class GeminiLiveDetector {
         model: liveModel,
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: `You are the visual goat and sheep detection assistant for ALPASFARM.
+          systemInstruction: `You are the visual detection assistant for ALPASFARM.
 Continuously inspect the incoming camera frames.
-Your primary task is to detect visible goats and sheep.
-For every frame where a goat or sheep is clearly visible:
-- identify whether it is a goat or sheep
-- return its bounding box coordinates [ymin, xmin, ymax, xmax] normalized to 0-1000
-- report: SPECIES: goat (or sheep) and BOX: [ymin, xmin, ymax, xmax]
-If no goat or sheep is visible, report: No goats or sheep visible.
-Only report goat or sheep when the animal is actually visible.
-Do not classify people, dogs, cats, cows, pigs, or objects as goats or sheep.
-Do not invent detections or fake coordinates.`,
+Detect EVERY clearly visible physical goat and sheep in the camera view.
+Do not stop after detecting the first animal.
+If there are:
+- 1 goat -> return 1 detection
+- 2 goats -> return 2 detections
+- 5 goats -> return 5 detections
+- goats and sheep -> return each animal separately
+
+Each visible animal must have its own bounding box [ymin, xmin, ymax, xmax] normalized to 0-1000.
+Never merge multiple animals into one bounding box when they are individually distinguishable.
+Do not duplicate the same animal.
+Do not detect keyboards, laptops, phones, computer screens, people, dogs, cats, cows, pigs, furniture, walls, objects, photographs, or video screens as goats or sheep.
+Only report an animal when it is visually supported by the current camera frame.
+
+If no physical goat or sheep is visible:
+report: No goats or sheep visible.
+
+Format your detection report clearly:
+For each detected animal, report:
+SPECIES: goat (or sheep), BOX: [ymin, xmin, ymax, xmax]
+Allowed species: 'goat', 'sheep'.
+Do not invent animal IDs.
+Do not return fake confidence values.`,
           tools: [
             {
               functionDeclarations: [
@@ -900,7 +1001,7 @@ Do not invent detections or fake coordinates.`,
           turns: [
             {
               role: 'user',
-              parts: [{ text: 'Give SPECIES and BOX for any visible goat or sheep.' }],
+              parts: [{ text: 'Detect ALL visible goats and sheep. Report SPECIES: goat or sheep and BOX: [ymin, xmin, ymax, xmax] for EVERY visible animal. If none, report no goats or sheep.' }],
             },
           ],
           turnComplete: true,

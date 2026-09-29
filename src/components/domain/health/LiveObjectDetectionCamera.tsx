@@ -41,6 +41,7 @@ import { useAuth } from '../../../lib/auth';
 import { useFarmData } from '../../../lib/useFarmData';
 import {
   TemporalLivestockTracker,
+  DEFAULT_TRACKER_CONFIG,
   computeViewportTransform,
   renderTrackedAnimalsToCanvas,
   TrackedLivestockAnimal,
@@ -136,8 +137,9 @@ export function LiveObjectDetectionCamera({
 
   // GÃ¶Ã‡GÃ¶Ã‡ Tracking & Selection State GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
   const [statusMessage, setStatusMessage] = useState<string>('Naghahanap ng kambing o tupa...');
+  const activeTracksLengthRef = useRef<number>(0);
   const trackerRef = useRef<TemporalLivestockTracker>(
-    new TemporalLivestockTracker({ goatEntryThreshold: 0, goatKeepThreshold: 0, sheepEntryThreshold: 0, sheepKeepThreshold: 0 }, () => {
+    new TemporalLivestockTracker(DEFAULT_TRACKER_CONFIG, () => {
       // Callback when selected track drops past grace period
       setStatusMessage('Hindi na makita ang napiling alaga. Pumili ulit.');
     })
@@ -153,7 +155,7 @@ export function LiveObjectDetectionCamera({
     parserStatus: 'IDLE',
   });
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Health Scan & Result State GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Health Scan & Result State ───────────────────────────────────────────────
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<GeminiScanResult | null>(null);
   const [croppedImagePreview, setCroppedImagePreview] = useState<string | null>(null);
@@ -166,7 +168,7 @@ export function LiveObjectDetectionCamera({
   const [medItemId, setMedItemId] = useState<string>('');
   const [medQty, setMedQty] = useState<string>('');
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Active Animals & Medicines GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Active Animals & Medicines ───────────────────────────────────────────────
   const activeFarmAnimals = useMemo(() => {
     return farmData.animals.filter((a: Animal) => !a.archived && !a.is_sold && a.status !== 'Sold');
   }, [farmData.animals]);
@@ -182,12 +184,9 @@ export function LiveObjectDetectionCamera({
     return activeFarmAnimals.find((a) => a.id === selectedFarmAnimalId) || null;
   }, [activeFarmAnimals, selectedFarmAnimalId]);
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Formatted Farmer-Friendly Detection Status GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Formatted Farmer-Friendly Detection Status ──────────────────────────────
   const computeDetectionStatus = useCallback(
     (tracks: TrackedLivestockAnimal[], selected: TrackedLivestockAnimal | null): string => {
-      if (selected && selected.species !== 'person') {
-        return selected.species === 'sheep' ? 'TUPA detected' : 'KAMBING detected';
-      }
       if (tracks.length === 0) {
         return 'Naghahanap ng kambing o tupa...';
       }
@@ -196,15 +195,13 @@ export function LiveObjectDetectionCamera({
       const persons = tracks.filter((t) => t.species === 'person').length;
 
       if (goats > 0 && sheep > 0) {
-        const gText = goats === 1 ? '1 KAMBING' : `${goats} KAMBING`;
-        const sText = sheep === 1 ? '1 TUPA' : `${sheep} TUPA`;
-        return `${gText} at ${sText} detected`;
+        return `${goats} Kambing • ${sheep} Tupa na nakita`;
       }
       if (goats > 0) {
-        return goats === 1 ? 'KAMBING detected' : `${goats} KAMBING detected`;
+        return goats === 1 ? 'KAMBING detected' : `${goats} Kambing na nakita`;
       }
       if (sheep > 0) {
-        return sheep === 1 ? 'TUPA detected' : `${sheep} TUPA detected`;
+        return sheep === 1 ? 'TUPA detected' : `${sheep} Tupa na nakita`;
       }
       if (persons > 0) {
         return 'May taong nakita. Itutok ang camera sa kambing o tupa.';
@@ -294,6 +291,7 @@ export function LiveObjectDetectionCamera({
         }));
         const updatedTracks = trackerRef.current.update(rawLivestock);
         console.log(`[TRACKER] active tracks: ${updatedTracks.length}`);
+        activeTracksLengthRef.current = updatedTracks.length;
         setActiveTracks(updatedTracks);
         if (updatedTracks.some((track) => track.consecutiveHits >= 3)) {
           startObservationRecording();
@@ -459,12 +457,23 @@ export function LiveObjectDetectionCamera({
             video.videoHeight
           );
 
+          // 60 FPS motion smoothing interpolation & real-time track pruning
+          tracker.step(Date.now(), 0.18);
+          const currentTracks = tracker.getActiveTracks();
+
           renderTrackedAnimalsToCanvas(
             canvas,
-            tracker.getActiveTracks(),
+            currentTracks,
             transform,
             dpr
           );
+
+          if (currentTracks.length === 0 && activeTracksLengthRef.current > 0) {
+            activeTracksLengthRef.current = 0;
+            setActiveTracks([]);
+            setSelectedTrack(null);
+            setStatusMessage('Naghahanap ng kambing o tupa...');
+          }
         }
       }
 
@@ -1126,6 +1135,9 @@ export function LiveObjectDetectionCamera({
                 <div>Box: {debugInfo.boxReceived ? 'RECEIVED' : 'NONE'}</div>
                 <div>Parser: {debugInfo.parserStatus}</div>
                 <div>Tracker: {activeTracks.length > 0 ? `ACTIVE (${activeTracks.length})` : 'IDLE'}</div>
+                {activeTracks.length > 0 && (
+                  <div>Track IDs: [{activeTracks.map((t) => `#${t.trackId}`).join(', ')}]</div>
+                )}
               </div>
             )}
 
