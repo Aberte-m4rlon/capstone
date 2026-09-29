@@ -556,10 +556,15 @@ export class GeminiLiveDetector {
     console.log('[GeminiLive] live.connect started');
     this.liveConnectStartTime = Date.now();
 
-    const liveModel = model || 'gemini-2.0-flash-exp';
+    const liveModel = model || 'gemini-2.5-flash-native-audio-latest';
 
     let liveSession: any = null;
     let liveConnectTimer: any = null;
+    let earlyCloseReject: ((err: any) => void) | null = null;
+
+    const earlyClosePromise = new Promise<never>((_, reject) => {
+      earlyCloseReject = reject;
+    });
 
     try {
       const liveConnectPromise = ai.live.connect({
@@ -588,24 +593,36 @@ export class GeminiLiveDetector {
           },
           onclose: (e: any) => {
             const code = e?.code;
-            const reason = e?.reason || 'none';
+            const reason = typeof e?.reason === 'string' ? e.reason : (e?.reason ? String(e.reason) : 'none');
             console.log(`[GeminiLive] WebSocket closed (code: ${code || 'unknown'}, reason: ${reason})`);
             this.session = null;
+            const wasConnecting = this.state === 'CONNECTING';
             this.isSetupComplete = false;
 
-            // Code 1008 is Policy Violation / Model not found or not supported
-            if (code === 1008 || (reason && reason.toLowerCase().includes('not supported for bidigeneratecontent'))) {
+            const isBilling = code === 1011 || reason.toLowerCase().includes('prepayment') || reason.toLowerCase().includes('billing') || reason.toLowerCase().includes('credits');
+            const isPolicyOrModel = code === 1008 || reason.toLowerCase().includes('not supported for bidigeneratecontent') || reason.toLowerCase().includes('not found for api version');
+
+            if (isBilling || isPolicyOrModel || wasConnecting) {
+              const category: GeminiLiveErrorCategory = isBilling ? 'LIVE_AUTH_ERROR' : isPolicyOrModel ? 'MODEL_ERROR' : 'LIVE_SOCKET_ERROR';
+              const isRecoverable = !isBilling && !isPolicyOrModel;
               const errDetail: GeminiLiveErrorDetail = {
-                name: 'LiveSocketPolicyViolation',
-                category: 'MODEL_ERROR',
-                message: `Gemini Live model rejected by API: ${reason}`,
-                status: 400,
-                statusText: 'Policy Violation',
-                code: 1008,
+                name: isBilling ? 'LiveSocketBillingError' : isPolicyOrModel ? 'LiveSocketPolicyViolation' : 'LiveSocketClosedEarly',
+                category,
+                message: isBilling
+                  ? `Gemini Live billing error: ${reason}`
+                  : isPolicyOrModel
+                  ? `Gemini Live model rejected by API: ${reason}`
+                  : `Gemini Live WebSocket closed before setup completed: ${reason}`,
+                status: isBilling ? 402 : isPolicyOrModel ? 400 : 502,
+                statusText: isBilling ? 'Payment Required' : isPolicyOrModel ? 'Policy Violation' : 'Socket Closed Early',
+                code: code || (isBilling ? 1011 : isPolicyOrModel ? 1008 : 'WS_CLOSED'),
                 cause: reason,
-                isRecoverable: false,
-                userMessage: 'Gemini Live ay hindi available ngayon.',
+                isRecoverable,
+                userMessage: isRecoverable ? 'Hindi makakonekta sa Gemini Live.' : 'Gemini Live ay hindi available ngayon.',
               };
+              if (earlyCloseReject) {
+                earlyCloseReject(errDetail);
+              }
               this.handleConnectionFailure(errDetail);
             } else if (this.state === 'CONNECTED') {
               this.state = 'CLOSED';
@@ -621,9 +638,13 @@ export class GeminiLiveDetector {
         }, 8000);
       });
 
-      liveSession = await Promise.race([liveConnectPromise, liveTimeoutPromise]);
+      liveSession = await Promise.race([liveConnectPromise, liveTimeoutPromise, earlyClosePromise]);
     } catch (connectErr: any) {
       clearTimeout(liveConnectTimer);
+      if (connectErr?.category || connectErr?.name?.startsWith('LiveSocket')) {
+        // Already logged and handled via onclose
+        return;
+      }
       const isTimeout = connectErr?.message === 'LIVE_CONNECT_TIMEOUT';
       const errDetail: GeminiLiveErrorDetail = {
         name: isTimeout ? 'LiveConnectTimeoutError' : 'LiveConnectError',

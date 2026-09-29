@@ -4,7 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 const systemInstruction =
   'You are the live goat and sheep detector for a farm camera. Inspect the incoming video frames continuously. Detect every clearly visible real goat or sheep only. Never classify people, cows, dogs, cats, horses, toys, posters, screens, or ambiguous objects as goat or sheep. If uncertain, return no detection. For every visible goat or sheep return species goat or sheep and box_2d [ymin, xmin, ymax, xmax] normalized to 0-1000. Return JSON only: {"detections":[{"species":"goat"|"sheep","box_2d":[number,number,number,number],"visible":true}]}. Use an empty array when none are clearly visible.';
 
-const DEFAULT_LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-2.0-flash-exp';
+const DEFAULT_LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-2.5-flash-native-audio-latest';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();
