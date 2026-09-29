@@ -10,7 +10,7 @@
  */
 
 import { supabase } from './supabase';
-import { GoogleGenAI, Modality } from '@google/genai';
+import { GoogleGenAI, Modality, Type } from '@google/genai';
 import {
   optimizeImageForAI,
   captureLowResFrame,
@@ -600,7 +600,39 @@ export class GeminiLiveDetector {
       const liveConnectPromise = ai.live.connect({
         model: liveModel,
         config: {
-          responseModalities: [Modality.TEXT],
+          responseModalities: [Modality.AUDIO],
+          systemInstruction: 'You are the live goat and sheep visual detector for a farm camera. Look at incoming video frames. Call reportDetections on every user turn with visible goat or sheep.',
+          tools: [
+            {
+              functionDeclarations: [
+                {
+                  name: 'reportDetections',
+                  description: 'Report detected goats and sheep with bounding boxes.',
+                  parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                      detections: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.OBJECT,
+                          properties: {
+                            species: { type: Type.STRING, enum: ['goat', 'sheep'] },
+                            box_2d: {
+                              type: Type.ARRAY,
+                              items: { type: Type.INTEGER },
+                              description: '[ymin, xmin, ymax, xmax] normalized to 0-1000',
+                            },
+                          },
+                          required: ['species', 'box_2d'],
+                        },
+                      },
+                    },
+                    required: ['detections'],
+                  },
+                },
+              ],
+            },
+          ],
         },
         callbacks: {
           onopen: () => {
@@ -753,7 +785,7 @@ export class GeminiLiveDetector {
       }
 
       this.session.sendRealtimeInput({
-        video: { data: base64Data, mimeType: 'image/jpeg' },
+        media: { data: base64Data, mimeType: 'image/jpeg' },
       });
     } catch (sendErr) {
       console.warn('[GeminiLive] Send frame error:', sendErr);
@@ -793,6 +825,45 @@ export class GeminiLiveDetector {
       this.hasReceivedFirstMessage = true;
       const msgElapsed = Date.now() - (this.liveConnectStartTime || this.flowStartTime);
       console.log(`[GeminiLive] first Gemini message: ${msgElapsed} ms`);
+    }
+
+    // Check for tool calls (reportDetections)
+    if (message?.toolCall?.functionCalls) {
+      for (const fc of message.toolCall.functionCalls) {
+        if (fc.name === 'reportDetections' || fc.name?.includes('Detection')) {
+          const rawDetections = fc.args?.detections;
+          if (Array.isArray(rawDetections)) {
+            const detections: GeminiLiveDetection[] = rawDetections.filter(
+              (d: any) =>
+                (d?.species === 'goat' || d?.species === 'sheep') &&
+                Array.isArray(d?.box_2d) &&
+                d.box_2d.length === 4
+            );
+            if (!this.hasReceivedFirstDetection && detections.length > 0) {
+              this.hasReceivedFirstDetection = true;
+              const detElapsed = Date.now() - this.flowStartTime;
+              console.log(`[GeminiLive] first detection response: ${detElapsed} ms`);
+            }
+            this.callbacks.onDetections(detections);
+          }
+        }
+        // Respond to the function call so the session continues
+        try {
+          if (this.session && fc.id) {
+            this.session.sendToolResponse({
+              functionResponses: [
+                {
+                  id: fc.id,
+                  name: fc.name,
+                  response: { output: { success: true } },
+                },
+              ],
+            });
+          }
+        } catch (toolRespErr) {
+          console.warn('[GeminiLive] Tool response send error:', toolRespErr);
+        }
+      }
     }
 
     const parts = message?.serverContent?.modelTurn?.parts || [];

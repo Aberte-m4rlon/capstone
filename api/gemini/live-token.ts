@@ -76,8 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         liveConnectConstraints: {
           model: modelName,
           config: {
-            responseModalities: ['TEXT'],
-            systemInstruction,
+            responseModalities: ['AUDIO'],
           },
         },
       },

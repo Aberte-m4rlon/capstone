@@ -244,6 +244,14 @@ export function LiveObjectDetectionCamera({
 
   // Connect Gemini Live in Background (Non-blocking)
   const connectGeminiLive = useCallback(async () => {
+    // Clean up any existing live detector session first
+    if (liveDetectorRef.current) {
+      try {
+        liveDetectorRef.current.close();
+      } catch {}
+      liveDetectorRef.current = null;
+    }
+
     hasLoggedStepJRef.current = false;
     geminiStartTimeRef.current = Date.now();
     setGeminiLiveState('CONNECTING');
