@@ -487,7 +487,8 @@ export function LiveObjectDetectionCamera({
       return;
     }
 
-    detectTimerRef.current = setInterval(runDetectionCycle, 350);
+    // Throttled to ~1 frame per second as required by Multimodal Live API guidelines
+    detectTimerRef.current = setInterval(runDetectionCycle, 1000);
 
     return () => {
       if (detectTimerRef.current) {

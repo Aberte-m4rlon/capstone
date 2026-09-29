@@ -10,7 +10,7 @@
  */
 
 import { supabase } from './supabase';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 import {
   optimizeImageForAI,
   captureLowResFrame,
@@ -305,11 +305,19 @@ export type GeminiLiveConnectionState = 'IDLE' | 'CONNECTING' | 'CONNECTED' | 'E
 
 export type GeminiLiveErrorCategory =
   | 'TOKEN_ENDPOINT_ERROR'
+  | 'TOKEN_AUTH_ERROR'
+  | 'TOKEN_CREATION_ERROR'
+  | 'TOKEN_INVALID'
   | 'TOKEN_MISSING'
   | 'TOKEN_EXPIRED'
+  | 'MODEL_NOT_FOUND'
+  | 'MODEL_UNSUPPORTED'
   | 'MODEL_ERROR'
   | 'LIVE_AUTH_ERROR'
+  | 'LIVE_CONFIG_ERROR'
+  | 'LIVE_CONNECT_ERROR'
   | 'LIVE_SETUP_ERROR'
+  | 'LIVE_TIMEOUT'
   | 'LIVE_SOCKET_ERROR'
   | 'TIMEOUT'
   | 'CONFIG_ERROR'
@@ -319,10 +327,12 @@ export interface GeminiLiveErrorDetail {
   name: string;
   category: GeminiLiveErrorCategory;
   message: string;
+  code?: number | string;
   status?: number | string;
   statusText?: string;
-  code?: number | string;
   cause?: any;
+  closeCode?: number | string;
+  closeReason?: string;
   isRecoverable: boolean;
   userMessage: string;
 }
@@ -347,6 +357,7 @@ export class GeminiLiveDetector {
   private hasReceivedFirstMessage: boolean = false;
   private hasReceivedFirstDetection: boolean = false;
   private isSendingFrame: boolean = false;
+  private liveModel: string = 'gemini-3.8-live';
 
   constructor(
     callbacksOrOnDetections:
@@ -375,16 +386,26 @@ export class GeminiLiveDetector {
     this.isSetupComplete = false;
 
     // Developer logging matching strict requirement:
-    // [GeminiLive] ERROR name: ... message: ... status: ... statusText: ... code: ... cause: ...
+    // [GeminiLive] LIVE_ERROR
+    // name: ...
+    // message: ...
+    // code: ...
+    // status: ...
+    // statusText: ...
+    // cause: ...
+    // closeCode: ...
+    // closeReason: ...
     // NEVER log GEMINI_API_KEY, ephemeral tokens, authorization headers, or secrets.
     console.error(
-      `[GeminiLive] ERROR\n` +
+      `[GeminiLive] LIVE_ERROR\n` +
       `name: ${errDetail.name}\n` +
       `message: ${errDetail.message}\n` +
+      `code: ${errDetail.code ?? 'N/A'}\n` +
       `status: ${errDetail.status ?? 'N/A'}\n` +
       `statusText: ${errDetail.statusText ?? 'N/A'}\n` +
-      `code: ${errDetail.code ?? 'N/A'}\n` +
-      `cause: ${typeof errDetail.cause === 'object' ? JSON.stringify(errDetail.cause) : (errDetail.cause ?? 'N/A')}`
+      `cause: ${typeof errDetail.cause === 'object' ? JSON.stringify(errDetail.cause) : (errDetail.cause ?? 'N/A')}\n` +
+      `closeCode: ${errDetail.closeCode ?? 'N/A'}\n` +
+      `closeReason: ${errDetail.closeReason ?? 'N/A'}`
     );
 
     this.callbacks.onDetections([]);
@@ -414,7 +435,7 @@ export class GeminiLiveDetector {
     // ================================================================
     // TIMEOUT 1: TOKEN_TIMEOUT (5 seconds for /api/gemini/live-token)
     // ================================================================
-    console.log('[GeminiLive] token request started');
+    console.log('[GeminiLive] TOKEN_REQUEST_START');
     const tokenStart = Date.now();
 
     this.tokenAbortController = new AbortController();
@@ -427,7 +448,7 @@ export class GeminiLiveDetector {
       tokenResponse = await fetch('/api/gemini/live-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'gemini-2.5-flash-native-audio-latest' }),
+        body: JSON.stringify({ model: this.liveModel }),
         signal: this.tokenAbortController.signal,
       });
     } catch (fetchErr: any) {
@@ -435,7 +456,7 @@ export class GeminiLiveDetector {
       const isTimeout = fetchErr?.name === 'AbortError';
       const errDetail: GeminiLiveErrorDetail = {
         name: isTimeout ? 'TokenTimeoutError' : 'NetworkError',
-        category: isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR',
+        category: isTimeout ? 'LIVE_TIMEOUT' : 'NETWORK_ERROR',
         message: isTimeout ? 'Token request timed out after 5s' : (fetchErr?.message || 'Network error fetching token'),
         status: isTimeout ? 504 : 'N/A',
         statusText: isTimeout ? 'Gateway Timeout' : 'Network Error',
@@ -449,6 +470,10 @@ export class GeminiLiveDetector {
     } finally {
       clearTimeout(tokenTimeoutId);
     }
+
+    const tokenElapsed = Date.now() - tokenStart;
+    console.log(`[GeminiLive] TOKEN_RESPONSE: status ${tokenResponse.status}`);
+    console.log(`[GeminiLive] token request completed: ${tokenElapsed} ms`);
 
     // Inspect HTTP status code
     if (!tokenResponse.ok) {
@@ -473,17 +498,22 @@ export class GeminiLiveDetector {
       // Classify unrecoverable vs recoverable
       const isMissingKey = status === 500 && (code === 'MISSING_API_KEY' || errBody?.apiKeyConfigured === false);
       const isAuthError = status === 401 || status === 403 || code === 'AUTH_ERROR';
+      const isModelNotFound = status === 404;
       const isModelError = status === 400 || code === 'MODEL_ERROR';
 
-      const isUnrecoverable = isMissingKey || isAuthError || isModelError;
+      const isUnrecoverable = isMissingKey || isAuthError || isModelNotFound || isModelError;
       const category: GeminiLiveErrorCategory = isMissingKey
         ? 'CONFIG_ERROR'
         : isAuthError
-        ? 'LIVE_AUTH_ERROR'
+        ? 'TOKEN_AUTH_ERROR'
+        : isModelNotFound
+        ? 'MODEL_NOT_FOUND'
         : isModelError
-        ? 'MODEL_ERROR'
+        ? 'MODEL_UNSUPPORTED'
         : status === 504
-        ? 'TIMEOUT'
+        ? 'LIVE_TIMEOUT'
+        : status === 500
+        ? 'TOKEN_CREATION_ERROR'
         : 'TOKEN_ENDPOINT_ERROR';
 
       const errDetail: GeminiLiveErrorDetail = {
@@ -509,7 +539,7 @@ export class GeminiLiveDetector {
     } catch (parseErr: any) {
       const errDetail: GeminiLiveErrorDetail = {
         name: 'TokenParseError',
-        category: 'TOKEN_ENDPOINT_ERROR',
+        category: 'TOKEN_INVALID',
         message: 'Failed to parse live token response JSON',
         status: tokenResponse.status,
         statusText: tokenResponse.statusText,
@@ -521,9 +551,6 @@ export class GeminiLiveDetector {
       this.handleConnectionFailure(errDetail);
       return;
     }
-
-    const tokenElapsed = Date.now() - tokenStart;
-    console.log(`[GeminiLive] token request finished: ${tokenElapsed} ms`);
 
     const { token, model, apiKeyConfigured } = tokenJson || {};
     console.log(`[GeminiLive] API key configured: ${apiKeyConfigured !== undefined ? Boolean(apiKeyConfigured) : true}`);
@@ -546,17 +573,20 @@ export class GeminiLiveDetector {
       return;
     }
 
-    // Step C: Create client with token
-    console.log('[GeminiLive] create client with token');
+    console.log('[GeminiLive] TOKEN_SUCCESS');
+    console.log(`[GeminiLive] token field length: ${token.length}`);
+
+    // Step C: Create client with ephemeral token
+    console.log('[GeminiLive] create client with ephemeral token');
     const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
 
     // ================================================================
     // TIMEOUT 2: LIVE_CONNECT_TIMEOUT (8s strictly for live.connect)
     // ================================================================
-    console.log('[GeminiLive] live.connect started');
+    console.log('[GeminiLive] LIVE_CONNECT_START');
     this.liveConnectStartTime = Date.now();
 
-    const liveModel = model || 'gemini-2.5-flash-native-audio-latest';
+    const liveModel = model || this.liveModel;
 
     let liveSession: any = null;
     let liveConnectTimer: any = null;
@@ -569,15 +599,20 @@ export class GeminiLiveDetector {
     try {
       const liveConnectPromise = ai.live.connect({
         model: liveModel,
+        config: {
+          responseModalities: [Modality.TEXT],
+        },
         callbacks: {
           onopen: () => {
             const wsElapsed = Date.now() - this.liveConnectStartTime;
-            console.log(`[GeminiLive] websocket connected: ${wsElapsed} ms`);
+            console.log(`[GeminiLive] LIVE_OPEN: websocket connected: ${wsElapsed} ms`);
           },
           onmessage: (message: any) => {
+            console.log('[GeminiLive] LIVE_MESSAGE');
             this.handleMessage(message);
           },
           onerror: (wsErr: any) => {
+            console.error('[GeminiLive] LIVE_ERROR (onerror):', wsErr?.message || wsErr);
             const errDetail: GeminiLiveErrorDetail = {
               name: 'LiveSocketError',
               category: 'LIVE_SOCKET_ERROR',
@@ -594,7 +629,7 @@ export class GeminiLiveDetector {
           onclose: (e: any) => {
             const code = e?.code;
             const reason = typeof e?.reason === 'string' ? e.reason : (e?.reason ? String(e.reason) : 'none');
-            console.log(`[GeminiLive] WebSocket closed (code: ${code || 'unknown'}, reason: ${reason})`);
+            console.log(`[GeminiLive] LIVE_CLOSE: code=${code || 'unknown'}, reason=${reason}`);
             this.session = null;
             const wasConnecting = this.state === 'CONNECTING';
             this.isSetupComplete = false;
@@ -603,7 +638,7 @@ export class GeminiLiveDetector {
             const isPolicyOrModel = code === 1008 || reason.toLowerCase().includes('not supported for bidigeneratecontent') || reason.toLowerCase().includes('not found for api version');
 
             if (isBilling || isPolicyOrModel || wasConnecting) {
-              const category: GeminiLiveErrorCategory = isBilling ? 'LIVE_AUTH_ERROR' : isPolicyOrModel ? 'MODEL_ERROR' : 'LIVE_SOCKET_ERROR';
+              const category: GeminiLiveErrorCategory = isBilling ? 'LIVE_AUTH_ERROR' : isPolicyOrModel ? 'MODEL_UNSUPPORTED' : 'LIVE_SOCKET_ERROR';
               const isRecoverable = !isBilling && !isPolicyOrModel;
               const errDetail: GeminiLiveErrorDetail = {
                 name: isBilling ? 'LiveSocketBillingError' : isPolicyOrModel ? 'LiveSocketPolicyViolation' : 'LiveSocketClosedEarly',
@@ -617,6 +652,8 @@ export class GeminiLiveDetector {
                 statusText: isBilling ? 'Payment Required' : isPolicyOrModel ? 'Policy Violation' : 'Socket Closed Early',
                 code: code || (isBilling ? 1011 : isPolicyOrModel ? 1008 : 'WS_CLOSED'),
                 cause: reason,
+                closeCode: code,
+                closeReason: reason,
                 isRecoverable,
                 userMessage: isRecoverable ? 'Hindi makakonekta sa Gemini Live.' : 'Gemini Live ay hindi available ngayon.',
               };
@@ -648,7 +685,7 @@ export class GeminiLiveDetector {
       const isTimeout = connectErr?.message === 'LIVE_CONNECT_TIMEOUT';
       const errDetail: GeminiLiveErrorDetail = {
         name: isTimeout ? 'LiveConnectTimeoutError' : 'LiveConnectError',
-        category: isTimeout ? 'TIMEOUT' : 'LIVE_SETUP_ERROR',
+        category: isTimeout ? 'LIVE_TIMEOUT' : 'LIVE_CONNECT_ERROR',
         message: isTimeout ? 'Gemini Live setup timed out after 8s.' : (connectErr?.message || 'Failed to establish Live session'),
         status: isTimeout ? 504 : 'N/A',
         statusText: isTimeout ? 'Connect Timeout' : 'Live Setup Failed',
@@ -666,7 +703,7 @@ export class GeminiLiveDetector {
     this.session = liveSession;
     this.isSetupComplete = true;
     const setupElapsed = Date.now() - this.liveConnectStartTime;
-    console.log(`[GeminiLive] setup completed: ${setupElapsed} ms`);
+    console.log(`[GeminiLive] LIVE_SETUP_COMPLETE: setup completed: ${setupElapsed} ms`);
 
     this.state = 'CONNECTED';
     this.isConnecting = false;

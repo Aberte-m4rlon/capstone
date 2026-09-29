@@ -4,16 +4,16 @@ import { GoogleGenAI } from '@google/genai';
 const systemInstruction =
   'You are the live goat and sheep detector for a farm camera. Inspect the incoming video frames continuously. Detect every clearly visible real goat or sheep only. Never classify people, cows, dogs, cats, horses, toys, posters, screens, or ambiguous objects as goat or sheep. If uncertain, return no detection. For every visible goat or sheep return species goat or sheep and box_2d [ymin, xmin, ymax, xmax] normalized to 0-1000. Return JSON only: {"detections":[{"species":"goat"|"sheep","box_2d":[number,number,number,number],"visible":true}]}. Use an empty array when none are clearly visible.';
 
-const DEFAULT_LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-2.5-flash-native-audio-latest';
+const DEFAULT_LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-3.8-live';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();
   const isKeyConfigured = Boolean(apiKey);
-  console.log(`[GeminiLive] API key configured: ${isKeyConfigured}`);
+  console.log(`[GeminiLive] GEMINI_API_KEY configured: ${isKeyConfigured}`);
 
   if (!isKeyConfigured) {
     return res.status(500).json({
-      error: 'Gemini API key is not configured on the server.',
+      error: 'GEMINI_API_KEY is not configured',
       code: 'MISSING_API_KEY',
       apiKeyConfigured: false,
     });
