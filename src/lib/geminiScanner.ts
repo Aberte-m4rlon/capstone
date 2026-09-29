@@ -346,8 +346,24 @@ export interface GeminiLiveDebugInfo {
   parserStatus: string;
 }
 
+export interface FrameMetadata {
+  frameId: number;
+  capturedAt: number;
+  sessionId: string;
+}
+
+export interface SynchronizedDetectionResult {
+  detections: GeminiLiveDetection[];
+  frameId: number;
+  capturedAt: number;
+  sessionId: string;
+  source: 'toolCall' | 'transcription' | 'rest';
+  latencyMs: number;
+}
+
 export interface GeminiLiveDetectorCallbacks {
   onDetections: (detections: GeminiLiveDetection[]) => void;
+  onSynchronizedDetections?: (result: SynchronizedDetectionResult) => void;
   onStatusChange?: (state: GeminiLiveConnectionState, message: string) => void;
   onError?: (error: GeminiLiveErrorDetail) => void;
   onDebugUpdate?: (debugInfo: GeminiLiveDebugInfo) => void;
@@ -373,7 +389,11 @@ export function parseDetectionResponse(text: string): GeminiLiveDetection[] {
     lower.includes('no animals') ||
     lower.includes('no visible') ||
     lower.includes('not visible') ||
-    lower.includes('no physical')
+    lower.includes('no physical') ||
+    lower.includes('no live') ||
+    lower.includes('zero detections') ||
+    lower.includes('dark scene') ||
+    lower.includes('black screen')
   ) {
     if (
       !lower.includes('species: goat') &&
@@ -385,14 +405,22 @@ export function parseDetectionResponse(text: string): GeminiLiveDetection[] {
     }
   }
 
-  // Reject keyboard / laptop / phone / computer non-livestock objects (2560.mp4 regression protection)
+  // Reject non-livestock objects (keyboards, laptops, monitors, people, furniture) - 2560.mp4 / 2558.mp4 regression protection
   if (
     (lower.includes('keyboard') ||
       lower.includes('laptop') ||
       lower.includes('computer') ||
+      lower.includes('monitor') ||
+      lower.includes('screen') ||
+      lower.includes('display') ||
       lower.includes('desk') ||
       lower.includes('phone') ||
-      lower.includes('screen')) &&
+      lower.includes('chair') ||
+      lower.includes('table') ||
+      lower.includes('wall') ||
+      lower.includes('floor') ||
+      lower.includes('person') ||
+      lower.includes('human')) &&
     !lower.includes('species: goat') &&
     !lower.includes('species: sheep') &&
     !lower.includes('"species": "goat"') &&
@@ -493,22 +521,8 @@ export function parseDetectionResponse(text: string): GeminiLiveDetection[] {
     }
   }
 
-  // 3. Fallback: single detection if species mentioned affirmatively without explicit box
-  if (detections.length === 0) {
-    const isGoat = /\b(goat|kambing)\b/i.test(text);
-    const isSheep = /\b(sheep|tupa)\b/i.test(text);
-    if ((isGoat || isSheep) && !lower.includes('no ') && !lower.includes('not ')) {
-      if (lower.includes('detected') || lower.includes('visible') || lower.includes('nakita')) {
-        const species: 'goat' | 'sheep' = isGoat ? 'goat' : 'sheep';
-        detections.push({
-          species,
-          box_2d: [150, 150, 850, 850],
-          visible: true,
-        });
-      }
-    }
-  }
-
+  // Strictly return visual detections verified by explicit bounding boxes.
+  // Never fabricate coordinates or fallback boxes without visual evidence.
   return detections;
 }
 
@@ -536,6 +550,14 @@ export class GeminiLiveDetector {
   private lastDetectedSpecies: string = 'none';
   private lastBoxReceived: boolean = false;
   private lastParserStatus: string = 'IDLE';
+
+  // Synchronization & freshness metadata (2586.mp4 regression protection)
+  public static readonly MAX_FRESHNESS_MS: number = 1800;
+  private currentSessionId: string = '';
+  private latestFrameId: number = 0;
+  private latestAcceptedFrameId: number = 0;
+  private inflightTurn: { turnId: number; frameId: number; capturedAt: number; sessionId: string } | null = null;
+  private latestTurnId: number = 0;
 
   constructor(
     callbacksOrOnDetections:
@@ -596,7 +618,7 @@ export class GeminiLiveDetector {
     this.close();
   }
 
-  public async connect(): Promise<void> {
+  public async connect(sessionId?: string): Promise<void> {
     if (this.isConnecting) {
       console.warn('[GeminiLive] Connection already in progress, ignoring duplicate call.');
       return;
@@ -604,6 +626,11 @@ export class GeminiLiveDetector {
 
     // Clean up any stale session
     this.close();
+
+    this.currentSessionId = sessionId || `cam_sess_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    this.latestFrameId = 0;
+    this.latestAcceptedFrameId = 0;
+    this.inflightTurn = null;
 
     this.isConnecting = true;
     this.state = 'CONNECTING';
@@ -948,7 +975,7 @@ Do not return fake confidence values.`,
     this.callbacks.onStatusChange?.('CONNECTED', 'AI Scanner ay handa na');
   }
 
-  public sendFrame(canvas: HTMLCanvasElement): void {
+  public sendFrame(canvas: HTMLCanvasElement, metadata?: FrameMetadata): void {
     if (
       this.state !== 'CONNECTED' ||
       !this.session ||
@@ -956,6 +983,13 @@ Do not return fake confidence values.`,
       this.isSendingFrame
     ) {
       return;
+    }
+
+    if (metadata) {
+      if (metadata.sessionId && metadata.sessionId !== this.currentSessionId) {
+        return;
+      }
+      this.latestFrameId = metadata.frameId;
     }
 
     try {
@@ -994,9 +1028,16 @@ Do not return fake confidence values.`,
 
       // Periodically trigger detection turns on buffered frames
       const now = Date.now();
-      if (!this.isTurnInflight && now - this.lastTurnTriggerTime >= 1500) {
+      if (!this.isTurnInflight && now - this.lastTurnTriggerTime >= 1200) {
         this.isTurnInflight = true;
         this.lastTurnTriggerTime = now;
+        const turnId = ++this.latestTurnId;
+        this.inflightTurn = {
+          turnId,
+          frameId: metadata?.frameId ?? this.latestFrameId,
+          capturedAt: metadata?.capturedAt ?? now,
+          sessionId: metadata?.sessionId ?? this.currentSessionId,
+        };
         this.session.sendClientContent({
           turns: [
             {
@@ -1006,8 +1047,10 @@ Do not return fake confidence values.`,
           ],
           turnComplete: true,
         });
-      } else if (this.isTurnInflight && now - this.lastTurnTriggerTime > 4000) {
+      } else if (this.isTurnInflight && now - this.lastTurnTriggerTime > 3500) {
+        // Expire turn if no response arrived in 3.5s
         this.isTurnInflight = false;
+        this.inflightTurn = null;
       }
 
       this.callbacks.onDebugUpdate?.({
@@ -1041,6 +1084,9 @@ Do not return fake confidence values.`,
     this.isConnecting = false;
     this.isSetupComplete = false;
     this.isTurnInflight = false;
+    this.inflightTurn = null;
+    this.currentSessionId = '';
+    this.latestAcceptedFrameId = 0;
     this.responseBuffer = '';
     if (this.state !== 'IDLE') {
       this.state = 'CLOSED';
@@ -1150,6 +1196,31 @@ Do not return fake confidence values.`,
   }
 
   private dispatchDetections(detections: GeminiLiveDetection[], source: string): void {
+    const inflight = this.inflightTurn;
+    this.inflightTurn = null;
+    this.isTurnInflight = false;
+
+    // 2586.mp4 regression protection: Discard late/stale/out-of-order or obsolete-session responses
+    if (inflight) {
+      if (inflight.sessionId && this.currentSessionId && inflight.sessionId !== this.currentSessionId) {
+        console.warn(`[DETECTION] Discarded response from previous camera session: ${inflight.sessionId} !== ${this.currentSessionId}`);
+        return;
+      }
+
+      const latencyMs = Date.now() - inflight.capturedAt;
+      if (latencyMs > GeminiLiveDetector.MAX_FRESHNESS_MS) {
+        console.warn(`[DETECTION] Discarded STALE response: latency ${latencyMs}ms exceeds freshness limit ${GeminiLiveDetector.MAX_FRESHNESS_MS}ms`);
+        return;
+      }
+
+      if (inflight.frameId < this.latestAcceptedFrameId) {
+        console.warn(`[DETECTION] Discarded OUT-OF-ORDER response: frame #${inflight.frameId} < latest accepted #${this.latestAcceptedFrameId}`);
+        return;
+      }
+
+      this.latestAcceptedFrameId = inflight.frameId;
+    }
+
     const goats = detections.filter((d) => d.species === 'goat').length;
     const sheep = detections.filter((d) => d.species === 'sheep').length;
 
@@ -1170,6 +1241,16 @@ Do not return fake confidence values.`,
       console.log(`[GeminiLive] first detection response: ${detElapsed} ms (${source})`);
     }
 
+    const syncResult: SynchronizedDetectionResult = {
+      detections,
+      frameId: inflight ? inflight.frameId : this.latestAcceptedFrameId,
+      capturedAt: inflight ? inflight.capturedAt : Date.now(),
+      sessionId: inflight ? inflight.sessionId : this.currentSessionId,
+      source: source as 'toolCall' | 'transcription' | 'rest',
+      latencyMs: inflight ? Date.now() - inflight.capturedAt : 0,
+    };
+
+    this.callbacks.onSynchronizedDetections?.(syncResult);
     this.callbacks.onDetections(detections);
     this.callbacks.onDebugUpdate?.({
       framesSent: this.framesSentCount,

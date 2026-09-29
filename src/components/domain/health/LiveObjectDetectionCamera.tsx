@@ -57,6 +57,7 @@ import {
   captureLowResFrame,
   canvasToBlob,
   cropCanvasToBoundingBox,
+  evaluateFrameAvailability,
 } from '../../../lib/cameraUtils';
 import {
   analyzeAnimalVideo,
@@ -69,6 +70,7 @@ import {
   analyzeUploadedImage,
   UploadedAnimalDetection,
   UploadedImageAnalysisResult,
+  SynchronizedDetectionResult,
 } from '../../../lib/geminiScanner';
 import { getRecordRiskMeta } from '../../../pages/HealthPage';
 import type { Animal, HealthRecord, InventoryItem } from '../../../types';
@@ -142,7 +144,14 @@ export function LiveObjectDetectionCamera({
   const geminiStartTimeRef = useRef<number>(0);
   const hasLoggedStepJRef = useRef<boolean>(false);
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Tracking & Selection State GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Camera Frame Availability & Synchronization (2586.mp4 regression protection) ──
+  const [cameraFrameAvailable, setCameraFrameAvailable] = useState<boolean>(true);
+  const cameraFrameAvailableRef = useRef<boolean>(true);
+  const cameraSessionIdRef = useRef<string>('');
+  const latestFrameIdRef = useRef<number>(0);
+  const latestAcceptedFrameIdRef = useRef<number>(0);
+
+  // ── Tracking & Selection State ─────────────────────────────────────────────
   const [statusMessage, setStatusMessage] = useState<string>('Naghahanap ng kambing o tupa...');
   const activeTracksLengthRef = useRef<number>(0);
   const trackerRef = useRef<TemporalLivestockTracker>(
@@ -235,6 +244,11 @@ export function LiveObjectDetectionCamera({
       clearInterval(detectTimerRef.current);
       detectTimerRef.current = null;
     }
+    cameraSessionIdRef.current = '';
+    latestFrameIdRef.current = 0;
+    latestAcceptedFrameIdRef.current = 0;
+    cameraFrameAvailableRef.current = false;
+    setCameraFrameAvailable(false);
     liveDetectorRef.current?.close();
     liveDetectorRef.current = null;
     setGeminiLiveState('OFF');
@@ -253,6 +267,7 @@ export function LiveObjectDetectionCamera({
       videoRef.current.srcObject = null;
     }
     trackerRef.current.reset();
+    activeTracksLengthRef.current = 0;
     setActiveTracks([]);
     setSelectedTrack(null);
     setStatusMessage('Naghahanap ng kambing o tupa...');
@@ -267,7 +282,10 @@ export function LiveObjectDetectionCamera({
   }, []);
 
   // Connect Gemini Live in Background (Non-blocking)
-  const connectGeminiLive = useCallback(async () => {
+  const connectGeminiLive = useCallback(async (targetSessionId?: string) => {
+    const activeSessionId = targetSessionId || cameraSessionIdRef.current || `cam_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    cameraSessionIdRef.current = activeSessionId;
+
     // Clean up any existing live detector session first
     if (liveDetectorRef.current) {
       try {
@@ -284,9 +302,44 @@ export function LiveObjectDetectionCamera({
     setStatusMessage('Inihahanda ang AI Scanner...');
 
     const liveDetector = new GeminiLiveDetector({
-      onDetections: (detections) => {
+      onSynchronizedDetections: (result: SynchronizedDetectionResult) => {
         if (!isMountedRef.current) return;
-        if (detections.length > 0) {
+
+        // 1. Session verification: Ignore responses from past camera sessions
+        if (result.sessionId && cameraSessionIdRef.current && result.sessionId !== cameraSessionIdRef.current) {
+          console.log('[DETECTION] Discarded response: camera session changed');
+          return;
+        }
+
+        // 2. Sequence verification: Discard out-of-order frames
+        if (result.frameId < latestAcceptedFrameIdRef.current) {
+          console.log('[DETECTION] Discarded response: out-of-order frame');
+          return;
+        }
+
+        // 3. Dark/unavailable frame verification (2586.mp4 regression protection)
+        if (!cameraFrameAvailableRef.current) {
+          console.log('[DETECTION] Discarded response: camera frame is currently dark or unavailable');
+          return;
+        }
+
+        // 4. Freshness verification: Reject responses with latency > 1800ms
+        if (Date.now() - result.capturedAt > 1800) {
+          console.log('[DETECTION] Discarded response: stale response (>1800ms)');
+          return;
+        }
+
+        latestAcceptedFrameIdRef.current = result.frameId;
+
+        // Filter valid goat or sheep detections with real boxes
+        const validDetections = (result.detections || []).filter(
+          (d) =>
+            (d?.species === 'goat' || d?.species === 'sheep') &&
+            Array.isArray(d?.box_2d) &&
+            d.box_2d.length === 4
+        );
+
+        if (validDetections.length > 0) {
           setScannerState('DETECTING');
           if (!hasLoggedStepJRef.current) {
             hasLoggedStepJRef.current = true;
@@ -295,7 +348,7 @@ export function LiveObjectDetectionCamera({
           }
         }
 
-        const rawLivestock: RawLivestockDetection[] = detections.map((d) => ({
+        const rawLivestock: RawLivestockDetection[] = validDetections.map((d) => ({
           species: d.species,
           label: d.species === 'sheep' ? 'TUPA' : 'KAMBING',
           confidence: 0.95,
@@ -307,8 +360,8 @@ export function LiveObjectDetectionCamera({
           },
           rawCategory: d.species,
         }));
-        const updatedTracks = trackerRef.current.update(rawLivestock);
-        console.log(`[TRACKER] active tracks: ${updatedTracks.length}`);
+
+        const updatedTracks = trackerRef.current.update(rawLivestock, result.capturedAt);
         activeTracksLengthRef.current = updatedTracks.length;
         setActiveTracks(updatedTracks);
         if (updatedTracks.some((track) => track.consecutiveHits >= 3)) {
@@ -317,6 +370,9 @@ export function LiveObjectDetectionCamera({
         const selected = trackerRef.current.getSelectedTrack();
         setSelectedTrack(selected);
         setStatusMessage(computeDetectionStatus(updatedTracks, selected));
+      },
+      onDetections: () => {
+        // Handled via onSynchronizedDetections for frame-freshness synchronization
       },
       onDebugUpdate: (info) => {
         if (!isMountedRef.current) return;
@@ -351,7 +407,7 @@ export function LiveObjectDetectionCamera({
 
     liveDetectorRef.current = liveDetector;
     try {
-      await liveDetector.connect();
+      await liveDetector.connect(activeSessionId);
     } catch (err: any) {
       if (isMountedRef.current) {
         setGeminiLiveState('ERROR');
@@ -377,8 +433,16 @@ export function LiveObjectDetectionCamera({
     setScannerState('CAMERA_STARTING');
     setStatusMessage('Binubuksan ang camera...');
     trackerRef.current.reset();
+    activeTracksLengthRef.current = 0;
     setActiveTracks([]);
     setSelectedTrack(null);
+
+    const newSessionId = `cam_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    cameraSessionIdRef.current = newSessionId;
+    latestFrameIdRef.current = 0;
+    latestAcceptedFrameIdRef.current = 0;
+    cameraFrameAvailableRef.current = false;
+    setCameraFrameAvailable(false);
 
     if (!navigator?.mediaDevices?.getUserMedia) {
       setCameraError('Walang camera na nakita sa device.');
@@ -414,6 +478,13 @@ export function LiveObjectDetectionCamera({
         video.srcObject = stream;
         video.muted = true;
         video.playsInline = true;
+        video.onloadeddata = () => {
+          if (isMountedRef.current) {
+            cameraFrameAvailableRef.current = true;
+            setCameraFrameAvailable(true);
+            setScannerState('CAMERA_READY');
+          }
+        };
         video.play().catch((playError) => {
           console.warn('[Camera] Mobile autoplay notice:', playError);
         });
@@ -424,7 +495,7 @@ export function LiveObjectDetectionCamera({
       setScannerState('CAMERA_READY');
 
       // Launch Gemini Live asynchronously in background
-      connectGeminiLive();
+      connectGeminiLive(newSessionId);
 
     } catch (err: any) {
       console.error('[Camera] Start error:', err);
@@ -437,7 +508,7 @@ export function LiveObjectDetectionCamera({
     }
   }, [facingMode, stopCameraStream, connectGeminiLive]);
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Live Render Animation Loop (requestAnimationFrame) GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Live Render Animation Loop (requestAnimationFrame) ────────────────────
   useEffect(() => {
     if (!isCameraActive || isScanning || scannerMode === 'upload') return;
 
@@ -453,6 +524,14 @@ export function LiveObjectDetectionCamera({
       const container = containerRef.current;
 
       if (video && canvas && container && video.readyState >= 2) {
+        // 2586.mp4 regression protection: If camera is pitch black or unavailable, wipe canvas immediately
+        if (!cameraFrameAvailableRef.current) {
+          const ctx = canvas.getContext('2d');
+          ctx?.clearRect(0, 0, canvas.width, canvas.height);
+          rafIdRef.current = requestAnimationFrame(renderLoop);
+          return;
+        }
+
         const dpr = window.devicePixelRatio || 1;
         const rect = container.getBoundingClientRect();
         const displayW = Math.round(rect.width);
@@ -531,13 +610,64 @@ export function LiveObjectDetectionCamera({
       video.videoWidth === 0 ||
       isScanning ||
       showResultSheet ||
-      scannerMode === 'upload' ||
-      geminiLiveState !== 'CONNECTED' ||
-      !liveDetectorRef.current?.isReady()
+      scannerMode === 'upload'
     ) {
+      if (cameraFrameAvailableRef.current) {
+        cameraFrameAvailableRef.current = false;
+        setCameraFrameAvailable(false);
+        trackerRef.current.reset();
+        activeTracksLengthRef.current = 0;
+        setActiveTracks([]);
+        setSelectedTrack(null);
+        setStatusMessage('Naghahanap ng kambing o tupa...');
+        const canvas = overlayCanvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx?.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
       return;
     }
-    liveDetectorRef.current.sendFrame(captureLowResFrame(video, 480));
+
+    const frameCanvas = captureLowResFrame(video, 480);
+    const lumCheck = evaluateFrameAvailability(frameCanvas);
+
+    // 2586.mp4 regression protection: If camera is pitch black or lens is covered
+    if (!lumCheck.isAvailable) {
+      if (cameraFrameAvailableRef.current) {
+        cameraFrameAvailableRef.current = false;
+        setCameraFrameAvailable(false);
+        trackerRef.current.reset();
+        activeTracksLengthRef.current = 0;
+        setActiveTracks([]);
+        setSelectedTrack(null);
+        setStatusMessage('Naghahanap ng kambing o tupa...');
+        const canvas = overlayCanvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx?.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      return;
+    }
+
+    // Camera has usable illuminated frames
+    if (!cameraFrameAvailableRef.current) {
+      cameraFrameAvailableRef.current = true;
+      setCameraFrameAvailable(true);
+    }
+
+    if (geminiLiveState !== 'CONNECTED' || !liveDetectorRef.current?.isReady()) {
+      return;
+    }
+
+    const frameId = ++latestFrameIdRef.current;
+    const capturedAt = Date.now();
+    liveDetectorRef.current.sendFrame(frameCanvas, {
+      frameId,
+      capturedAt,
+      sessionId: cameraSessionIdRef.current,
+    });
   }, [isScanning, showResultSheet, geminiLiveState, scannerMode]);
 
   // Gemini sampling interval: one low-resolution request at a time
@@ -714,8 +844,10 @@ export function LiveObjectDetectionCamera({
       if (!isCameraActive && !cameraError) {
         startCameraStream();
       }
+    } else {
+      stopCameraStream();
     }
-  }, [isCameraActive, cameraError, startCameraStream]);
+  }, [isCameraActive, cameraError, startCameraStream, stopCameraStream]);
 
   // ── Handle File Selection for Image Upload ─────────────────────────────────
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {

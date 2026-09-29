@@ -361,6 +361,78 @@ export interface LiveObjectDetectionResult {
   error?: string;
 }
 
+export interface FrameLuminanceCheck {
+  isAvailable: boolean;
+  meanLuminance: number;
+  maxLuminance: number;
+  isBlackOrDark: boolean;
+  reason?: 'empty_frame' | 'black_or_dark' | 'read_error';
+}
+
+/**
+ * Rapidly evaluate whether a captured video frame is visually available and usable.
+ * Checks for pitch black, blocked, or covered camera lens using grid-sampled luminance.
+ * 2586.mp4 regression protection: Prevents sending black frames and rejects detections when camera is dark.
+ */
+export function evaluateFrameAvailability(canvas: HTMLCanvasElement): FrameLuminanceCheck {
+  if (!canvas || canvas.width === 0 || canvas.height === 0) {
+    return { isAvailable: false, meanLuminance: 0, maxLuminance: 0, isBlackOrDark: true, reason: 'empty_frame' };
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return { isAvailable: false, meanLuminance: 0, maxLuminance: 0, isBlackOrDark: true, reason: 'empty_frame' };
+  }
+
+  // Fast grid sampling across 10x10 = 100 sample points
+  const sampleCols = 10;
+  const sampleRows = 10;
+  const stepX = Math.max(1, Math.floor(canvas.width / sampleCols));
+  const stepY = Math.max(1, Math.floor(canvas.height / sampleRows));
+
+  let totalLuminance = 0;
+  let maxLuminance = 0;
+  let count = 0;
+
+  try {
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+    const stride = canvas.width * 4;
+
+    for (let r = 0; r < sampleRows; r++) {
+      const y = Math.min(canvas.height - 1, r * stepY);
+      const rowOffset = y * stride;
+      for (let c = 0; c < sampleCols; c++) {
+        const x = Math.min(canvas.width - 1, c * stepX);
+        const idx = rowOffset + x * 4;
+        const red = data[idx];
+        const green = data[idx + 1];
+        const blue = data[idx + 2];
+        // Standard perceived luminance formula (ITU-R BT.601)
+        const lum = 0.299 * red + 0.587 * green + 0.114 * blue;
+        totalLuminance += lum;
+        if (lum > maxLuminance) maxLuminance = lum;
+        count++;
+      }
+    }
+  } catch {
+    // Return safe fallback if canvas getImageData throws (e.g. tainted context)
+    return { isAvailable: false, meanLuminance: 0, maxLuminance: 0, isBlackOrDark: true, reason: 'read_error' };
+  }
+
+  const meanLuminance = count > 0 ? totalLuminance / count : 0;
+  // If average luminance < 12 and maximum luminance < 35, the camera is pitch black / covered
+  const isBlackOrDark = meanLuminance < 12 && maxLuminance < 35;
+
+  return {
+    isAvailable: !isBlackOrDark,
+    meanLuminance,
+    maxLuminance,
+    isBlackOrDark,
+    reason: isBlackOrDark ? 'black_or_dark' : undefined,
+  };
+}
+
 /**
  * Capture a lightweight downscaled frame (default max 480px)
  * for rapid sampling during live object detection.

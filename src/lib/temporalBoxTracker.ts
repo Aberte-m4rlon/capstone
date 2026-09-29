@@ -126,8 +126,8 @@ export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
   matchIouThreshold: 0.12,
   baseCenterDistanceFallback: 0.25,
   velocityMatchExpansion: 0.55,
-  maxTrackAgeMs: 2800, // 2.8s grace period bridges 2-3 missed Gemini responses
-  maxConsecutiveMisses: 4,
+  maxTrackAgeMs: 2000, // 2.0s grace period bridges 1 missed frame while preventing lingering ghost boxes
+  maxConsecutiveMisses: 2, // Prune if 2 consecutive cycles report no animal
   velocityDampingPerSec: 0.68,
   speciesConsensusThreshold: 3,
   goatEntryThreshold: 0.28,
