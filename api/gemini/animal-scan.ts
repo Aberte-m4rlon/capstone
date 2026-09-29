@@ -263,6 +263,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Priority modern model chain
   const rawFallbackModels = [
     process.env.GEMINI_MODEL,
+    'gemini-3.8-flash',
     'gemini-2.5-flash',
     'gemini-3.6-flash',
     'gemini-3.5-flash-lite',
