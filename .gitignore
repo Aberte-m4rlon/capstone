@@ -23,6 +23,7 @@ myai_service/models/*.pkl
 !public/models/*.onnx
 *.weights
 *.tar.xz
+*.zip
 4skwhnrscr-2/
 datasets/4skwhnrscr/raw_dataset_1/
 datasets/4skwhnrscr/raw_dataset_2/

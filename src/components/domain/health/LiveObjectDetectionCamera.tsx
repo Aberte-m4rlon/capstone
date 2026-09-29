@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LiveObjectDetectionCamera.tsx GÃ‡Ã¶ Dedicated Full-Screen "AI Health Scanner"
  *
  * Real-time object-detection mobile camera experience for AlpasFarm:
@@ -117,6 +117,12 @@ export function LiveObjectDetectionCamera({
   const [showSettings, setShowSettings] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
 
+  // Gemini Live Connection Lifecycle State
+  const [geminiLiveState, setGeminiLiveState] = useState<'OFF' | 'CONNECTING' | 'CONNECTED' | 'ERROR'>('OFF');
+  const [geminiRetryCount, setGeminiRetryCount] = useState<number>(0);
+  const geminiStartTimeRef = useRef<number>(0);
+  const hasLoggedStepJRef = useRef<boolean>(false);
+
   // GÃ¶Ã‡GÃ¶Ã‡ Tracking & Selection State GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
   const [statusMessage, setStatusMessage] = useState<string>('Naghahanap ng kambing o tupa...');
   const trackerRef = useRef<TemporalLivestockTracker>(
@@ -190,6 +196,7 @@ export function LiveObjectDetectionCamera({
   );
 
   // GÃ¶Ã‡GÃ¶Ã‡ Stop Camera Stream GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // Stop Camera Stream
   const stopCameraStream = useCallback(() => {
     if (detectTimerRef.current) {
       clearInterval(detectTimerRef.current);
@@ -197,6 +204,7 @@ export function LiveObjectDetectionCamera({
     }
     liveDetectorRef.current?.close();
     liveDetectorRef.current = null;
+    setGeminiLiveState('OFF');
     if (observationTimerRef.current) { clearTimeout(observationTimerRef.current); observationTimerRef.current = null; }
     if (observationRecorderRef.current?.state === 'recording') observationRecorderRef.current.stop();
     if (rafIdRef.current) {
@@ -224,7 +232,83 @@ export function LiveObjectDetectionCamera({
     setIsCameraActive(false);
   }, []);
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Start Camera Stream GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // Connect Gemini Live in Background (Non-blocking)
+  const connectGeminiLive = useCallback(async () => {
+    hasLoggedStepJRef.current = false;
+    geminiStartTimeRef.current = Date.now();
+    setGeminiLiveState('CONNECTING');
+    setStatusMessage('Kumokonekta sa Gemini Live...');
+
+    const liveDetector = new GeminiLiveDetector({
+      onDetections: (detections) => {
+        if (!isMountedRef.current) return;
+        if (detections.length > 0 && !hasLoggedStepJRef.current) {
+          hasLoggedStepJRef.current = true;
+          const stepJTime = Date.now() - geminiStartTimeRef.current;
+          console.log(`[GeminiLive] render detection box: ${stepJTime} ms`);
+        }
+
+        const rawLivestock: RawLivestockDetection[] = detections.map((d) => ({
+          species: d.species,
+          label: d.species === 'sheep' ? 'TUPA' : 'KAMBING',
+          confidence: 0,
+          box: {
+            x: d.box_2d[1] / 1000,
+            y: d.box_2d[0] / 1000,
+            width: (d.box_2d[3] - d.box_2d[1]) / 1000,
+            height: (d.box_2d[2] - d.box_2d[0]) / 1000,
+          },
+          rawCategory: d.species,
+        }));
+        const updatedTracks = trackerRef.current.update(rawLivestock);
+        setActiveTracks(updatedTracks);
+        if (updatedTracks.some((track) => track.consecutiveHits >= 3)) {
+          startObservationRecording();
+        }
+        const selected = trackerRef.current.getSelectedTrack();
+        setSelectedTrack(selected);
+        setStatusMessage(computeDetectionStatus(updatedTracks, selected));
+      },
+      onStatusChange: (state, msg) => {
+        if (!isMountedRef.current) return;
+        if (state === 'CONNECTED') {
+          setGeminiLiveState('CONNECTED');
+          setStatusMessage('Naghahanap ng kambing o tupa...');
+        } else if (state === 'CONNECTING') {
+          setGeminiLiveState('CONNECTING');
+          setStatusMessage(msg);
+        } else if (state === 'ERROR' || state === 'CLOSED') {
+          setGeminiLiveState('ERROR');
+          setStatusMessage('Hindi makakonekta sa Gemini Live.');
+        }
+      },
+      onError: (err) => {
+        console.warn('[Camera] Gemini Live error:', err?.message || err);
+        if (isMountedRef.current) {
+          setGeminiLiveState('ERROR');
+          setStatusMessage('Hindi makakonekta sa Gemini Live.');
+        }
+      },
+    });
+
+    liveDetectorRef.current = liveDetector;
+    try {
+      await liveDetector.connect();
+    } catch (err: any) {
+      if (isMountedRef.current) {
+        setGeminiLiveState('ERROR');
+        setStatusMessage('Hindi makakonekta sa Gemini Live.');
+      }
+    }
+  }, [computeDetectionStatus, startObservationRecording]);
+
+  // Farmer retry action (max 3 retries)
+  const handleRetryGeminiLive = useCallback(() => {
+    setGeminiRetryCount((prev) => prev + 1);
+    connectGeminiLive();
+  }, [connectGeminiLive]);
+
+  // Start Camera Stream (Opens viewport immediately, Gemini connects asynchronously)
   const startCameraStream = useCallback(async () => {
     stopCameraStream();
     setCameraError(null);
@@ -272,19 +356,11 @@ export function LiveObjectDetectionCamera({
         });
       }
 
+      // Camera is now active! The farmer sees video immediately.
       setIsCameraActive(true);
-      setStatusMessage('Kumokonekta sa Gemini Live...');
-      const liveDetector = new GeminiLiveDetector((detections) => {
-        const rawLivestock: RawLivestockDetection[] = detections.map((d) => ({ species: d.species, label: d.species === 'sheep' ? 'TUPA' : 'KAMBING', confidence: 0, box: { x: d.box_2d[1] / 1000, y: d.box_2d[0] / 1000, width: (d.box_2d[3] - d.box_2d[1]) / 1000, height: (d.box_2d[2] - d.box_2d[0]) / 1000 }, rawCategory: d.species }));
-        const updatedTracks = trackerRef.current.update(rawLivestock);
-        setActiveTracks(updatedTracks);
-        if (updatedTracks.some((track) => track.consecutiveHits >= 3)) startObservationRecording();
-        const selected = trackerRef.current.getSelectedTrack();
-        setSelectedTrack(selected);
-        setStatusMessage(computeDetectionStatus(updatedTracks, selected));
-      });
-      liveDetectorRef.current = liveDetector;
-      liveDetector.connect().catch(() => { if (isMountedRef.current) { setCameraError('Pansamantalang hindi available ang realtime detection. Subukan muli.'); setStatusMessage('Realtime detection ay hindi available.'); } });
+
+      // Launch Gemini Live asynchronously in background
+      connectGeminiLive();
 
     } catch (err: any) {
       console.error('[Camera] Start error:', err);
@@ -295,7 +371,7 @@ export function LiveObjectDetectionCamera({
         setCameraError('Hindi mabuksan ang camera. Subukan muli.');
       }
     }
-  }, [facingMode, stopCameraStream]);
+  }, [facingMode, stopCameraStream, connectGeminiLive]);
 
   // GÃ¶Ã‡GÃ¶Ã‡ Live Render Animation Loop (requestAnimationFrame) GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
   useEffect(() => {
@@ -358,16 +434,26 @@ export function LiveObjectDetectionCamera({
     };
   }, [isCameraActive, isScanning]);
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Live Detection Cycle (~8-9 FPS locally) GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // Live Detection Cycle (only active when Gemini Live is CONNECTED)
   const runDetectionCycle = useCallback(() => {
     const video = videoRef.current;
-    if (!video || video.readyState < 2 || video.videoWidth === 0 || isScanning || showResultSheet) return;
-    liveDetectorRef.current?.sendFrame(captureLowResFrame(video, 480));
-  }, [isScanning, showResultSheet]);
+    if (
+      !video ||
+      video.readyState < 2 ||
+      video.videoWidth === 0 ||
+      isScanning ||
+      showResultSheet ||
+      geminiLiveState !== 'CONNECTED' ||
+      !liveDetectorRef.current?.isReady()
+    ) {
+      return;
+    }
+    liveDetectorRef.current.sendFrame(captureLowResFrame(video, 480));
+  }, [isScanning, showResultSheet, geminiLiveState]);
 
   // Gemini sampling interval: one low-resolution request at a time
   useEffect(() => {
-    if (!isCameraActive || isScanning || showResultSheet) {
+    if (!isCameraActive || isScanning || showResultSheet || geminiLiveState !== 'CONNECTED') {
       if (detectTimerRef.current) {
         clearInterval(detectTimerRef.current);
         detectTimerRef.current = null;
@@ -383,7 +469,7 @@ export function LiveObjectDetectionCamera({
         detectTimerRef.current = null;
       }
     };
-  }, [isCameraActive, isScanning, showResultSheet, runDetectionCycle]);
+  }, [isCameraActive, isScanning, showResultSheet, geminiLiveState, runDetectionCycle]);
 
   // GÃ¶Ã‡GÃ¶Ã‡ Camera Mount Lifecycle GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
   useEffect(() => {
@@ -982,6 +1068,128 @@ export function LiveObjectDetectionCamera({
               </div>
             )}
 
+            {/* Gemini Live Non-blocking Badges (Camera preview remains visible) */}
+            {isCameraActive && !cameraError && !isScanning && geminiLiveState === 'CONNECTING' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  left: 12,
+                  zIndex: 25,
+                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                  backdropFilter: 'blur(6px)',
+                  borderRadius: 20,
+                  padding: '5px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  color: '#FFFFFF',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                }}
+              >
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    borderTopColor: '#22C55E',
+                    animation: 'spin 1s linear infinite',
+                  }}
+                />
+                <span>Kumokonekta sa Gemini Live...</span>
+              </div>
+            )}
+
+            {isCameraActive && !cameraError && !isScanning && geminiLiveState === 'CONNECTED' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  left: 12,
+                  zIndex: 25,
+                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                  backdropFilter: 'blur(6px)',
+                  borderRadius: 20,
+                  padding: '5px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  color: '#4ADE80',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: '1px solid rgba(74, 222, 128, 0.35)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                }}
+              >
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    backgroundColor: '#22C55E',
+                    boxShadow: '0 0 8px #22C55E',
+                  }}
+                />
+                <span>Gemini Live Aktibo</span>
+              </div>
+            )}
+
+            {isCameraActive && !cameraError && !isScanning && geminiLiveState === 'ERROR' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  left: 12,
+                  right: 12,
+                  zIndex: 25,
+                  backgroundColor: 'rgba(15, 23, 42, 0.90)',
+                  backdropFilter: 'blur(6px)',
+                  borderRadius: 12,
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+                  color: '#FFFFFF',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500 }}>
+                  <AlertCircle size={15} color="#F87171" style={{ flexShrink: 0 }} />
+                  <span>Hindi makakonekta sa Gemini Live.</span>
+                </div>
+                {geminiRetryCount < 3 ? (
+                  <button
+                    type="button"
+                    onClick={handleRetryGeminiLive}
+                    style={{
+                      background: '#16A34A',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                    }}
+                  >
+                    Subukan muli {geminiRetryCount > 0 ? `(${geminiRetryCount}/3)` : ''}
+                  </button>
+                ) : (
+                  <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                    Pindutin ang I-SCAN
+                  </span>
+                )}
+              </div>
+            )}
+
             {cameraError && (
               <div
                 style={{
@@ -1081,6 +1289,8 @@ export function LiveObjectDetectionCamera({
               <CheckCircle2 size={16} color="#4ADE80" />
             ) : activeTracks.length > 0 ? (
               <Sparkles size={16} color="#22C55E" />
+            ) : geminiLiveState === 'ERROR' ? (
+              <AlertCircle size={16} color="#F87171" />
             ) : (
               <Info size={16} color="#94A3B8" />
             )}

@@ -295,52 +295,303 @@ export async function detectLiveObjects(
   }
 }
 
-export interface GeminiLiveDetection { species: 'goat' | 'sheep'; box_2d: [number, number, number, number]; visible: true; }
+export interface GeminiLiveDetection {
+  species: 'goat' | 'sheep';
+  box_2d: [number, number, number, number];
+  visible: true;
+}
+
+export type GeminiLiveConnectionState = 'IDLE' | 'CONNECTING' | 'CONNECTED' | 'ERROR' | 'CLOSED';
+
+export interface GeminiLiveDetectorCallbacks {
+  onDetections: (detections: GeminiLiveDetection[]) => void;
+  onStatusChange?: (state: GeminiLiveConnectionState, message: string) => void;
+  onError?: (error: Error) => void;
+}
 
 export class GeminiLiveDetector {
   private session: any = null;
   private responseBuffer = '';
-  private onDetections: (detections: GeminiLiveDetection[]) => void;
+  private state: GeminiLiveConnectionState = 'IDLE';
+  private callbacks: GeminiLiveDetectorCallbacks;
+  private isConnecting = false;
+  private abortController: AbortController | null = null;
+  private connectionTimer: any = null;
+  private flowStartTime: number = 0;
+  private liveConnectStartTime: number = 0;
+  private isSetupComplete: boolean = false;
+  private hasSentFirstFrame: boolean = false;
+  private hasReceivedFirstMessage: boolean = false;
+  private hasReceivedFirstDetection: boolean = false;
+  private isSendingFrame: boolean = false;
 
-  constructor(onDetections: (detections: GeminiLiveDetection[]) => void) { this.onDetections = onDetections; }
+  constructor(
+    callbacksOrOnDetections:
+      | ((detections: GeminiLiveDetection[]) => void)
+      | GeminiLiveDetectorCallbacks
+  ) {
+    if (typeof callbacksOrOnDetections === 'function') {
+      this.callbacks = { onDetections: callbacksOrOnDetections };
+    } else {
+      this.callbacks = callbacksOrOnDetections;
+    }
+  }
 
-  async connect(): Promise<void> {
-    const tokenResponse = await fetch('/api/gemini/live-token', { method: 'POST' });
-    if (!tokenResponse.ok) throw new Error('Live detection is temporarily unavailable.');
-    const { token, model } = await tokenResponse.json();
-    const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
-    this.session = await ai.live.connect({
-      model,
-      callbacks: {
-        onmessage: (message: any) => this.handleMessage(message),
-        onerror: () => this.onDetections([]),
-        onclose: () => { this.session = null; },
-      },
+  public getState(): GeminiLiveConnectionState {
+    return this.state;
+  }
+
+  public isReady(): boolean {
+    return this.state === 'CONNECTED' && this.isSetupComplete && this.session !== null;
+  }
+
+  public async connect(): Promise<void> {
+    if (this.isConnecting) {
+      console.warn('[GeminiLive] Connection already in progress, ignoring duplicate call.');
+      return;
+    }
+
+    // Clean up any stale session
+    this.close();
+
+    this.isConnecting = true;
+    this.state = 'CONNECTING';
+    this.callbacks.onStatusChange?.('CONNECTING', 'Kumokonekta sa Gemini Live...');
+    this.flowStartTime = Date.now();
+    this.isSetupComplete = false;
+    this.hasSentFirstFrame = false;
+    this.hasReceivedFirstMessage = false;
+    this.hasReceivedFirstDetection = false;
+    this.abortController = new AbortController();
+
+    const connectPromise = (async () => {
+      // Step A: Request ephemeral token
+      console.log('[GeminiLive] token request started');
+      const tokenStart = Date.now();
+
+      const tokenResponse = await fetch('/api/gemini/live-token', {
+        method: 'POST',
+        signal: this.abortController?.signal,
+      });
+
+      if (!tokenResponse.ok) {
+        let errMsg = `Token request failed with status ${tokenResponse.status}`;
+        try {
+          const errBody = await tokenResponse.json();
+          if (errBody?.error) errMsg = errBody.error;
+        } catch {}
+        throw new Error(errMsg);
+      }
+
+      // Step B: Receive ephemeral token
+      const tokenJson = await tokenResponse.json();
+      const tokenElapsed = Date.now() - tokenStart;
+      console.log(`[GeminiLive] token request finished: ${tokenElapsed} ms`);
+
+      const { token, model } = tokenJson;
+      if (!token) throw new Error('Live detection token is missing in response.');
+      console.log('[GeminiLive] token received');
+
+      // Step C: Create client with token
+      console.log('[GeminiLive] create client with token');
+      const ai = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: 'v1alpha' } });
+
+      // Step D: Call live.connect
+      console.log('[GeminiLive] live.connect started');
+      this.liveConnectStartTime = Date.now();
+
+      const session = await ai.live.connect({
+        model: model || 'gemini-live-2.5-flash-preview',
+        callbacks: {
+          onopen: () => {
+            // Step E: WebSocket connected
+            const wsElapsed = Date.now() - this.liveConnectStartTime;
+            console.log(`[GeminiLive] websocket connected: ${wsElapsed} ms`);
+          },
+          onmessage: (message: any) => {
+            this.handleMessage(message);
+          },
+          onerror: (err: any) => {
+            console.error('[GeminiLive] WebSocket error:', err);
+            this.callbacks.onDetections([]);
+            if (this.state === 'CONNECTING') {
+              this.state = 'ERROR';
+              this.callbacks.onStatusChange?.('ERROR', 'Hindi makakonekta sa Gemini Live.');
+            }
+          },
+          onclose: (e: any) => {
+            console.log(
+              `[GeminiLive] WebSocket closed (code: ${e?.code || 'unknown'}, reason: ${e?.reason || 'none'})`
+            );
+            this.session = null;
+            this.isSetupComplete = false;
+            if (this.state === 'CONNECTED') {
+              this.state = 'CLOSED';
+              this.callbacks.onStatusChange?.('CLOSED', 'Nawala ang koneksyon sa Gemini Live.');
+            }
+          },
+        },
+      });
+
+      this.session = session;
+      // Step F: Setup completed (ai.live.connect resolves after setupComplete)
+      this.isSetupComplete = true;
+      const setupElapsed = Date.now() - this.liveConnectStartTime;
+      console.log(`[GeminiLive] setup completed: ${setupElapsed} ms`);
+
+      this.state = 'CONNECTED';
+      this.callbacks.onStatusChange?.('CONNECTED', 'Gemini Live Aktibo');
+
+      // Kickstart real-time detection turn
+      this.session.sendClientContent({
+        turns: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: 'Begin live visual goat/sheep detection now. Return a JSON detection update after observing incoming video frames.',
+              },
+            ],
+          },
+        ],
+        turnComplete: true,
+      });
+    })();
+
+    // 8-second strict timeout race
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      this.connectionTimer = setTimeout(() => {
+        reject(new Error('CONNECTION_TIMEOUT: Gemini Live connection timed out after 8s.'));
+      }, 8000);
     });
-    this.session.sendClientContent({ turns: [{ role: 'user', parts: [{ text: 'Begin live visual goat/sheep detection now. Return a JSON detection update after observing incoming video frames.' }] }], turnComplete: true });
+
+    try {
+      await Promise.race([connectPromise, timeoutPromise]);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        console.log('[GeminiLive] Connection attempt aborted.');
+        return;
+      }
+      this.state = 'ERROR';
+      const totalElapsed = Date.now() - this.flowStartTime;
+      console.error(`[GeminiLive] Connection error after ${totalElapsed} ms:`, err?.message || err);
+      this.callbacks.onError?.(err);
+      this.callbacks.onStatusChange?.('ERROR', 'Hindi makakonekta sa Gemini Live.');
+      this.close();
+      throw err;
+    } finally {
+      this.isConnecting = false;
+      if (this.connectionTimer) {
+        clearTimeout(this.connectionTimer);
+        this.connectionTimer = null;
+      }
+    }
   }
 
-  sendFrame(canvas: HTMLCanvasElement): void {
-    if (!this.session) return;
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
-    const comma = dataUrl.indexOf(',');
-    this.session.sendRealtimeInput({ video: { data: comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl, mimeType: 'image/jpeg' } });
+  public sendFrame(canvas: HTMLCanvasElement): void {
+    if (
+      this.state !== 'CONNECTED' ||
+      !this.session ||
+      !this.isSetupComplete ||
+      this.isSendingFrame
+    ) {
+      return;
+    }
+
+    try {
+      this.isSendingFrame = true;
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+      const comma = dataUrl.indexOf(',');
+      const base64Data = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+
+      // Step H: First frame sent
+      if (!this.hasSentFirstFrame) {
+        this.hasSentFirstFrame = true;
+        const frameElapsed = Date.now() - this.flowStartTime;
+        console.log(`[GeminiLive] first frame sent: ${frameElapsed} ms`);
+      }
+
+      this.session.sendRealtimeInput({
+        video: { data: base64Data, mimeType: 'image/jpeg' },
+      });
+    } catch (sendErr) {
+      console.warn('[GeminiLive] Send frame error:', sendErr);
+    } finally {
+      this.isSendingFrame = false;
+    }
   }
 
-  close(): void { if (this.session) this.session.close(); this.session = null; this.responseBuffer = ''; }
+  public close(): void {
+    if (this.connectionTimer) {
+      clearTimeout(this.connectionTimer);
+      this.connectionTimer = null;
+    }
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    if (this.session) {
+      try {
+        this.session.close();
+      } catch {}
+      this.session = null;
+    }
+    this.isConnecting = false;
+    this.isSetupComplete = false;
+    this.responseBuffer = '';
+    if (this.state !== 'IDLE') {
+      this.state = 'CLOSED';
+    }
+  }
+
+  public disconnect(): void {
+    this.close();
+  }
 
   private handleMessage(message: any): void {
+    // Step G: First Gemini message
+    if (!this.hasReceivedFirstMessage) {
+      this.hasReceivedFirstMessage = true;
+      const msgElapsed = Date.now() - (this.liveConnectStartTime || this.flowStartTime);
+      console.log(`[GeminiLive] first Gemini message: ${msgElapsed} ms`);
+    }
+
     const parts = message?.serverContent?.modelTurn?.parts || [];
-    for (const part of parts) if (typeof part.text === 'string') this.responseBuffer += part.text;
+    for (const part of parts) {
+      if (typeof part.text === 'string') {
+        this.responseBuffer += part.text;
+      }
+    }
+
     if (!message?.serverContent?.turnComplete) return;
+
     const text = this.responseBuffer.trim();
     this.responseBuffer = '';
+
     try {
-      const cleaned = text.replace(/\`\`\`json/gi, '').replace(/\`\`\`/g, '').trim();
+      const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleaned);
-      const detections = Array.isArray(parsed?.detections) ? parsed.detections.filter((d: any) => (d?.species === 'goat' || d?.species === 'sheep') && Array.isArray(d?.box_2d) && d.box_2d.length === 4 && d.visible === true) : [];
-      this.onDetections(detections);
-    } catch { this.onDetections([]); }
+      const detections: GeminiLiveDetection[] = Array.isArray(parsed?.detections)
+        ? parsed.detections.filter(
+            (d: any) =>
+              (d?.species === 'goat' || d?.species === 'sheep') &&
+              Array.isArray(d?.box_2d) &&
+              d.box_2d.length === 4 &&
+              d.visible === true
+          )
+        : [];
+
+      // Step I: First detection response
+      if (!this.hasReceivedFirstDetection && detections.length > 0) {
+        this.hasReceivedFirstDetection = true;
+        const detElapsed = Date.now() - this.flowStartTime;
+        console.log(`[GeminiLive] first detection response: ${detElapsed} ms`);
+      }
+
+      this.callbacks.onDetections(detections);
+    } catch {
+      this.callbacks.onDetections([]);
+    }
   }
 }
 
