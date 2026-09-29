@@ -607,7 +607,7 @@ export class GeminiLiveDetector {
 
     this.isConnecting = true;
     this.state = 'CONNECTING';
-    this.callbacks.onStatusChange?.('CONNECTING', 'Kumokonekta sa Gemini Live...');
+    this.callbacks.onStatusChange?.('CONNECTING', 'Inihahanda ang AI Scanner...');
     this.flowStartTime = Date.now();
     this.isSetupComplete = false;
     this.hasSentFirstFrame = false;
@@ -645,7 +645,7 @@ export class GeminiLiveDetector {
         code: isTimeout ? 'TOKEN_TIMEOUT' : 'FETCH_FAILED',
         cause: fetchErr?.name || 'FetchError',
         isRecoverable: true,
-        userMessage: 'Hindi makakonekta sa Gemini Live.',
+        userMessage: 'Hindi maihanda ang AI Scanner.',
       };
       this.handleConnectionFailure(errDetail);
       return;
@@ -707,7 +707,7 @@ export class GeminiLiveDetector {
         code,
         cause: errBody,
         isRecoverable: !isUnrecoverable,
-        userMessage: isUnrecoverable ? 'Gemini Live ay hindi available ngayon.' : 'Hindi makakonekta sa Gemini Live.',
+        userMessage: isUnrecoverable ? 'Hindi available ang AI Scanner ngayon.' : 'Hindi maihanda ang AI Scanner.',
       };
 
       this.handleConnectionFailure(errDetail);
@@ -728,7 +728,7 @@ export class GeminiLiveDetector {
         code: 'INVALID_JSON',
         cause: parseErr?.message || 'Invalid JSON',
         isRecoverable: false,
-        userMessage: 'Gemini Live ay hindi available ngayon.',
+        userMessage: 'Hindi available ang AI Scanner ngayon.',
       };
       this.handleConnectionFailure(errDetail);
       return;
@@ -749,7 +749,7 @@ export class GeminiLiveDetector {
         code: 'TOKEN_MISSING',
         cause: tokenJson,
         isRecoverable: false,
-        userMessage: 'Gemini Live ay hindi available ngayon.',
+        userMessage: 'Hindi available ang AI Scanner ngayon.',
       };
       this.handleConnectionFailure(errDetail);
       return;
@@ -860,7 +860,7 @@ Do not return fake confidence values.`,
               code: wsErr?.code || 'WS_ERROR',
               cause: wsErr?.message || 'WebSocket Error',
               isRecoverable: true,
-              userMessage: 'Hindi makakonekta sa Gemini Live.',
+              userMessage: 'Hindi maihanda ang AI Scanner.',
             };
             this.handleConnectionFailure(errDetail);
           },
@@ -893,7 +893,7 @@ Do not return fake confidence values.`,
                 closeCode: code,
                 closeReason: reason,
                 isRecoverable,
-                userMessage: isRecoverable ? 'Hindi makakonekta sa Gemini Live.' : 'Gemini Live ay hindi available ngayon.',
+                userMessage: isRecoverable ? 'Hindi maihanda ang AI Scanner.' : 'Hindi available ang AI Scanner ngayon.',
               };
               if (earlyCloseReject) {
                 earlyCloseReject(errDetail);
@@ -901,7 +901,7 @@ Do not return fake confidence values.`,
               this.handleConnectionFailure(errDetail);
             } else if (this.state === 'CONNECTED') {
               this.state = 'CLOSED';
-              this.callbacks.onStatusChange?.('CLOSED', 'Nawala ang koneksyon sa Gemini Live.');
+              this.callbacks.onStatusChange?.('CLOSED', 'Nawala ang koneksyon sa AI Scanner.');
             }
           },
         },
@@ -930,7 +930,7 @@ Do not return fake confidence values.`,
         code: isTimeout ? 'LIVE_CONNECT_TIMEOUT' : 'SETUP_FAILED',
         cause: connectErr?.message || 'Live Connect Error',
         isRecoverable: true,
-        userMessage: 'Hindi makakonekta sa Gemini Live.',
+        userMessage: 'Hindi maihanda ang AI Scanner.',
       };
       this.handleConnectionFailure(errDetail);
       return;
@@ -945,7 +945,7 @@ Do not return fake confidence values.`,
 
     this.state = 'CONNECTED';
     this.isConnecting = false;
-    this.callbacks.onStatusChange?.('CONNECTED', 'Gemini Live Aktibo');
+    this.callbacks.onStatusChange?.('CONNECTED', 'AI Scanner ay handa na');
   }
 
   public sendFrame(canvas: HTMLCanvasElement): void {

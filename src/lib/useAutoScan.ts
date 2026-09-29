@@ -92,7 +92,7 @@ function buildMessage(
 ): string {
   switch (state) {
     case 'idle':           return 'Hindi pa bukas ang camera.';
-    case 'loading':        return 'Inihahanda ang Gemini camera scanner...';
+    case 'loading':        return 'Inihahanda ang AI camera scanner...';
     case 'other_detected': {
       if (det?.nonTargetClass) {
         return `${det.nonTargetClass.toUpperCase()} — Hindi ito kambing o tupa.`;
@@ -124,9 +124,9 @@ function buildMessage(
       return 'Naghahanap... Itapat ang camera sa kambing o tupa.';
     case 'stable': {
       const sp = det?.detectedSpecies === 'sheep' ? 'Tupa' : 'Kambing';
-      return `Nakita: ${sp} — Sinusuri ang kalusugan sa Gemini Vision...`;
+      return `Nakita: ${sp} — Sinusuri ang kalusugan sa AI Scanner...`;
     }
-    case 'scanning':       return 'Sinusuri ang kalusugan ng kambing o tupa sa Gemini Vision...';
+    case 'scanning':       return 'Sinusuri ang kalusugan ng kambing o tupa sa AI Scanner...';
     case 'result':         return 'Tapos na ang pagsusuri sa kalusugan.';
     case 'cooldown':       return `Handa para sa susunod na scan sa loob ng ${cd}s...`;
     case 'error':          return 'Nagkaroon ng problema habang nagsusuri.';
@@ -332,7 +332,7 @@ export function useAutoScan(options: {
           angleGuidance: hasMultiple
             ? 'Maraming kambing o tupa ang nakita. Itapat ang camera sa iisang alaga lamang.'
             : 'Panatilihing steady ang camera sa alaga.',
-          angleClinicalFocus: 'Gemini Vision Live Object Detection',
+          angleClinicalFocus: 'AI Live Object Detection',
           angleConfidence: 0.95,
           nonTargetClass: null,
           detectedEmoji: sp === 'sheep' ? '🐑' : '🐐',

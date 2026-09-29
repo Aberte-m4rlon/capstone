@@ -263,7 +263,7 @@ export function LiveObjectDetectionCamera({
     setGeminiLiveState('CONNECTING');
     setScannerState('GEMINI_TOKEN_REQUESTING');
     setGeminiErrorDetail(null);
-    setStatusMessage('Kumokonekta sa Gemini Live...');
+    setStatusMessage('Inihahanda ang AI Scanner...');
 
     const liveDetector = new GeminiLiveDetector({
       onDetections: (detections) => {
@@ -317,16 +317,16 @@ export function LiveObjectDetectionCamera({
         } else if (state === 'ERROR' || state === 'CLOSED') {
           setGeminiLiveState('ERROR');
           setScannerState('GEMINI_ERROR');
-          setStatusMessage(msg || 'Hindi makakonekta sa Gemini Live.');
+          setStatusMessage(msg || 'Hindi maihanda ang AI Scanner.');
         }
       },
       onError: (errDetail: GeminiLiveErrorDetail) => {
-        console.warn('[Camera] Gemini Live error:', errDetail?.message || errDetail);
+        console.warn('[Camera] Live error:', errDetail?.message || errDetail);
         if (isMountedRef.current) {
           setGeminiLiveState('ERROR');
           setScannerState('GEMINI_ERROR');
           setGeminiErrorDetail(errDetail);
-          setStatusMessage(errDetail?.userMessage || 'Hindi makakonekta sa Gemini Live.');
+          setStatusMessage(errDetail?.userMessage || 'Hindi maihanda ang AI Scanner.');
         }
       },
     });
@@ -1129,7 +1129,7 @@ export function LiveObjectDetectionCamera({
               >
                 <div>Live: <span style={{ color: geminiLiveState === 'CONNECTED' ? '#4ADE80' : '#FBBF24', fontWeight: 'bold' }}>{geminiLiveState}</span></div>
                 <div>Frames sent: {debugInfo.framesSent}</div>
-                <div>Last Gemini message: {debugInfo.lastMessage}</div>
+                <div>Last message: {debugInfo.lastMessage}</div>
                 <div>Last detection count: {debugInfo.detectionCount}</div>
                 <div>Species: {debugInfo.lastSpecies}</div>
                 <div>Box: {debugInfo.boxReceived ? 'RECEIVED' : 'NONE'}</div>
@@ -1163,7 +1163,7 @@ export function LiveObjectDetectionCamera({
               </div>
             )}
 
-            {/* Gemini Live Non-blocking Badges (Camera preview remains visible) */}
+            {/* AI Scanner Non-blocking Badges (Camera preview remains visible) */}
             {isCameraActive && !cameraError && !isScanning && geminiLiveState === 'CONNECTING' && (
               <div
                 style={{
@@ -1195,7 +1195,7 @@ export function LiveObjectDetectionCamera({
                     animation: 'spin 1s linear infinite',
                   }}
                 />
-                <span>Kumokonekta sa Gemini Live...</span>
+                <span>Inihahanda ang AI Scanner...</span>
               </div>
             )}
 
@@ -1229,7 +1229,7 @@ export function LiveObjectDetectionCamera({
                     boxShadow: '0 0 8px #22C55E',
                   }}
                 />
-                <span>Gemini Live Aktibo</span>
+                <span>AI Scanner ay handa na</span>
               </div>
             )}
 
@@ -1256,7 +1256,7 @@ export function LiveObjectDetectionCamera({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 500 }}>
                   <AlertCircle size={15} color="#F87171" style={{ flexShrink: 0 }} />
-                  <span>{geminiErrorDetail?.userMessage || 'Hindi makakonekta sa Gemini Live.'}</span>
+                  <span>{geminiErrorDetail?.userMessage || 'Hindi maihanda ang AI Scanner.'}</span>
                 </div>
                 {geminiErrorDetail && !geminiErrorDetail.isRecoverable ? (
                   <span
@@ -1289,7 +1289,7 @@ export function LiveObjectDetectionCamera({
                       boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
                     }}
                   >
-                    Subukan muli {geminiRetryCount > 0 ? `(${geminiRetryCount}/3)` : ''}
+                    Subukan Ulit {geminiRetryCount > 0 ? `(${geminiRetryCount}/3)` : ''}
                   </button>
                 ) : (
                   <span style={{ fontSize: 11, color: '#94A3B8', whiteSpace: 'nowrap' }}>
@@ -1366,7 +1366,7 @@ export function LiveObjectDetectionCamera({
                 />
                 <div style={{ fontSize: 15, fontWeight: 700 }}>Sinusuri ang alaga...</div>
                 <div style={{ fontSize: 12, color: '#94A3B8', textAlign: 'center' }}>
-                  Isinusumite sa Gemini Vision AI
+                  Sinusuri ang nakikita...
                 </div>
               </div>
             )}

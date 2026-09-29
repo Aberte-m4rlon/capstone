@@ -218,7 +218,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[animal-scan] Error: GEMINI_API_KEY is not defined in environment variables.');
     return res.status(500).json({
       success: false,
-      error: 'Server configuration error: Walang Gemini API key.',
+      error: 'Server configuration error: Walang AI API key.',
     });
   }
 
@@ -311,7 +311,7 @@ TARGET ANIMAL INFORMATION:
 
       const responseText = response.text;
       if (!responseText || !responseText.trim()) {
-        throw new Error('Walang sagot mula sa Gemini Vision API.');
+        throw new Error('Walang sagot mula sa AI Vision API.');
       }
 
       let parsed: any;

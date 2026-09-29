@@ -205,7 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!apiKey) {
     return res.status(503).json({
       success: false,
-      error: 'Hindi naka-configure ang GEMINI_API_KEY sa server environment.',
+      error: 'Hindi naka-configure ang AI API key sa server environment.',
       detections: [],
       count_goats: 0,
       count_sheep: 0,
@@ -393,7 +393,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     count_goats: 0,
     count_sheep: 0,
     multiple_targets: false,
-    status_message: 'Muling sinusubukan ang Gemini Vision...',
+    status_message: 'Muling sinusubukan ang AI Vision...',
   });
 }
 

@@ -110,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (error?.message === 'TOKEN_TIMEOUT') {
       return res.status(504).json({
-        error: 'Gemini token creation timed out on server.',
+        error: 'Live token creation timed out on server.',
         code: 'TOKEN_TIMEOUT',
         apiKeyConfigured: true,
       });

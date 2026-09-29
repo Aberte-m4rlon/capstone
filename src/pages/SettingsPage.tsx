@@ -386,7 +386,7 @@ export function SettingsPage() {
       {/* ── MGA KAGUSTUHAN SA NOTIFICATION (IN-APP, SMS, EMAIL) ── */}
       <NotificationPreferencesCard contactPhone={contactNumber} />
 
-      {/* ── GOOGLE GEMINI AI CONFIGURATION ── */}
+      {/* ── AI HEALTH SCANNER CONFIGURATION ── */}
       <Card variant="glass" padding="lg" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -394,7 +394,7 @@ export function SettingsPage() {
               <Bot size={20} color="#238B45" />
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>Google Gemini Multimodal Vision AI</div>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>AI Health Scanner & Vision Engine</div>
               <div style={{ fontSize: 11, color: '#64748B' }}>Smart Goat & Sheep Detection and Health Screening</div>
             </div>
           </div>
@@ -404,7 +404,7 @@ export function SettingsPage() {
           </span>
         </div>
         <p style={{ fontSize: 12, color: 'var(--color-text-secondary, #475569)', marginBottom: 14, lineHeight: 1.5 }}>
-          Ginagamit ng AlpasFarm ang Google Gemini Multimodal Vision para sa real-time na pagtukoy sa kambing at tupa, pag-detect ng maraming kambing o tupa sa iisang kuha, at pag-screen ng mga visual signs sa kalusugan (tulad ng sipon, sugat, at pangangatawan).
+          Ginagamit ng AlpasFarm ang AI Health Scanner para sa real-time na pagtukoy sa kambing at tupa, pag-detect ng maraming alaga sa iisang kuha, at pag-screen ng mga visual signs sa kalusugan (tulad ng sipon, sugat, at pangangatawan).
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(255, 255, 255, 0.65)', border: '1px solid rgba(0, 0, 0, 0.06)', borderRadius: 10, padding: 12 }}>
@@ -413,7 +413,7 @@ export function SettingsPage() {
             Protektadong AI Architecture & Privacy
           </div>
           <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div>• <strong>Ligtas na API Key:</strong> Ang <code>GEMINI_API_KEY</code> ay ligtas na nakalagay sa server environment (<code>.env</code>) at hindi kailanman inilalantad sa browser.</div>
+            <div>• <strong>Ligtas na Koneksyon:</strong> Ang AI service credentials ay ligtas na nakalagay sa server environment (<code>.env</code>) at hindi kailanman inilalantad sa browser.</div>
             <div>• <strong>Zero Fake Temperature:</strong> Alinsunod sa tamang pamantayang medikal, hindi nag-iimbento ang AI ng pekeng temperatura mula sa litrato. Tanging pisikal na thermometer lamang ang sumusukat ng totoong temperatura.</div>
             <div>• <strong>Single Frame AI:</strong> Hindi nag-i-stream ng tuloy-tuloy na video sa AI; kusa lamang nagpapadala ng isang naka-compress na litrato kapag pinindot ang scan o matatag ang camera.</div>
           </div>
