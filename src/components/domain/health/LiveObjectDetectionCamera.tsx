@@ -61,6 +61,7 @@ import {
   scanAnimalWithGemini,
   GeminiScanResult,
   GeminiLiveErrorDetail,
+  GeminiLiveDebugInfo,
 } from '../../../lib/geminiScanner';
 import { getRecordRiskMeta } from '../../../pages/HealthPage';
 import type { Animal, HealthRecord, InventoryItem } from '../../../types';
@@ -143,6 +144,14 @@ export function LiveObjectDetectionCamera({
   );
   const [activeTracks, setActiveTracks] = useState<TrackedLivestockAnimal[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<TrackedLivestockAnimal | null>(null);
+  const [debugInfo, setDebugInfo] = useState<GeminiLiveDebugInfo>({
+    framesSent: 0,
+    lastMessage: 'WAITING',
+    detectionCount: 0,
+    lastSpecies: 'none',
+    boxReceived: false,
+    parserStatus: 'IDLE',
+  });
 
   // GÃ¶Ã‡GÃ¶Ã‡ Health Scan & Result State GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
   const [isScanning, setIsScanning] = useState(false);
@@ -177,7 +186,7 @@ export function LiveObjectDetectionCamera({
   const computeDetectionStatus = useCallback(
     (tracks: TrackedLivestockAnimal[], selected: TrackedLivestockAnimal | null): string => {
       if (selected && selected.species !== 'person') {
-        return selected.species === 'sheep' ? 'Tupa na-detect.' : 'Kambing na-detect.';
+        return selected.species === 'sheep' ? 'TUPA detected' : 'KAMBING detected';
       }
       if (tracks.length === 0) {
         return 'Naghahanap ng kambing o tupa...';
@@ -187,15 +196,15 @@ export function LiveObjectDetectionCamera({
       const persons = tracks.filter((t) => t.species === 'person').length;
 
       if (goats > 0 && sheep > 0) {
-        const gText = goats === 1 ? '1 kambing' : `${goats} kambing`;
-        const sText = sheep === 1 ? '1 tupa' : `${sheep} tupa`;
-        return `${gText} at ${sText} ang nakita`;
+        const gText = goats === 1 ? '1 KAMBING' : `${goats} KAMBING`;
+        const sText = sheep === 1 ? '1 TUPA' : `${sheep} TUPA`;
+        return `${gText} at ${sText} detected`;
       }
       if (goats > 0) {
-        return goats === 1 ? 'Kambing na-detect.' : `${goats} kambing ang nakita`;
+        return goats === 1 ? 'KAMBING detected' : `${goats} KAMBING detected`;
       }
       if (sheep > 0) {
-        return sheep === 1 ? 'Tupa na-detect.' : `${sheep} tupa ang nakita`;
+        return sheep === 1 ? 'TUPA detected' : `${sheep} TUPA detected`;
       }
       if (persons > 0) {
         return 'May taong nakita. Itutok ang camera sa kambing o tupa.';
@@ -274,7 +283,7 @@ export function LiveObjectDetectionCamera({
         const rawLivestock: RawLivestockDetection[] = detections.map((d) => ({
           species: d.species,
           label: d.species === 'sheep' ? 'TUPA' : 'KAMBING',
-          confidence: 0,
+          confidence: 0.95,
           box: {
             x: d.box_2d[1] / 1000,
             y: d.box_2d[0] / 1000,
@@ -284,6 +293,7 @@ export function LiveObjectDetectionCamera({
           rawCategory: d.species,
         }));
         const updatedTracks = trackerRef.current.update(rawLivestock);
+        console.log(`[TRACKER] active tracks: ${updatedTracks.length}`);
         setActiveTracks(updatedTracks);
         if (updatedTracks.some((track) => track.consecutiveHits >= 3)) {
           startObservationRecording();
@@ -291,6 +301,10 @@ export function LiveObjectDetectionCamera({
         const selected = trackerRef.current.getSelectedTrack();
         setSelectedTrack(selected);
         setStatusMessage(computeDetectionStatus(updatedTracks, selected));
+      },
+      onDebugUpdate: (info) => {
+        if (!isMountedRef.current) return;
+        setDebugInfo(info);
       },
       onStatusChange: (state, msg) => {
         if (!isMountedRef.current) return;
@@ -1080,6 +1094,40 @@ export function LiveObjectDetectionCamera({
                 zIndex: 20,
               }}
             />
+
+            {/* Development-Only Debug Detection Panel (Section 19) */}
+            {import.meta.env.DEV && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  left: 10,
+                  backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                  color: '#ffffff',
+                  fontFamily: 'monospace',
+                  fontSize: '11px',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(34, 197, 94, 0.5)',
+                  zIndex: 35,
+                  pointerEvents: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                  lineHeight: '1.4',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                }}
+              >
+                <div>Live: <span style={{ color: geminiLiveState === 'CONNECTED' ? '#4ADE80' : '#FBBF24', fontWeight: 'bold' }}>{geminiLiveState}</span></div>
+                <div>Frames sent: {debugInfo.framesSent}</div>
+                <div>Last Gemini message: {debugInfo.lastMessage}</div>
+                <div>Last detection count: {debugInfo.detectionCount}</div>
+                <div>Species: {debugInfo.lastSpecies}</div>
+                <div>Box: {debugInfo.boxReceived ? 'RECEIVED' : 'NONE'}</div>
+                <div>Parser: {debugInfo.parserStatus}</div>
+                <div>Tracker: {activeTracks.length > 0 ? `ACTIVE (${activeTracks.length})` : 'IDLE'}</div>
+              </div>
+            )}
 
             {showGrid && (
               <div

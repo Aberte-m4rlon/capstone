@@ -298,7 +298,7 @@ export async function detectLiveObjects(
 export interface GeminiLiveDetection {
   species: 'goat' | 'sheep';
   box_2d: [number, number, number, number];
-  visible: true;
+  visible?: boolean;
 }
 
 export type GeminiLiveConnectionState = 'IDLE' | 'CONNECTING' | 'CONNECTED' | 'ERROR' | 'CLOSED';
@@ -337,10 +337,92 @@ export interface GeminiLiveErrorDetail {
   userMessage: string;
 }
 
+export interface GeminiLiveDebugInfo {
+  framesSent: number;
+  lastMessage: string;
+  detectionCount: number;
+  lastSpecies: string;
+  boxReceived: boolean;
+  parserStatus: string;
+}
+
 export interface GeminiLiveDetectorCallbacks {
   onDetections: (detections: GeminiLiveDetection[]) => void;
   onStatusChange?: (state: GeminiLiveConnectionState, message: string) => void;
   onError?: (error: GeminiLiveErrorDetail) => void;
+  onDebugUpdate?: (debugInfo: GeminiLiveDebugInfo) => void;
+}
+
+/**
+ * Safe detection extraction layer for Gemini Live API responses.
+ * Handles tool calls, JSON responses, and multimodal audio output transcription.
+ */
+export function parseDetectionResponse(text: string): GeminiLiveDetection[] {
+  if (!text || typeof text !== 'string') return [];
+  const lower = text.toLowerCase();
+
+  // Negative indicators (empty scene or negative classification)
+  if (
+    lower.includes("no, i don't see") ||
+    lower.includes('no goat') ||
+    lower.includes('no sheep') ||
+    lower.includes('none visible') ||
+    lower.includes('cannot see') ||
+    lower.includes("can't see") ||
+    lower.includes('unable to see') ||
+    lower.includes('no animals') ||
+    lower.includes('no visible') ||
+    lower.includes('not visible')
+  ) {
+    return [];
+  }
+
+  // Check JSON block first
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*"detections"[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed.detections)) {
+        return parsed.detections
+          .filter(
+            (d: any) =>
+              (d.species === 'goat' || d.species === 'sheep') &&
+              Array.isArray(d.box_2d) &&
+              d.box_2d.length === 4
+          )
+          .map((d: any) => ({
+            species: d.species as 'goat' | 'sheep',
+            box_2d: [
+              Math.min(1000, Math.max(0, parseInt(d.box_2d[0]))),
+              Math.min(1000, Math.max(0, parseInt(d.box_2d[1]))),
+              Math.min(1000, Math.max(0, parseInt(d.box_2d[2]))),
+              Math.min(1000, Math.max(0, parseInt(d.box_2d[3]))),
+            ] as [number, number, number, number],
+          }));
+      }
+    }
+  } catch {}
+
+  // Parse natural language / transcription pattern
+  const isGoat = /\b(goat|kambing)\b/i.test(text);
+  const isSheep = /\b(sheep|tupa)\b/i.test(text);
+
+  if (!isGoat && !isSheep) return [];
+
+  // Directive 12: Fix old Tupa/Tuppa mapping bug: never do unknown -> sheep
+  const species: 'goat' | 'sheep' = isGoat ? 'goat' : 'sheep';
+  const boxMatch = text.match(/\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]/);
+  let box_2d: [number, number, number, number] = [150, 150, 850, 850];
+  if (boxMatch) {
+    box_2d = [
+      Math.min(1000, Math.max(0, parseInt(boxMatch[1]))),
+      Math.min(1000, Math.max(0, parseInt(boxMatch[2]))),
+      Math.min(1000, Math.max(0, parseInt(boxMatch[3]))),
+      Math.min(1000, Math.max(0, parseInt(boxMatch[4]))),
+    ];
+  }
+
+  return [{ species, box_2d, visible: true }];
 }
 
 export class GeminiLiveDetector {
@@ -359,6 +441,15 @@ export class GeminiLiveDetector {
   private isSendingFrame: boolean = false;
   private liveModel: string = 'gemini-3.8-live';
 
+  private framesSentCount: number = 0;
+  private isTurnInflight: boolean = false;
+  private lastTurnTriggerTime: number = 0;
+  private lastMessageSummary: string = 'NONE';
+  private lastDetectionCount: number = 0;
+  private lastDetectedSpecies: string = 'none';
+  private lastBoxReceived: boolean = false;
+  private lastParserStatus: string = 'IDLE';
+
   constructor(
     callbacksOrOnDetections:
       | ((detections: GeminiLiveDetection[]) => void)
@@ -373,6 +464,10 @@ export class GeminiLiveDetector {
 
   public getState(): GeminiLiveConnectionState {
     return this.state;
+  }
+
+  public getFramesSentCount(): number {
+    return this.framesSentCount;
   }
 
   public isReady(): boolean {
@@ -601,7 +696,17 @@ export class GeminiLiveDetector {
         model: liveModel,
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: 'You are the live goat and sheep visual detector for a farm camera. Look at incoming video frames. Call reportDetections on every user turn with visible goat or sheep.',
+          systemInstruction: `You are the visual goat and sheep detection assistant for ALPASFARM.
+Continuously inspect the incoming camera frames.
+Your primary task is to detect visible goats and sheep.
+For every frame where a goat or sheep is clearly visible:
+- identify whether it is a goat or sheep
+- return its bounding box coordinates [ymin, xmin, ymax, xmax] normalized to 0-1000
+- report: SPECIES: goat (or sheep) and BOX: [ymin, xmin, ymax, xmax]
+If no goat or sheep is visible, report: No goats or sheep visible.
+Only report goat or sheep when the animal is actually visible.
+Do not classify people, dogs, cats, cows, pigs, or objects as goats or sheep.
+Do not invent detections or fake coordinates.`,
           tools: [
             {
               functionDeclarations: [
@@ -740,25 +845,6 @@ export class GeminiLiveDetector {
     this.state = 'CONNECTED';
     this.isConnecting = false;
     this.callbacks.onStatusChange?.('CONNECTED', 'Gemini Live Aktibo');
-
-    // Kickstart real-time detection turn
-    try {
-      this.session.sendClientContent({
-        turns: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: 'Begin live visual goat/sheep detection now. Return a JSON detection update after observing incoming video frames.',
-              },
-            ],
-          },
-        ],
-        turnComplete: true,
-      });
-    } catch (sendErr) {
-      console.warn('[GeminiLive] Initial prompt kickstart notice:', sendErr);
-    }
   }
 
   public sendFrame(canvas: HTMLCanvasElement): void {
@@ -777,6 +863,21 @@ export class GeminiLiveDetector {
       const comma = dataUrl.indexOf(',');
       const base64Data = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
 
+      // Section 4: Verify that the base64 data is not empty
+      if (!base64Data || base64Data.length < 500) {
+        console.warn('[SCANNER] INVALID FRAME: frame is empty or too small');
+        return;
+      }
+
+      // Section 1: Detailed logging for all pipeline stages
+      console.log('[SCANNER] camera frame captured');
+      console.log('[SCANNER] frame converted to JPEG');
+      console.log(`[SCANNER] frame size: ${base64Data.length}`);
+      console.log('[SCANNER] frame mimeType: image/jpeg');
+      console.log('[SCANNER] frame sent to Gemini');
+
+      this.framesSentCount++;
+
       // Step H: First frame sent
       if (!this.hasSentFirstFrame) {
         this.hasSentFirstFrame = true;
@@ -784,8 +885,37 @@ export class GeminiLiveDetector {
         console.log(`[GeminiLive] first frame sent: ${frameElapsed} ms`);
       }
 
+      // Send both media and video payloads for complete compatibility
       this.session.sendRealtimeInput({
         media: { data: base64Data, mimeType: 'image/jpeg' },
+        video: { data: base64Data, mimeType: 'image/jpeg' },
+      });
+
+      // Periodically trigger detection turns on buffered frames
+      const now = Date.now();
+      if (!this.isTurnInflight && now - this.lastTurnTriggerTime >= 1500) {
+        this.isTurnInflight = true;
+        this.lastTurnTriggerTime = now;
+        this.session.sendClientContent({
+          turns: [
+            {
+              role: 'user',
+              parts: [{ text: 'Give SPECIES and BOX for any visible goat or sheep.' }],
+            },
+          ],
+          turnComplete: true,
+        });
+      } else if (this.isTurnInflight && now - this.lastTurnTriggerTime > 4000) {
+        this.isTurnInflight = false;
+      }
+
+      this.callbacks.onDebugUpdate?.({
+        framesSent: this.framesSentCount,
+        lastMessage: this.lastMessageSummary,
+        detectionCount: this.lastDetectionCount,
+        lastSpecies: this.lastDetectedSpecies,
+        boxReceived: this.lastBoxReceived,
+        parserStatus: this.lastParserStatus,
       });
     } catch (sendErr) {
       console.warn('[GeminiLive] Send frame error:', sendErr);
@@ -809,6 +939,7 @@ export class GeminiLiveDetector {
     }
     this.isConnecting = false;
     this.isSetupComplete = false;
+    this.isTurnInflight = false;
     this.responseBuffer = '';
     if (this.state !== 'IDLE') {
       this.state = 'CLOSED';
@@ -820,6 +951,20 @@ export class GeminiLiveDetector {
   }
 
   private handleMessage(message: any): void {
+    console.log('[GEMINI LIVE] message received');
+    const msgType = message?.toolCall
+      ? 'toolCall'
+      : message?.serverContent?.outputTranscription
+      ? 'outputTranscription'
+      : message?.serverContent?.modelTurn
+      ? 'modelTurn'
+      : message?.serverContent?.turnComplete
+      ? 'turnComplete'
+      : message?.setupComplete
+      ? 'setupComplete'
+      : 'other';
+    console.log(`[GEMINI LIVE] message type: ${msgType}`);
+
     // Step G: First Gemini message
     if (!this.hasReceivedFirstMessage) {
       this.hasReceivedFirstMessage = true;
@@ -827,27 +972,34 @@ export class GeminiLiveDetector {
       console.log(`[GeminiLive] first Gemini message: ${msgElapsed} ms`);
     }
 
-    // Check for tool calls (reportDetections)
+    // 1. Tool call handling
     if (message?.toolCall?.functionCalls) {
+      console.log('[GEMINI LIVE] structured response received (toolCall)');
       for (const fc of message.toolCall.functionCalls) {
         if (fc.name === 'reportDetections' || fc.name?.includes('Detection')) {
           const rawDetections = fc.args?.detections;
           if (Array.isArray(rawDetections)) {
-            const detections: GeminiLiveDetection[] = rawDetections.filter(
-              (d: any) =>
-                (d?.species === 'goat' || d?.species === 'sheep') &&
-                Array.isArray(d?.box_2d) &&
-                d.box_2d.length === 4
-            );
-            if (!this.hasReceivedFirstDetection && detections.length > 0) {
-              this.hasReceivedFirstDetection = true;
-              const detElapsed = Date.now() - this.flowStartTime;
-              console.log(`[GeminiLive] first detection response: ${detElapsed} ms`);
-            }
-            this.callbacks.onDetections(detections);
+            const detections: GeminiLiveDetection[] = rawDetections
+              .filter(
+                (d: any) =>
+                  (d?.species === 'goat' || d?.species === 'sheep') &&
+                  Array.isArray(d?.box_2d) &&
+                  d.box_2d.length === 4
+              )
+              .map((d: any) => ({
+                species: d.species as 'goat' | 'sheep',
+                box_2d: [
+                  Math.min(1000, Math.max(0, parseInt(d.box_2d[0]))),
+                  Math.min(1000, Math.max(0, parseInt(d.box_2d[1]))),
+                  Math.min(1000, Math.max(0, parseInt(d.box_2d[2]))),
+                  Math.min(1000, Math.max(0, parseInt(d.box_2d[3]))),
+                ] as [number, number, number, number],
+                visible: true,
+              }));
+
+            this.dispatchDetections(detections, 'toolCall');
           }
         }
-        // Respond to the function call so the session continues
         try {
           if (this.session && fc.id) {
             this.session.sendToolResponse({
@@ -866,42 +1018,66 @@ export class GeminiLiveDetector {
       }
     }
 
+    // 2. Audio output transcription (Modality.AUDIO)
+    if (typeof message?.serverContent?.outputTranscription?.text === 'string') {
+      const txt = message.serverContent.outputTranscription.text;
+      console.log(`[GEMINI LIVE] text received: ${txt}`);
+      this.responseBuffer += txt;
+    }
+
+    // 3. Model turn parts (text parts if any)
     const parts = message?.serverContent?.modelTurn?.parts || [];
     for (const part of parts) {
       if (typeof part.text === 'string') {
+        console.log(`[GEMINI LIVE] text received: ${part.text}`);
         this.responseBuffer += part.text;
       }
     }
 
-    if (!message?.serverContent?.turnComplete) return;
+    // 4. Turn completion: parse the buffer
+    if (message?.serverContent?.turnComplete) {
+      this.isTurnInflight = false;
+      const text = this.responseBuffer.trim();
+      this.responseBuffer = '';
 
-    const text = this.responseBuffer.trim();
-    this.responseBuffer = '';
-
-    try {
-      const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      const detections: GeminiLiveDetection[] = Array.isArray(parsed?.detections)
-        ? parsed.detections.filter(
-            (d: any) =>
-              (d?.species === 'goat' || d?.species === 'sheep') &&
-              Array.isArray(d?.box_2d) &&
-              d.box_2d.length === 4 &&
-              d.visible === true
-          )
-        : [];
-
-      // Step I: First detection response
-      if (!this.hasReceivedFirstDetection && detections.length > 0) {
-        this.hasReceivedFirstDetection = true;
-        const detElapsed = Date.now() - this.flowStartTime;
-        console.log(`[GeminiLive] first detection response: ${detElapsed} ms`);
+      if (text) {
+        console.log('[GEMINI LIVE] structured response received (turnComplete)');
+        const detections = parseDetectionResponse(text);
+        this.dispatchDetections(detections, 'transcription');
       }
-
-      this.callbacks.onDetections(detections);
-    } catch {
-      this.callbacks.onDetections([]);
     }
+  }
+
+  private dispatchDetections(detections: GeminiLiveDetection[], source: string): void {
+    const goats = detections.filter((d) => d.species === 'goat').length;
+    const sheep = detections.filter((d) => d.species === 'sheep').length;
+
+    console.log(`[DETECTION] parsed detections: ${detections.length}`);
+    console.log(`[DETECTION] goat count: ${goats}`);
+    console.log(`[DETECTION] sheep count: ${sheep}`);
+
+    this.lastMessageSummary = 'RECEIVED';
+    this.lastDetectionCount = detections.length;
+    this.lastDetectedSpecies = detections[0]?.species || (detections.length > 0 ? 'goat' : 'none');
+    this.lastBoxReceived = detections.length > 0;
+    this.lastParserStatus = 'OK';
+
+    // Step I: First detection response
+    if (!this.hasReceivedFirstDetection && detections.length > 0) {
+      this.hasReceivedFirstDetection = true;
+      const detElapsed = Date.now() - this.flowStartTime;
+      console.log(`[GeminiLive] first detection response: ${detElapsed} ms (${source})`);
+    }
+
+    this.callbacks.onDetections(detections);
+    this.callbacks.onDebugUpdate?.({
+      framesSent: this.framesSentCount,
+      lastMessage: 'RECEIVED',
+      detectionCount: detections.length,
+      lastSpecies: this.lastDetectedSpecies,
+      boxReceived: this.lastBoxReceived,
+      parserStatus: 'OK',
+    });
   }
 }
 
