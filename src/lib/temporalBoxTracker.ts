@@ -301,14 +301,20 @@ export function hitTestTrack(
   screenTapY: number,
   track: TrackedLivestockAnimal,
   transform: ViewportTransform,
-  hitSlop: number = 14
+  hitSlop: number = 24
 ): boolean {
   const screenBox = mapVideoBoxToScreen(track.currentBox, transform);
 
-  const minX = screenBox.x - hitSlop;
-  const maxX = screenBox.x + screenBox.width + hitSlop;
-  const minY = screenBox.y - hitSlop;
-  const maxY = screenBox.y + screenBox.height + hitSlop;
+  // Generous mobile hit testing: ensure minimum touch target of 48x48 plus hitSlop
+  const boxW = Math.max(48, screenBox.width);
+  const boxH = Math.max(48, screenBox.height);
+  const cx = screenBox.x + screenBox.width / 2;
+  const cy = screenBox.y + screenBox.height / 2;
+
+  const minX = cx - boxW / 2 - hitSlop;
+  const maxX = cx + boxW / 2 + hitSlop;
+  const minY = cy - boxH / 2 - hitSlop;
+  const maxY = cy + boxH / 2 + hitSlop;
 
   return (
     screenTapX >= minX &&
@@ -640,11 +646,6 @@ export class TemporalLivestockTracker {
           isTemporarilyMissed: false,
         };
 
-        if (this.selectedTrackId === null && raw.species !== 'person') {
-          newTrack.isSelected = true;
-          this.selectedTrackId = newTrack.trackId;
-        }
-
         this.tracks.push(newTrack);
       }
     }
@@ -654,6 +655,35 @@ export class TemporalLivestockTracker {
 
     // 8. Update stable display numbering
     this.updateDisplayNumbering();
+
+    // 9. Manage single vs multi-animal selection
+    const activeLivestock = this.getActiveTracks().filter((t) => t.species !== 'person');
+
+    if (this.selectedTrackId === null) {
+      // If exactly ONE confirmed livestock animal is visible, automatically select it!
+      if (activeLivestock.length === 1) {
+        this.selectedTrackId = activeLivestock[0].trackId;
+        activeLivestock[0].isSelected = true;
+      }
+    } else {
+      // Verify that the currently selected track is still active and confirmed
+      const selectedStillActive = activeLivestock.find((t) => t.trackId === this.selectedTrackId);
+      if (selectedStillActive) {
+        // Enforce that only the selected track has isSelected = true
+        for (const t of this.tracks) {
+          t.isSelected = t.trackId === this.selectedTrackId;
+        }
+      } else {
+        // Selected track was lost! DO NOT automatically switch to another animal.
+        this.selectedTrackId = null;
+        for (const t of this.tracks) {
+          t.isSelected = false;
+        }
+        if (this.onSelectedTrackLost) {
+          this.onSelectedTrackLost();
+        }
+      }
+    }
 
     return this.getActiveTracks();
   }
@@ -761,14 +791,13 @@ export class TemporalLivestockTracker {
       return isAlive;
     });
 
-    // Handle selection transfer if selected track was pruned
+    // Handle selection when selected track was pruned: DO NOT automatically transfer to another animal!
     if (prevSelectedId !== null && !selectedTrackStillAlive) {
       this.selectedTrackId = null;
-      const activeLivestock = this.getActiveTracks().filter((t) => t.species !== 'person');
-      if (activeLivestock.length > 0) {
-        activeLivestock[0].isSelected = true;
-        this.selectedTrackId = activeLivestock[0].trackId;
-      } else if (this.onSelectedTrackLost) {
+      for (const t of this.tracks) {
+        t.isSelected = false;
+      }
+      if (this.onSelectedTrackLost) {
         this.onSelectedTrackLost();
       }
     }
@@ -835,6 +864,8 @@ export function renderTrackedAnimalsToCanvas(
     return;
   }
 
+  const hasSelectedLivestock = tracks.some((t) => t.isSelected && t.species !== 'person');
+
   for (const track of tracks) {
     const screenBox = mapVideoBoxToScreen(track.currentBox, transform);
     const { x, y, width: bw, height: bh } = screenBox;
@@ -844,11 +875,15 @@ export function renderTrackedAnimalsToCanvas(
     const isSheep = track.species === 'sheep';
     const isPerson = track.species === 'person';
 
+    // Opacity: secondary/muted if another livestock is selected
+    const isDimmed = hasSelectedLivestock && !isSelected;
+    ctx.globalAlpha = isDimmed ? 0.38 : 1.0;
+
     // Color theme
-    let strokeColor = isSelected ? '#22C55E' : 'rgba(22, 163, 74, 0.90)';
-    let fillColor = isSelected ? 'rgba(34, 197, 94, 0.18)' : 'rgba(22, 163, 74, 0.08)';
-    let cornerColor = isSelected ? '#4ADE80' : '#22C55E';
-    let badgeBg = isSelected ? '#16A34A' : '#15803D';
+    let strokeColor = isSelected ? '#22C55E' : isDimmed ? 'rgba(255, 255, 255, 0.55)' : 'rgba(22, 163, 74, 0.90)';
+    let fillColor = isSelected ? 'rgba(34, 197, 94, 0.22)' : isDimmed ? 'rgba(0, 0, 0, 0.12)' : 'rgba(22, 163, 74, 0.08)';
+    let cornerColor = isSelected ? '#4ADE80' : isDimmed ? 'rgba(255, 255, 255, 0.70)' : '#22C55E';
+    let badgeBg = isSelected ? '#16A34A' : isDimmed ? 'rgba(30, 41, 59, 0.85)' : '#15803D';
 
     if (isPerson) {
       strokeColor = 'rgba(59, 130, 246, 0.85)';
@@ -856,10 +891,10 @@ export function renderTrackedAnimalsToCanvas(
       cornerColor = '#60A5FA';
       badgeBg = '#2563EB';
     } else if (isSheep) {
-      strokeColor = isSelected ? '#10B981' : 'rgba(16, 185, 129, 0.90)';
-      fillColor = isSelected ? 'rgba(16, 185, 129, 0.18)' : 'rgba(16, 185, 129, 0.08)';
-      cornerColor = isSelected ? '#34D399' : '#10B981';
-      badgeBg = isSelected ? '#059669' : '#047857';
+      strokeColor = isSelected ? '#10B981' : isDimmed ? 'rgba(255, 255, 255, 0.55)' : 'rgba(16, 185, 129, 0.90)';
+      fillColor = isSelected ? 'rgba(16, 185, 129, 0.22)' : isDimmed ? 'rgba(0, 0, 0, 0.12)' : 'rgba(16, 185, 129, 0.08)';
+      cornerColor = isSelected ? '#34D399' : isDimmed ? 'rgba(255, 255, 255, 0.70)' : '#10B981';
+      badgeBg = isSelected ? '#059669' : isDimmed ? 'rgba(30, 41, 59, 0.85)' : '#047857';
     }
 
     let labelText = '';
@@ -872,9 +907,9 @@ export function renderTrackedAnimalsToCanvas(
       }
     } else if (isSelected) {
       if (isGoat) {
-        labelText = '✓ NAPILING KAMBING';
+        labelText = track.displayNumber > 0 ? `✓ NAPILI: KAMBING #${track.displayNumber}` : '✓ NAPILING KAMBING';
       } else if (isSheep) {
-        labelText = '✓ NAPILING TUPA';
+        labelText = track.displayNumber > 0 ? `✓ NAPILI: TUPA #${track.displayNumber}` : '✓ NAPILING TUPA';
       } else {
         labelText = '✓ NAPILING HAYOP';
       }
@@ -895,16 +930,22 @@ export function renderTrackedAnimalsToCanvas(
     ctx.fillStyle = fillColor;
     ctx.fillRect(x, y, bw, bh);
 
-    // 2. Draw Bounding Box Border
+    // 2. Draw Bounding Box Border (with subtle glow if selected)
+    ctx.save();
+    if (isSelected) {
+      ctx.shadowColor = 'rgba(34, 197, 94, 0.75)';
+      ctx.shadowBlur = 12;
+    }
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = isSelected ? 3.5 : 2.5;
+    ctx.lineWidth = isSelected ? 3.5 : isDimmed ? 1.8 : 2.5;
     ctx.setLineDash([]);
     ctx.strokeRect(x, y, bw, bh);
+    ctx.restore();
 
     // 3. Draw Corner Accents
     const cornerSize = Math.min(22, bw * 0.25, bh * 0.25);
     ctx.strokeStyle = cornerColor;
-    ctx.lineWidth = isSelected ? 4.5 : 3.5;
+    ctx.lineWidth = isSelected ? 4.5 : isDimmed ? 2.5 : 3.5;
     ctx.lineCap = 'round';
 
     // Top-left
@@ -938,7 +979,7 @@ export function renderTrackedAnimalsToCanvas(
     // 4. Draw Label Badge (Directly above box or inside if near top)
     ctx.font = isSelected
       ? 'bold 12.5px Plus Jakarta Sans, Inter, system-ui, -apple-system, sans-serif'
-      : 'bold 11.5px Plus Jakarta Sans, Inter, system-ui, -apple-system, sans-serif';
+      : 'bold 11px Plus Jakarta Sans, Inter, system-ui, -apple-system, sans-serif';
     const textMetrics = ctx.measureText(labelText);
     const badgePadX = 10;
     const badgeH = 26;
@@ -968,6 +1009,9 @@ export function renderTrackedAnimalsToCanvas(
     // Badge Text
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(labelText, labelX + badgePadX, labelY + 17);
+
+    // Reset alpha
+    ctx.globalAlpha = 1.0;
   }
 
   ctx.restore();

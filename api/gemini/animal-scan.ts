@@ -278,8 +278,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 TARGET ANIMAL INFORMATION:
 - Selected Animal: ${targetIdentifier || 'Kambing o Tupa'}
-- Specific Task: Perform visual health screening ONLY for this specific selected animal.
-- DO NOT describe background animals, other livestock, people, or unrelated objects.
+- Specific Task: Analyze ONLY the selected goat/sheep.
+- Do NOT analyze other animals visible in the original image.
+- Do NOT infer the health condition of animals outside the selected region.
+- Focus ONLY on the selected animal.
+- If the selected animal is not clearly visible, do NOT invent a health assessment.
+- Provide observation and recommended next action, not a definitive veterinary diagnosis.
 - Inspect visible anatomical areas: Mata, Ilong, Bibig, Paghinga, Tindig, Balahibo/Balat, Galaw/Asal.
 - Give a farmer-friendly Tagalog summary for "condition_summary" and actionable advice for "action".`;
 

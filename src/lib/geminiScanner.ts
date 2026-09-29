@@ -15,6 +15,7 @@ import {
   optimizeImageForAI,
   captureLowResFrame,
   cropCanvasToBoundingBox,
+  canvasToBlob,
   BoundingBox,
   CropBoundingBoxOptions,
   LiveDetectedObject,
@@ -1669,14 +1670,24 @@ function loadHTMLImageElement(file: File): Promise<HTMLImageElement> {
   });
 }
 
+export interface UploadedDetectionStepResult {
+  success: boolean;
+  detectedGoatOrSheep: boolean;
+  goatCount: number;
+  sheepCount: number;
+  detections: UploadedAnimalDetection[];
+  statusBadge: string;
+  recommendation?: string;
+  error?: string;
+}
+
 /**
- * Analyzes an uploaded static image for goats and sheep, individual bounding boxes,
- * and visual health screening using the secure backend AI API.
+ * Detects all goats & sheep in an uploaded static image with individual bounding boxes,
+ * without running health analysis yet (allowing the farmer to select exactly one animal).
  */
-export async function analyzeUploadedImage(
-  imageDataUrl: string,
-  selectedSpecies?: string
-): Promise<UploadedImageAnalysisResult> {
+export async function detectUploadedAnimals(
+  imageDataUrl: string
+): Promise<UploadedDetectionStepResult> {
   let authHeader: Record<string, string> = {};
   try {
     const { data } = await supabase.auth.getSession();
@@ -1687,7 +1698,6 @@ export async function analyzeUploadedImage(
     // offline/fallback
   }
 
-  // 1. Run object detection to locate all goats & sheep with bounding boxes
   let detectData: LiveObjectDetectionResult;
   try {
     const res = await fetch('/api/gemini/detect-objects', {
@@ -1704,7 +1714,7 @@ export async function analyzeUploadedImage(
     }
     detectData = await res.json();
   } catch (detectErr: any) {
-    console.warn('[analyzeUploadedImage] /api/gemini/detect-objects fallback to animal-detect:', detectErr);
+    console.warn('[detectUploadedAnimals] fallback to animal-detect:', detectErr);
     try {
       const res = await fetch('/api/gemini/animal-detect', {
         method: 'POST',
@@ -1713,12 +1723,11 @@ export async function analyzeUploadedImage(
       });
       detectData = await res.json();
     } catch (fallbackErr: any) {
-      console.error('[analyzeUploadedImage] Detection failed:', fallbackErr);
+      console.error('[detectUploadedAnimals] Detection failed:', fallbackErr);
       throw new Error('Hindi masuri ang larawan sa server. Pakisubukan ulit.');
     }
   }
 
-  // Filter ONLY valid goats and sheep (strictly reject person, other, etc.)
   const rawDetections = Array.isArray(detectData.detections) ? detectData.detections : [];
   const animalDetections = rawDetections.filter(
     (d) => d.type === 'GOAT' || d.type === 'SHEEP'
@@ -1744,20 +1753,112 @@ export async function analyzeUploadedImage(
     };
   });
 
-  // Determine farmer-facing badge
   let statusBadge = 'Walang kambing o tupa na nakita sa larawan.';
   if (goatCount > 0 && sheepCount > 0) {
     const gText = goatCount === 1 ? '1 Kambing' : `${goatCount} Kambing`;
     const sText = sheepCount === 1 ? '1 Tupa' : `${sheepCount} Tupa`;
-    statusBadge = `${gText} • ${sText} na nakita`;
+    statusBadge = `${gText} • ${sText} ang nakita`;
   } else if (goatCount > 0) {
-    statusBadge = goatCount === 1 ? '1 Kambing na nakita' : `${goatCount} Kambing na nakita`;
+    statusBadge = goatCount === 1 ? '1 Kambing ang nakita' : `${goatCount} Kambing ang nakita`;
   } else if (sheepCount > 0) {
-    statusBadge = sheepCount === 1 ? '1 Tupa na nakita' : `${sheepCount} Tupa na nakita`;
+    statusBadge = sheepCount === 1 ? '1 Tupa ang nakita' : `${sheepCount} Tupa ang nakita`;
   }
 
-  // If no goat or sheep detected, return immediately without fake health screening
-  if (!detectedGoatOrSheep) {
+  return {
+    success: true,
+    detectedGoatOrSheep,
+    goatCount,
+    sheepCount,
+    detections: formattedDetections,
+    statusBadge,
+    recommendation: !detectedGoatOrSheep
+      ? 'Siguraduhing malinaw at nakikita ang buong katawan ng kambing o tupa sa litrato.'
+      : undefined,
+  };
+}
+
+function loadImageElement(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Hindi ma-load ang image'));
+    img.src = src;
+  });
+}
+
+/**
+ * Performs detailed AI health analysis on ONLY the selected animal from an uploaded image.
+ * Crops the image region with a 15% padding margin to isolate the selected subject.
+ */
+export async function scanSelectedUploadedAnimal(
+  imageDataUrl: string,
+  selectedAnimal: UploadedAnimalDetection
+): Promise<{
+  scanResult: GeminiScanResult;
+  croppedDataUrl: string;
+  croppedBlob: Blob;
+}> {
+  // 1. Load full image into canvas
+  const img = await loadImageElement(imageDataUrl);
+  const fullCanvas = document.createElement('canvas');
+  fullCanvas.width = img.naturalWidth || img.width;
+  fullCanvas.height = img.naturalHeight || img.height;
+  const ctx = fullCanvas.getContext('2d');
+  if (!ctx) throw new Error('Hindi mabuo ang image context');
+  ctx.drawImage(img, 0, 0);
+
+  // 2. Crop to selected animal bounding box with 15% padding margin
+  const croppedCanvas = cropCanvasToBoundingBox(fullCanvas, selectedAnimal.boundingBox, 0.15);
+  const croppedDataUrl = croppedCanvas.toDataURL('image/jpeg', 0.90);
+  const croppedBlob = await canvasToBlob(croppedCanvas, 0.90);
+
+  // 3. Perform AI health screening on the cropped animal
+  const result = await scanAnimalWithGemini(croppedCanvas, {
+    context: 'health_scan',
+    animalType: selectedAnimal.species,
+  });
+
+  if (!result.success || !result.detected) {
+    throw new Error('Hindi malinaw ang pagsusuri sa napiling alaga. Subukan muli.');
+  }
+
+  const verifiedSpecies = selectedAnimal.species;
+  const verifiedLabel = verifiedSpecies === 'sheep' ? 'TUPA' : 'KAMBING';
+  const verifiedResult: GeminiScanResult = {
+    ...result,
+    animals: (result.animals || []).map((animal) => ({
+      ...animal,
+      species: verifiedSpecies,
+      label: verifiedLabel,
+    })),
+    rawResponse: result.rawResponse
+      ? {
+          ...result.rawResponse,
+          animal_type: verifiedSpecies,
+          animal_label: verifiedSpecies === 'sheep' ? 'Tupa' : 'Kambing',
+        }
+      : result.rawResponse,
+  };
+
+  return {
+    scanResult: verifiedResult,
+    croppedDataUrl,
+    croppedBlob,
+  };
+}
+
+/**
+ * Analyzes an uploaded static image for goats and sheep, individual bounding boxes,
+ * and visual health screening using the secure backend AI API.
+ */
+export async function analyzeUploadedImage(
+  imageDataUrl: string,
+  selectedSpecies?: string
+): Promise<UploadedImageAnalysisResult> {
+  const detectStep = await detectUploadedAnimals(imageDataUrl);
+
+  if (!detectStep.detectedGoatOrSheep || detectStep.detections.length === 0) {
     return {
       success: true,
       detectedGoatOrSheep: false,
@@ -1771,41 +1872,42 @@ export async function analyzeUploadedImage(
     };
   }
 
-  // If goat or sheep IS detected, also perform health screening
-  let healthScanResult: GeminiScanResult | null = null;
+  // Select the primary target animal (or user selected species)
+  const targetAnimal =
+    detectStep.detections.find((d) => d.species === selectedSpecies) || detectStep.detections[0];
+
   try {
-    const targetSpecies: 'sheep' | 'goat' =
-      selectedSpecies === 'sheep' || selectedSpecies === 'goat'
-        ? selectedSpecies
-        : sheepCount > goatCount
-        ? 'sheep'
-        : 'goat';
-    healthScanResult = await scanAnimalWithGemini(imageDataUrl, {
-      context: 'health_scan',
-      animalType: targetSpecies,
-    });
-  } catch (healthErr) {
-    console.warn('[analyzeUploadedImage] Health scan warning:', healthErr);
+    const { scanResult } = await scanSelectedUploadedAnimal(imageDataUrl, targetAnimal);
+    const raw = scanResult.rawResponse;
+    const condition = (raw?.condition || 'Maayos') as 'Maayos' | 'Bantayan' | 'Kailangan ng Atensyon' | 'Kailangan ng Gamot';
+    const conditionSummary = raw?.condition_summary || 'Maayos ang nakikitang tindig at pangangatawan.';
+    const observations: string[] = raw?.visual_observations || (scanResult.animals?.[0]?.visualObservations) || [];
+    const recommendation = scanResult.recommendation || raw?.action || 'Ipagpatuloy ang regular na pagmamasid.';
+
+    return {
+      success: true,
+      detectedGoatOrSheep: true,
+      goatCount: detectStep.goatCount,
+      sheepCount: detectStep.sheepCount,
+      detections: detectStep.detections,
+      statusBadge: detectStep.statusBadge,
+      condition,
+      conditionSummary,
+      observations,
+      recommendation,
+      rawScanResult: scanResult,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      detectedGoatOrSheep: true,
+      goatCount: detectStep.goatCount,
+      sheepCount: detectStep.sheepCount,
+      detections: detectStep.detections,
+      statusBadge: detectStep.statusBadge,
+      error: err?.message || 'Hindi masuri ang kalusugan ng napiling alaga.',
+      rawScanResult: null,
+    };
   }
-
-  const raw = healthScanResult?.rawResponse;
-  const condition = (raw?.condition || 'Maayos') as 'Maayos' | 'Bantayan' | 'Kailangan ng Atensyon' | 'Kailangan ng Gamot';
-  const conditionSummary = raw?.condition_summary || 'Maayos ang nakikitang tindig at pangangatawan.';
-  const observations: string[] = raw?.visual_observations || (healthScanResult?.animals?.[0]?.visualObservations) || [];
-  const recommendation = healthScanResult?.recommendation || raw?.action || 'Ipagpatuloy ang regular na pagmamasid.';
-
-  return {
-    success: true,
-    detectedGoatOrSheep: true,
-    goatCount,
-    sheepCount,
-    detections: formattedDetections,
-    statusBadge,
-    condition,
-    conditionSummary,
-    observations,
-    recommendation,
-    rawScanResult: healthScanResult,
-  };
 }
 

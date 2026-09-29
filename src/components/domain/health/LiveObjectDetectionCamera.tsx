@@ -68,6 +68,8 @@ import {
   GeminiLiveDebugInfo,
   processUploadedImage,
   analyzeUploadedImage,
+  detectUploadedAnimals,
+  scanSelectedUploadedAnimal,
   UploadedAnimalDetection,
   UploadedImageAnalysisResult,
   SynchronizedDetectionResult,
@@ -153,11 +155,14 @@ export function LiveObjectDetectionCamera({
 
   // ── Tracking & Selection State ─────────────────────────────────────────────
   const [statusMessage, setStatusMessage] = useState<string>('Naghahanap ng kambing o tupa...');
+  const [isTrackLost, setIsTrackLost] = useState<boolean>(false);
   const activeTracksLengthRef = useRef<number>(0);
   const trackerRef = useRef<TemporalLivestockTracker>(
     new TemporalLivestockTracker(DEFAULT_TRACKER_CONFIG, () => {
       // Callback when selected track drops past grace period
-      setStatusMessage('Hindi na makita ang napiling alaga. Pumili ulit.');
+      setIsTrackLost(true);
+      setSelectedTrack(null);
+      setStatusMessage('Hindi ko na makita ang napiling hayop.');
     })
   );
   const [activeTracks, setActiveTracks] = useState<TrackedLivestockAnimal[]>([]);
@@ -190,6 +195,9 @@ export function LiveObjectDetectionCamera({
   const [uploadedBlob, setUploadedBlob] = useState<Blob | null>(null);
   const [uploadedDimensions, setUploadedDimensions] = useState<{ width: number; height: number } | null>(null);
   const [isAnalyzingUpload, setIsAnalyzingUpload] = useState<boolean>(false);
+  const [isDetectingUpload, setIsDetectingUpload] = useState<boolean>(false);
+  const [uploadDetections, setUploadDetections] = useState<UploadedAnimalDetection[]>([]);
+  const [selectedUploadIndex, setSelectedUploadIndex] = useState<number | null>(null);
   const [uploadAnalysisResult, setUploadAnalysisResult] = useState<UploadedImageAnalysisResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -216,18 +224,29 @@ export function LiveObjectDetectionCamera({
       if (tracks.length === 0) {
         return 'Naghahanap ng kambing o tupa...';
       }
+      const livestock = tracks.filter((t) => t.species !== 'person');
       const goats = tracks.filter((t) => t.species === 'goat').length;
       const sheep = tracks.filter((t) => t.species === 'sheep').length;
       const persons = tracks.filter((t) => t.species === 'person').length;
 
+      if (selected && selected.species !== 'person') {
+        const num = selected.displayNumber ? ` #${selected.displayNumber}` : '';
+        const name = selected.species === 'sheep' ? `TUPA${num}` : `KAMBING${num}`;
+        return `✓ Napili: ${name}`;
+      }
+
+      if (livestock.length > 1) {
+        return 'Maraming hayop ang nakita. Piliin ang isang hayop na gusto mong i-scan.';
+      }
+
       if (goats > 0 && sheep > 0) {
-        return `${goats} Kambing • ${sheep} Tupa na nakita`;
+        return `${goats} kambing • ${sheep} tupa ang nakita`;
       }
       if (goats > 0) {
-        return goats === 1 ? '1 Kambing na nakita' : `${goats} Kambing na nakita`;
+        return goats === 1 ? '1 kambing ang nakita' : `${goats} kambing ang nakita`;
       }
       if (sheep > 0) {
-        return sheep === 1 ? '1 Tupa na nakita' : `${sheep} Tupa na nakita`;
+        return sheep === 1 ? '1 tupa ang nakita' : `${sheep} tupa ang nakita`;
       }
       if (persons > 0) {
         return 'May taong nakita. Itutok ang camera sa kambing o tupa.';
@@ -236,6 +255,21 @@ export function LiveObjectDetectionCamera({
     },
     []
   );
+
+  // ── Clear Selection Callback ───────────────────────────────────────────────
+  const handleClearSelection = useCallback(() => {
+    trackerRef.current.selectTrackById(null);
+    setSelectedTrack(null);
+    setIsTrackLost(false);
+    const activeLivestock = trackerRef.current.getActiveTracks().filter((t) => t.species !== 'person');
+    if (activeLivestock.length > 1) {
+      setStatusMessage('Maraming hayop ang nakita. Piliin ang isang hayop na gusto mong i-scan.');
+    } else if (activeLivestock.length === 1) {
+      setStatusMessage('1 kambing ang nakita.');
+    } else {
+      setStatusMessage('Naghahanap ng kambing o tupa...');
+    }
+  }, []);
 
   // GÃ¶Ã‡GÃ¶Ã‡ Stop Camera Stream GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
   // Stop Camera Stream
@@ -737,38 +771,36 @@ export function LiveObjectDetectionCamera({
     const tracker = trackerRef.current;
     const hitTrack = tracker.selectAtScreenCoordinates(tapX, tapY, transform);
 
-    if (hitTrack) {
+    if (hitTrack && hitTrack.species !== 'person') {
       setSelectedTrack(hitTrack);
-      setStatusMessage(
-        hitTrack.species === 'sheep' ? 'Tupa na napili' : 'Kambing na napili'
-      );
-    } else {
-      // If tapped outside, unselect only if multiple exist
-      if (tracker.getActiveTracks().length > 1) {
-        tracker.selectTrackById(null);
-        setSelectedTrack(null);
-        setStatusMessage(computeDetectionStatus(tracker.getActiveTracks(), null));
-      }
+      setIsTrackLost(false);
+      const num = hitTrack.displayNumber ? ` #${hitTrack.displayNumber}` : '';
+      const label = hitTrack.species === 'sheep' ? `TUPA${num}` : `KAMBING${num}`;
+      setStatusMessage(`✓ Napili: ${label}`);
     }
+    // Do NOT deselect on accidental taps outside! Avoid frustrating misclicks on mobile.
   };
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Camera Flip Control GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Camera Flip Control ────────────────────────────────────────────────────
   const handleFlipCamera = useCallback(() => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
   }, []);
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Health Scan: Capture & Send Selected Animal to Gemini GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Health Scan: Capture & Send Selected Animal to AI Vision ───────────────
   const handlePerformHealthScan = async () => {
     const video = videoRef.current;
     const selected = trackerRef.current.getSelectedTrack();
 
-    if (!video || !selected || selected.species === 'person') {
-      toast('Pumili muna ng kambing o tupa na susuriin.', 'warning');
+    if (!video || !selected || selected.species === 'person' || isTrackLost) {
+      toast('Pumili muna ng kambing o tupa na i-scan.', 'warning');
       return;
     }
 
+    const selectedNum = selected.displayNumber ? ` #${selected.displayNumber}` : '';
+    const selectedName = selected.species === 'sheep' ? `TUPA${selectedNum}` : `KAMBING${selectedNum}`;
+
     setIsScanning(true);
-    setStatusMessage('Kinukunan ang napiling alaga at sinusuri gamit ang AI...');
+    setStatusMessage(`Kinukunan ang napiling ${selectedName} at sinusuri gamit ang AI...`);
 
     try {
       // 1. Capture full-resolution video frame
@@ -783,7 +815,7 @@ export function LiveObjectDetectionCamera({
       setCroppedBlob(blob);
       setLastCapturedThumbnail(dataUrl);
 
-      // 3. Send crop to Gemini Multimodal Vision API
+      // 3. Send crop to AI Multimodal Vision API
       const result = await scanAnimalWithGemini(croppedCanvas, {
         context: 'health_scan',
         animalType: selected.species === 'sheep' ? 'sheep' : 'goat',
@@ -796,16 +828,31 @@ export function LiveObjectDetectionCamera({
       }
 
       // Keep species identity from the selected local camera track.
-      // Gemini supplies health observations; it must not reclassify GOAT as SHEEP.
+      // AI supplies health observations; it must not reclassify GOAT as SHEEP.
       const verifiedSpecies = selected.species === 'sheep' ? 'sheep' : 'goat';
       const verifiedLabel = verifiedSpecies === 'sheep' ? 'TUPA' : 'KAMBING';
+      const firstAnimal = result.animals?.[0];
       const verifiedResult: GeminiScanResult = {
         ...result,
-        animals: (result.animals || []).map((animal) => ({
-          ...animal,
-          species: verifiedSpecies,
-          label: verifiedLabel,
-        })),
+        animals: [
+          {
+            id: firstAnimal?.id || `detected-${Date.now()}`,
+            species: verifiedSpecies,
+            label: verifiedLabel,
+            boundingBox: firstAnimal?.boundingBox || {
+              x: 0,
+              y: 0,
+              width: 1,
+              height: 1,
+              rawBox: [0, 0, 1000, 1000],
+            },
+            bodyOrientation: firstAnimal?.bodyOrientation || 'side',
+            visualObservations: firstAnimal?.visualObservations || [],
+            possibleHealthConcerns: firstAnimal?.possibleHealthConcerns || [],
+            needsManualCheck: firstAnimal?.needsManualCheck || false,
+            healthStatus: firstAnimal?.healthStatus || 'healthy',
+          },
+        ],
         rawResponse: result.rawResponse
           ? {
               ...result.rawResponse,
@@ -856,7 +903,11 @@ export function LiveObjectDetectionCamera({
 
     setUploadError(null);
     setUploadAnalysisResult(null);
+    setUploadDetections([]);
+    setSelectedUploadIndex(null);
     setScanResult(null);
+    setCroppedImagePreview(null);
+    setCroppedBlob(null);
 
     try {
       const processed = await processUploadedImage(file);
@@ -865,9 +916,34 @@ export function LiveObjectDetectionCamera({
       setUploadedDimensions({ width: processed.width, height: processed.height });
       setLastCapturedThumbnail(processed.dataUrl);
       setScannerMode('upload');
-      setStatusMessage('Pumili ng larawan: handa nang i-scan.');
+      setStatusMessage('Hinahanap ang mga kambing o tupa sa larawan...');
+
+      // Immediately run static AI detection to locate all goats/sheep
+      setIsDetectingUpload(true);
+      const detectResult = await detectUploadedAnimals(processed.dataUrl);
+      setIsDetectingUpload(false);
+
+      if (!detectResult.detectedGoatOrSheep || detectResult.detections.length === 0) {
+        setUploadDetections([]);
+        setSelectedUploadIndex(null);
+        setStatusMessage('Walang kambing o tupa na nakita sa larawan.');
+        toast('Walang kambing o tupa na nakita sa larawan.', 'warning');
+      } else {
+        setUploadDetections(detectResult.detections);
+        if (detectResult.detections.length === 1) {
+          // Exactly 1 animal: auto-select it immediately
+          setSelectedUploadIndex(0);
+          const single = detectResult.detections[0];
+          setStatusMessage(`✓ Napili: ${single.label}`);
+        } else {
+          // Multiple animals: require farmer to tap one
+          setSelectedUploadIndex(null);
+          setStatusMessage(`${detectResult.detections.length} kambing ang nakita. Piliin ang alagang susuriin.`);
+        }
+      }
     } catch (err: any) {
       console.error('[Upload] Image file processing error:', err);
+      setIsDetectingUpload(false);
       setUploadError(err?.message || 'Hindi maproseso ang larawan. Pumili ng JPG, PNG, o WEBP.');
       toast(err?.message || 'Hindi maproseso ang larawan.', 'error');
     } finally {
@@ -875,39 +951,66 @@ export function LiveObjectDetectionCamera({
     }
   };
 
-  // ── Analyze Uploaded Image with AI ─────────────────────────────────────────
+  // ── Analyze Uploaded Image with AI (Single Selected Animal) ────────────────
   const handleScanUploadedImage = async () => {
     if (!uploadedImagePreview || isAnalyzingUpload) return;
 
+    if (uploadDetections.length === 0) {
+      toast('Walang kambing o tupa na nakita sa larawan.', 'warning');
+      return;
+    }
+
+    if (selectedUploadIndex === null) {
+      toast('Pumili muna ng kambing o tupa na i-scan.', 'warning');
+      return;
+    }
+
+    const selectedDet = uploadDetections[selectedUploadIndex];
+    if (!selectedDet) return;
+
     setIsAnalyzingUpload(true);
     setUploadError(null);
+    setStatusMessage(`Sinusuri ang napiling ${selectedDet.species === 'sheep' ? 'tupa' : 'kambing'} gamit ang AI...`);
 
     try {
-      const result = await analyzeUploadedImage(
-        uploadedImagePreview,
-        selectedAnimal?.species?.toLowerCase()
-      );
-      setUploadAnalysisResult(result);
+      const { scanResult: healthResult, croppedDataUrl, croppedBlob } =
+        await scanSelectedUploadedAnimal(uploadedImagePreview, selectedDet);
 
-      if (!result.detectedGoatOrSheep) {
-        toast('Walang kambing o tupa na nakita sa larawan.', 'warning');
-      } else {
-        toast(result.statusBadge, 'success');
-        if (result.rawScanResult) {
-          setScanResult(result.rawScanResult);
-          setCroppedImagePreview(uploadedImagePreview);
-          if (uploadedBlob) setCroppedBlob(uploadedBlob);
+      setCroppedImagePreview(croppedDataUrl);
+      setCroppedBlob(croppedBlob);
+      setScanResult(healthResult);
+      setShowResultSheet(true);
 
-          if (!selectedFarmAnimalId) {
-            const match = activeFarmAnimals.find(
-              (a: Animal) => a.species?.toLowerCase() === (result.sheepCount > result.goatCount ? 'sheep' : 'goat')
-            );
-            if (match) setSelectedFarmAnimalId(match.id);
-          }
-        }
+      const raw = healthResult.rawResponse;
+      const condition = (raw?.condition || 'Maayos') as 'Maayos' | 'Bantayan' | 'Kailangan ng Atensyon' | 'Kailangan ng Gamot';
+      const conditionSummary = raw?.condition_summary || 'Maayos ang nakikitang tindig at pangangatawan.';
+      const observations: string[] = raw?.visual_observations || (healthResult.animals?.[0]?.visualObservations) || [];
+      const recommendation = healthResult.recommendation || raw?.action || 'Ipagpatuloy ang regular na pagmamasid.';
+
+      setUploadAnalysisResult({
+        success: true,
+        detectedGoatOrSheep: true,
+        goatCount: uploadDetections.filter((d) => d.species === 'goat').length,
+        sheepCount: uploadDetections.filter((d) => d.species === 'sheep').length,
+        detections: uploadDetections,
+        statusBadge: 'Scan complete',
+        condition,
+        conditionSummary,
+        observations,
+        recommendation,
+        rawScanResult: healthResult,
+      });
+
+      if (!selectedFarmAnimalId) {
+        const match = activeFarmAnimals.find(
+          (a: Animal) => a.species?.toLowerCase() === selectedDet.species
+        );
+        if (match) setSelectedFarmAnimalId(match.id);
+        else if (activeFarmAnimals.length > 0) setSelectedFarmAnimalId(activeFarmAnimals[0].id);
       }
+      toast('Tapos na ang pagsusuri sa napiling alaga.', 'success');
     } catch (err: any) {
-      console.error('[Upload] Scan error:', err);
+      console.error('[Upload] Single-animal health scan error:', err);
       setUploadError(err?.message || 'Hindi masuri ang larawan. Subukan muli.');
       toast('Hindi masuri ang larawan. Subukan muli.', 'error');
     } finally {
@@ -921,6 +1024,9 @@ export function LiveObjectDetectionCamera({
     setUploadedBlob(null);
     setUploadedDimensions(null);
     setUploadAnalysisResult(null);
+    setUploadDetections([]);
+    setSelectedUploadIndex(null);
+    setIsDetectingUpload(false);
     setUploadError(null);
     setScanResult(null);
     setCroppedImagePreview(null);
@@ -1642,209 +1748,291 @@ export function LiveObjectDetectionCamera({
             )}
           </div>
 
-          {/* 2. Detection Status Badge */}
-          <div
-            style={{
-              background: selectedTrack && selectedTrack.species !== 'person'
-                ? 'rgba(22, 163, 74, 0.95)'
-                : activeTracks.length > 0
-                ? 'rgba(30, 41, 59, 0.95)'
-                : 'rgba(15, 23, 42, 0.90)',
-              color: '#FFFFFF',
-              padding: '8px 18px',
-              borderRadius: 20,
-              fontSize: 13,
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              maxWidth: '100%',
-              textAlign: 'center',
-            }}
-          >
-            {selectedTrack && selectedTrack.species !== 'person' ? (
-              <CheckCircle2 size={16} color="#4ADE80" />
-            ) : activeTracks.length > 0 ? (
-              <Sparkles size={16} color="#22C55E" />
-            ) : geminiLiveState === 'ERROR' ? (
-              <AlertCircle size={16} color="#F87171" />
-            ) : (
-              <Info size={16} color="#94A3B8" />
-            )}
-            <span>{statusMessage}</span>
-          </div>
+          {/* Active livestock count for selection decisions */}
+          {(() => {
+            const activeLivestock = activeTracks.filter((t) => t.species !== 'person');
+            const hasMultiple = activeLivestock.length > 1;
 
-          {/* 3. Camera Controls: [Gallery] [ I-SCAN (68px) ] [Flip Camera] */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              width: '100%',
-              padding: '2px 12px',
-            }}
-          >
-            {/* Gallery Upload Button */}
-            <label
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                backgroundColor: 'rgba(30, 41, 59, 0.9)',
-                border: lastCapturedThumbnail ? '2px solid #22C55E' : '1px solid rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                overflow: 'hidden',
-                color: '#FFFFFF',
-              }}
-              title="Pumili mula sa Gallery"
-            >
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/jpg"
-                style={{ display: 'none' }}
-                onChange={handleFileSelected}
-              />
-              {lastCapturedThumbnail ? (
-                <img
-                  src={lastCapturedThumbnail}
-                  alt="Thumbnail"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                <ImageIcon size={20} />
-              )}
-            </label>
+            return (
+              <>
+                {/* 2. Selection / Lost / Multi-animal Prompt Card */}
+                {isTrackLost ? (
+                  <div
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'rgba(239, 68, 68, 0.16)',
+                      borderRadius: 14,
+                      padding: '10px 14px',
+                      border: '1.5px solid #EF4444',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <AlertCircle size={20} color="#F87171" />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#FCA5A5' }}>
+                          Hindi ko na makita ang napiling hayop.
+                        </div>
+                        <div style={{ fontSize: 11, color: '#EF4444', marginTop: 1 }}>
+                          Maaaring umalis o natakpan ang alaga
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearSelection}
+                      style={{
+                        backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                        border: '1px solid #EF4444',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        color: '#FFFFFF',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Pumili ulit
+                    </button>
+                  </div>
+                ) : selectedTrack && selectedTrack.species !== 'person' ? (
+                  <div
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'rgba(22, 163, 74, 0.20)',
+                      borderRadius: 14,
+                      padding: '10px 14px',
+                      border: '1.5px solid #22C55E',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 4px 14px rgba(34, 197, 94, 0.25)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <CheckCircle2 size={20} color="#4ADE80" />
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 800, color: '#FFFFFF' }}>
+                          ✓ Napili: {selectedTrack.displayNumber ? `${selectedTrack.label} #${selectedTrack.displayNumber}` : selectedTrack.label}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#86EFAC', marginTop: 1 }}>
+                          Napili: 1 {selectedTrack.species === 'sheep' ? 'tupa' : 'kambing'}
+                        </div>
+                      </div>
+                    </div>
+                    {hasMultiple && (
+                      <button
+                        type="button"
+                        onClick={handleClearSelection}
+                        style={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          borderRadius: 8,
+                          padding: '5px 10px',
+                          color: '#FFFFFF',
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Palitan ang Napili
+                      </button>
+                    )}
+                  </div>
+                ) : hasMultiple ? (
+                  <div
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                      borderRadius: 14,
+                      padding: '10px 14px',
+                      border: '1.5px solid rgba(34, 197, 94, 0.5)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <Sparkles size={20} color="#22C55E" style={{ flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>
+                        Pumili ng Hayop na I-Scan
+                      </div>
+                      <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>
+                        {activeLivestock.length} kambing ang nakita. I-tap ang alagang nais mong suriin bago mag-scan.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* 2. Detection Status Badge */
+                  <div
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.90)',
+                      color: '#FFFFFF',
+                      padding: '8px 18px',
+                      borderRadius: 20,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      maxWidth: '100%',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {activeTracks.length > 0 ? (
+                      <Sparkles size={16} color="#22C55E" />
+                    ) : geminiLiveState === 'ERROR' ? (
+                      <AlertCircle size={16} color="#F87171" />
+                    ) : (
+                      <Info size={16} color="#94A3B8" />
+                    )}
+                    <span>{statusMessage}</span>
+                  </div>
+                )}
 
-            {/* Shutter Button (68px circular button) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <button
-                type="button"
-                disabled={!selectedTrack || selectedTrack.species === 'person' || isScanning}
-                onClick={handlePerformHealthScan}
-                aria-label={
-                  selectedTrack && selectedTrack.species !== 'person'
-                    ? `I-scan ang ${selectedTrack.species === 'sheep' ? 'tupa' : 'kambing'}`
-                    : 'I-scan'
-                }
-                style={{
-                  width: 68,
-                  height: 68,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 0,
-                  outline: 'none',
-                  cursor: selectedTrack && selectedTrack.species !== 'person' && !isScanning ? 'pointer' : 'not-allowed',
-                  background: selectedTrack && selectedTrack.species !== 'person'
-                    ? 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)'
-                    : 'rgba(51, 65, 85, 0.55)',
-                  border: selectedTrack && selectedTrack.species !== 'person'
-                    ? '3px solid rgba(255, 255, 255, 0.95)'
-                    : '3px solid rgba(255, 255, 255, 0.2)',
-                  boxShadow: selectedTrack && selectedTrack.species !== 'person'
-                    ? '0 0 20px rgba(34, 197, 94, 0.65), 0 4px 14px rgba(0, 0, 0, 0.5)'
-                    : 'none',
-                  opacity: selectedTrack && selectedTrack.species !== 'person' && !isScanning ? 1 : 0.65,
-                  transform: isScanning ? 'scale(0.92)' : 'scale(1)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Camera
-                  size={30}
-                  color={selectedTrack && selectedTrack.species !== 'person' ? '#FFFFFF' : '#94A3B8'}
-                  strokeWidth={2.2}
-                />
-              </button>
+                {/* 3. Camera Controls: [Gallery] [ I-SCAN (68px) ] [Flip Camera] */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: '2px 12px',
+                  }}
+                >
+                  {/* Gallery Upload Button */}
+                  <label
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                      border: lastCapturedThumbnail ? '2px solid #22C55E' : '1px solid rgba(255, 255, 255, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                      overflow: 'hidden',
+                      color: '#FFFFFF',
+                    }}
+                    title="Pumili mula sa Gallery"
+                  >
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/jpg"
+                      style={{ display: 'none' }}
+                      onChange={handleFileSelected}
+                    />
+                    {lastCapturedThumbnail ? (
+                      <img
+                        src={lastCapturedThumbnail}
+                        alt="Thumbnail"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <ImageIcon size={20} />
+                    )}
+                  </label>
 
-              {/* Dynamic Label Below Shutter Button */}
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  letterSpacing: 0.5,
-                  textTransform: 'uppercase',
-                  color: selectedTrack && selectedTrack.species !== 'person' ? '#4ADE80' : '#94A3B8',
-                  minHeight: 15,
-                  textAlign: 'center',
-                }}
-              >
-                {!selectedTrack || selectedTrack.species === 'person'
-                  ? 'I-SCAN'
-                  : selectedTrack.species === 'sheep'
-                  ? 'I-SCAN ANG TUPA'
-                  : 'I-SCAN ANG KAMBING'}
-              </span>
-            </div>
+                  {/* Shutter Button (68px circular button) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      disabled={!selectedTrack || selectedTrack.species === 'person' || isTrackLost || isScanning}
+                      onClick={handlePerformHealthScan}
+                      aria-label={
+                        selectedTrack && selectedTrack.species !== 'person'
+                          ? `I-scan ang ${selectedTrack.species === 'sheep' ? 'tupa' : 'kambing'}`
+                          : 'I-scan'
+                      }
+                      style={{
+                        width: 68,
+                        height: 68,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        outline: 'none',
+                        cursor: selectedTrack && selectedTrack.species !== 'person' && !isTrackLost && !isScanning ? 'pointer' : 'not-allowed',
+                        background: selectedTrack && selectedTrack.species !== 'person' && !isTrackLost
+                          ? 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)'
+                          : 'rgba(51, 65, 85, 0.55)',
+                        border: selectedTrack && selectedTrack.species !== 'person' && !isTrackLost
+                          ? '3px solid rgba(255, 255, 255, 0.95)'
+                          : '3px solid rgba(255, 255, 255, 0.2)',
+                        boxShadow: selectedTrack && selectedTrack.species !== 'person' && !isTrackLost
+                          ? '0 0 20px rgba(34, 197, 94, 0.65), 0 4px 14px rgba(0, 0, 0, 0.5)'
+                          : 'none',
+                        opacity: selectedTrack && selectedTrack.species !== 'person' && !isTrackLost && !isScanning ? 1 : 0.60,
+                        transform: isScanning ? 'scale(0.92)' : 'scale(1)',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <Camera
+                        size={30}
+                        color={selectedTrack && selectedTrack.species !== 'person' && !isTrackLost ? '#FFFFFF' : '#94A3B8'}
+                        strokeWidth={2.2}
+                      />
+                    </button>
 
-            {/* Flip Camera Button */}
-            <button
-              type="button"
-              onClick={handleFlipCamera}
-              aria-label="I-flip ang camera"
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                backgroundColor: 'rgba(30, 41, 59, 0.9)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                color: '#FFFFFF',
-              }}
-            >
-              <SwitchCamera size={20} />
-            </button>
-          </div>
+                    {/* Dynamic Label Below Shutter Button */}
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        letterSpacing: 0.5,
+                        textTransform: 'uppercase',
+                        color: selectedTrack && selectedTrack.species !== 'person' && !isTrackLost ? '#4ADE80' : '#94A3B8',
+                        minHeight: 15,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {isTrackLost
+                        ? 'PUMILI ULIT'
+                        : !selectedTrack || selectedTrack.species === 'person'
+                        ? hasMultiple
+                          ? 'PUMILI MUNA NG HAYOP'
+                          : 'I-SCAN'
+                        : selectedTrack.species === 'sheep'
+                        ? 'I-SCAN ANG TUPA'
+                        : 'I-SCAN ANG KAMBING'}
+                    </span>
+                  </div>
 
-          {/* 4. Detected Animal Information Card */}
-          {selectedTrack && selectedTrack.species !== 'person' && (
-            <div
-              style={{
-                width: '100%',
-                backgroundColor: '#1E293B',
-                borderRadius: 14,
-                padding: '10px 14px',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Aktibong Alaga
+                  {/* Flip Camera Button */}
+                  <button
+                    type="button"
+                    onClick={handleFlipCamera}
+                    aria-label="I-flip ang camera"
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    <SwitchCamera size={20} />
+                  </button>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', marginTop: 2 }}>
-                  {selectedTrack.species === 'sheep'
-                    ? `Tupa #${selectedTrack.displayNumber}`
-                    : `Kambing #${selectedTrack.displayNumber}`}
-                </div>
-              </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '4px 10px',
-                  borderRadius: 20,
-                  backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                  color: '#4ADE80',
-                  border: '1px solid rgba(34, 197, 94, 0.3)',
-                }}
-              >
-                Kambing o tupa na sinusubaybayan
-              </span>
-            </div>
-          )}
+              </>
+            );
+          })()}
 
           {/* 5. Scan Result / Health Result (Rendered in the same scrollable form below camera) */}
           {scanResult && croppedImagePreview && (
@@ -2232,21 +2420,23 @@ export function LiveObjectDetectionCamera({
                     />
 
                     {/* Bounding Box Overlays (static, normalized coordinates) */}
-                    {uploadAnalysisResult?.detections && uploadAnalysisResult.detections.length > 0 && (
+                    {uploadDetections && uploadDetections.length > 0 && (
                       <div
                         style={{
                           position: 'absolute',
                           inset: 0,
-                          pointerEvents: 'none',
+                          pointerEvents: 'auto',
                         }}
                       >
-                        {uploadAnalysisResult.detections.map((det, idx) => {
-                          const isSheep = det.species === 'sheep';
-                          const strokeColor = isSheep ? '#10B981' : '#22C55E';
-                          const fillColor = isSheep ? 'rgba(16, 185, 129, 0.18)' : 'rgba(34, 197, 94, 0.18)';
-                          const badgeBg = isSheep ? '#059669' : '#16A34A';
-                          const cornerColor = isSheep ? '#34D399' : '#4ADE80';
-                          const labelText = det.displayNumber ? `${det.label} #${det.displayNumber}` : det.label;
+                        {uploadDetections.map((det, idx) => {
+                          const isSelected = selectedUploadIndex === idx;
+                          const strokeColor = isSelected ? '#22C55E' : 'rgba(255, 255, 255, 0.45)';
+                          const fillColor = isSelected ? 'rgba(34, 197, 94, 0.22)' : 'rgba(0, 0, 0, 0.20)';
+                          const badgeBg = isSelected ? '#16A34A' : 'rgba(30, 41, 59, 0.85)';
+                          const cornerColor = isSelected ? '#4ADE80' : 'rgba(255, 255, 255, 0.7)';
+                          const labelText = isSelected
+                            ? `✓ NAPILI: ${det.label}`
+                            : det.label;
 
                           const leftPct = Math.max(0, Math.min(95, det.boundingBox.x * 100));
                           const topPct = Math.max(0, Math.min(95, det.boundingBox.y * 100));
@@ -2256,23 +2446,28 @@ export function LiveObjectDetectionCamera({
                           return (
                             <div
                               key={idx}
+                              onClick={() => setSelectedUploadIndex(idx)}
                               style={{
                                 position: 'absolute',
                                 left: `${leftPct}%`,
                                 top: `${topPct}%`,
                                 width: `${widthPct}%`,
                                 height: `${heightPct}%`,
-                                border: `2.5px solid ${strokeColor}`,
+                                border: isSelected ? '3.5px solid #22C55E' : '2px solid rgba(255, 255, 255, 0.45)',
                                 backgroundColor: fillColor,
                                 boxSizing: 'border-box',
                                 borderRadius: 6,
+                                cursor: 'pointer',
+                                opacity: selectedUploadIndex !== null && !isSelected ? 0.38 : 1.0,
+                                boxShadow: isSelected ? '0 0 16px rgba(34, 197, 94, 0.75)' : 'none',
+                                transition: 'all 0.15s ease',
                               }}
                             >
                               {/* Corners */}
-                              <div style={{ position: 'absolute', top: -2, left: -2, width: 10, height: 10, borderTop: `4px solid ${cornerColor}`, borderLeft: `4px solid ${cornerColor}`, borderTopLeftRadius: 6 }} />
-                              <div style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderTop: `4px solid ${cornerColor}`, borderRight: `4px solid ${cornerColor}`, borderTopRightRadius: 6 }} />
-                              <div style={{ position: 'absolute', bottom: -2, left: -2, width: 10, height: 10, borderBottom: `4px solid ${cornerColor}`, borderLeft: `4px solid ${cornerColor}`, borderBottomLeftRadius: 6 }} />
-                              <div style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderBottom: `4px solid ${cornerColor}`, borderRight: `4px solid ${cornerColor}`, borderBottomRightRadius: 6 }} />
+                              <div style={{ position: 'absolute', top: -2, left: -2, width: 12, height: 12, borderTop: `4px solid ${cornerColor}`, borderLeft: `4px solid ${cornerColor}`, borderTopLeftRadius: 6 }} />
+                              <div style={{ position: 'absolute', top: -2, right: -2, width: 12, height: 12, borderTop: `4px solid ${cornerColor}`, borderRight: `4px solid ${cornerColor}`, borderTopRightRadius: 6 }} />
+                              <div style={{ position: 'absolute', bottom: -2, left: -2, width: 12, height: 12, borderBottom: `4px solid ${cornerColor}`, borderLeft: `4px solid ${cornerColor}`, borderBottomLeftRadius: 6 }} />
+                              <div style={{ position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderBottom: `4px solid ${cornerColor}`, borderRight: `4px solid ${cornerColor}`, borderBottomRightRadius: 6 }} />
 
                               {/* Label Badge */}
                               <div
@@ -2299,7 +2494,45 @@ export function LiveObjectDetectionCamera({
                       </div>
                     )}
 
-                    {/* Analyzing Overlay */}
+                    {/* Detecting Animals Overlay */}
+                    {isDetectingUpload && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundColor: 'rgba(11, 15, 23, 0.85)',
+                          backdropFilter: 'blur(4px)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 12,
+                          color: '#FFFFFF',
+                          padding: 16,
+                          textAlign: 'center',
+                          zIndex: 30,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            border: '3.5px solid rgba(34, 197, 94, 0.2)',
+                            borderTopColor: '#22C55E',
+                            borderRadius: '50%',
+                            animation: 'spin 0.8s linear infinite',
+                          }}
+                        />
+                        <div style={{ fontSize: 15, fontWeight: 800 }}>
+                          Hinahanap ang mga kambing o tupa...
+                        </div>
+                        <div style={{ fontSize: 12, color: '#94A3B8' }}>
+                          Pagtukoy sa mga hayop sa loob ng larawan
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Detailed Analysis Overlay */}
                     {isAnalyzingUpload && (
                       <div
                         style={{
@@ -2329,69 +2562,192 @@ export function LiveObjectDetectionCamera({
                           }}
                         />
                         <div style={{ fontSize: 15, fontWeight: 800 }}>
-                          Sinusuri ang nakikita sa larawan...
+                          Sinusuri ang napiling alaga...
                         </div>
                         <div style={{ fontSize: 12, color: '#94A3B8' }}>
-                          Pagtukoy sa bilang ng kambing o tupa at kalusugan
+                          Pagsusuri sa kalagayan at kalusugan gamit ang AI
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* If NOT yet analyzed */}
+                  {/* Pre-Analysis Status & Action Buttons */}
                   {!uploadAnalysisResult && !isAnalyzingUpload && (
                     <div
                       style={{
                         width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 10,
+                        gap: 12,
                         alignItems: 'center',
                       }}
                     >
-                      <div
-                        style={{
-                          backgroundColor: '#1E293B',
-                          borderRadius: 12,
-                          padding: '10px 14px',
-                          width: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CheckCircle2 size={16} color="#4ADE80" />
+                      {/* Detection / Selection Card */}
+                      {isDetectingUpload ? (
+                        <div
+                          style={{
+                            backgroundColor: '#1E293B',
+                            borderRadius: 14,
+                            padding: '12px 16px',
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                          }}
+                        >
+                          <Sparkles size={18} color="#22C55E" />
                           <span style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600 }}>
-                            Handa nang suriin ang napiling larawan
+                            Hinahanap ang mga kambing o tupa sa larawan...
                           </span>
                         </div>
-                      </div>
+                      ) : uploadDetections.length === 0 ? (
+                        <div
+                          style={{
+                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                            borderRadius: 14,
+                            padding: '12px 16px',
+                            width: '100%',
+                            border: '1.5px solid #EF4444',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <AlertCircle size={20} color="#F87171" />
+                            <div>
+                              <div style={{ fontSize: 13.5, fontWeight: 800, color: '#FCA5A5' }}>
+                                Walang kambing o tupa na nakita
+                              </div>
+                              <div style={{ fontSize: 11.5, color: '#EF4444', marginTop: 1 }}>
+                                Subukang mag-upload ng mas malinaw na litrato
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                              backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                              border: '1px solid #EF4444',
+                              borderRadius: 8,
+                              padding: '6px 12px',
+                              color: '#FFFFFF',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Pumili Ulit
+                          </button>
+                        </div>
+                      ) : selectedUploadIndex !== null ? (
+                        <div
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'rgba(22, 163, 74, 0.20)',
+                            borderRadius: 14,
+                            padding: '12px 16px',
+                            border: '1.5px solid #22C55E',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            boxShadow: '0 4px 14px rgba(34, 197, 94, 0.25)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <CheckCircle2 size={22} color="#4ADE80" />
+                            <div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF' }}>
+                                ✓ Napili: {uploadDetections[selectedUploadIndex].label}
+                              </div>
+                              <div style={{ fontSize: 11.5, color: '#86EFAC', marginTop: 2 }}>
+                                Napili: 1 {uploadDetections[selectedUploadIndex].species === 'sheep' ? 'tupa' : 'kambing'}
+                              </div>
+                            </div>
+                          </div>
+                          {uploadDetections.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedUploadIndex(null)}
+                              style={{
+                                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                                border: '1px solid rgba(255, 255, 255, 0.25)',
+                                borderRadius: 8,
+                                padding: '6px 12px',
+                                color: '#FFFFFF',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              Palitan ang Napili
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            width: '100%',
+                            backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                            borderRadius: 14,
+                            padding: '12px 16px',
+                            border: '1.5px solid rgba(34, 197, 94, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                          }}
+                        >
+                          <Sparkles size={20} color="#22C55E" style={{ flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: 13.5, fontWeight: 800, color: '#FFFFFF' }}>
+                              Pumili ng Hayop na I-Scan
+                            </div>
+                            <div style={{ fontSize: 11.5, color: '#94A3B8', marginTop: 2 }}>
+                              {uploadDetections.length} kambing ang nakita. I-tap ang alagang nais mong suriin sa itaas bago mag-scan.
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
+                      {/* Action buttons */}
                       <div style={{ display: 'flex', width: '100%', gap: 10 }}>
                         <button
                           type="button"
+                          disabled={selectedUploadIndex === null || isAnalyzingUpload || isDetectingUpload}
                           onClick={handleScanUploadedImage}
                           style={{
                             flex: 2,
-                            backgroundColor: '#16A34A',
-                            color: '#FFFFFF',
-                            border: 'none',
+                            backgroundColor: selectedUploadIndex !== null && !isAnalyzingUpload && !isDetectingUpload
+                              ? '#16A34A'
+                              : 'rgba(51, 65, 85, 0.55)',
+                            color: selectedUploadIndex !== null && !isAnalyzingUpload && !isDetectingUpload
+                              ? '#FFFFFF'
+                              : '#94A3B8',
+                            border: selectedUploadIndex !== null
+                              ? '1px solid rgba(255, 255, 255, 0.3)'
+                              : '1px solid rgba(255, 255, 255, 0.1)',
                             borderRadius: 12,
                             padding: '14px 20px',
-                            fontSize: 15,
+                            fontSize: 14,
                             fontWeight: 800,
-                            cursor: 'pointer',
+                            cursor: selectedUploadIndex !== null && !isAnalyzingUpload && !isDetectingUpload ? 'pointer' : 'not-allowed',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: 8,
-                            boxShadow: '0 4px 14px rgba(22, 163, 74, 0.4)',
+                            boxShadow: selectedUploadIndex !== null ? '0 4px 14px rgba(22, 163, 74, 0.4)' : 'none',
                           }}
                         >
                           <Sparkles size={18} />
-                          <span>I-SCAN ANG LARAWAN</span>
+                          <span>
+                            {selectedUploadIndex !== null
+                              ? `I-SCAN ANG ${uploadDetections[selectedUploadIndex].label}`
+                              : 'PUMILI MUNA NG HAYOP'}
+                          </span>
                         </button>
 
                         <button
