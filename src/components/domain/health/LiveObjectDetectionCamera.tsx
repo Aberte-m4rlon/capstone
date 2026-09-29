@@ -98,6 +98,7 @@ export function LiveObjectDetectionCamera({
   const streamRef = useRef<MediaStream | null>(null);
   const isMountedRef = useRef<boolean>(true);
   const rafIdRef = useRef<number | null>(null);
+  const lastRafTimeRef = useRef<number>(0);
   const detectTimerRef = useRef<any>(null);
   const isDetectingRef = useRef<boolean>(false);
   const liveDetectorRef = useRef<GeminiLiveDetector | null>(null);
@@ -214,10 +215,10 @@ export function LiveObjectDetectionCamera({
         return `${goats} Kambing • ${sheep} Tupa na nakita`;
       }
       if (goats > 0) {
-        return goats === 1 ? 'KAMBING detected' : `${goats} Kambing na nakita`;
+        return goats === 1 ? '1 Kambing na nakita' : `${goats} Kambing na nakita`;
       }
       if (sheep > 0) {
-        return sheep === 1 ? 'TUPA detected' : `${sheep} Tupa na nakita`;
+        return sheep === 1 ? '1 Tupa na nakita' : `${sheep} Tupa na nakita`;
       }
       if (persons > 0) {
         return 'May taong nakita. Itutok ang camera sa kambing o tupa.';
@@ -243,6 +244,7 @@ export function LiveObjectDetectionCamera({
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
+    lastRafTimeRef.current = 0;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -441,6 +443,7 @@ export function LiveObjectDetectionCamera({
 
     let isRunning = true;
     const tracker = trackerRef.current;
+    lastRafTimeRef.current = 0;
 
     const renderLoop = () => {
       if (!isRunning) return;
@@ -473,8 +476,13 @@ export function LiveObjectDetectionCamera({
             video.videoHeight
           );
 
-          // 60 FPS motion smoothing interpolation & real-time track pruning
-          tracker.step(Date.now(), 0.18);
+          // Calculate elapsed delta time in seconds for frame-rate-independent smoothing
+          const now = performance.now();
+          const dtSec = lastRafTimeRef.current > 0 ? Math.min(0.12, (now - lastRafTimeRef.current) / 1000) : 1 / 60;
+          lastRafTimeRef.current = now;
+
+          // 60 FPS motion smoothing interpolation & real-time velocity dead reckoning
+          tracker.step(Date.now(), dtSec);
           const currentTracks = tracker.getActiveTracks();
 
           renderTrackedAnimalsToCanvas(
@@ -489,6 +497,12 @@ export function LiveObjectDetectionCamera({
             setActiveTracks([]);
             setSelectedTrack(null);
             setStatusMessage('Naghahanap ng kambing o tupa...');
+          } else if (currentTracks.length > 0 && activeTracksLengthRef.current !== currentTracks.length) {
+            activeTracksLengthRef.current = currentTracks.length;
+            setActiveTracks(currentTracks);
+            const selected = tracker.getSelectedTrack();
+            setSelectedTrack(selected);
+            setStatusMessage(computeDetectionStatus(currentTracks, selected));
           }
         }
       }
@@ -504,8 +518,9 @@ export function LiveObjectDetectionCamera({
         cancelAnimationFrame(rafIdRef.current);
         rafIdRef.current = null;
       }
+      lastRafTimeRef.current = 0;
     };
-  }, [isCameraActive, isScanning, scannerMode]);
+  }, [isCameraActive, isScanning, scannerMode, computeDetectionStatus]);
 
   // Live Detection Cycle (only active when Gemini Live is CONNECTED)
   const runDetectionCycle = useCallback(() => {

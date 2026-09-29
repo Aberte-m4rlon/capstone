@@ -1,36 +1,44 @@
 /**
- * temporalBoxTracker.ts — Real-Time Temporal Stabilization & Tracking Engine
+ * temporalBoxTracker.ts — Real-Time Temporal Animal Tracker & Motion Stabilizer
  *
  * Designed for AlpasFarm livestock detection camera:
- * 1. TEMPORAL STABILITY:
- *    Applies Exponential Moving Average (EMA) smoothing on x, y, width, and height.
- *    Eliminates bounding box jitter, visual shaking, flickering, and frame-to-frame jumping.
  *
- * 2. TRACKING THE SAME ANIMAL:
- *    Uses 2D Intersection-over-Union (IoU) with center-distance fallback to match
- *    incoming detections to existing tracks across consecutive frames.
- *    Assigns persistent track IDs (e.g. 1, 2, 3...).
+ * 1. TWO-POSITION ARCHITECTURE (currentBox & targetBox):
+ *    - `currentBox`: The smoothly rendered box on screen.
+ *    - `targetBox`: The destination determined by AI detections and velocity prediction.
+ *    - Interpolates smoothly on every animation frame (60 FPS) without teleporting or jumping.
  *
- * 3. STABLE SPECIES LABELS:
- *    Maintains a rolling species history window. Requires consensus (>= 3 consecutive
- *    frames) before transitioning a label between KAMBING and TUPA.
+ * 2. ADAPTIVE FRAME-BASED SMOOTHING:
+ *    - Uses elapsed delta time (dt) for display-rate independence (60Hz / 90Hz / 120Hz).
+ *    - Small displacement: Strong smoothing (eliminates jitter and breathing).
+ *    - Large displacement: Fast catch-up (keeps up with running/trotting animals).
+ *    - Calm dimension filtering prevents sudden ballooning or shrinking.
  *
- * 4. SHORT TRACK GRACE PERIOD:
- *    Tolerates 2-3 missed frames (up to ~800ms) for motion blur, detector frame skip,
- *    or brief occlusion, preventing boxes from disappearing and reappearing instantly.
+ * 3. SHORT-TERM VELOCITY PREDICTION:
+ *    - Estimates normalized velocity (vx, vy) based on observed center displacement over time.
+ *    - Extrapolates motion during the ~1s window between Gemini detections with exponential damping.
+ *    - Prevents the box from stopping dead and lagging behind moving animals.
  *
- * 5. EMPTY SCENE CLEARANCE:
- *    When no goats or sheep are detected or camera points away, stale tracks are
- *    promptly pruned, ensuring zero ghost boxes linger on screen.
+ * 4. PREDICTED-POSITION MATCHING & ADAPTIVE GATING:
+ *    - Incoming Gemini detections match against the track's PREDICTED position, not stale last-seen center.
+ *    - Matching gate expands proportionally for fast-moving animals.
+ *    - Multi-factor score: IoU + center distance + size similarity + velocity alignment + species bonus.
+ *    - Directional alignment and size consistency prevent track-swapping when two animals cross.
  *
- * 6. SELECTION PERSISTENCE:
- *    Farmer can tap an animal's bounding box to select it. The selection locks to the
- *    track ID and follows that specific animal as it moves across the screen.
- *    If the tracked animal leaves the scene, prompts the farmer to re-select.
+ * 5. OCCLUSION GRACE PERIOD & CONTINUITY:
+ *    - Uses timestamp-based grace period (2.8 seconds) to survive 2-3 missed Gemini frames.
+ *    - When an animal turns, stops, or briefly passes behind another goat, it retains the SAME track ID.
  *
- * 7. ACCURATE COORDINATE TRANSFORMS (object-fit: cover):
- *    Translates normalized [0..1] video coordinates to display container/canvas pixel coordinates,
- *    correcting for aspect ratio differences, cropping offsets, and device scaling.
+ * 6. DETECTION CONFIRMATION:
+ *    - Filters false-positive non-livestock candidates (keyboard, laptop, chair) by requiring confirmation
+ *      unless confidence is decisively high.
+ *
+ * 7. ROLLING SPECIES CONSENSUS:
+ *    - Requires consensus votes before switching between KAMBING and TUPA, eliminating label flickering.
+ *
+ * 8. CLEANUP & DEDUPLICATION:
+ *    - Deduplicates raw overlapping Gemini detections for the same animal.
+ *    - Completely clears canvas on empty scenes. Prunes tracks when animals exit the frame.
  */
 
 import type { BoundingBox } from './cameraUtils';
@@ -39,6 +47,7 @@ import type { BoundingBox } from './cameraUtils';
 
 export type LivestockSpecies = 'goat' | 'sheep' | 'person';
 export type LivestockDisplayLabel = 'KAMBING' | 'TUPA' | 'TAO';
+export type TrackState = 'candidate' | 'confirmed' | 'occluded' | 'expired';
 
 export interface RawLivestockDetection {
   species: LivestockSpecies;
@@ -54,69 +63,85 @@ export interface TrackedLivestockAnimal {
   species: LivestockSpecies;
   label: LivestockDisplayLabel;
   confidence: number;
-  /** Current smoothed bounding box [0..1] in video space */
+  state: TrackState;
+
+  /** Current smoothed bounding box [0..1] rendered on screen */
+  currentBox: BoundingBox;
+  /** Legacy alias pointing directly to currentBox for backward compatibility */
   box: BoundingBox;
-  /** Target bounding box [0..1] from latest raw detection */
+  /** Target bounding box [0..1] from latest raw detection or motion prediction */
   targetBox: BoundingBox;
-  /** Velocity estimate (change in center per second) */
+
+  /** Velocity in normalized screen space per second (dx/sec, dy/sec) */
   vx: number;
   vy: number;
+  /** Dimension change rate per second (dw/sec, dh/sec) */
+  vw: number;
+  vh: number;
+
+  /** Timestamps */
   firstSeen: number;
   lastSeen: number;
+  lastConfirmedAt: number;
+  lastObservedCenter: { x: number; y: number };
+
+  /** Hit & Miss counters */
   consecutiveHits: number;
   consecutiveMisses: number;
+
+  /** Rolling species history for voting */
   speciesHistory: LivestockSpecies[];
+
+  /** UI interaction flags */
   isSelected: boolean;
-  isTemporarilyMissed?: boolean;
+  isTemporarilyMissed: boolean;
 }
 
 export interface TrackerConfig {
-  /** EMA smoothing factor for bounding box coordinates (0.0 to 1.0). Default: 0.35 */
-  smoothingAlpha: number;
-  /** Minimum IoU threshold to consider a match between frames. Default: 0.15 */
+  /** Minimum IoU threshold to consider a spatial match. Default: 0.12 */
   matchIouThreshold: number;
-  /** Maximum normalized center distance fallback if IoU is 0 (fast move). Default: 0.28 */
-  maxCenterDistanceFallback: number;
-  /** Number of missed frames tolerated before pruning a track. Default: 3 */
-  maxConsecutiveMisses: number;
-  /** Maximum duration in ms before pruning an unseen track. Default: 3000ms (3.0s grace period) */
+  /** Base center distance fallback (normalized). Default: 0.25 */
+  baseCenterDistanceFallback: number;
+  /** Velocity-scaled matching expansion factor. Default: 0.55 */
+  velocityMatchExpansion: number;
+  /** Maximum grace period in ms before pruning an unseen track. Default: 2800ms */
   maxTrackAgeMs: number;
-  /** Number of consecutive consistent species classifications required to change label. Default: 3 */
+  /** Maximum consecutive missed detections tolerated. Default: 4 */
+  maxConsecutiveMisses: number;
+  /** Velocity damping / friction per second (0.0 to 1.0). Default: 0.68 */
+  velocityDampingPerSec: number;
+  /** Species consensus threshold. Default: 3 */
   speciesConsensusThreshold: number;
-  /** Entry threshold to start tracking a new goat detection. Default: 0.28 */
+
+  /** Entry & keep thresholds */
   goatEntryThreshold: number;
-  /** Keep threshold to maintain an existing goat track. Default: 0.20 */
   goatKeepThreshold: number;
-  /** Entry threshold to start tracking a new sheep detection. Default: 0.35 */
   sheepEntryThreshold: number;
-  /** Keep threshold to maintain an existing sheep track. Default: 0.25 */
   sheepKeepThreshold: number;
-  /** Entry threshold for person detection. Default: 0.50 */
   personEntryThreshold: number;
-  /** Keep threshold for person detection. Default: 0.35 */
   personKeepThreshold: number;
 }
 
 export const DEFAULT_TRACKER_CONFIG: TrackerConfig = {
-  smoothingAlpha: 0.35,
-  matchIouThreshold: 0.15,
-  maxCenterDistanceFallback: 0.28,
-  maxConsecutiveMisses: 3,
-  maxTrackAgeMs: 3000, // 3000ms grace period so 1-2 missed frames do not drop tracks
+  matchIouThreshold: 0.12,
+  baseCenterDistanceFallback: 0.25,
+  velocityMatchExpansion: 0.55,
+  maxTrackAgeMs: 2800, // 2.8s grace period bridges 2-3 missed Gemini responses
+  maxConsecutiveMisses: 4,
+  velocityDampingPerSec: 0.68,
   speciesConsensusThreshold: 3,
   goatEntryThreshold: 0.28,
-  goatKeepThreshold: 0.20,
+  goatKeepThreshold: 0.18,
   sheepEntryThreshold: 0.35,
-  sheepKeepThreshold: 0.25,
+  sheepKeepThreshold: 0.22,
   personEntryThreshold: 0.50,
   personKeepThreshold: 0.35,
 };
 
-// ── 2D Geometry & IoU Helpers ─────────────────────────────────────────────────
+// ── 2D Geometry & Deduplication Helpers ────────────────────────────────────────
 
 /**
  * Calculates 2D Intersection-over-Union (IoU) of two normalized bounding boxes.
- * Both boxes must have { x, y, width, height } in [0..1].
  */
 export function calculate2DIoU(boxA: BoundingBox, boxB: BoundingBox): number {
   const xA1 = boxA.x;
@@ -162,12 +187,11 @@ export function calculateCenterDistance(boxA: BoundingBox, boxB: BoundingBox): n
 
 /**
  * Deduplicate raw livestock detections returned by Gemini Live.
- * If two detections have the same species and overlap heavily (IoU >= 0.60, or IoU >= 0.35 with close center distance <= 0.08),
- * treat them as the same physical animal and keep the higher-confidence candidate.
+ * If two detections have the same species and overlap heavily, keep the higher confidence one.
  */
 export function deduplicateDetections(
   detections: RawLivestockDetection[],
-  iouThreshold: number = 0.60,
+  iouThreshold: number = 0.55,
   centerDistThreshold: number = 0.08
 ): RawLivestockDetection[] {
   if (!detections || detections.length <= 1) return detections || [];
@@ -183,7 +207,7 @@ export function deduplicateDetections(
       const iou = calculate2DIoU(existing.box, det.box);
       const dist = calculateCenterDistance(existing.box, det.box);
 
-      if (iou >= iouThreshold || (iou >= 0.35 && dist <= centerDistThreshold)) {
+      if (iou >= iouThreshold || (iou >= 0.28 && dist <= centerDistThreshold)) {
         isDuplicate = true;
         if (det.confidence > existing.confidence) {
           kept[i] = det;
@@ -213,10 +237,6 @@ export interface ViewportTransform {
   videoH: number;
 }
 
-/**
- * Compute the object-fit: cover scale and cropping offsets given video resolution
- * and display container dimensions.
- */
 export function computeViewportTransform(
   containerW: number,
   containerH: number,
@@ -237,12 +257,10 @@ export function computeViewportTransform(
     };
   }
 
-  // Cover fills the container by scaling up to match the larger dimension
   const scale = Math.max(containerW / videoW, containerH / videoH);
   const renderedW = videoW * scale;
   const renderedH = videoH * scale;
 
-  // Offsets center the video crop inside the container
   const offsetX = (renderedW - containerW) / 2;
   const offsetY = (renderedH - containerH) / 2;
 
@@ -259,9 +277,6 @@ export function computeViewportTransform(
   };
 }
 
-/**
- * Transform normalized video box [0..1] to pixel coordinates on the overlay canvas/container.
- */
 export function mapVideoBoxToScreen(
   box: BoundingBox,
   transform: ViewportTransform
@@ -273,7 +288,6 @@ export function mapVideoBoxToScreen(
   const screenW = box.width * renderedW;
   const screenH = box.height * renderedH;
 
-  // Clamp safely to canvas bounds so badges and borders remain visible
   return {
     x: Math.max(2, Math.min(containerW - 10, screenX)),
     y: Math.max(2, Math.min(containerH - 10, screenY)),
@@ -282,18 +296,14 @@ export function mapVideoBoxToScreen(
   };
 }
 
-/**
- * Hit-test: Check if a screen click/tap (clientX, clientY) relative to the container
- * falls inside a tracked animal's bounding box.
- */
 export function hitTestTrack(
   screenTapX: number,
   screenTapY: number,
   track: TrackedLivestockAnimal,
   transform: ViewportTransform,
-  hitSlop: number = 12
+  hitSlop: number = 14
 ): boolean {
-  const screenBox = mapVideoBoxToScreen(track.box, transform);
+  const screenBox = mapVideoBoxToScreen(track.currentBox, transform);
 
   const minX = screenBox.x - hitSlop;
   const maxX = screenBox.x + screenBox.width + hitSlop;
@@ -322,38 +332,33 @@ export class TemporalLivestockTracker {
     this.onSelectedTrackLost = onSelectedTrackLost;
   }
 
-  /**
-   * Set callback for when the selected track disappears past grace period.
-   */
   public setSelectedTrackLostCallback(cb: () => void): void {
     this.onSelectedTrackLost = cb;
   }
 
   /**
-   * Get all currently active tracked animals.
+   * Return all currently active, visible tracked animals.
+   * Only includes confirmed tracks (or occluded confirmed tracks still within grace period).
+   * Filters out unconfirmed candidates to prevent false positives.
    */
   public getActiveTracks(): TrackedLivestockAnimal[] {
-    return [...this.tracks];
+    return this.tracks.filter(
+      (t) =>
+        t.state === 'confirmed' ||
+        t.state === 'occluded' ||
+        (t.state === 'candidate' && t.confidence >= 0.75)
+    );
   }
 
-  /**
-   * Get the currently selected tracked animal, if any.
-   */
   public getSelectedTrack(): TrackedLivestockAnimal | null {
     if (this.selectedTrackId === null) return null;
     return this.tracks.find((t) => t.trackId === this.selectedTrackId) || null;
   }
 
-  /**
-   * Get the ID of the selected track.
-   */
   public getSelectedTrackId(): number | null {
     return this.selectedTrackId;
   }
 
-  /**
-   * Set track selection by track ID.
-   */
   public selectTrackById(trackId: number | null): boolean {
     if (trackId === null) {
       this.selectedTrackId = null;
@@ -373,22 +378,17 @@ export class TemporalLivestockTracker {
     return true;
   }
 
-  /**
-   * Attempt to select a track via screen click/tap coordinates.
-   * Returns true if an animal was selected, false if tapped empty space.
-   */
   public selectAtScreenCoordinates(
     screenTapX: number,
     screenTapY: number,
     transform: ViewportTransform
   ): TrackedLivestockAnimal | null {
-    // If multiple tracks overlap, select the smallest/closest one to tap center
     let bestTrack: TrackedLivestockAnimal | null = null;
     let minArea = Infinity;
 
-    for (const track of this.tracks) {
+    for (const track of this.getActiveTracks()) {
       if (track.species !== 'person' && hitTestTrack(screenTapX, screenTapY, track, transform)) {
-        const area = track.box.width * track.box.height;
+        const area = track.currentBox.width * track.currentBox.height;
         if (area < minArea) {
           minArea = area;
           bestTrack = track;
@@ -405,23 +405,15 @@ export class TemporalLivestockTracker {
   }
 
   /**
-   * Update tracker with fresh detections from the current frame.
-   *
-   * Flow:
-   * 1. Filter candidates by KEEP threshold.
-   * 2. If no valid detections, manage grace period (do NOT instantly wipe).
-   * 3. Match candidates with existing tracks using 2D IoU / center distance.
-   * 4. Apply formula-accurate EMA smoothing: smoothed = previous * 0.6 + current * 0.4.
-   * 5. Hysteresis entry check: unmatched candidates only spawn new tracks if >= ENTRY threshold.
-   * 6. Enforce species consensus and non-selectable person rules.
-   * 7. Prune stale tracks that exceed 450ms grace period or 3 consecutive misses.
-   * 8. Assign stable display numbers.
+   * Process fresh visual detections from Gemini Live.
+   * Matches detections against PREDICTED track positions, updates target boxes,
+   * calculates instantaneous velocities, updates species voting, and prunes stale tracks.
    */
   public update(rawDetections: RawLivestockDetection[], timestamp: number = Date.now()): TrackedLivestockAnimal[] {
-    // 0. Deduplicate incoming raw detections to prevent duplicate boxes for the same animal
+    // 1. Deduplicate incoming raw detections
     const deduplicated = deduplicateDetections(rawDetections || []);
 
-    // Filter candidates: Must meet species KEEP threshold
+    // 2. Filter candidates by KEEP threshold
     const validDetections = deduplicated.filter((d) => {
       if (d.species === 'goat') return d.confidence >= this.config.goatKeepThreshold;
       if (d.species === 'sheep') return d.confidence >= this.config.sheepKeepThreshold;
@@ -429,61 +421,111 @@ export class TemporalLivestockTracker {
       return false;
     });
 
-    // When no candidates meet keep threshold in this response:
-    // Tolerate grace period (up to 3 misses / 3000ms) to bridge detector frame skips or momentary occlusion
+    // If zero detections arrived in this response, mark existing tracks as missed
     if (validDetections.length === 0) {
       for (const track of this.tracks) {
         track.consecutiveMisses++;
         track.isTemporarilyMissed = true;
+        if (track.state === 'confirmed') {
+          track.state = 'occluded';
+        }
       }
       this.pruneStaleTracks(timestamp);
-      return [...this.tracks];
+      this.updateDisplayNumbering();
+      return this.getActiveTracks();
     }
 
     const matchedTrackIds = new Set<number>();
     const matchedRawIndices = new Set<number>();
 
-    // 1. Calculate cost matrix incorporating species matching, IoU, and velocity-predicted center distance
-    const matchCandidates: {
+    // 3. Compute multi-factor matching score between existing tracks and incoming detections
+    interface MatchCandidate {
       trackIndex: number;
       rawIndex: number;
       score: number;
-      iou: number;
-      distance: number;
-    }[] = [];
+    }
+
+    const matchCandidates: MatchCandidate[] = [];
 
     for (let t = 0; t < this.tracks.length; t++) {
       const track = this.tracks[t];
-      const dt = Math.max(0.1, (timestamp - track.lastSeen) / 1000);
-      const predCenterX = (track.box.x + track.box.width / 2) + track.vx * dt;
-      const predCenterY = (track.box.y + track.box.height / 2) + track.vy * dt;
+      const dt = Math.max(0.05, Math.min(2.5, (timestamp - track.lastSeen) / 1000));
+
+      // Calculate where this track is PREDICTED to be right now based on recent velocity
+      const predCenterX = track.targetBox.x + track.targetBox.width / 2 + track.vx * dt;
+      const predCenterY = track.targetBox.y + track.targetBox.height / 2 + track.vy * dt;
+      const predBox: BoundingBox = {
+        x: track.targetBox.x + track.vx * dt,
+        y: track.targetBox.y + track.vy * dt,
+        width: track.targetBox.width,
+        height: track.targetBox.height,
+      };
+
+      // Adaptive matching gate: expands if the animal is moving quickly
+      const animalSpeed = Math.sqrt(track.vx * track.vx + track.vy * track.vy);
+      const matchingGate = this.config.baseCenterDistanceFallback + this.config.velocityMatchExpansion * Math.min(0.6, animalSpeed);
+
+      const trackArea = Math.max(0.001, track.targetBox.width * track.targetBox.height);
 
       for (let r = 0; r < validDetections.length; r++) {
         const raw = validDetections[r];
         const rawCenterX = raw.box.x + raw.box.width / 2;
         const rawCenterY = raw.box.y + raw.box.height / 2;
+        const rawArea = Math.max(0.001, raw.box.width * raw.box.height);
 
-        const iou = calculate2DIoU(track.box, raw.box);
-        const centerDist = calculateCenterDistance(track.box, raw.box);
-        const predDist = Math.sqrt((rawCenterX - predCenterX) ** 2 + (rawCenterY - predCenterY) ** 2);
-        const effDist = Math.min(centerDist, predDist);
+        // Calculate spatial metrics against predicted position and current position
+        const iouPred = calculate2DIoU(predBox, raw.box);
+        const iouCurr = calculate2DIoU(track.currentBox, raw.box);
+        const iouTarget = calculate2DIoU(track.targetBox, raw.box);
+        const effIoU = Math.max(iouPred, iouCurr, iouTarget);
 
-        if (iou >= this.config.matchIouThreshold || effDist <= this.config.maxCenterDistanceFallback) {
+        const distPred = Math.sqrt((rawCenterX - predCenterX) ** 2 + (rawCenterY - predCenterY) ** 2);
+        const distCurr = calculateCenterDistance(track.currentBox, raw.box);
+        const distTarget = calculateCenterDistance(track.targetBox, raw.box);
+        const effDist = Math.min(distPred, distCurr, distTarget);
+
+        // Eligibility gate
+        if (effIoU >= this.config.matchIouThreshold || effDist <= matchingGate) {
           let score = 0;
-          // Species consistency bonus: prefer matching same species to avoid track label flapping
-          if (track.species === raw.species) score += 0.50;
-          score += iou * 0.40;
-          score += Math.max(0, (1 - effDist / this.config.maxCenterDistanceFallback)) * 0.30;
 
-          matchCandidates.push({ trackIndex: t, rawIndex: r, score, iou, distance: effDist });
+          // A. IoU contribution (up to 0.40)
+          score += effIoU * 0.40;
+
+          // B. Center distance contribution (up to 0.35)
+          score += Math.max(0, 1 - effDist / matchingGate) * 0.35;
+
+          // C. Bounding box size similarity (up to 0.15)
+          const sizeRatio = Math.min(trackArea, rawArea) / Math.max(trackArea, rawArea);
+          score += sizeRatio * 0.15;
+
+          // D. Species consistency bonus / penalty (+0.45 / -0.30)
+          if (track.species === raw.species) {
+            score += 0.45;
+          } else {
+            score -= 0.30;
+          }
+
+          // E. Motion direction alignment (prevents track swapping when animals cross)
+          if (animalSpeed > 0.08) {
+            const moveVecX = rawCenterX - track.lastObservedCenter.x;
+            const moveVecY = rawCenterY - track.lastObservedCenter.y;
+            const dot = (moveVecX * track.vx + moveVecY * track.vy) / (animalSpeed * (Math.sqrt(moveVecX * moveVecX + moveVecY * moveVecY) || 1));
+            if (dot > 0.2) {
+              score += 0.15; // Moves in expected trajectory
+            } else if (dot < -0.4) {
+              score -= 0.15; // Sharp reversal: likely the other crossing animal
+            }
+          }
+
+          matchCandidates.push({ trackIndex: t, rawIndex: r, score });
         }
       }
     }
 
-    // Sort greedy matches: highest match score first
+    // Sort candidates descending by match score
     matchCandidates.sort((a, b) => b.score - a.score);
 
-    // 2. Perform greedy matching
+    // 4. Greedy matching
     for (const cand of matchCandidates) {
       const track = this.tracks[cand.trackIndex];
       const raw = validDetections[cand.rawIndex];
@@ -495,36 +537,33 @@ export class TemporalLivestockTracker {
       matchedTrackIds.add(track.trackId);
       matchedRawIndices.add(cand.rawIndex);
 
-      // Velocity estimation for motion prediction
-      const dt = Math.max(0.1, (timestamp - track.lastSeen) / 1000);
-      const newCenterX = raw.box.x + raw.box.width / 2;
-      const newCenterY = raw.box.y + raw.box.height / 2;
-      const oldCenterX = track.box.x + track.box.width / 2;
-      const oldCenterY = track.box.y + track.box.height / 2;
-      const instantVx = (newCenterX - oldCenterX) / dt;
-      const instantVy = (newCenterY - oldCenterY) / dt;
+      // Calculate instantaneous velocity
+      const dt = Math.max(0.08, Math.min(2.0, (timestamp - track.lastSeen) / 1000));
+      const rawCenterX = raw.box.x + raw.box.width / 2;
+      const rawCenterY = raw.box.y + raw.box.height / 2;
 
-      track.vx = track.vx * 0.4 + instantVx * 0.6;
-      track.vy = track.vy * 0.4 + instantVy * 0.6;
+      const instVx = Math.max(-1.5, Math.min(1.5, (rawCenterX - track.lastObservedCenter.x) / dt));
+      const instVy = Math.max(-1.5, Math.min(1.5, (rawCenterY - track.lastObservedCenter.y) / dt));
+      const instVw = Math.max(-0.8, Math.min(0.8, (raw.box.width - track.targetBox.width) / dt));
+      const instVh = Math.max(-0.8, Math.min(0.8, (raw.box.height - track.targetBox.height) / dt));
 
-      // Update Track with EMA Smoothing
-      const alpha = this.config.smoothingAlpha;
+      // Smooth velocity update
+      track.vx = track.vx * 0.35 + instVx * 0.65;
+      track.vy = track.vy * 0.35 + instVy * 0.65;
+      track.vw = track.vw * 0.40 + instVw * 0.60;
+      track.vh = track.vh * 0.40 + instVh * 0.60;
+
+      // Update target box and observation state
       track.targetBox = { ...raw.box };
-
-      track.box = {
-        x: track.box.x * (1 - alpha) + raw.box.x * alpha,
-        y: track.box.y * (1 - alpha) + raw.box.y * alpha,
-        width: track.box.width * (1 - alpha) + raw.box.width * alpha,
-        height: track.box.height * (1 - alpha) + raw.box.height * alpha,
-      };
-
-      track.confidence = raw.confidence;
+      track.lastObservedCenter = { x: rawCenterX, y: rawCenterY };
       track.lastSeen = timestamp;
+      track.confidence = raw.confidence;
       track.consecutiveHits++;
       track.consecutiveMisses = 0;
       track.isTemporarilyMissed = false;
+      track.state = 'confirmed';
 
-      // Species Temporal Consensus
+      // Species temporal consensus voting
       track.speciesHistory.push(raw.species);
       if (track.speciesHistory.length > 5) {
         track.speciesHistory.shift();
@@ -550,15 +589,18 @@ export class TemporalLivestockTracker {
       }
     }
 
-    // 3. Increment missed count for unmatched tracks
+    // 5. Mark unmatched tracks as temporarily missed (grace period)
     for (const track of this.tracks) {
       if (!matchedTrackIds.has(track.trackId)) {
         track.consecutiveMisses++;
         track.isTemporarilyMissed = true;
+        if (track.state === 'confirmed') {
+          track.state = 'occluded';
+        }
       }
     }
 
-    // 4. Create new tracks for unmatched raw detections (HYSTERESIS ENTRY CHECK)
+    // 6. Spawn new tracks for unmatched detections (Confirmation & Hysteresis Entry)
     for (let r = 0; r < validDetections.length; r++) {
       if (!matchedRawIndices.has(r)) {
         const raw = validDetections[r];
@@ -566,11 +608,12 @@ export class TemporalLivestockTracker {
         let meetsEntry = false;
         if (raw.species === 'goat' && raw.confidence >= this.config.goatEntryThreshold) meetsEntry = true;
         else if (raw.species === 'sheep' && raw.confidence >= this.config.sheepEntryThreshold) meetsEntry = true;
-        else if (raw.species === 'person' && raw.confidence >= this.config.personEntryThreshold) meetsEntry = true;
+        else if (raw.species === 'person' && raw.confidence >= this.config.personKeepThreshold) meetsEntry = true;
 
-        if (!meetsEntry) {
-          continue;
-        }
+        if (!meetsEntry) continue;
+
+        const isHighConfidence = raw.confidence >= 0.75;
+        const rawCenter = { x: raw.box.x + raw.box.width / 2, y: raw.box.y + raw.box.height / 2 };
 
         const newTrack: TrackedLivestockAnimal = {
           trackId: this.nextTrackId++,
@@ -578,12 +621,18 @@ export class TemporalLivestockTracker {
           species: raw.species,
           label: raw.species === 'person' ? 'TAO' : raw.species === 'sheep' ? 'TUPA' : 'KAMBING',
           confidence: raw.confidence,
+          state: isHighConfidence ? 'confirmed' : 'candidate',
+          currentBox: { ...raw.box },
           box: { ...raw.box },
           targetBox: { ...raw.box },
           vx: 0,
           vy: 0,
+          vw: 0,
+          vh: 0,
           firstSeen: timestamp,
           lastSeen: timestamp,
+          lastConfirmedAt: isHighConfidence ? timestamp : 0,
+          lastObservedCenter: rawCenter,
           consecutiveHits: 1,
           consecutiveMisses: 0,
           speciesHistory: [raw.species],
@@ -600,16 +649,141 @@ export class TemporalLivestockTracker {
       }
     }
 
-    // 5. Prune tracks that exceed max consecutive misses or grace age limit
+    // 7. Prune stale tracks
     this.pruneStaleTracks(timestamp);
 
-    // 6. Stable display ordering and numbering (e.g. KAMBING #1, KAMBING #2)
-    const sortedTracks = [...this.tracks].sort((a, b) => a.box.x - b.box.x);
+    // 8. Update stable display numbering
+    this.updateDisplayNumbering();
+
+    return this.getActiveTracks();
+  }
+
+  /**
+   * Advance continuous motion smoothing and velocity extrapolation.
+   * Runs at 60 FPS on requestAnimationFrame.
+   *
+   * @param timestamp Current timestamp in ms
+   * @param dtSec Elapsed delta time in seconds since previous frame
+   */
+  public step(timestamp: number = Date.now(), dtSec: number = 1 / 60): void {
+    const dt = Math.max(0.001, Math.min(0.12, dtSec));
+    const damping = Math.pow(this.config.velocityDampingPerSec, dt);
+
+    for (const track of this.tracks) {
+      if (track.state === 'expired') continue;
+
+      // 1. Extrapolate target position using damped velocity
+      track.vx *= damping;
+      track.vy *= damping;
+      track.vw *= damping;
+      track.vh *= damping;
+
+      track.targetBox.x += track.vx * dt;
+      track.targetBox.y += track.vy * dt;
+      track.targetBox.width += track.vw * dt;
+      track.targetBox.height += track.vh * dt;
+
+      // Clamp target within screen boundaries with safe padding
+      track.targetBox.x = Math.max(-0.15, Math.min(1.05, track.targetBox.x));
+      track.targetBox.y = Math.max(-0.15, Math.min(1.05, track.targetBox.y));
+      track.targetBox.width = Math.max(0.04, Math.min(0.96, track.targetBox.width));
+      track.targetBox.height = Math.max(0.04, Math.min(0.96, track.targetBox.height));
+
+      // 2. Adaptive Interpolation from currentBox -> targetBox
+      const dx = track.targetBox.x - track.currentBox.x;
+      const dy = track.targetBox.y - track.currentBox.y;
+      const disp = Math.sqrt(dx * dx + dy * dy);
+
+      // Adaptive smoothing: small displacement = high smoothing; large displacement = fast catchup
+      const catchupRate = disp < 0.015 ? 9 : disp < 0.06 ? 15 : 22;
+      const posAlpha = 1 - Math.exp(-catchupRate * dt);
+      const dimAlpha = 1 - Math.exp(-10 * dt);
+
+      track.currentBox.x += dx * posAlpha;
+      track.currentBox.y += dy * posAlpha;
+      track.currentBox.width += (track.targetBox.width - track.currentBox.width) * dimAlpha;
+      track.currentBox.height += (track.targetBox.height - track.currentBox.height) * dimAlpha;
+
+      // Keep legacy alias in sync
+      track.box.x = track.currentBox.x;
+      track.box.y = track.currentBox.y;
+      track.box.width = track.currentBox.width;
+      track.box.height = track.currentBox.height;
+    }
+
+    this.pruneStaleTracks(timestamp);
+  }
+
+  /**
+   * Prune expired tracks based on time, consecutive misses, or leaving the screen.
+   */
+  public pruneStaleTracks(timestamp: number): void {
+    const prevSelectedId = this.selectedTrackId;
+    let selectedTrackStillAlive = false;
+
+    this.tracks = this.tracks.filter((t) => {
+      // 1. Unconfirmed candidates expire quickly if not verified
+      if (t.state === 'candidate') {
+        const isCandidateAlive = t.consecutiveMisses <= 1 && timestamp - t.lastSeen <= 1600;
+        return isCandidateAlive;
+      }
+
+      // 2. Confirmed tracks enjoy grace period
+      const ageMs = timestamp - t.lastSeen;
+      const isAliveByTime = ageMs <= this.config.maxTrackAgeMs;
+      const isAliveByMisses = t.consecutiveMisses <= this.config.maxConsecutiveMisses;
+
+      // 3. Animal leaving frame check: If animal moved out of camera viewport and is missed
+      const currCenterX = t.currentBox.x + t.currentBox.width / 2;
+      const currCenterY = t.currentBox.y + t.currentBox.height / 2;
+      const targetCenterX = t.targetBox.x + t.targetBox.width / 2;
+      const targetCenterY = t.targetBox.y + t.targetBox.height / 2;
+
+      const isOffScreen =
+        currCenterX < 0 ||
+        currCenterX > 1 ||
+        currCenterY < 0 ||
+        currCenterY > 1 ||
+        targetCenterX < 0 ||
+        targetCenterX > 1 ||
+        targetCenterY < 0 ||
+        targetCenterY > 1 ||
+        t.currentBox.x > 1.0 ||
+        t.currentBox.x + t.currentBox.width < 0.0 ||
+        t.currentBox.y > 1.0 ||
+        t.currentBox.y + t.currentBox.height < 0.0;
+
+      const isAlive = isAliveByTime && isAliveByMisses && !(isOffScreen && t.consecutiveMisses >= 1);
+
+      if (t.trackId === prevSelectedId && isAlive) {
+        selectedTrackStillAlive = true;
+      }
+      return isAlive;
+    });
+
+    // Handle selection transfer if selected track was pruned
+    if (prevSelectedId !== null && !selectedTrackStillAlive) {
+      this.selectedTrackId = null;
+      const activeLivestock = this.getActiveTracks().filter((t) => t.species !== 'person');
+      if (activeLivestock.length > 0) {
+        activeLivestock[0].isSelected = true;
+        this.selectedTrackId = activeLivestock[0].trackId;
+      } else if (this.onSelectedTrackLost) {
+        this.onSelectedTrackLost();
+      }
+    }
+  }
+
+  /**
+   * Sort tracks left-to-right to maintain stable display numbering (e.g. KAMBING #1, KAMBING #2).
+   */
+  private updateDisplayNumbering(): void {
+    const active = this.getActiveTracks().sort((a, b) => a.currentBox.x - b.currentBox.x);
     let goatNum = 1;
     let sheepNum = 1;
     let personNum = 1;
 
-    for (const t of sortedTracks) {
+    for (const t of active) {
       if (t.species === 'goat') {
         t.displayNumber = goatNum++;
       } else if (t.species === 'sheep') {
@@ -618,64 +792,10 @@ export class TemporalLivestockTracker {
         t.displayNumber = personNum++;
       }
     }
-
-    return [...this.tracks];
   }
 
   /**
-   * Prune stale tracks that exceed max consecutive misses or grace age limit.
-   */
-  public pruneStaleTracks(timestamp: number): void {
-    const prevSelectedId = this.selectedTrackId;
-    let selectedTrackStillAlive = false;
-
-    this.tracks = this.tracks.filter((t) => {
-      const isAlive =
-        t.consecutiveMisses <= this.config.maxConsecutiveMisses &&
-        timestamp - t.lastSeen <= this.config.maxTrackAgeMs;
-
-      if (t.trackId === prevSelectedId && isAlive) {
-        selectedTrackStillAlive = true;
-      }
-      return isAlive;
-    });
-
-    // Handle lost selected track
-    if (prevSelectedId !== null && !selectedTrackStillAlive) {
-      this.selectedTrackId = null;
-      const livestockTracks = this.tracks.filter((t) => t.species !== 'person');
-      if (livestockTracks.length > 0) {
-        livestockTracks[0].isSelected = true;
-        this.selectedTrackId = livestockTracks[0].trackId;
-      } else if (this.onSelectedTrackLost) {
-        this.onSelectedTrackLost();
-      }
-    }
-  }
-
-  /**
-   * Advance interpolation on requestAnimationFrame between detection cycles.
-   * Smoothly drives the box toward the targetBox and cleans up expired tracks.
-   */
-  public step(timestamp: number = Date.now(), lerpAlpha: number = 0.18): void {
-    for (const track of this.tracks) {
-      track.box.x += lerpAlpha * (track.targetBox.x - track.box.x);
-      track.box.y += lerpAlpha * (track.targetBox.y - track.box.y);
-      track.box.width += lerpAlpha * (track.targetBox.width - track.box.width);
-      track.box.height += lerpAlpha * (track.targetBox.height - track.box.height);
-    }
-    this.pruneStaleTracks(timestamp);
-  }
-
-  /**
-   * Legacy alias for step()
-   */
-  public interpolate(stepAlpha: number = 0.18): void {
-    this.step(Date.now(), stepAlpha);
-  }
-
-  /**
-   * Clear all tracks immediately (e.g. camera turned off or mode reset).
+   * Reset all tracks (e.g. scanner closed or switched to upload mode).
    */
   public reset(): void {
     this.tracks = [];
@@ -687,7 +807,7 @@ export class TemporalLivestockTracker {
 // ── Overlay Canvas Renderer ───────────────────────────────────────────────────
 
 /**
- * Render tracked livestock bounding boxes & labels to the camera overlay canvas.
+ * Render tracked livestock bounding boxes & badges to the camera overlay canvas.
  * Clears completely before every frame. Zero ghost boxes when animals leave.
  */
 export function renderTrackedAnimalsToCanvas(
@@ -706,17 +826,17 @@ export function renderTrackedAnimalsToCanvas(
   ctx.save();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // 1. Clear entire canvas before drawing (Directive 6)
+  // 1. Clear entire canvas before drawing
   ctx.clearRect(0, 0, W, H);
 
-  // 2. If no tracks, leave canvas completely clear (empty scene must clear)
+  // 2. If no tracks, leave canvas completely clear
   if (!tracks || tracks.length === 0) {
     ctx.restore();
     return;
   }
 
   for (const track of tracks) {
-    const screenBox = mapVideoBoxToScreen(track.box, transform);
+    const screenBox = mapVideoBoxToScreen(track.currentBox, transform);
     const { x, y, width: bw, height: bh } = screenBox;
 
     const isSelected = track.isSelected;
@@ -852,4 +972,3 @@ export function renderTrackedAnimalsToCanvas(
 
   ctx.restore();
 }
-
