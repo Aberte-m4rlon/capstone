@@ -310,10 +310,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const species = norm.species;
           const confidence = typeof d.confidence === 'number' ? Math.max(0, Math.min(1, d.confidence)) : 0.9;
 
-          let rawX = Number(d.x ?? d.boundingBox?.x ?? d.box_2d?.ymin ?? 0);
-          let rawY = Number(d.y ?? d.boundingBox?.y ?? d.box_2d?.xmin ?? 0);
-          let rawW = Number(d.width ?? d.boundingBox?.width ?? 0);
-          let rawH = Number(d.height ?? d.boundingBox?.height ?? 0);
+          let rawX = Number(d.x ?? d.boundingBox?.x ?? (Array.isArray(d.box_2d) ? d.box_2d[1] : d.box_2d?.xmin) ?? 0);
+          let rawY = Number(d.y ?? d.boundingBox?.y ?? (Array.isArray(d.box_2d) ? d.box_2d[0] : d.box_2d?.ymin) ?? 0);
+          let rawW = Number(d.width ?? d.boundingBox?.width ?? (Array.isArray(d.box_2d) ? d.box_2d[3] - d.box_2d[1] : (d.box_2d?.xmax ? d.box_2d.xmax - d.box_2d.xmin : 0)) ?? 0);
+          let rawH = Number(d.height ?? d.boundingBox?.height ?? (Array.isArray(d.box_2d) ? d.box_2d[2] - d.box_2d[0] : (d.box_2d?.ymax ? d.box_2d.ymax - d.box_2d.ymin : 0)) ?? 0);
 
           // Support 0-1000 scale if returned by vision model
           if (rawX > 1 || rawY > 1 || rawW > 1 || rawH > 1) {

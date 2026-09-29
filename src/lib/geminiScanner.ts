@@ -287,7 +287,7 @@ export async function detectLiveObjects(
       count_goats: 0,
       count_sheep: 0,
       multiple_targets: false,
-      status_message: 'Kumokonekta sa Gemini Vision...',
+      status_message: 'Kumokonekta sa AI Vision...',
       error: err?.message,
     };
   } finally {
@@ -1453,3 +1453,278 @@ export function saveGeminiApiKey(_key: string): void {
 export function hasGeminiApiKey(): boolean {
   return true; // Server-managed
 }
+
+// ── Upload Image Processing & Analysis ────────────────────────────────────────
+
+export interface UploadedAnimalDetection {
+  species: 'goat' | 'sheep';
+  label: 'KAMBING' | 'TUPA';
+  displayNumber?: number;
+  confidence: number;
+  boundingBox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
+export interface UploadedImageAnalysisResult {
+  success: boolean;
+  detectedGoatOrSheep: boolean;
+  goatCount: number;
+  sheepCount: number;
+  detections: UploadedAnimalDetection[];
+  statusBadge: string;
+  condition?: 'Maayos' | 'Bantayan' | 'Kailangan ng Atensyon' | 'Kailangan ng Gamot';
+  conditionSummary?: string;
+  observations?: string[];
+  recommendation?: string;
+  rawScanResult?: GeminiScanResult | null;
+  error?: string;
+}
+
+/**
+ * Validates, respects EXIF orientation, and compresses uploaded image client-side.
+ * Ensures the image fits within serverless payload limits and is never mirrored.
+ */
+export async function processUploadedImage(file: File): Promise<{
+  dataUrl: string;
+  blob: Blob;
+  width: number;
+  height: number;
+}> {
+  const validMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+  if (!validMimes.includes(file.type.toLowerCase())) {
+    throw new Error('Hindi suportado ang format na ito. Pumili ng JPG, PNG, o WEBP.');
+  }
+
+  if (file.size > 20 * 1024 * 1024) {
+    throw new Error('Masyadong malaki ang larawan. Pumili ng mas maliit na image (maximum 20MB).');
+  }
+
+  let imgBitmap: ImageBitmap | HTMLImageElement;
+  let naturalW = 0;
+  let naturalH = 0;
+
+  if (typeof createImageBitmap === 'function') {
+    try {
+      imgBitmap = await createImageBitmap(file);
+      naturalW = imgBitmap.width;
+      naturalH = imgBitmap.height;
+    } catch {
+      imgBitmap = await loadHTMLImageElement(file);
+      naturalW = imgBitmap.naturalWidth;
+      naturalH = imgBitmap.naturalHeight;
+    }
+  } else {
+    imgBitmap = await loadHTMLImageElement(file);
+    naturalW = imgBitmap.naturalWidth;
+    naturalH = imgBitmap.naturalHeight;
+  }
+
+  if (naturalW <= 0 || naturalH <= 0) {
+    throw new Error('Hindi mabasa ang sukat ng larawan. Pumili ulit ng image.');
+  }
+
+  const MAX_DIM = 1280;
+  let targetW = naturalW;
+  let targetH = naturalH;
+  if (naturalW > MAX_DIM || naturalH > MAX_DIM) {
+    if (naturalW > naturalH) {
+      targetW = MAX_DIM;
+      targetH = Math.round((naturalH / naturalW) * MAX_DIM);
+    } else {
+      targetH = MAX_DIM;
+      targetW = Math.round((naturalW / naturalH) * MAX_DIM);
+    }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Hindi mabuo ang canvas para sa larawan.');
+  }
+
+  ctx.drawImage(imgBitmap, 0, 0, targetW, targetH);
+
+  if ('close' in imgBitmap && typeof (imgBitmap as any).close === 'function') {
+    (imgBitmap as any).close();
+  }
+
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => {
+        if (b) resolve(b);
+        else reject(new Error('Nabigo ang pag-convert ng image.'));
+      },
+      'image/jpeg',
+      0.88
+    );
+  });
+
+  return {
+    dataUrl,
+    blob,
+    width: targetW,
+    height: targetH,
+  };
+}
+
+function loadHTMLImageElement(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Hindi mabasa ang larawan. Pumili ulit ng image.'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Hindi mabasa ang file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Analyzes an uploaded static image for goats and sheep, individual bounding boxes,
+ * and visual health screening using the secure backend AI API.
+ */
+export async function analyzeUploadedImage(
+  imageDataUrl: string,
+  selectedSpecies?: string
+): Promise<UploadedImageAnalysisResult> {
+  let authHeader: Record<string, string> = {};
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session?.access_token) {
+      authHeader['Authorization'] = `Bearer ${data.session.access_token}`;
+    }
+  } catch {
+    // offline/fallback
+  }
+
+  // 1. Run object detection to locate all goats & sheep with bounding boxes
+  let detectData: LiveObjectDetectionResult;
+  try {
+    const res = await fetch('/api/gemini/detect-objects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+      },
+      body: JSON.stringify({ image: imageDataUrl }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Detection HTTP ${res.status}`);
+    }
+    detectData = await res.json();
+  } catch (detectErr: any) {
+    console.warn('[analyzeUploadedImage] /api/gemini/detect-objects fallback to animal-detect:', detectErr);
+    try {
+      const res = await fetch('/api/gemini/animal-detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader },
+        body: JSON.stringify({ image: imageDataUrl }),
+      });
+      detectData = await res.json();
+    } catch (fallbackErr: any) {
+      console.error('[analyzeUploadedImage] Detection failed:', fallbackErr);
+      throw new Error('Hindi masuri ang larawan sa server. Pakisubukan ulit.');
+    }
+  }
+
+  // Filter ONLY valid goats and sheep (strictly reject person, other, etc.)
+  const rawDetections = Array.isArray(detectData.detections) ? detectData.detections : [];
+  const animalDetections = rawDetections.filter(
+    (d) => d.type === 'GOAT' || d.type === 'SHEEP'
+  );
+
+  const goatCount = animalDetections.filter((d) => d.type === 'GOAT').length;
+  const sheepCount = animalDetections.filter((d) => d.type === 'SHEEP').length;
+  const detectedGoatOrSheep = animalDetections.length > 0;
+
+  // Stable display numbering from left to right (KAMBING #1, KAMBING #2)
+  const sorted = [...animalDetections].sort((a, b) => a.boundingBox.x - b.boundingBox.x);
+  let gNum = 1;
+  let sNum = 1;
+  const formattedDetections: UploadedAnimalDetection[] = sorted.map((d) => {
+    const isSheep = d.type === 'SHEEP';
+    const num = isSheep ? (sheepCount > 1 ? sNum++ : undefined) : (goatCount > 1 ? gNum++ : undefined);
+    return {
+      species: isSheep ? 'sheep' : 'goat',
+      label: isSheep ? 'TUPA' : 'KAMBING',
+      displayNumber: num,
+      confidence: (d as any).confidence ?? 0.9,
+      boundingBox: d.boundingBox,
+    };
+  });
+
+  // Determine farmer-facing badge
+  let statusBadge = 'Walang kambing o tupa na nakita sa larawan.';
+  if (goatCount > 0 && sheepCount > 0) {
+    const gText = goatCount === 1 ? '1 Kambing' : `${goatCount} Kambing`;
+    const sText = sheepCount === 1 ? '1 Tupa' : `${sheepCount} Tupa`;
+    statusBadge = `${gText} • ${sText} na nakita`;
+  } else if (goatCount > 0) {
+    statusBadge = goatCount === 1 ? '1 Kambing na nakita' : `${goatCount} Kambing na nakita`;
+  } else if (sheepCount > 0) {
+    statusBadge = sheepCount === 1 ? '1 Tupa na nakita' : `${sheepCount} Tupa na nakita`;
+  }
+
+  // If no goat or sheep detected, return immediately without fake health screening
+  if (!detectedGoatOrSheep) {
+    return {
+      success: true,
+      detectedGoatOrSheep: false,
+      goatCount: 0,
+      sheepCount: 0,
+      detections: [],
+      statusBadge: 'Walang kambing o tupa na nakita sa larawan.',
+      conditionSummary: 'Walang kambing o tupa na nakita sa larawan.',
+      recommendation: 'Siguraduhing malinaw at nakikita ang buong katawan ng kambing o tupa sa litrato.',
+      rawScanResult: null,
+    };
+  }
+
+  // If goat or sheep IS detected, also perform health screening
+  let healthScanResult: GeminiScanResult | null = null;
+  try {
+    const targetSpecies: 'sheep' | 'goat' =
+      selectedSpecies === 'sheep' || selectedSpecies === 'goat'
+        ? selectedSpecies
+        : sheepCount > goatCount
+        ? 'sheep'
+        : 'goat';
+    healthScanResult = await scanAnimalWithGemini(imageDataUrl, {
+      context: 'health_scan',
+      animalType: targetSpecies,
+    });
+  } catch (healthErr) {
+    console.warn('[analyzeUploadedImage] Health scan warning:', healthErr);
+  }
+
+  const raw = healthScanResult?.rawResponse;
+  const condition = (raw?.condition || 'Maayos') as 'Maayos' | 'Bantayan' | 'Kailangan ng Atensyon' | 'Kailangan ng Gamot';
+  const conditionSummary = raw?.condition_summary || 'Maayos ang nakikitang tindig at pangangatawan.';
+  const observations: string[] = raw?.visual_observations || (healthScanResult?.animals?.[0]?.visualObservations) || [];
+  const recommendation = healthScanResult?.recommendation || raw?.action || 'Ipagpatuloy ang regular na pagmamasid.';
+
+  return {
+    success: true,
+    detectedGoatOrSheep: true,
+    goatCount,
+    sheepCount,
+    detections: formattedDetections,
+    statusBadge,
+    condition,
+    conditionSummary,
+    observations,
+    recommendation,
+    rawScanResult: healthScanResult,
+  };
+}
+

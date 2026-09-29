@@ -34,6 +34,8 @@ import {
   Save,
   RotateCcw,
   Check,
+  UploadCloud,
+  Video,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../ui/Toast';
@@ -63,6 +65,10 @@ import {
   GeminiScanResult,
   GeminiLiveErrorDetail,
   GeminiLiveDebugInfo,
+  processUploadedImage,
+  analyzeUploadedImage,
+  UploadedAnimalDetection,
+  UploadedImageAnalysisResult,
 } from '../../../lib/geminiScanner';
 import { getRecordRiskMeta } from '../../../pages/HealthPage';
 import type { Animal, HealthRecord, InventoryItem } from '../../../types';
@@ -167,6 +173,16 @@ export function LiveObjectDetectionCamera({
   const [selectedFarmAnimalId, setSelectedFarmAnimalId] = useState<string>(preselectedAnimalId || '');
   const [medItemId, setMedItemId] = useState<string>('');
   const [medQty, setMedQty] = useState<string>('');
+
+  // ── Scanner Mode & Image Upload State ──────────────────────────────────────
+  const [scannerMode, setScannerMode] = useState<'camera' | 'upload'>('camera');
+  const [uploadedImagePreview, setUploadedImagePreview] = useState<string | null>(null);
+  const [uploadedBlob, setUploadedBlob] = useState<Blob | null>(null);
+  const [uploadedDimensions, setUploadedDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [isAnalyzingUpload, setIsAnalyzingUpload] = useState<boolean>(false);
+  const [uploadAnalysisResult, setUploadAnalysisResult] = useState<UploadedImageAnalysisResult | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── Active Animals & Medicines ───────────────────────────────────────────────
   const activeFarmAnimals = useMemo(() => {
@@ -421,7 +437,7 @@ export function LiveObjectDetectionCamera({
 
   // GÃ¶Ã‡GÃ¶Ã‡ Live Render Animation Loop (requestAnimationFrame) GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
   useEffect(() => {
-    if (!isCameraActive || isScanning) return;
+    if (!isCameraActive || isScanning || scannerMode === 'upload') return;
 
     let isRunning = true;
     const tracker = trackerRef.current;
@@ -489,7 +505,7 @@ export function LiveObjectDetectionCamera({
         rafIdRef.current = null;
       }
     };
-  }, [isCameraActive, isScanning]);
+  }, [isCameraActive, isScanning, scannerMode]);
 
   // Live Detection Cycle (only active when Gemini Live is CONNECTED)
   const runDetectionCycle = useCallback(() => {
@@ -500,13 +516,14 @@ export function LiveObjectDetectionCamera({
       video.videoWidth === 0 ||
       isScanning ||
       showResultSheet ||
+      scannerMode === 'upload' ||
       geminiLiveState !== 'CONNECTED' ||
       !liveDetectorRef.current?.isReady()
     ) {
       return;
     }
     liveDetectorRef.current.sendFrame(captureLowResFrame(video, 480));
-  }, [isScanning, showResultSheet, geminiLiveState]);
+  }, [isScanning, showResultSheet, geminiLiveState, scannerMode]);
 
   // Gemini sampling interval: one low-resolution request at a time
   useEffect(() => {
@@ -675,96 +692,100 @@ export function LiveObjectDetectionCamera({
     }
   };
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Gallery Upload & AI Scan GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── Scanner Mode Switcher ───────────────────────────────────────────────────
+  const handleSwitchMode = useCallback((mode: 'camera' | 'upload') => {
+    setScannerMode(mode);
+    if (mode === 'camera') {
+      if (!isCameraActive && !cameraError) {
+        startCameraStream();
+      }
+    }
+  }, [isCameraActive, cameraError, startCameraStream]);
+
+  // ── Handle File Selection for Image Upload ─────────────────────────────────
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsScanning(true);
-    setStatusMessage('Sinusuri ang larawan mula sa gallery gamit ang AI...');
+    setUploadError(null);
+    setUploadAnalysisResult(null);
+    setScanResult(null);
 
     try {
-      const img = new Image();
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        img.onload = async () => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('Hindi mabuo ang canvas para sa larawan.');
-            ctx.drawImage(img, 0, 0);
-
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.90);
-            const blob = await canvasToBlob(canvas, 0.90);
-
-            setCroppedImagePreview(dataUrl);
-            setCroppedBlob(blob);
-            setLastCapturedThumbnail(dataUrl);
-
-            // Run Gemini Vision
-            const selectedSpecies = selectedAnimal?.species?.toLowerCase();
-            const expectedSpecies = selectedSpecies === 'sheep' || selectedSpecies === 'goat'
-              ? selectedSpecies
-              : undefined;
-
-            const result = await scanAnimalWithGemini(canvas, {
-              context: 'health_scan',
-              animalType: expectedSpecies,
-            });
-
-            if (!result.success || !result.detected) {
-              toast('Hindi malinaw ang alaga sa larawan. Subukan muli.', 'warning');
-              setIsScanning(false);
-              return;
-            }
-
-            const detectedSpecies = result.animals?.[0]?.species;
-            const verifiedSpecies = expectedSpecies || (detectedSpecies === 'sheep' ? 'sheep' : 'goat');
-            const verifiedLabel = verifiedSpecies === 'sheep' ? 'TUPA' : 'KAMBING';
-
-            setScanResult({
-              ...result,
-              animals: (result.animals || []).map((animal) => ({
-                ...animal,
-                species: verifiedSpecies,
-                label: verifiedLabel,
-              })),
-              rawResponse: result.rawResponse
-                ? {
-                    ...result.rawResponse,
-                    animal_type: verifiedSpecies,
-                    animal_label: verifiedSpecies === 'sheep' ? 'Tupa' : 'Kambing',
-                  }
-                : result.rawResponse,
-            });
-            setShowResultSheet(true);
-
-            if (!selectedFarmAnimalId) {
-              const match = activeFarmAnimals.find(
-                (a: Animal) => a.species?.toLowerCase() === verifiedSpecies
-              );
-              if (match) setSelectedFarmAnimalId(match.id);
-            }
-          } catch (scanErr: any) {
-            console.error('[Camera] Gallery scan error:', scanErr);
-            toast(scanErr?.message || 'Nabigo ang pagsusuri sa larawan.', 'error');
-          } finally {
-            setIsScanning(false);
-          }
-        };
-        img.src = event.target?.result as string;
-      };
-      reader.readAsDataURL(file);
+      const processed = await processUploadedImage(file);
+      setUploadedImagePreview(processed.dataUrl);
+      setUploadedBlob(processed.blob);
+      setUploadedDimensions({ width: processed.width, height: processed.height });
+      setLastCapturedThumbnail(processed.dataUrl);
+      setScannerMode('upload');
+      setStatusMessage('Pumili ng larawan: handa nang i-scan.');
     } catch (err: any) {
-      console.error('[Camera] Image load error:', err);
-      toast('Nabigo ang pagbasa sa larawan.', 'error');
-      setIsScanning(false);
+      console.error('[Upload] Image file processing error:', err);
+      setUploadError(err?.message || 'Hindi maproseso ang larawan. Pumili ng JPG, PNG, o WEBP.');
+      toast(err?.message || 'Hindi maproseso ang larawan.', 'error');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Reset & Rescan GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Analyze Uploaded Image with AI ─────────────────────────────────────────
+  const handleScanUploadedImage = async () => {
+    if (!uploadedImagePreview || isAnalyzingUpload) return;
+
+    setIsAnalyzingUpload(true);
+    setUploadError(null);
+
+    try {
+      const result = await analyzeUploadedImage(
+        uploadedImagePreview,
+        selectedAnimal?.species?.toLowerCase()
+      );
+      setUploadAnalysisResult(result);
+
+      if (!result.detectedGoatOrSheep) {
+        toast('Walang kambing o tupa na nakita sa larawan.', 'warning');
+      } else {
+        toast(result.statusBadge, 'success');
+        if (result.rawScanResult) {
+          setScanResult(result.rawScanResult);
+          setCroppedImagePreview(uploadedImagePreview);
+          if (uploadedBlob) setCroppedBlob(uploadedBlob);
+
+          if (!selectedFarmAnimalId) {
+            const match = activeFarmAnimals.find(
+              (a: Animal) => a.species?.toLowerCase() === (result.sheepCount > result.goatCount ? 'sheep' : 'goat')
+            );
+            if (match) setSelectedFarmAnimalId(match.id);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('[Upload] Scan error:', err);
+      setUploadError(err?.message || 'Hindi masuri ang larawan. Subukan muli.');
+      toast('Hindi masuri ang larawan. Subukan muli.', 'error');
+    } finally {
+      setIsAnalyzingUpload(false);
+    }
+  };
+
+  // ── Reset Upload State ─────────────────────────────────────────────────────
+  const handleResetUpload = () => {
+    setUploadedImagePreview(null);
+    setUploadedBlob(null);
+    setUploadedDimensions(null);
+    setUploadAnalysisResult(null);
+    setUploadError(null);
+    setScanResult(null);
+    setCroppedImagePreview(null);
+    setCroppedBlob(null);
+    setNotes('');
+    setMedItemId('');
+    setMedQty('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setStatusMessage('Pumili ng larawan upang simulan ang pagsusuri.');
+  };
+
+  // ── Reset & Rescan ─────────────────────────────────────────────────────────
   const handleResetScan = () => {
     setShowResultSheet(false);
     setScanResult(null);
@@ -773,7 +794,11 @@ export function LiveObjectDetectionCamera({
     setNotes('');
     setMedItemId('');
     setMedQty('');
-    setStatusMessage('Naghahanap ng kambing o tupa...');
+    if (scannerMode === 'upload') {
+      handleResetUpload();
+    } else {
+      setStatusMessage('Naghahanap ng kambing o tupa...');
+    }
   };
 
   // GÃ¶Ã‡GÃ¶Ã‡ Save Health Check to Storage & Supabase Database GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
@@ -1065,8 +1090,81 @@ export function LiveObjectDetectionCamera({
             gap: 14,
           }}
         >
-          {/* 1. Embedded Camera Frame (4:3 aspect ratio, 20px rounded) */}
+          {/* Hidden File Input for Native Image Picker */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/jpg"
+            style={{ display: 'none' }}
+            onChange={handleFileSelected}
+          />
+
+          {/* Scanner Mode Toggle (Live Camera vs Upload Image) */}
           <div
+            style={{
+              display: 'flex',
+              width: '100%',
+              backgroundColor: '#1E293B',
+              padding: 4,
+              borderRadius: 14,
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              gap: 4,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('camera')}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                padding: '9px 12px',
+                borderRadius: 10,
+                border: 'none',
+                backgroundColor: scannerMode === 'camera' ? '#16A34A' : 'transparent',
+                color: scannerMode === 'camera' ? '#FFFFFF' : '#94A3B8',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Video size={16} />
+              <span>Live Camera</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('upload')}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+                padding: '9px 12px',
+                borderRadius: 10,
+                border: 'none',
+                backgroundColor: scannerMode === 'upload' ? '#16A34A' : 'transparent',
+                color: scannerMode === 'upload' ? '#FFFFFF' : '#94A3B8',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <UploadCloud size={16} />
+              <span>Mag-upload ng Larawan</span>
+            </button>
+          </div>
+
+          {/* ── CAMERA MODE CONTENT ── */}
+          {scannerMode === 'camera' && (
+            <>
+              {/* 1. Embedded Camera Frame (4:3 aspect ratio, 20px rounded) */}
+              <div
             ref={containerRef}
             onClick={handleViewportTap}
             style={{
@@ -1313,27 +1411,52 @@ export function LiveObjectDetectionCamera({
                   color: '#FFFFFF',
                   zIndex: 35,
                   textAlign: 'center',
-                  gap: 10,
+                  gap: 12,
                 }}
               >
                 <AlertCircle size={36} color="#EF4444" />
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{cameraError}</div>
-                <button
-                  type="button"
-                  onClick={startCameraStream}
-                  style={{
-                    background: '#16A34A',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '8px 18px',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Subukan Muli
-                </button>
+                <div style={{ fontSize: 14, fontWeight: 700, maxWidth: 280, lineHeight: 1.4 }}>{cameraError}</div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={startCameraStream}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      color: '#FFFFFF',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: 8,
+                      padding: '8px 16px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Subukan Muli
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScannerMode('upload');
+                      fileInputRef.current?.click();
+                    }}
+                    style={{
+                      background: '#16A34A',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '8px 16px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <UploadCloud size={15} />
+                    <span>Mag-upload ng Larawan</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1436,9 +1559,9 @@ export function LiveObjectDetectionCamera({
             >
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/jpg"
                 style={{ display: 'none' }}
-                onChange={handleImageUpload}
+                onChange={handleFileSelected}
               />
               {lastCapturedThumbnail ? (
                 <img
@@ -1858,6 +1981,672 @@ export function LiveObjectDetectionCamera({
                   </>
                 )}
               </button>
+            </div>
+          )}
+            </>
+          )}
+
+          {/* ── UPLOAD IMAGE MODE CONTENT ── */}
+          {scannerMode === 'upload' && (
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* If no image selected yet */}
+              {!uploadedImagePreview && (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: '100%',
+                    aspectRatio: '4 / 3',
+                    backgroundColor: '#0F172A',
+                    borderRadius: 20,
+                    border: '2px dashed rgba(34, 197, 94, 0.4)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 12,
+                    padding: 24,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 58,
+                      height: 58,
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <UploadCloud size={30} color="#4ADE80" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF' }}>
+                      Pumili ng Larawan
+                    </div>
+                    <div style={{ fontSize: 12.5, color: '#94A3B8', marginTop: 4, maxWidth: 280 }}>
+                      Suportado ang JPG, JPEG, PNG, o WEBP mula sa iyong gallery o files
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    style={{
+                      backgroundColor: '#16A34A',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: 10,
+                      padding: '10px 20px',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      boxShadow: '0 4px 12px rgba(22, 163, 74, 0.3)',
+                      marginTop: 4,
+                    }}
+                  >
+                    <ImageIcon size={16} />
+                    <span>Pumili mula sa Gallery</span>
+                  </button>
+                </div>
+              )}
+
+              {/* If image is selected */}
+              {uploadedImagePreview && (
+                <>
+                  {/* Uploaded Image Preview Frame with Bounding Boxes */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      borderRadius: 20,
+                      overflow: 'hidden',
+                      backgroundColor: '#000000',
+                      boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                    }}
+                  >
+                    <img
+                      src={uploadedImagePreview}
+                      alt="Uploaded Preview"
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        display: 'block',
+                        transform: 'none', // Strictly un-mirrored
+                      }}
+                    />
+
+                    {/* Bounding Box Overlays (static, normalized coordinates) */}
+                    {uploadAnalysisResult?.detections && uploadAnalysisResult.detections.length > 0 && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        {uploadAnalysisResult.detections.map((det, idx) => {
+                          const isSheep = det.species === 'sheep';
+                          const strokeColor = isSheep ? '#10B981' : '#22C55E';
+                          const fillColor = isSheep ? 'rgba(16, 185, 129, 0.18)' : 'rgba(34, 197, 94, 0.18)';
+                          const badgeBg = isSheep ? '#059669' : '#16A34A';
+                          const cornerColor = isSheep ? '#34D399' : '#4ADE80';
+                          const labelText = det.displayNumber ? `${det.label} #${det.displayNumber}` : det.label;
+
+                          const leftPct = Math.max(0, Math.min(95, det.boundingBox.x * 100));
+                          const topPct = Math.max(0, Math.min(95, det.boundingBox.y * 100));
+                          const widthPct = Math.max(5, Math.min(100 - leftPct, det.boundingBox.width * 100));
+                          const heightPct = Math.max(5, Math.min(100 - topPct, det.boundingBox.height * 100));
+
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                position: 'absolute',
+                                left: `${leftPct}%`,
+                                top: `${topPct}%`,
+                                width: `${widthPct}%`,
+                                height: `${heightPct}%`,
+                                border: `2.5px solid ${strokeColor}`,
+                                backgroundColor: fillColor,
+                                boxSizing: 'border-box',
+                                borderRadius: 6,
+                              }}
+                            >
+                              {/* Corners */}
+                              <div style={{ position: 'absolute', top: -2, left: -2, width: 10, height: 10, borderTop: `4px solid ${cornerColor}`, borderLeft: `4px solid ${cornerColor}`, borderTopLeftRadius: 6 }} />
+                              <div style={{ position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderTop: `4px solid ${cornerColor}`, borderRight: `4px solid ${cornerColor}`, borderTopRightRadius: 6 }} />
+                              <div style={{ position: 'absolute', bottom: -2, left: -2, width: 10, height: 10, borderBottom: `4px solid ${cornerColor}`, borderLeft: `4px solid ${cornerColor}`, borderBottomLeftRadius: 6 }} />
+                              <div style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderBottom: `4px solid ${cornerColor}`, borderRight: `4px solid ${cornerColor}`, borderBottomRightRadius: 6 }} />
+
+                              {/* Label Badge */}
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: -24,
+                                  left: -2,
+                                  backgroundColor: badgeBg,
+                                  color: '#FFFFFF',
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  letterSpacing: 0.5,
+                                  whiteSpace: 'nowrap',
+                                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.4)',
+                                }}
+                              >
+                                {labelText}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Analyzing Overlay */}
+                    {isAnalyzingUpload && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundColor: 'rgba(11, 15, 23, 0.85)',
+                          backdropFilter: 'blur(4px)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 12,
+                          color: '#FFFFFF',
+                          padding: 16,
+                          textAlign: 'center',
+                          zIndex: 30,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            border: '3.5px solid rgba(34, 197, 94, 0.2)',
+                            borderTopColor: '#22C55E',
+                            borderRadius: '50%',
+                            animation: 'spin 0.8s linear infinite',
+                          }}
+                        />
+                        <div style={{ fontSize: 15, fontWeight: 800 }}>
+                          Sinusuri ang nakikita sa larawan...
+                        </div>
+                        <div style={{ fontSize: 12, color: '#94A3B8' }}>
+                          Pagtukoy sa bilang ng kambing o tupa at kalusugan
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* If NOT yet analyzed */}
+                  {!uploadAnalysisResult && !isAnalyzingUpload && (
+                    <div
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div
+                        style={{
+                          backgroundColor: '#1E293B',
+                          borderRadius: 12,
+                          padding: '10px 14px',
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckCircle2 size={16} color="#4ADE80" />
+                          <span style={{ fontSize: 13, color: '#FFFFFF', fontWeight: 600 }}>
+                            Handa nang suriin ang napiling larawan
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', width: '100%', gap: 10 }}>
+                        <button
+                          type="button"
+                          onClick={handleScanUploadedImage}
+                          style={{
+                            flex: 2,
+                            backgroundColor: '#16A34A',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: 12,
+                            padding: '14px 20px',
+                            fontSize: 15,
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            boxShadow: '0 4px 14px rgba(22, 163, 74, 0.4)',
+                          }}
+                        >
+                          <Sparkles size={18} />
+                          <span>I-SCAN ANG LARAWAN</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            flex: 1,
+                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                            color: '#94A3B8',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: 12,
+                            padding: '14px 12px',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                          }}
+                        >
+                          <ImageIcon size={16} />
+                          <span>Palitan</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If analysis finished */}
+                  {uploadAnalysisResult && (
+                    <div
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 12,
+                      }}
+                    >
+                      {/* Detection Summary Badge Banner */}
+                      <div
+                        style={{
+                          backgroundColor: uploadAnalysisResult.detectedGoatOrSheep
+                            ? 'rgba(22, 163, 74, 0.18)'
+                            : 'rgba(239, 68, 68, 0.15)',
+                          border: uploadAnalysisResult.detectedGoatOrSheep
+                            ? '1px solid rgba(34, 197, 94, 0.4)'
+                            : '1px solid rgba(239, 68, 68, 0.3)',
+                          borderRadius: 14,
+                          padding: '12px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {uploadAnalysisResult.detectedGoatOrSheep ? (
+                            <CheckCircle2 size={22} color="#4ADE80" />
+                          ) : (
+                            <AlertCircle size={22} color="#EF4444" />
+                          )}
+                          <div>
+                            <div
+                              style={{
+                                fontSize: 15,
+                                fontWeight: 800,
+                                color: uploadAnalysisResult.detectedGoatOrSheep ? '#FFFFFF' : '#FCA5A5',
+                              }}
+                            >
+                              {uploadAnalysisResult.statusBadge}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: '#94A3B8', marginTop: 2 }}>
+                              {uploadAnalysisResult.detectedGoatOrSheep
+                                ? `${uploadAnalysisResult.detections.length} ${uploadAnalysisResult.detections.length === 1 ? 'alaga ang natukoy' : 'mga alaga ang natukoy'}`
+                                : 'Walang natukoy na kambing o tupa'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleResetUpload}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: 8,
+                            padding: '6px 12px',
+                            color: '#94A3B8',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                          }}
+                        >
+                          <RotateCcw size={13} />
+                          <span>Mag-upload Ulit</span>
+                        </button>
+                      </div>
+
+                      {/* If NOT detected goat or sheep */}
+                      {!uploadAnalysisResult.detectedGoatOrSheep && (
+                        <div
+                          style={{
+                            backgroundColor: '#1E293B',
+                            borderRadius: 14,
+                            padding: 16,
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 12,
+                          }}
+                        >
+                          <div style={{ fontSize: 13, color: '#E2E8F0', lineHeight: 1.5 }}>
+                            Hindi natukoy ang kambing o tupa sa imaheng ito. Pakitiyak na:
+                          </div>
+                          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12.5, color: '#94A3B8', lineHeight: 1.6 }}>
+                            <li>Malinaw at may sapat na liwanag ang litrato.</li>
+                            <li>Nakikita ang katawan ng kambing o tupa.</li>
+                            <li>Hindi tao, aso, pusa, baka, o ibang gamit ang nakatutok.</li>
+                          </ul>
+
+                          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              style={{
+                                flex: 1,
+                                backgroundColor: '#16A34A',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                borderRadius: 10,
+                                padding: '10px',
+                                fontSize: 13,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
+                              }}
+                            >
+                              <ImageIcon size={15} />
+                              <span>Pumili ng Ibang Larawan</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSwitchMode('camera')}
+                              style={{
+                                flex: 1,
+                                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                color: '#FFFFFF',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                borderRadius: 10,
+                                padding: '10px',
+                                fontSize: 13,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
+                              }}
+                            >
+                              <Video size={15} />
+                              <span>Bumalik sa Live Camera</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* If detected goat or sheep: Health Card */}
+                      {uploadAnalysisResult.detectedGoatOrSheep && (
+                        <div
+                          style={{
+                            backgroundColor: '#0F172A',
+                            borderRadius: 16,
+                            padding: 16,
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 12,
+                          }}
+                        >
+                          {/* Kalagayan Card */}
+                          {resultRiskMeta && (
+                            <div
+                              style={{
+                                backgroundColor: '#1E293B',
+                                borderRadius: 12,
+                                padding: '12px 14px',
+                                border: `1px solid ${resultRiskMeta.badgeBorder}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <div>
+                                <div style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>
+                                  Kalagayan
+                                </div>
+                                <div style={{ fontSize: 16, fontWeight: 800, color: resultRiskMeta.color, marginTop: 2 }}>
+                                  {resultRiskMeta.label}
+                                </div>
+                              </div>
+                              <div
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: '50%',
+                                  backgroundColor: resultRiskMeta.badgeBg,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <resultRiskMeta.Icon size={18} color={resultRiskMeta.color} />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Napansin (Visual observations) */}
+                          <div
+                            style={{
+                              backgroundColor: '#1E293B',
+                              borderRadius: 12,
+                              padding: '12px 14px',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                            }}
+                          >
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#FFFFFF', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <AlertTriangle size={14} color="#FBBF24" />
+                              Napansin:
+                            </div>
+                            {uploadAnalysisResult.observations && uploadAnalysisResult.observations.length > 0 ? (
+                              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: '#CBD5E1', lineHeight: 1.55 }}>
+                                {uploadAnalysisResult.observations.map((item, idx) => (
+                                  <li key={idx} style={{ marginBottom: 3 }}>
+                                    {item}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div style={{ fontSize: 12.5, color: '#CBD5E1', lineHeight: 1.5 }}>
+                                {uploadAnalysisResult.conditionSummary || 'Maayos ang nakikitang tindig at pangangatawan.'}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Gawin (Recommendations) */}
+                          <div
+                            style={{
+                              backgroundColor: '#1E293B',
+                              borderRadius: 12,
+                              padding: '12px 14px',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                            }}
+                          >
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#FFFFFF', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <HeartPulse size={14} color="#4ADE80" />
+                              Gawin:
+                            </div>
+                            <div style={{ fontSize: 12.5, color: '#CBD5E1', lineHeight: 1.5 }}>
+                              {uploadAnalysisResult.recommendation || 'Ipagpatuloy ang regular na pagmamasid.'}
+                            </div>
+                          </div>
+
+                          {/* Optional Farm Animal Link Selector (preserve preselected if exists, never invent fake ID) */}
+                          <div>
+                            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: 5 }}>
+                              I-ugnay sa Talaan ng Alaga:
+                            </label>
+                            <select
+                              value={selectedFarmAnimalId}
+                              onChange={(e) => setSelectedFarmAnimalId(e.target.value)}
+                              style={{
+                                width: '100%',
+                                backgroundColor: '#1E293B',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                borderRadius: 10,
+                                padding: '10px 12px',
+                                color: '#FFFFFF',
+                                fontSize: 13,
+                                outline: 'none',
+                              }}
+                            >
+                              <option value="">(Opsyonal) Walang Napiling Alaga</option>
+                              {activeFarmAnimals.map((animal: Animal) => (
+                                <option key={animal.id} value={animal.id}>
+                                  {animal.tag_id} {animal.name ? `(${animal.name})` : ''} - {animal.species?.toLowerCase() === 'sheep' ? 'Tupa' : 'Kambing'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Notes */}
+                          <div>
+                            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: 5 }}>
+                              Karagdagang Tala (Notes):
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={notes}
+                              onChange={(e) => setNotes(e.target.value)}
+                              placeholder="Maglagay ng karagdagang obserbasyon..."
+                              style={{
+                                width: '100%',
+                                backgroundColor: '#1E293B',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                borderRadius: 10,
+                                padding: '8px 12px',
+                                color: '#FFFFFF',
+                                fontSize: 13,
+                                resize: 'none',
+                                outline: 'none',
+                              }}
+                            />
+                          </div>
+
+                          {/* Action Buttons: Save & Switch */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                            {selectedFarmAnimalId && (
+                              <button
+                                type="button"
+                                disabled={savingRecord}
+                                onClick={handleSaveHealthCheck}
+                                style={{
+                                  width: '100%',
+                                  backgroundColor: '#16A34A',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 12,
+                                  padding: '12px 18px',
+                                  fontSize: 14,
+                                  fontWeight: 800,
+                                  cursor: savingRecord ? 'not-allowed' : 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 8,
+                                  boxShadow: '0 4px 14px rgba(22, 163, 74, 0.35)',
+                                }}
+                              >
+                                <Save size={16} />
+                                <span>{savingRecord ? 'Itinatabi sa talaan...' : 'Itabi sa Talaan ng Alaga'}</span>
+                              </button>
+                            )}
+
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                  color: '#94A3B8',
+                                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                                  borderRadius: 10,
+                                  padding: '10px',
+                                  fontSize: 12.5,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 6,
+                                }}
+                              >
+                                <ImageIcon size={15} />
+                                <span>Pumili ng Iba</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleSwitchMode('camera')}
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                  color: '#FFFFFF',
+                                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                                  borderRadius: 10,
+                                  padding: '10px',
+                                  fontSize: 12.5,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 6,
+                                }}
+                              >
+                                <Video size={15} />
+                                <span>Live Camera</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
