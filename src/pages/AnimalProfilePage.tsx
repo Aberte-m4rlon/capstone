@@ -51,6 +51,11 @@ import {
   HealthScanThumbnail,
   HealthScanLightboxModal,
   resolveHealthImage,
+  AnimalHealthTimeline,
+  AnimalQRCardModal,
+  DailyHealthAssessmentModal,
+  HealthCaseModal,
+  TreatmentManagementModal,
 } from '../components/domain/health';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
@@ -155,6 +160,10 @@ export function AnimalProfilePage() {
   // Farmer-first tab navigation (strictly 7 modules)
   const [tab, setTab] = useState<'overview' | 'health' | 'breeding' | 'vaccination' | 'inventory' | 'feed' | 'report'>('overview');
   const [qrOpen, setQrOpen] = useState(false);
+  const [animalQRModalOpen, setAnimalQRModalOpen] = useState(false);
+  const [dailyAssessmentModalOpen, setDailyAssessmentModalOpen] = useState(false);
+  const [healthCaseModalOpen, setHealthCaseModalOpen] = useState(false);
+  const [treatmentManagementModalOpen, setTreatmentManagementModalOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cameraScreeningOpen, setCameraScreeningOpen] = useState(false);
@@ -598,7 +607,7 @@ export function AnimalProfilePage() {
                 )}
                 {/* Action buttons — strictly farmer-facing labels */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-                  <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setQrOpen(true)} variant="neutral" />
+                  <ActionBtn icon={<QrCode size={14} />} label="QR" onClick={() => setAnimalQRModalOpen(true)} variant="neutral" />
                   {!isSold && (
                     <ActionBtn icon={<Camera size={14} />} label="Health Check" onClick={() => setCameraScreeningOpen(true)} variant="green" />
                   )}
@@ -893,10 +902,19 @@ export function AnimalProfilePage() {
           </div>
         )}
 
-        {/* 2. KALUSUGAN TAB (Clean farmer health table, no technical ML metrics) */}
+        {/* 2. KALUSUGAN TAB (Comprehensive Health Timeline + legacy scans) */}
         {tab === 'health' && (
-          <GlassCard>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Real-time Comprehensive Animal Health Timeline */}
+            <AnimalHealthTimeline
+              animal={animal}
+              onOpenAssessmentModal={() => setDailyAssessmentModalOpen(true)}
+              onOpenCaseModal={() => setHealthCaseModalOpen(true)}
+              onOpenTreatmentModal={() => setTreatmentManagementModalOpen(true)}
+            />
+
+            <GlassCard>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
               <CardTitle icon={HeartPulse} title={`Kalusugan ng ${speciesLabel}`} />
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                 <button
@@ -1146,7 +1164,8 @@ export function AnimalProfilePage() {
               </div>
             )}
           </GlassCard>
-        )}
+        </div>
+      )}
 
         {/* 3. BREEDING TAB */}
         {tab === 'breeding' && (
@@ -1698,6 +1717,37 @@ export function AnimalProfilePage() {
         record={scanLightboxRecord}
         animal={animal ?? null}
         imageUrl={scanLightboxUrl}
+      />
+
+      {/* ── Official QR Code ID Card Modal ── */}
+      <AnimalQRCardModal
+        isOpen={animalQRModalOpen}
+        onClose={() => setAnimalQRModalOpen(false)}
+        animal={animal}
+      />
+
+      {/* ── Daily Health Assessment Modal ── */}
+      <DailyHealthAssessmentModal
+        isOpen={dailyAssessmentModalOpen}
+        onClose={() => setDailyAssessmentModalOpen(false)}
+        preselectedAnimalId={animal.id}
+        onAssessmentSaved={() => farmData.refresh()}
+      />
+
+      {/* ── Health Case Modal ── */}
+      <HealthCaseModal
+        isOpen={healthCaseModalOpen}
+        onClose={() => setHealthCaseModalOpen(false)}
+        preselectedAnimalId={animal.id}
+        onCaseCreated={() => farmData.refresh()}
+      />
+
+      {/* ── Treatment & Medication Modal ── */}
+      <TreatmentManagementModal
+        isOpen={treatmentManagementModalOpen}
+        onClose={() => setTreatmentManagementModalOpen(false)}
+        preselectedAnimalId={animal.id}
+        onTreatmentSaved={() => farmData.refresh()}
       />
     </>
   );

@@ -378,3 +378,128 @@ export interface AnimalSale {
   created_at: string;
   updated_at: string;
 }
+
+// ─── Complete Animal Health Management Module Interfaces ──────────────────────
+
+export type AIRiskCategory = 'Normal' | 'Needs Monitoring' | 'High Risk';
+export type CaseSeverity = 'Mild' | 'Moderate' | 'Severe' | 'Critical';
+export type CaseStatus = 'Open' | 'Under Treatment' | 'Monitoring' | 'Recovered' | 'Closed';
+export type TreatmentRoute = 'Oral' | 'Injectable SC' | 'Injectable IM' | 'Topical' | 'Pour-on' | 'Eye drop';
+export type TreatmentRecordStatus = 'Scheduled' | 'Ongoing' | 'Completed' | 'Discontinued';
+export type DewormingStatus = 'Completed' | 'Scheduled' | 'Overdue';
+export type HealthAlertType =
+  | 'high_risk_assessment'
+  | 'abnormal_vitals'
+  | 'pending_vet_review'
+  | 'treatment_follow_up'
+  | 'vaccination_due'
+  | 'deworming_overdue';
+
+export interface HealthAssessment {
+  id: string;
+  user_id: string;
+  animal_id: string;
+  assessment_date: string;
+  temperature: number | null;
+  heart_rate: number | null;
+  respiratory_rate: number | null;
+  appetite: 'Normal' | 'Reduced' | 'None';
+  activity_level: 'Normal' | 'Low' | 'Lethargic';
+  body_condition_score: number | null;
+  cough: boolean;
+  diarrhea: boolean;
+  nasal_discharge: boolean;
+  eye_condition: 'Normal' | 'Discharge' | 'Cloudy' | 'Pale';
+  symptoms: string[];
+  observation_notes: string | null;
+  photo_url?: string | null;
+  photo_path?: string | null;
+  ai_risk_category: AIRiskCategory;
+  ai_risk_score: number;
+  ai_confidence: number | null;
+  ai_model_version: string;
+  ai_explanation: string | null;
+  ai_input_reference?: Record<string, unknown> | null;
+  is_rule_fallback: boolean;
+  urgent_attention_flag: boolean;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  recorded_by_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HealthCase {
+  id: string;
+  user_id: string;
+  animal_id: string;
+  assessment_id?: string | null;
+  case_number: string;
+  suspected_condition: string;
+  confirmed_diagnosis?: string | null;
+  date_reported: string;
+  severity: CaseSeverity;
+  attending_veterinarian?: string | null;
+  clinical_notes?: string | null;
+  case_status: CaseStatus;
+  follow_up_date?: string | null;
+  attachments?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TreatmentRecord {
+  id: string;
+  user_id: string;
+  animal_id: string;
+  case_id?: string | null;
+  inventory_id?: string | null;
+  medicine_name: string;
+  active_ingredient?: string | null;
+  dosage: string;
+  unit: string;
+  route: TreatmentRoute | string;
+  frequency: string;
+  start_date: string;
+  end_date?: string | null;
+  administering_person?: string | null;
+  prescribing_veterinarian?: string | null;
+  withdrawal_period_days?: number;
+  withdrawal_end_date?: string | null;
+  treatment_notes?: string | null;
+  status: TreatmentRecordStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DewormingRecord {
+  id: string;
+  user_id: string;
+  animal_id: string;
+  product_name: string;
+  date_administered: string;
+  next_due_date?: string | null;
+  provider?: string | null;
+  batch_number?: string | null;
+  dosage?: string | null;
+  status: DewormingStatus;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HealthAlert {
+  id: string;
+  user_id: string;
+  animal_id: string;
+  alert_type: HealthAlertType | string;
+  severity: 'critical' | 'warning' | 'normal' | 'info';
+  message: string;
+  source_id?: string | null;
+  is_read: boolean;
+  is_resolved: boolean;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+  created_at: string;
+}
+

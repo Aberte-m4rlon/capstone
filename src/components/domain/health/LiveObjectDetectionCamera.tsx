@@ -36,6 +36,9 @@ import {
   Check,
   UploadCloud,
   Video,
+  Activity,
+  ChevronDown,
+  Footprints,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../ui/Toast';
@@ -50,6 +53,10 @@ import {
   RawLivestockDetection,
   LivestockSpecies,
   LivestockDisplayLabel,
+  LivestockMovementState,
+  LivestockGaitState,
+  LivestockActivityLevel,
+  MotionPoint,
 } from '../../../lib/temporalBoxTracker';
 import { detectLiveObjects } from '../../../lib/geminiScanner';
 import {
@@ -61,6 +68,7 @@ import {
 } from '../../../lib/cameraUtils';
 import {
   analyzeAnimalVideo,
+  GeminiVideoAnalysisResult,
   GeminiLiveDetector,
   scanAnimalWithGemini,
   GeminiScanResult,
@@ -110,13 +118,31 @@ export function LiveObjectDetectionCamera({
   const observationChunksRef = useRef<Blob[]>([]);
   const observationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [videoAnalysis, setVideoAnalysis] = useState<GeminiVideoAnalysisResult | null>(null);
+  const videoAnalysisResultRef = useRef<GeminiVideoAnalysisResult | null>(null);
+
   const startObservationRecording = useCallback(() => {
     if (observationRecorderRef.current || !streamRef.current || typeof MediaRecorder === 'undefined') return;
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
     const recorder = new MediaRecorder(streamRef.current, { mimeType });
     observationRecorderRef.current = recorder; observationChunksRef.current = [];
     recorder.ondataavailable = (event) => { if (event.data.size > 0) observationChunksRef.current.push(event.data); };
-    recorder.onstop = async () => { observationRecorderRef.current = null; const blob = new Blob(observationChunksRef.current, { type: mimeType }); observationChunksRef.current = []; if (!blob.size || !isMountedRef.current) return; try { const analysis = await analyzeAnimalVideo(blob); if (isMountedRef.current) setStatusMessage(analysis.summary || 'Napansing kilos.'); } catch { if (isMountedRef.current) setStatusMessage('Hindi sapat ang view ng kilos.'); } };
+    recorder.onstop = async () => {
+      observationRecorderRef.current = null;
+      const blob = new Blob(observationChunksRef.current, { type: mimeType });
+      observationChunksRef.current = [];
+      if (!blob.size || !isMountedRef.current) return;
+      try {
+        const analysis = await analyzeAnimalVideo(blob);
+        videoAnalysisResultRef.current = analysis;
+        if (isMountedRef.current) {
+          setVideoAnalysis(analysis);
+          setStatusMessage(analysis.summary || 'Napansing kilos.');
+        }
+      } catch {
+        if (isMountedRef.current) setStatusMessage('Hindi sapat ang view ng kilos.');
+      }
+    };
     recorder.start();
     observationTimerRef.current = setTimeout(() => { if (observationRecorderRef.current?.state === 'recording') observationRecorderRef.current.stop(); observationTimerRef.current = null; }, 6000);
   }, []);
@@ -201,6 +227,29 @@ export function LiveObjectDetectionCamera({
   const [uploadAnalysisResult, setUploadAnalysisResult] = useState<UploadedImageAnalysisResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // ── Movement Tracker Telemetry & UI State ───────────────────────────────────
+  const [showMovementTracker, setShowMovementTracker] = useState<boolean>(true);
+  const showMovementTrackerRef = useRef<boolean>(true);
+  useEffect(() => {
+    showMovementTrackerRef.current = showMovementTracker;
+  }, [showMovementTracker]);
+
+  const [showMovementDetails, setShowMovementDetails] = useState<boolean>(true);
+  const [capturedMovementData, setCapturedMovementData] = useState<{
+    species: 'goat' | 'sheep';
+    displayNumber?: number;
+    movementState: LivestockMovementState;
+    movementLabel: string;
+    speedMps: number;
+    activityLevel: LivestockActivityLevel;
+    gait: LivestockGaitState;
+    mobilityScore: number;
+    movementSummary: string;
+    totalDistanceTraveled: number;
+    videoMovements?: string[];
+  } | null>(null);
+  const lastTelemetryUpdateRef = useRef<number>(0);
 
   // ── Active Animals & Medicines ───────────────────────────────────────────────
   const activeFarmAnimals = useMemo(() => {
@@ -602,7 +651,8 @@ export function LiveObjectDetectionCamera({
             canvas,
             currentTracks,
             transform,
-            dpr
+            dpr,
+            showMovementTrackerRef.current
           );
 
           if (currentTracks.length === 0 && activeTracksLengthRef.current > 0) {
@@ -610,12 +660,21 @@ export function LiveObjectDetectionCamera({
             setActiveTracks([]);
             setSelectedTrack(null);
             setStatusMessage('Naghahanap ng kambing o tupa...');
-          } else if (currentTracks.length > 0 && activeTracksLengthRef.current !== currentTracks.length) {
-            activeTracksLengthRef.current = currentTracks.length;
-            setActiveTracks(currentTracks);
-            const selected = tracker.getSelectedTrack();
-            setSelectedTrack(selected);
-            setStatusMessage(computeDetectionStatus(currentTracks, selected));
+          } else if (currentTracks.length > 0) {
+            if (activeTracksLengthRef.current !== currentTracks.length) {
+              activeTracksLengthRef.current = currentTracks.length;
+              setActiveTracks(currentTracks);
+              const selected = tracker.getSelectedTrack();
+              setSelectedTrack(selected ? { ...selected } : null);
+              setStatusMessage(computeDetectionStatus(currentTracks, selected));
+            } else if (now - lastTelemetryUpdateRef.current >= 180) {
+              // Throttled refresh of selected track movement telemetry for the HUD
+              lastTelemetryUpdateRef.current = now;
+              const selected = tracker.getSelectedTrack();
+              if (selected) {
+                setSelectedTrack({ ...selected });
+              }
+            }
           }
         }
       }
@@ -862,6 +921,22 @@ export function LiveObjectDetectionCamera({
           : result.rawResponse,
       };
 
+      // Capture Movement Telemetry snapshot from the selected track
+      const movementSnapshot = {
+        species: (selected.species === 'sheep' ? 'sheep' : 'goat') as 'sheep' | 'goat',
+        displayNumber: selected.displayNumber,
+        movementState: (selected.movementState || 'standing') as LivestockMovementState,
+        movementLabel: selected.movementLabel || 'Nakatayo',
+        speedMps: selected.speedMps || 0,
+        activityLevel: (selected.activityLevel || 'Normal') as LivestockActivityLevel,
+        gait: (selected.gait || 'Normal') as LivestockGaitState,
+        mobilityScore: selected.mobilityScore || 90,
+        movementSummary: selected.movementSummary || `${verifiedLabel === 'TUPA' ? 'Tupa' : 'Kambing'}: Nakatayo nang matatag.`,
+        totalDistanceTraveled: selected.totalDistanceTraveled || 0,
+        videoMovements: videoAnalysisResultRef.current?.movements || [],
+      };
+      setCapturedMovementData(movementSnapshot);
+
       setScanResult(verifiedResult);
       setShowResultSheet(true);
 
@@ -1042,6 +1117,7 @@ export function LiveObjectDetectionCamera({
   const handleResetScan = () => {
     setShowResultSheet(false);
     setScanResult(null);
+    setCapturedMovementData(null);
     setCroppedImagePreview(null);
     setCroppedBlob(null);
     setNotes('');
@@ -1054,7 +1130,7 @@ export function LiveObjectDetectionCamera({
     }
   };
 
-  // GÃ¶Ã‡GÃ¶Ã‡ Save Health Check to Storage & Supabase Database GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡GÃ¶Ã‡
+  // ── Save Health Check to Storage & Supabase Database ────────────────────────
   const handleSaveHealthCheck = async () => {
     if (!scanResult || !user) {
       toast('Walang resulta ng pagsusuri na mai-save.', 'error');
@@ -1128,15 +1204,20 @@ export function LiveObjectDetectionCamera({
 
       // 3. Insert Health Record using the deployed health_records schema.
       const riskLevel = riskScore >= 65 ? 'High' : riskScore >= 25 ? 'Medium' : 'Low';
+      const movementReasons = capturedMovementData
+        ? ` • Kilos: ${capturedMovementData.movementLabel} (${capturedMovementData.speedMps} m/s, ${capturedMovementData.gait === 'Normal' ? 'Normal ang hakbang' : 'May paika-ika'}). ${capturedMovementData.movementSummary}`
+        : '';
       const newRecordPayload = {
         animal_id: animal.id,
         user_id: user.id,
         record_date: new Date().toISOString().split('T')[0],
         risk_score: riskScore,
         risk_level: riskLevel,
-        reasons: `${conditionStr}. ${reasonsStr}`,
+        reasons: `${conditionStr}. ${reasonsStr}${movementReasons}`,
         recommendation: scanResult.recommendation || raw?.action || null,
         notes: notes.trim() || null,
+        gait: capturedMovementData?.gait || 'Normal',
+        activity_level: capturedMovementData?.activityLevel || 'Normal',
         temperature: null,
         heart_rate: null,
       };
@@ -1187,6 +1268,7 @@ export function LiveObjectDetectionCamera({
       // Close bottom sheet and return to live camera for the next animal
       setShowResultSheet(false);
       setScanResult(null);
+      setCapturedMovementData(null);
       setNotes('');
       setMedItemId('');
       setMedQty('');
@@ -1416,6 +1498,45 @@ export function LiveObjectDetectionCamera({
           {/* ── CAMERA MODE CONTENT ── */}
           {scannerMode === 'camera' && (
             <>
+              {/* Movement Tracker Quick Toggle Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '2px 4px',
+                  width: '100%',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowMovementTracker((prev) => !prev)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 20,
+                    border: showMovementTracker ? '1.5px solid #22C55E' : '1px solid rgba(255, 255, 255, 0.15)',
+                    backgroundColor: showMovementTracker ? 'rgba(34, 197, 94, 0.16)' : 'rgba(255, 255, 255, 0.05)',
+                    color: showMovementTracker ? '#4ADE80' : '#94A3B8',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="I-on o I-off ang pagsubaybay sa galaw (motion trail at bilis)"
+                >
+                  <Activity size={14} color={showMovementTracker ? '#4ADE80' : '#94A3B8'} />
+                  <span>Movement Tracker: {showMovementTracker ? 'BUKAS' : 'SARADO'}</span>
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94A3B8', fontWeight: 600 }}>
+                  <Footprints size={13} color="#22C55E" />
+                  <span>Kambing at Tupa</span>
+                </div>
+              </div>
+
               {/* 1. Embedded Camera Frame (4:3 aspect ratio, 20px rounded) */}
               <div
             ref={containerRef}
@@ -1800,48 +1921,295 @@ export function LiveObjectDetectionCamera({
                     </button>
                   </div>
                 ) : selectedTrack && selectedTrack.species !== 'person' ? (
-                  <div
-                    style={{
-                      width: '100%',
-                      backgroundColor: 'rgba(22, 163, 74, 0.20)',
-                      borderRadius: 14,
-                      padding: '10px 14px',
-                      border: '1.5px solid #22C55E',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      boxShadow: '0 4px 14px rgba(34, 197, 94, 0.25)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <CheckCircle2 size={20} color="#4ADE80" />
-                      <div>
-                        <div style={{ fontSize: 13.5, fontWeight: 800, color: '#FFFFFF' }}>
-                          ✓ Napili: {selectedTrack.displayNumber ? `${selectedTrack.label} #${selectedTrack.displayNumber}` : selectedTrack.label}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#86EFAC', marginTop: 1 }}>
-                          Napili: 1 {selectedTrack.species === 'sheep' ? 'tupa' : 'kambing'}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                    <div
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'rgba(22, 163, 74, 0.20)',
+                        borderRadius: 14,
+                        padding: '10px 14px',
+                        border: '1.5px solid #22C55E',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        boxShadow: '0 4px 14px rgba(34, 197, 94, 0.25)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <CheckCircle2 size={20} color="#4ADE80" />
+                        <div>
+                          <div style={{ fontSize: 13.5, fontWeight: 800, color: '#FFFFFF' }}>
+                            ✓ Napili: {selectedTrack.displayNumber ? `${selectedTrack.label} #${selectedTrack.displayNumber}` : selectedTrack.label}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#86EFAC', marginTop: 1 }}>
+                            Napili: 1 {selectedTrack.species === 'sheep' ? 'tupa' : 'kambing'}
+                          </div>
                         </div>
                       </div>
+                      {hasMultiple && (
+                        <button
+                          type="button"
+                          onClick={handleClearSelection}
+                          style={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                            border: '1px solid rgba(255, 255, 255, 0.25)',
+                            borderRadius: 8,
+                            padding: '5px 10px',
+                            color: '#FFFFFF',
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Palitan ang Napili
+                        </button>
+                      )}
                     </div>
-                    {hasMultiple && (
-                      <button
-                        type="button"
-                        onClick={handleClearSelection}
+
+                    {/* ── Movement Tracker Real-time Telemetry HUD Card ── */}
+                    {showMovementTracker && (
+                      <div
                         style={{
-                          backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                          border: '1px solid rgba(255, 255, 255, 0.25)',
-                          borderRadius: 8,
-                          padding: '5px 10px',
-                          color: '#FFFFFF',
-                          fontSize: 11.5,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
+                          width: '100%',
+                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                          borderRadius: 14,
+                          padding: '12px 14px',
+                          border: '1.5px solid rgba(34, 197, 94, 0.4)',
+                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
                         }}
                       >
-                        Palitan ang Napili
-                      </button>
+                        {/* Header with Live indicator & toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <div
+                              style={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(34, 197, 94, 0.18)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '1px solid rgba(34, 197, 94, 0.4)',
+                              }}
+                            >
+                              <Activity size={14} color="#4ADE80" />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span>Tagasubaybay ng Galaw</span>
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    color: '#4ADE80',
+                                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                                    padding: '1px 6px',
+                                    borderRadius: 10,
+                                    letterSpacing: 0.5,
+                                  }}
+                                >
+                                  ● LIVE
+                                </span>
+                              </div>
+                              <div style={{ fontSize: 11, color: '#94A3B8' }}>
+                                {selectedTrack.species === 'sheep' ? 'Tupa' : 'Kambing'} {selectedTrack.displayNumber ? `#${selectedTrack.displayNumber}` : ''} • Real-time Telemetry
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setShowMovementDetails((prev) => !prev)}
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.08)',
+                              border: '1px solid rgba(255, 255, 255, 0.12)',
+                              borderRadius: 8,
+                              padding: '4px 8px',
+                              color: '#94A3B8',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <span>{showMovementDetails ? 'Itago' : 'Ipakita'}</span>
+                            <ChevronDown
+                              size={14}
+                              style={{
+                                transform: showMovementDetails ? 'rotate(180deg)' : 'none',
+                                transition: 'transform 0.2s ease',
+                              }}
+                            />
+                          </button>
+                        </div>
+
+                        {/* Primary Telemetry Pills */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                          {/* 1. Galaw / State */}
+                          <div
+                            style={{
+                              backgroundColor: '#1E293B',
+                              borderRadius: 10,
+                              padding: '8px 10px',
+                              border: '1px solid rgba(255, 255, 255, 0.06)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                            }}
+                          >
+                            <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                              Galaw
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 800,
+                                color:
+                                  selectedTrack.movementState === 'running'
+                                    ? '#FBBF24'
+                                    : selectedTrack.movementState === 'walking'
+                                    ? '#4ADE80'
+                                    : selectedTrack.movementState === 'lethargic'
+                                    ? '#F87171'
+                                    : '#38BDF8',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {selectedTrack.movementState === 'running' && '⚡ '}
+                              {selectedTrack.movementState === 'walking' && '🚶 '}
+                              {selectedTrack.movementState === 'standing' && '🟢 '}
+                              {selectedTrack.movementState === 'resting' && '💤 '}
+                              {selectedTrack.movementState === 'lethargic' && '⚠️ '}
+                              {selectedTrack.movementLabel || 'Nakatayo'}
+                            </span>
+                          </div>
+
+                          {/* 2. Bilis / Speed */}
+                          <div
+                            style={{
+                              backgroundColor: '#1E293B',
+                              borderRadius: 10,
+                              padding: '8px 10px',
+                              border: '1px solid rgba(255, 255, 255, 0.06)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                            }}
+                          >
+                            <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                              Bilis
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF' }}>
+                              {selectedTrack.speedMps > 0.02 ? `${selectedTrack.speedMps} m/s` : '0 m/s'}
+                            </span>
+                          </div>
+
+                          {/* 3. Hakbang / Gait */}
+                          <div
+                            style={{
+                              backgroundColor: '#1E293B',
+                              borderRadius: 10,
+                              padding: '8px 10px',
+                              border: '1px solid rgba(255, 255, 255, 0.06)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                            }}
+                          >
+                            <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                              Hakbang (Gait)
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 800,
+                                color: selectedTrack.gait === 'Normal' ? '#4ADE80' : '#FBBF24',
+                              }}
+                            >
+                              {selectedTrack.gait === 'Normal' ? 'Normal' : selectedTrack.gait === 'Slight Limp' ? 'May Pilay' : selectedTrack.gait}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Expanded Details */}
+                        {showMovementDetails && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 8,
+                              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                              paddingTop: 8,
+                            }}
+                          >
+                            {/* Activity Level Bar */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                <span style={{ color: '#94A3B8' }}>Sigla at Aktibidad:</span>
+                                <span style={{ color: '#FFFFFF', fontWeight: 700 }}>
+                                  {selectedTrack.activityLevel === 'High' ? 'Mataas (Aktibo)' : selectedTrack.activityLevel === 'Low' ? 'Mababa' : 'Normal'}
+                                </span>
+                              </div>
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: 6,
+                                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                  borderRadius: 3,
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: `${Math.min(100, Math.max(20, selectedTrack.mobilityScore || 85))}%`,
+                                    height: '100%',
+                                    backgroundColor:
+                                      selectedTrack.activityLevel === 'High'
+                                        ? '#FBBF24'
+                                        : selectedTrack.activityLevel === 'Low'
+                                        ? '#EF4444'
+                                        : '#22C55E',
+                                    borderRadius: 3,
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Narrative movement observation */}
+                            <div
+                              style={{
+                                fontSize: 11.5,
+                                color: '#CBD5E1',
+                                lineHeight: 1.45,
+                                backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                                padding: '7px 10px',
+                                borderRadius: 8,
+                                borderLeft: '3px solid #22C55E',
+                              }}
+                            >
+                              {selectedTrack.movementSummary}
+                            </div>
+
+                            {/* Video observation if available */}
+                            {videoAnalysis && videoAnalysis.movements && videoAnalysis.movements.length > 0 && (
+                              <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                                <span style={{ fontWeight: 700, color: '#E2E8F0' }}>AI Video Observation: </span>
+                                <span>{videoAnalysis.movements.join(' • ')}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : hasMultiple ? (
@@ -2201,6 +2569,104 @@ export function LiveObjectDetectionCamera({
                     'Panatilihing malinis ang kulungan, bigyan ng sariwang tubig, at subaybayan ang pagkain.'}
                 </div>
               </div>
+
+              {/* Movement Tracker Report Card in Scan Result */}
+              {capturedMovementData && (
+                <div
+                  style={{
+                    backgroundColor: '#1E293B',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    border: '1.5px solid rgba(34, 197, 94, 0.35)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <Activity size={16} color="#4ADE80" />
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>
+                        Ulat ng Paggalaw at Kilos (Movement Tracker)
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: capturedMovementData.gait === 'Normal' ? '#4ADE80' : '#FBBF24',
+                        backgroundColor:
+                          capturedMovementData.gait === 'Normal'
+                            ? 'rgba(34, 197, 94, 0.15)'
+                            : 'rgba(251, 191, 36, 0.15)',
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        border: `1px solid ${
+                          capturedMovementData.gait === 'Normal'
+                            ? 'rgba(34, 197, 94, 0.3)'
+                            : 'rgba(251, 191, 36, 0.3)'
+                        }`,
+                      }}
+                    >
+                      {capturedMovementData.gait === 'Normal' ? '✓ Normal ang Hakbang' : '⚠ May Paika-ika'}
+                    </span>
+                  </div>
+
+                  {/* Metrics Chips */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    <div style={{ backgroundColor: '#0F172A', padding: '8px 10px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Kilos
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF', marginTop: 2 }}>
+                        {capturedMovementData.movementLabel}
+                      </div>
+                    </div>
+                    <div style={{ backgroundColor: '#0F172A', padding: '8px 10px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Bilis
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF', marginTop: 2 }}>
+                        {capturedMovementData.speedMps > 0 ? `${capturedMovementData.speedMps} m/s` : '0 m/s'}
+                      </div>
+                    </div>
+                    <div style={{ backgroundColor: '#0F172A', padding: '8px 10px', borderRadius: 8 }}>
+                      <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Aktibidad
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#4ADE80', marginTop: 2 }}>
+                        {capturedMovementData.activityLevel === 'High'
+                          ? 'Aktibo'
+                          : capturedMovementData.activityLevel === 'Low'
+                          ? 'Mababa'
+                          : 'Normal'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Summary text */}
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: '#CBD5E1',
+                      lineHeight: 1.5,
+                      backgroundColor: '#0F172A',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                    }}
+                  >
+                    {capturedMovementData.movementSummary}
+                  </div>
+
+                  {/* Video Observation if available */}
+                  {capturedMovementData.videoMovements && capturedMovementData.videoMovements.length > 0 && (
+                    <div style={{ fontSize: 11.5, color: '#94A3B8' }}>
+                      <span style={{ fontWeight: 700, color: '#E2E8F0' }}>Napansing Kilos (AI Video): </span>
+                      <span>{capturedMovementData.videoMovements.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Farm Animal Link Selector */}
               <div>
@@ -3236,6 +3702,22 @@ export function LiveObjectDetectionCamera({
                 type="checkbox"
                 checked={showGrid}
                 onChange={(e) => setShowGrid(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: '#22C55E', cursor: 'pointer' }}
+              />
+            </div>
+
+            {/* Movement Tracker Option */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Tagasubaybay ng Galaw (Movement Tracker)</div>
+                <div style={{ fontSize: 12, color: '#94A3B8' }}>
+                  Ipakita ang linya ng galaw (motion trail), bilis, at kilos ng kambing at tupa
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={showMovementTracker}
+                onChange={(e) => setShowMovementTracker(e.target.checked)}
                 style={{ width: 20, height: 20, accentColor: '#22C55E', cursor: 'pointer' }}
               />
             </div>

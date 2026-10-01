@@ -23,12 +23,22 @@ import type {
   Recommendation,
   Settings,
   AnimalSale,
+  HealthAssessment,
+  HealthCase,
+  TreatmentRecord,
+  DewormingRecord,
+  HealthAlert,
 } from '../types';
 import { fetchUserSales } from './sales';
 
 export interface FarmData {
   animals: Animal[];
   healthRecords: HealthRecord[];
+  healthAssessments: HealthAssessment[];
+  healthCases: HealthCase[];
+  treatmentRecords: TreatmentRecord[];
+  dewormingRecords: DewormingRecord[];
+  healthAlerts: HealthAlert[];
   weightRecords: WeightRecord[];
   breedingRecords: BreedingRecord[];
   vaccinations: Vaccination[];
@@ -47,6 +57,11 @@ export interface FarmData {
 const EMPTY: FarmData = {
   animals: [],
   healthRecords: [],
+  healthAssessments: [],
+  healthCases: [],
+  treatmentRecords: [],
+  dewormingRecords: [],
+  healthAlerts: [],
   weightRecords: [],
   breedingRecords: [],
   vaccinations: [],
@@ -80,6 +95,11 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
     try {
       let animalsQ = supabase.from('animals').select('*').order('created_at', { ascending: false });
       let healthQ = supabase.from('health_records').select('*').order('record_date', { ascending: false });
+      let healthAssessmentsQ = supabase.from('health_assessments').select('*').order('assessment_date', { ascending: false });
+      let healthCasesQ = supabase.from('health_cases').select('*').order('date_reported', { ascending: false });
+      let treatmentRecordsQ = supabase.from('treatment_records').select('*').order('start_date', { ascending: false });
+      let dewormingRecordsQ = supabase.from('deworming_records').select('*').order('date_administered', { ascending: false });
+      let healthAlertsQ = supabase.from('health_alerts').select('*').order('created_at', { ascending: false });
       let weightQ = supabase.from('weight_records').select('*').order('record_date', { ascending: false });
       let breedingQ = supabase.from('breeding_records').select('*').order('mating_date', { ascending: false });
       let vaccQ = supabase.from('vaccinations').select('*').order('date_given', { ascending: false });
@@ -95,6 +115,11 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
       if (!isSuperAdmin) {
         animalsQ = animalsQ.eq('user_id', user.id);
         healthQ = healthQ.eq('user_id', user.id);
+        healthAssessmentsQ = healthAssessmentsQ.eq('user_id', user.id);
+        healthCasesQ = healthCasesQ.eq('user_id', user.id);
+        treatmentRecordsQ = treatmentRecordsQ.eq('user_id', user.id);
+        dewormingRecordsQ = dewormingRecordsQ.eq('user_id', user.id);
+        healthAlertsQ = healthAlertsQ.eq('user_id', user.id);
         weightQ = weightQ.eq('user_id', user.id);
         breedingQ = breedingQ.eq('user_id', user.id);
         vaccQ = vaccQ.eq('user_id', user.id);
@@ -107,9 +132,24 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
         settingsQ = settingsQ.eq('user_id', user.id);
       }
 
+      // Safe wrapper to prevent query failures from blocking application load if migrations are pending
+      const safeQuery = async <T,>(promise: PromiseLike<{ data: T | null; error: any }>) => {
+        try {
+          const res = await promise;
+          return res.data ?? null;
+        } catch {
+          return null;
+        }
+      };
+
       const [
         animalsRes,
         healthRes,
+        healthAssessmentsData,
+        healthCasesData,
+        treatmentRecordsData,
+        dewormingRecordsData,
+        healthAlertsData,
         weightRes,
         breedingRes,
         vaccRes,
@@ -124,6 +164,11 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
       ] = await Promise.all([
         animalsQ,
         healthQ,
+        safeQuery<HealthAssessment[]>(healthAssessmentsQ),
+        safeQuery<HealthCase[]>(healthCasesQ),
+        safeQuery<TreatmentRecord[]>(treatmentRecordsQ),
+        safeQuery<DewormingRecord[]>(dewormingRecordsQ),
+        safeQuery<HealthAlert[]>(healthAlertsQ),
         weightQ,
         breedingQ,
         vaccQ,
@@ -170,6 +215,11 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
       setData({
         animals: enrichedAnimals,
         healthRecords: (healthRes.data as HealthRecord[]) ?? [],
+        healthAssessments: (healthAssessmentsData as HealthAssessment[]) ?? [],
+        healthCases: (healthCasesData as HealthCase[]) ?? [],
+        treatmentRecords: (treatmentRecordsData as TreatmentRecord[]) ?? [],
+        dewormingRecords: (dewormingRecordsData as DewormingRecord[]) ?? [],
+        healthAlerts: (healthAlertsData as HealthAlert[]) ?? [],
         weightRecords: (weightRes.data as WeightRecord[]) ?? [],
         breedingRecords: (breedingRes.data as BreedingRecord[]) ?? [],
         vaccinations: (vaccRes.data as Vaccination[]) ?? [],
@@ -213,6 +263,11 @@ export function FarmDataProvider({ children }: { children: ReactNode }) {
       .channel('alpasfarm:live_data:' + user.id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'animals', filter }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'health_records', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'health_assessments', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'health_cases', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'treatment_records', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deworming_records', filter }, debouncedRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'health_alerts', filter }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weight_records', filter }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'breeding_records', filter }, debouncedRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vaccinations', filter }, debouncedRefresh)

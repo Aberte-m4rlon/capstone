@@ -64,6 +64,11 @@ import {
   HealthScanLightboxModal,
   HealthScanDetailImageCard,
   resolveHealthImage,
+  AnimalHealthDashboard,
+  DailyHealthAssessmentModal,
+  HealthCaseModal,
+  TreatmentManagementModal,
+  DewormingModal,
 } from '../components/domain/health';
 
 
@@ -217,6 +222,14 @@ export function HealthPage() {
   const isSuperAdmin = profile?.role === 'super_admin';
   const toast = useToast();
   const navigate = useNavigate();
+
+  // Animal Health Management System Suite State
+  const [healthSuiteTab, setHealthSuiteTab] = useState<'dashboard' | 'camera_logs'>('dashboard');
+  const [dailyAssessmentModalOpen, setDailyAssessmentModalOpen] = useState(false);
+  const [healthCaseModalOpen, setHealthCaseModalOpen] = useState(false);
+  const [treatmentManagementModalOpen, setTreatmentManagementModalOpen] = useState(false);
+  const [dewormingModalOpen, setDewormingModalOpen] = useState(false);
+  const [selectedAnimalForSuite, setSelectedAnimalForSuite] = useState<string | undefined>(undefined);
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -552,19 +565,88 @@ export function HealthPage() {
         </div>
       </div>
 
-      {/* ── 2. PRIMARY ACTIONS ── */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+      {/* ── MODE SWITCHER ── */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, borderBottom: '1px solid var(--border, #e5e7eb)', paddingBottom: 10, flexWrap: 'wrap' }}>
         <button
           type="button"
-          className="health-primary-scanner-btn"
-          onClick={() => openPredictionModal()}
-          style={{ flex: '1 1 240px', maxWidth: 360 }}
+          onClick={() => setHealthSuiteTab('dashboard')}
+          style={{
+            padding: '10px 18px',
+            borderRadius: '10px',
+            fontSize: 14,
+            fontWeight: 700,
+            border: 'none',
+            backgroundColor: healthSuiteTab === 'dashboard' ? '#238B45' : 'var(--surface-muted, #f3f4f6)',
+            color: healthSuiteTab === 'dashboard' ? '#ffffff' : 'var(--text-secondary, #4b5563)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <HeartPulse size={18} />
+          <span>Animal Health Management System</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setHealthSuiteTab('camera_logs')}
+          style={{
+            padding: '10px 18px',
+            borderRadius: '10px',
+            fontSize: 14,
+            fontWeight: 700,
+            border: 'none',
+            backgroundColor: healthSuiteTab === 'camera_logs' ? '#238B45' : 'var(--surface-muted, #f3f4f6)',
+            color: healthSuiteTab === 'camera_logs' ? '#ffffff' : 'var(--text-secondary, #4b5563)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            transition: 'all 0.15s ease',
+          }}
         >
           <Camera size={18} />
-          <span>Health Check</span>
-          <ArrowRight size={16} className="scanner-arrow-icon" />
+          <span>Camera Health Check & Logs</span>
         </button>
       </div>
+
+      {healthSuiteTab === 'dashboard' ? (
+        <AnimalHealthDashboard
+          onOpenAssessmentModal={() => {
+            setSelectedAnimalForSuite(undefined);
+            setDailyAssessmentModalOpen(true);
+          }}
+          onOpenCaseModal={() => {
+            setSelectedAnimalForSuite(undefined);
+            setHealthCaseModalOpen(true);
+          }}
+          onOpenTreatmentModal={() => {
+            setSelectedAnimalForSuite(undefined);
+            setTreatmentManagementModalOpen(true);
+          }}
+          onOpenDewormingModal={() => {
+            setSelectedAnimalForSuite(undefined);
+            setDewormingModalOpen(true);
+          }}
+          onSelectAnimal={(id) => navigate(`/animals/${id}`)}
+        />
+      ) : (
+        <>
+          {/* ── 2. PRIMARY ACTIONS ── */}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
+            <button
+              type="button"
+              className="health-primary-scanner-btn"
+              onClick={() => openPredictionModal()}
+              style={{ flex: '1 1 240px', maxWidth: 360 }}
+            >
+              <Camera size={18} />
+              <span>Health Check</span>
+              <ArrowRight size={16} className="scanner-arrow-icon" />
+            </button>
+          </div>
 
       {/* ── 3. 4 HEALTH SUMMARY METRIC CARDS (FARMER ORDER) ── */}
       <div className="health-summary-grid">
@@ -1244,6 +1326,53 @@ export function HealthPage() {
             : null
         }
         imageUrl={scanLightboxUrl}
+      />
+
+        </>
+      )}
+
+      {/* ── DAILY HEALTH ASSESSMENT MODAL ── */}
+      <DailyHealthAssessmentModal
+        isOpen={dailyAssessmentModalOpen}
+        onClose={() => {
+          setDailyAssessmentModalOpen(false);
+          setSelectedAnimalForSuite(undefined);
+        }}
+        preselectedAnimalId={selectedAnimalForSuite}
+        onAssessmentSaved={() => farmData.refresh()}
+      />
+
+      {/* ── HEALTH CASE MODAL ── */}
+      <HealthCaseModal
+        isOpen={healthCaseModalOpen}
+        onClose={() => {
+          setHealthCaseModalOpen(false);
+          setSelectedAnimalForSuite(undefined);
+        }}
+        preselectedAnimalId={selectedAnimalForSuite}
+        onCaseCreated={() => farmData.refresh()}
+      />
+
+      {/* ── TREATMENT MANAGEMENT MODAL ── */}
+      <TreatmentManagementModal
+        isOpen={treatmentManagementModalOpen}
+        onClose={() => {
+          setTreatmentManagementModalOpen(false);
+          setSelectedAnimalForSuite(undefined);
+        }}
+        preselectedAnimalId={selectedAnimalForSuite}
+        onTreatmentSaved={() => farmData.refresh()}
+      />
+
+      {/* ── DEWORMING MODAL ── */}
+      <DewormingModal
+        isOpen={dewormingModalOpen}
+        onClose={() => {
+          setDewormingModalOpen(false);
+          setSelectedAnimalForSuite(undefined);
+        }}
+        preselectedAnimalId={selectedAnimalForSuite}
+        onDewormingSaved={() => farmData.refresh()}
       />
 
 

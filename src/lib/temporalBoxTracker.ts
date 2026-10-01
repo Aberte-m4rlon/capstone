@@ -48,6 +48,15 @@ import type { BoundingBox } from './cameraUtils';
 export type LivestockSpecies = 'goat' | 'sheep' | 'person';
 export type LivestockDisplayLabel = 'KAMBING' | 'TUPA' | 'TAO';
 export type TrackState = 'candidate' | 'confirmed' | 'occluded' | 'expired';
+export type LivestockMovementState = 'standing' | 'walking' | 'running' | 'resting' | 'lethargic';
+export type LivestockGaitState = 'Normal' | 'Slight Limp' | 'Severe Limp' | 'Cannot Walk';
+export type LivestockActivityLevel = 'Normal' | 'Low' | 'High';
+
+export interface MotionPoint {
+  x: number; // Normalized center X in frame [0..1]
+  y: number; // Normalized center Y in frame [0..1]
+  timestamp: number;
+}
 
 export interface RawLivestockDetection {
   species: LivestockSpecies;
@@ -95,6 +104,20 @@ export interface TrackedLivestockAnimal {
   /** UI interaction flags */
   isSelected: boolean;
   isTemporarilyMissed: boolean;
+
+  /** Movement Tracking Telemetry */
+  motionTrail: MotionPoint[];
+  speed: number;
+  speedMps: number;
+  movementState: LivestockMovementState;
+  movementLabel: string;
+  activityLevel: LivestockActivityLevel;
+  totalDistanceTraveled: number;
+  stationaryDurationSec: number;
+  gait: LivestockGaitState;
+  mobilityScore: number;
+  movementSummary: string;
+  speedHistory: number[];
 }
 
 export interface TrackerConfig {
@@ -621,6 +644,7 @@ export class TemporalLivestockTracker {
         const isHighConfidence = raw.confidence >= 0.75;
         const rawCenter = { x: raw.box.x + raw.box.width / 2, y: raw.box.y + raw.box.height / 2 };
 
+        const initialSpeciesName = raw.species === 'sheep' ? 'Tupa' : raw.species === 'goat' ? 'Kambing' : 'Tao';
         const newTrack: TrackedLivestockAnimal = {
           trackId: this.nextTrackId++,
           displayNumber: 0,
@@ -644,6 +668,18 @@ export class TemporalLivestockTracker {
           speciesHistory: [raw.species],
           isSelected: false,
           isTemporarilyMissed: false,
+          motionTrail: [{ x: rawCenter.x, y: rawCenter.y, timestamp }],
+          speed: 0,
+          speedMps: 0,
+          movementState: 'standing',
+          movementLabel: 'Nakatayo',
+          activityLevel: 'Normal',
+          totalDistanceTraveled: 0,
+          stationaryDurationSec: 0,
+          gait: 'Normal',
+          mobilityScore: 90,
+          movementSummary: `${initialSpeciesName}: Nakatayo nang matatag.`,
+          speedHistory: [0],
         };
 
         this.tracks.push(newTrack);
@@ -739,6 +775,106 @@ export class TemporalLivestockTracker {
       track.box.y = track.currentBox.y;
       track.box.width = track.currentBox.width;
       track.box.height = track.currentBox.height;
+
+      // 3. Movement Tracker Telemetry & Motion Breadcrumbs
+      const currentCenterX = track.currentBox.x + track.currentBox.width / 2;
+      const currentCenterY = track.currentBox.y + track.currentBox.height / 2;
+
+      if (!track.motionTrail) track.motionTrail = [];
+      if (!track.speedHistory) track.speedHistory = [];
+
+      const lastPoint = track.motionTrail[track.motionTrail.length - 1];
+      const timeSinceLastPoint = lastPoint ? timestamp - lastPoint.timestamp : 9999;
+      const distFromLastPoint = lastPoint
+        ? Math.hypot(currentCenterX - lastPoint.x, currentCenterY - lastPoint.y)
+        : 9999;
+
+      // Sample trail point every ~40ms or when displacement is significant
+      if (timeSinceLastPoint >= 40 || distFromLastPoint >= 0.003) {
+        track.motionTrail.push({
+          x: currentCenterX,
+          y: currentCenterY,
+          timestamp,
+        });
+      }
+
+      // Prune trail points older than 2600ms or cap to 60 points
+      const trailCutoff = timestamp - 2600;
+      while (track.motionTrail.length > 2 && track.motionTrail[0].timestamp < trailCutoff) {
+        track.motionTrail.shift();
+      }
+      if (track.motionTrail.length > 60) {
+        track.motionTrail.splice(0, track.motionTrail.length - 60);
+      }
+
+      // Velocity magnitude & smoothed speed
+      const instVel = Math.hypot(track.vx, track.vy);
+      track.speed = (track.speed || 0) * 0.86 + instVel * 0.14;
+      track.speedMps = Number((track.speed * 3.2).toFixed(2));
+      track.totalDistanceTraveled = (track.totalDistanceTraveled || 0) + (disp * posAlpha);
+
+      track.speedHistory.push(track.speed);
+      if (track.speedHistory.length > 40) {
+        track.speedHistory.shift();
+      }
+
+      // Movement state classification & farmer-friendly Tagalog summary
+      const speciesName = track.species === 'sheep' ? 'Tupa' : track.species === 'goat' ? 'Kambing' : 'Tao';
+
+      if (track.speed < 0.035) {
+        track.stationaryDurationSec = (track.stationaryDurationSec || 0) + dt;
+
+        if (track.stationaryDurationSec > 12) {
+          track.movementState = 'lethargic';
+          track.movementLabel = 'Walang Galaw / Matamlay';
+          track.activityLevel = 'Low';
+          track.mobilityScore = Math.max(45, (track.mobilityScore || 90) - dt * 2);
+          track.movementSummary = `${speciesName}: Matagal nang hindi gumagalaw (${Math.round(track.stationaryDurationSec)}s). Bantayan kung may panghihina o sakit.`;
+        } else if (track.stationaryDurationSec > 4) {
+          track.movementState = 'resting';
+          track.movementLabel = 'Kilos-Pahinga';
+          track.activityLevel = 'Normal';
+          track.mobilityScore = Math.min(85, track.mobilityScore || 85);
+          track.movementSummary = `${speciesName}: Nakapahinga at nakatayo nang kalmado.`;
+        } else {
+          track.movementState = 'standing';
+          track.movementLabel = 'Nakatayo';
+          track.activityLevel = 'Normal';
+          track.movementSummary = `${speciesName}: Nakatayo nang matatag at alerto.`;
+        }
+      } else {
+        track.stationaryDurationSec = Math.max(0, (track.stationaryDurationSec || 0) - dt * 3);
+
+        if (track.speed >= 0.22) {
+          track.movementState = 'running';
+          track.movementLabel = 'Mabilis na Galaw';
+          track.activityLevel = 'High';
+          track.mobilityScore = Math.min(100, (track.mobilityScore || 85) + dt * 4);
+          track.movementSummary = `${speciesName}: Mabilis ang pagkilos (${track.speedMps} m/s). Masigla at maliksi.`;
+        } else {
+          track.movementState = 'walking';
+          track.movementLabel = 'Naglalakad';
+          track.activityLevel = 'Normal';
+          track.mobilityScore = Math.min(95, (track.mobilityScore || 85) + dt * 3);
+          track.movementSummary = `${speciesName}: Karaniwang lakad (${track.speedMps} m/s). Matatag ang bawat hakbang.`;
+        }
+      }
+
+      // Gait irregularity check: if walking and speed variance is erratic
+      if (track.movementState === 'walking' && track.speedHistory.length >= 20) {
+        const mean = track.speedHistory.reduce((a, b) => a + b, 0) / track.speedHistory.length;
+        const variance = track.speedHistory.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / track.speedHistory.length;
+        if (variance > 0.008 && mean < 0.10) {
+          track.gait = 'Slight Limp';
+          track.movementSummary += ' Napansing may kaunting paika-ika sa hakbang.';
+        } else {
+          track.gait = 'Normal';
+        }
+      } else if (track.movementState === 'lethargic') {
+        track.gait = 'Cannot Walk';
+      } else {
+        track.gait = 'Normal';
+      }
     }
 
     this.pruneStaleTracks(timestamp);
@@ -843,7 +979,8 @@ export function renderTrackedAnimalsToCanvas(
   canvas: HTMLCanvasElement | null,
   tracks: TrackedLivestockAnimal[],
   transform: ViewportTransform,
-  dpr: number = 1
+  dpr: number = 1,
+  showMovementTracker: boolean = true
 ): void {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -865,6 +1002,64 @@ export function renderTrackedAnimalsToCanvas(
   }
 
   const hasSelectedLivestock = tracks.some((t) => t.isSelected && t.species !== 'person');
+
+  // ── Render Motion Trails (Movement Tracker for Sheep & Goat) ──
+  if (showMovementTracker) {
+    for (const track of tracks) {
+      if (track.species === 'person' || !track.motionTrail || track.motionTrail.length < 2) continue;
+
+      const isGoat = track.species === 'goat';
+      const isSelected = track.isSelected;
+      const isDimmed = hasSelectedLivestock && !isSelected;
+      const rgbBase = isGoat ? '34, 197, 94' : '16, 185, 129';
+      const trail = track.motionTrail;
+
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      for (let i = 0; i < trail.length - 1; i++) {
+        const p1 = trail[i];
+        const p2 = trail[i + 1];
+
+        const x1 = transform.offsetX + p1.x * transform.renderedW;
+        const y1 = transform.offsetY + p1.y * transform.renderedH;
+        const x2 = transform.offsetX + p2.x * transform.renderedW;
+        const y2 = transform.offsetY + p2.y * transform.renderedH;
+
+        const fraction = (i + 1) / trail.length;
+        const trailAlpha = isDimmed ? fraction * 0.22 : fraction * (isSelected ? 0.85 : 0.65);
+        const lineWidth = Math.max(1.8, fraction * (isSelected ? 4.5 : 3.2));
+
+        ctx.strokeStyle = `rgba(${rgbBase}, ${trailAlpha})`;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Glowing breadcrumb node
+        if (i % 4 === 0 || i === trail.length - 2) {
+          ctx.fillStyle = `rgba(${rgbBase}, ${Math.min(1, trailAlpha * 1.3)})`;
+          ctx.beginPath();
+          ctx.arc(x2, y2, Math.max(1.5, fraction * 3.2), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Center point beacon at latest position
+      const centerPt = trail[trail.length - 1];
+      const curCenterX = transform.offsetX + centerPt.x * transform.renderedW;
+      const curCenterY = transform.offsetY + centerPt.y * transform.renderedH;
+      ctx.fillStyle = `rgb(${rgbBase})`;
+      ctx.shadowColor = `rgba(${rgbBase}, 0.8)`;
+      ctx.shadowBlur = isSelected ? 10 : 6;
+      ctx.beginPath();
+      ctx.arc(curCenterX, curCenterY, isSelected ? 4.5 : 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
 
   for (const track of tracks) {
     const screenBox = mapVideoBoxToScreen(track.currentBox, transform);
@@ -1009,6 +1204,99 @@ export function renderTrackedAnimalsToCanvas(
     // Badge Text
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(labelText, labelX + badgePadX, labelY + 17);
+
+    // 5. Draw Movement Direction Vector (Movement Tracker)
+    if (showMovementTracker && !isPerson && track.speed > 0.035) {
+      const curCenterX = x + bw / 2;
+      const curCenterY = y + bh / 2;
+      const angle = Math.atan2(track.vy, track.vx);
+      const arrowLength = Math.min(36, Math.max(18, track.speed * 200));
+      const tipX = curCenterX + Math.cos(angle) * arrowLength;
+      const tipY = curCenterY + Math.sin(angle) * arrowLength;
+
+      ctx.save();
+      const arrowColor = isGoat ? '#4ADE80' : '#34D399';
+      ctx.strokeStyle = arrowColor;
+      ctx.fillStyle = arrowColor;
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.moveTo(curCenterX, curCenterY);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+
+      const headLen = 7;
+      ctx.beginPath();
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(tipX - headLen * Math.cos(angle - Math.PI / 6), tipY - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(tipX - headLen * Math.cos(angle + Math.PI / 6), tipY - headLen * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 6. Draw Movement Telemetry Pill Badge (Movement Tracker)
+    if (showMovementTracker && !isPerson && track.movementLabel) {
+      let motionIcon = '🟢';
+      let motionColor = '#38BDF8';
+      let motionBg = 'rgba(15, 23, 42, 0.88)';
+      let motionBorder = 'rgba(56, 189, 248, 0.45)';
+
+      if (track.movementState === 'running') {
+        motionIcon = '⚡';
+        motionColor = '#FBBF24';
+        motionBorder = 'rgba(251, 191, 36, 0.6)';
+      } else if (track.movementState === 'walking') {
+        motionIcon = '🚶';
+        motionColor = isGoat ? '#4ADE80' : '#34D399';
+        motionBorder = isGoat ? 'rgba(74, 222, 128, 0.6)' : 'rgba(52, 211, 153, 0.6)';
+      } else if (track.movementState === 'lethargic') {
+        motionIcon = '⚠️';
+        motionColor = '#F87171';
+        motionBorder = 'rgba(248, 113, 113, 0.7)';
+      } else if (track.movementState === 'resting') {
+        motionIcon = '💤';
+        motionColor = '#94A3B8';
+        motionBorder = 'rgba(148, 163, 184, 0.4)';
+      }
+
+      const speedSuffix = track.speedMps > 0.05 ? ` • ${track.speedMps} m/s` : '';
+      const motionText = `${motionIcon} ${track.movementLabel}${speedSuffix}`;
+
+      ctx.font = 'bold 10px Plus Jakarta Sans, Inter, system-ui, -apple-system, sans-serif';
+      const motionMetrics = ctx.measureText(motionText);
+      const motionPadX = 7;
+      const motionH = 20;
+      const motionW = motionMetrics.width + motionPadX * 2;
+
+      let motionX = Math.max(4, Math.min(W - motionW - 4, x));
+      let motionY = y + bh + 5;
+      if (motionY + motionH > H - 4) {
+        motionY = Math.max(4, y - motionH - 4);
+      }
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 1;
+
+      ctx.fillStyle = motionBg;
+      ctx.strokeStyle = motionBorder;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (typeof (ctx as any).roundRect === 'function') {
+        (ctx as any).roundRect(motionX, motionY, motionW, motionH, 5);
+      } else {
+        ctx.rect(motionX, motionY, motionW, motionH);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = motionColor;
+      ctx.fillText(motionText, motionX + motionPadX, motionY + 14);
+      ctx.restore();
+    }
 
     // Reset alpha
     ctx.globalAlpha = 1.0;
