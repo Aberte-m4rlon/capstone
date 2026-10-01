@@ -37,7 +37,6 @@ export interface HealthScanResult {
   healthStatusLabel: string;
   recommendation: string;
   limitations?: string[];
-  temperatureDisplay: string;
   notesSnippet: string;
   capturedImageUrl?: string;
   croppedImageUrl?: string;

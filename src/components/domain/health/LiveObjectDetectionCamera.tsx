@@ -210,7 +210,6 @@ export function LiveObjectDetectionCamera({
   const [lastCapturedThumbnail, setLastCapturedThumbnail] = useState<string | null>(null);
   const [showResultSheet, setShowResultSheet] = useState<boolean>(false);
   const [savingRecord, setSavingRecord] = useState(false);
-  const [notes, setNotes] = useState('');
   const [selectedFarmAnimalId, setSelectedFarmAnimalId] = useState<string>(preselectedAnimalId || '');
   const [medItemId, setMedItemId] = useState<string>('');
   const [medQty, setMedQty] = useState<string>('');
@@ -942,14 +941,10 @@ export function LiveObjectDetectionCamera({
 
       // Auto-match preselected animal or first matching species
       if (!selectedFarmAnimalId) {
-        const matchingAnimal = activeFarmAnimals.find(
+        const matchingAnimals = activeFarmAnimals.filter(
           (a: Animal) => a.species?.toLowerCase() === selected.species
         );
-        if (matchingAnimal) {
-          setSelectedFarmAnimalId(matchingAnimal.id);
-        } else if (activeFarmAnimals.length > 0) {
-          setSelectedFarmAnimalId(activeFarmAnimals[0].id);
-        }
+        if (matchingAnimals.length === 1) setSelectedFarmAnimalId(matchingAnimals[0].id);
       }
     } catch (err: any) {
       console.error('[Camera] Health scan error:', err);
@@ -1077,11 +1072,10 @@ export function LiveObjectDetectionCamera({
       });
 
       if (!selectedFarmAnimalId) {
-        const match = activeFarmAnimals.find(
+        const matchingAnimals = activeFarmAnimals.filter(
           (a: Animal) => a.species?.toLowerCase() === selectedDet.species
         );
-        if (match) setSelectedFarmAnimalId(match.id);
-        else if (activeFarmAnimals.length > 0) setSelectedFarmAnimalId(activeFarmAnimals[0].id);
+        if (matchingAnimals.length === 1) setSelectedFarmAnimalId(matchingAnimals[0].id);
       }
       toast('Tapos na ang pagsusuri sa napiling alaga.', 'success');
     } catch (err: any) {
@@ -1106,7 +1100,6 @@ export function LiveObjectDetectionCamera({
     setScanResult(null);
     setCroppedImagePreview(null);
     setCroppedBlob(null);
-    setNotes('');
     setMedItemId('');
     setMedQty('');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1120,7 +1113,6 @@ export function LiveObjectDetectionCamera({
     setCapturedMovementData(null);
     setCroppedImagePreview(null);
     setCroppedBlob(null);
-    setNotes('');
     setMedItemId('');
     setMedQty('');
     if (scannerMode === 'upload') {
@@ -1215,11 +1207,8 @@ export function LiveObjectDetectionCamera({
         risk_level: riskLevel,
         reasons: `${conditionStr}. ${reasonsStr}${movementReasons}`,
         recommendation: scanResult.recommendation || raw?.action || null,
-        notes: notes.trim() || null,
         gait: capturedMovementData?.gait || 'Normal',
         activity_level: capturedMovementData?.activityLevel || 'Normal',
-        temperature: null,
-        heart_rate: null,
       };
 
       const { data: insertedData, error: recordError } = await supabase
@@ -1269,7 +1258,6 @@ export function LiveObjectDetectionCamera({
       setShowResultSheet(false);
       setScanResult(null);
       setCapturedMovementData(null);
-      setNotes('');
       setMedItemId('');
       setMedQty('');
     } catch (err: any) {
@@ -2671,7 +2659,7 @@ export function LiveObjectDetectionCamera({
               {/* Farm Animal Link Selector */}
               <div>
                 <label style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: 5 }}>
-                  I-ugnay sa Talaan ng Alaga:
+                  Piliin ang Animal Record:
                 </label>
                 <select
                   value={selectedFarmAnimalId}
@@ -2687,7 +2675,7 @@ export function LiveObjectDetectionCamera({
                     outline: 'none',
                   }}
                 >
-                  <option value="">-- Piliin ang Alaga --</option>
+                  <option value="">-- Piliin ang Animal Record --</option>
                   {activeFarmAnimals.map((a: Animal) => (
                     <option key={a.id} value={a.id}>
                       {a.tag_id} {a.name ? `(${a.name})` : ''} GÃ‡Ã¶ {a.species?.toLowerCase() === 'sheep' ? 'Tupa' : 'Kambing'}
@@ -3484,7 +3472,7 @@ export function LiveObjectDetectionCamera({
                           {/* Optional Farm Animal Link Selector (preserve preselected if exists, never invent fake ID) */}
                           <div>
                             <label style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: 5 }}>
-                              I-ugnay sa Talaan ng Alaga:
+                              Piliin ang Animal Record:
                             </label>
                             <select
                               value={selectedFarmAnimalId}
@@ -3500,7 +3488,7 @@ export function LiveObjectDetectionCamera({
                                 outline: 'none',
                               }}
                             >
-                              <option value="">(Opsyonal) Walang Napiling Alaga</option>
+                              <option value="">-- Piliin ang Animal Record --</option>
                               {activeFarmAnimals.map((animal: Animal) => (
                                 <option key={animal.id} value={animal.id}>
                                   {animal.tag_id} {animal.name ? `(${animal.name})` : ''} - {animal.species?.toLowerCase() === 'sheep' ? 'Tupa' : 'Kambing'}
@@ -3508,31 +3496,6 @@ export function LiveObjectDetectionCamera({
                               ))}
                             </select>
                           </div>
-
-                          {/* Notes */}
-                          <div>
-                            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#94A3B8', display: 'block', marginBottom: 5 }}>
-                              Karagdagang Tala (Notes):
-                            </label>
-                            <textarea
-                              rows={2}
-                              value={notes}
-                              onChange={(e) => setNotes(e.target.value)}
-                              placeholder="Maglagay ng karagdagang obserbasyon..."
-                              style={{
-                                width: '100%',
-                                backgroundColor: '#1E293B',
-                                border: '1px solid rgba(255, 255, 255, 0.15)',
-                                borderRadius: 10,
-                                padding: '8px 12px',
-                                color: '#FFFFFF',
-                                fontSize: 13,
-                                resize: 'none',
-                                outline: 'none',
-                              }}
-                            />
-                          </div>
-
                           {/* Action Buttons: Save & Switch */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
                             {selectedFarmAnimalId && (

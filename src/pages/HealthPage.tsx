@@ -65,7 +65,6 @@ import {
   HealthScanDetailImageCard,
   resolveHealthImage,
   AnimalHealthDashboard,
-  DailyHealthAssessmentModal,
   HealthCaseModal,
   TreatmentManagementModal,
   DewormingModal,
@@ -225,7 +224,6 @@ export function HealthPage() {
 
   // Animal Health Management System Suite State
   const [healthSuiteTab, setHealthSuiteTab] = useState<'dashboard' | 'camera_logs'>('dashboard');
-  const [dailyAssessmentModalOpen, setDailyAssessmentModalOpen] = useState(false);
   const [healthCaseModalOpen, setHealthCaseModalOpen] = useState(false);
   const [treatmentManagementModalOpen, setTreatmentManagementModalOpen] = useState(false);
   const [dewormingModalOpen, setDewormingModalOpen] = useState(false);
@@ -391,7 +389,7 @@ export function HealthPage() {
 
   // Open Camera-First Health Check Modal
   const openPredictionModal = (preselectedAnimalId?: string) => {
-    const idToSelect = preselectedAnimalId || (activeAnimals.length > 0 ? activeAnimals[0].id : '');
+    const idToSelect = preselectedAnimalId || '';
     setSelectedAnimalId(idToSelect);
     setModalOpen(true);
   };
@@ -614,10 +612,7 @@ export function HealthPage() {
 
       {healthSuiteTab === 'dashboard' ? (
         <AnimalHealthDashboard
-          onOpenAssessmentModal={() => {
-            setSelectedAnimalForSuite(undefined);
-            setDailyAssessmentModalOpen(true);
-          }}
+          onOpenAssessmentModal={() => openPredictionModal()}
           onOpenCaseModal={() => {
             setSelectedAnimalForSuite(undefined);
             setHealthCaseModalOpen(true);
@@ -1330,18 +1325,6 @@ export function HealthPage() {
 
         </>
       )}
-
-      {/* ── DAILY HEALTH ASSESSMENT MODAL ── */}
-      <DailyHealthAssessmentModal
-        isOpen={dailyAssessmentModalOpen}
-        onClose={() => {
-          setDailyAssessmentModalOpen(false);
-          setSelectedAnimalForSuite(undefined);
-        }}
-        preselectedAnimalId={selectedAnimalForSuite}
-        onAssessmentSaved={() => farmData.refresh()}
-      />
-
       {/* ── HEALTH CASE MODAL ── */}
       <HealthCaseModal
         isOpen={healthCaseModalOpen}

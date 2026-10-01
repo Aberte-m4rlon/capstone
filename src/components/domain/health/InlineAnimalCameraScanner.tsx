@@ -29,7 +29,6 @@ export interface InlineScanResultData {
   healthStatus: 'healthy' | 'monitor' | 'attention';
   healthStatusLabel: string;
   notesSnippet: string;
-  temperatureDisplay: string; // Strictly "Hindi nasukat"
   recommendation?: string;
   capturedImageUrl?: string;
 }
@@ -369,7 +368,6 @@ export function InlineAnimalCameraScanner({
       if (hasConcerns) {
         notesLines.push('Paunang Puna: Posibleng health concern (Bantayan)');
       }
-      notesLines.push('Temperatura: Hindi nasukat (walang thermometer sensor)');
 
       const scanResultData: InlineScanResultData = {
         detectedSpecies,
@@ -380,7 +378,6 @@ export function InlineAnimalCameraScanner({
         healthStatus,
         healthStatusLabel,
         notesSnippet: notesLines.join('\n'),
-        temperatureDisplay: 'Hindi nasukat',
         recommendation: geminiRec || (hasConcerns ? 'Magsagawa ng mas masusing manual check sa kulungan.' : 'Panatilihin ang regular na pagsubaybay.'),
         capturedImageUrl: snapshotUrl,
       };
@@ -397,8 +394,7 @@ export function InlineAnimalCameraScanner({
         suggestedSymptoms: [],
         healthStatus: 'healthy',
         healthStatusLabel: 'Maayos / Normal',
-        notesSnippet: '[Camera Scan] Walang natukoy na partikular na abnormality.\nTemperatura: Hindi nasukat',
-        temperatureDisplay: 'Hindi nasukat',
+        notesSnippet: '[Camera Scan] Walang natukoy na partikular na abnormality.\n',
       };
       stopCameraStream();
       onScanComplete(fallbackResult);

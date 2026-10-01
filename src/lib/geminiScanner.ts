@@ -63,8 +63,6 @@ export interface GeminiAnimalScanResponse {
   possible_concerns: string[];
   needs_attention: boolean;
   needs_medication: boolean;
-  temperature: null;
-  temperature_status: 'not_measured';
   reason: 'needs_better_image' | 'not_goat_or_sheep' | 'multiple_animals' | null;
   animal_id?: string | null;
   raw_model?: string;
@@ -98,8 +96,6 @@ export interface GeminiScanResult {
   animals: GeminiDetectedAnimal[];
   overallMessage: string;
   recommendation: string;
-  temperature: null;
-  temperatureDisplay: string; // Always "Hindi nasukat"
   engine: string;
   modelVersion: string;
   error?: string;
@@ -1438,8 +1434,6 @@ export async function scanAnimalWithGemini(
       animals: detectedAnimals,
       overallMessage: overallMsg,
       recommendation: apiData.recommendation,
-      temperature: null,
-      temperatureDisplay: 'Hindi nasukat',
       engine: 'gemini-vision-api',
       modelVersion: apiData.raw_model || 'gemini-2.5-flash',
       rawResponse: apiData,

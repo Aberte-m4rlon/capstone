@@ -6,7 +6,7 @@
  * - Specific Animal Focus: Analyzes only the selected/detected animal (e.g. GOAT-001 - Kambing)
  * - Visual Evidence Only: Strict prohibition on hallucinated vitals (temperature, heart rate, respiration count) or internal diseases
  * - Structured Status ("Kalagayan"): Maayos, Bantayan, Kailangan ng Atensyon, Kailangan ng Gamot + explanatory summary
- * - Dynamic Detailed Observations ("Napansin"): Categorized findings (Mata, Ilong, Bibig, Paghinga, Tindig, Balahibo/Balat, Galaw/Asal)
+ * - Dynamic Detailed Observations ("Napansin"): Categorized findings (Mata, Ilong, Bibig, Tindig, Balahibo/Balat, Galaw/Asal)
  * - Actionable Advice ("Gawin"): Concrete next steps in farmer-friendly Tagalog
  * - ZERO FAKE VITALS: Temperature is strictly null / not_measured
  * - ZERO NULLABLE-ONLY TYPES in Gemini responseSchema
@@ -41,8 +41,6 @@ export interface GeminiAnimalScanResponse {
   possible_concerns: string[];
   needs_attention: boolean;
   needs_medication: boolean;
-  temperature: null;
-  temperature_status: 'not_measured';
   reason: 'needs_better_image' | 'not_goat_or_sheep' | 'multiple_animals' | null;
   animal_id?: string | null;
   raw_model?: string;
@@ -75,11 +73,11 @@ STRICT VISUAL SCREENING RULES:
      * Mata (eyes: clear, discharge, swelling, or obscured)
      * Ilong (nose: clear, nasal discharge, crusting, or obscured)
      * Bibig (mouth: normal, drooling, lesions, or obscured)
-     * Paghinga (breathing: visible effort/panting or calm/unremarkable from still image)
      * Tindig (posture/stance: standing alert, balanced, hunched, or lying down)
      * Balahibo/Balat (coat/skin: smooth, rough, bare patches, visible external wounds)
      * Galaw/Asal (alertness/behavior: alert, calm, or limited evaluation from still image)
    - Every observation must have category, finding in farmer-friendly Tagalog, and visibility (visible, limited, not_visible).
+   - Do not include temperature, heart rate, respiratory rate, breathing rate, or numeric vital metrics in the result.
 5. GAWIN (ACTION):
    - Provide concrete, practical, farmer-friendly next steps in Tagalog.
    - For Maayos: "Ipagpatuloy ang regular na pagmamasid at normal na pag-aalaga."
@@ -121,7 +119,7 @@ const RESPONSE_SCHEMA = {
         properties: {
           category: {
             type: Type.STRING,
-            description: 'Category name: Mata, Ilong, Bibig, Paghinga, Tindig, Balahibo/Balat, Galaw/Asal, etc.',
+            description: 'Category name: Mata, Ilong, Bibig, Tindig, Balahibo/Balat, Galaw/Asal, etc.',
           },
           finding: {
             type: Type.STRING,
@@ -284,7 +282,7 @@ TARGET ANIMAL INFORMATION:
 - Focus ONLY on the selected animal.
 - If the selected animal is not clearly visible, do NOT invent a health assessment.
 - Provide observation and recommended next action, not a definitive veterinary diagnosis.
-- Inspect visible anatomical areas: Mata, Ilong, Bibig, Paghinga, Tindig, Balahibo/Balat, Galaw/Asal.
+- Inspect visible anatomical areas: Mata, Ilong, Bibig, Tindig, Balahibo/Balat, Galaw/Asal.
 - Give a farmer-friendly Tagalog summary for "condition_summary" and actionable advice for "action".`;
 
   for (const modelName of fallbackModels) {
@@ -415,8 +413,6 @@ TARGET ANIMAL INFORMATION:
         possible_concerns: condition !== 'Maayos' ? [conditionSummary] : [],
         needs_attention: condition === 'Kailangan ng Atensyon' || condition === 'Kailangan ng Gamot',
         needs_medication: condition === 'Kailangan ng Gamot',
-        temperature: null, // STRICTLY null: ordinary RGB camera cannot measure temperature
-        temperature_status: 'not_measured',
         reason,
         animal_id: animalId || null,
         raw_model: modelName,
